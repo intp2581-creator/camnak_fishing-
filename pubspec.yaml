@@ -1,0 +1,38 @@
+name: camnak_fishing
+description: "A new Flutter project for Camnak Fishing."
+
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  firebase_core: ^4.6.0
+  firebase_auth: ^6.3.0
+  google_sign_in: ^7.2.0
+  lottie: ^3.3.2
+  cloud_firestore: ^6.2.0
+  audioplayers: ^5.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # 🚀 이미지 폴더 통째로 전입신고! 
+  # 이제 assets/images/ 안에 넣는 모든 그림(man.png, woman.png 등)은 자동 인식됩니다.
+  assets:
+    - assets/images/
+    - assets/items/
+    - assets/fields/
+    - assets/fish_fw/
+    - assets/fish_sea/
+    - assets/sound/

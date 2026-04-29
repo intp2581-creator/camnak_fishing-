@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "755892653855",
+    "project_id": "camnak-fishing",
+    "storage_bucket": "camnak-fishing.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:755892653855:android:d6c35605b9cd07bae5aa2a",
+        "android_client_info": {
+          "package_name": "com.example.camnak_fishing"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAl6kIVBUQAtfYEr8OwV9LNnpLLGwOhMsg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

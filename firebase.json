@@ -1,0 +1,39 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "camnak-fishing",
+          "appId": "1:755892653855:android:d6c35605b9cd07bae5aa2a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "camnak-fishing",
+          "configurations": {
+            "android": "1:755892653855:android:d6c35605b9cd07bae5aa2a",
+            "ios": "1:755892653855:ios:6934a55a7621123ae5aa2a",
+            "macos": "1:755892653855:ios:6934a55a7621123ae5aa2a",
+            "web": "1:755892653855:web:3d959549607ea08be5aa2a",
+            "windows": "1:755892653855:web:8984382903b5b638e5aa2a"
+          }
+        }
+      }
+    }
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}
