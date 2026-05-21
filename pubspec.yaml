@@ -18,6 +18,9 @@ dependencies:
   lottie: ^3.3.2
   cloud_firestore: ^6.2.0
   audioplayers: ^5.2.1
+  url_launcher: ^6.3.2
+  firebase_crashlytics: ^5.2.0
+  flutter_tts: ^4.2.5
 
 dev_dependencies:
   flutter_test:
