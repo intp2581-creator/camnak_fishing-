@@ -2746,24 +2746,51 @@ void _showTodayMissionInfo() {
 
   // 🏆 미션 정보(mission)를 받아서 알아서 글자를 바꿔치기 하는 팝업창!
   void _showMissionWinnerPopup(Map<String, dynamic> mission) {
-    audioManager.playSfx("sfx_landing_success.mp3"); 
+    audioManager.playSfx("sfx_landing_success.mp3");
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        // ... (배경색 등등 그대로) ...
+        backgroundColor: Colors.black.withOpacity(0.95),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFD4AF37), width: 2.5),
+        ),
+        contentPadding: const EdgeInsets.fromLTRB(25, 25, 25, 15),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // 🎉 아라 매니저 등장
             Image.asset('assets/images/npc_manager.png', width: 150),
-            const SizedBox(height: 20),
-            // 👇 텍스트 자동 교체!
-            Text('축하합니다! [${widget.nickname}] 조사님!\n오늘의 선착순 ${mission['fish']} ${mission['count']}마리 미션을\n가장 먼저 달성하셨습니다! 🎉', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5)),
-            const SizedBox(height: 15),
-            Text('보상금 ${mission['prize']} P가 지급되었습니다!\n내일의 미션도 기대해 주세요! 💸', textAlign: TextAlign.center, style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            const Text('🎉 축하합니다! 🎉', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 24, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 12),
+            Text(
+              '[${widget.nickname}] 조사님!\n오늘의 선착순 ${mission['fish']} ${mission['count']}마리 미션을\n가장 먼저 달성하셨습니다!',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5),
+            ),
+            const SizedBox(height: 18),
+            // 💰 상금 강조 박스
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4AF37).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFD4AF37), width: 2),
+              ),
+              child: Column(
+                children: [
+                  const Text('상금이 지급되었습니다 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text('+ ${mission['prize']} P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 30, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text('내일의 미션도 기대해 주세요! 🎣', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
           ],
         ),
-        // ... (확인 버튼 등등 그대로) ...
         actions: [
           Center(
             child: ElevatedButton(
