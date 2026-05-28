@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/gestures.dart'; 
 import 'game_config.dart';    
@@ -12,6 +13,7 @@ import 'dart:html' as html;
 import 'ui_arena.dart';
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 장착!
 import 'package:flutter_tts/flutter_tts.dart'; // 🎙️ 목소리 부품 가져오기
+import 'mission_announcement.dart'; // 📢 미션 1등 공지 (낚시 화면과 공용)
 
 // 🏡 [KREFT 매니지먼트 센터] - 인벤토리/상점/정비 우선형 로비
 // 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -184,16 +186,44 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
     }
   }
 
+  // 📡 미션 1등 공지 실시간 감시 (로비에서도 속보를 받기 위함)
+  StreamSubscription? _missionWinnerListener;
+
   @override
   void initState() {
     super.initState();
     _checkDailyLogin(); // 🚀 [여기에 2단계 딱 1줄 추가!]
-    audioManager.playBgm('bgm_menu.mp3'); 
-    
+    audioManager.playBgm('bgm_menu.mp3');
+    _startMissionWinnerListener(); // 📢 로비에서도 미션 1등 공지 받기
+
     // 🚀 처음 온 유저면 튜토리얼 스텝을 0으로 시작!
     if (widget.isFirstTime) {
       _lobbyStep = 0;
     }
+  }
+
+  @override
+  void dispose() {
+    _missionWinnerListener?.cancel();
+    super.dispose();
+  }
+
+  // 📡 오늘의 미션 1등이 나오면 전 유저에게 속보 팝업! (낚시 화면과 동일 로직)
+  void _startMissionWinnerListener() {
+    String today = DateTime.now().toIso8601String().substring(0, 10);
+    _missionWinnerListener = FirebaseFirestore.instance
+        .collection('global_missions')
+        .doc(today)
+        .snapshots()
+        .listen((doc) {
+      if (!doc.exists) return;
+      final data = doc.data() as Map<String, dynamic>;
+      if (data.containsKey('winner_uid') && !globalAnnouncedWinners.contains(data['winner_uid'])) {
+        String winnerName = data['winner_name'] ?? "무명조사";
+        globalAnnouncedWinners.add(data['winner_uid']);
+        if (mounted) showGlobalWinnerAnnouncement(context, winnerName);
+      }
+    });
   }
    
   final List<String> fwFishList = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];

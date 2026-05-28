@@ -14,7 +14,7 @@ import 'fishing_logic.dart';
 import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
-import 'package:flutter_tts/flutter_tts.dart'; // 🎙️ 목소리 부품 가져오기
+import 'mission_announcement.dart'; // 📢 미션 1등 공지 (로비와 공용)
 
 
 // 🎣 [메인 낚시터 화면]
@@ -552,94 +552,10 @@ Widget _buildChatTab(int index, String title) {
     }); // 👈 핫타임 감시 CCTV(.listen) 끝
   } // 👈 _startMissionListener() 함수 끝
 
-  // 📢 아라 매니저의 실시간 전광판 팝업 UI (고급 말풍선 + 상금 추가 버전)
+  // 📢 미션 1등 공지 — 공용 함수(mission_announcement.dart)로 위임. 로비와 동일 팝업!
   void _showGlobalWinnerAnnouncement(int rank, String name) {
     if (!mounted) return;
-    
-    audioManager.playSfx("sfx_mission_alert.mp3"); 
-
-   // 🚨 1등 독식 상금 텍스트 고정!
-    String prizeText = "상금 2,000P 지급 완료! 💰"; 
-
-    // 🎙️ [추가] 팝업 뜰 때 아라 매니저가 긴급 속보 읽어주기!!
-    FlutterTts tts = FlutterTts();
-    tts.setLanguage("ko-KR");
-    tts.setSpeechRate(0.8); // 다급하게!
-    tts.setPitch(1.2);
-    tts.setVolume(1.0);
-    tts.speak("이벤트 알림!! $name 조사님이 미션을 달성하셨습니다!\n상금 이천 포인트를 받으셨습니다!\n축하합니다!\n오늘의 이벤트가 종료되었습니다!");
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          child: GestureDetector(
-            onTap: () {
-              Navigator.of(context).pop();
-            },
-            child: Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                // 1. 고급스러운 종이 질감 말풍선 배경
-                Container(
-                  // 🚀 [핵심 수정] 위쪽 패딩을 30 -> 70으로 대폭 늘려서 글자를 아래로 밀어냅니다!
-                  padding: const EdgeInsets.fromLTRB(20, 70, 20, 20), 
-                  margin: const EdgeInsets.only(top: 30),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF6D8),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFD4AF37), width: 3),
-                    boxShadow: const [
-                      BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 5))
-                    ]
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '[$name] 조사님\n오늘의 $rank등 달성!!',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        prizeText, 
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                      ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        '핫타임 실시간 속보입니다! 🚨',
-                        style: TextStyle(fontSize: 16, color: Colors.redAccent, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        '[ 화면을 터치해서 닫기 👆 ]',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700], fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-                // 2. 사장님이 만드신 축하용 아라 캐릭터 (위치/크기 최적화!)
-                Positioned(
-                  top: -60,  // 🚀 위로 더 튀어나오게!
-                  left: -10, // 🚀 글자를 안 가리게 왼쪽 여백 조정!
-                  child: Image.asset(
-                    'assets/images/npc_manager_congrats.png', 
-                    width: 160,  // 🚀 너무 크지 않고 예쁜 황금비율 크기 160!
-                    height: 160, 
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }
-    );
+    showGlobalWinnerAnnouncement(context, name);
   }
 
 // 🚫 바다, 타 지역 & 경력직 유저 윤슬이 접근 금지 로직
