@@ -121,13 +121,13 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
     return "$greeting\n"
            "🏆 오늘의 미션입니다.\n"
            "⏰ $amPm $displayHour시\n"
-           "📍 ${mission['loc']}\n"
+           "🎣 ${mission['loc']}\n"
            "🐟 ${mission['fish']} ${mission['count']}마리 먼저 잡기!\n"
            "1등 상금은 2,000P 입니다.";
   } else if (currentHour == eventHour) {
     return "$greeting\n"
            "🔥 지금 바로!\n"
-           "📍 ${mission['loc']}\n"
+           "🎣 ${mission['loc']}\n"
            "🐟 ${mission['fish']} ${mission['count']}마리\n"
            "선착순 1명 2,000P!";
   } else {
@@ -1042,6 +1042,7 @@ filteredItems.sort((a, b) {
                             .replaceAll('🥉', '')
                             .replaceAll('⏰', '')
                             .replaceAll('📍', '')
+                            .replaceAll('🎣', '')
                             .replaceAll('🐟', '')
                             .replaceAll('🔥', '')
                             .replaceAll('😊', '')
