@@ -546,23 +546,8 @@ Widget _buildChatTab(int index, String title) {
         globalAnnouncedWinners.add(data[winnerKey]); // 장부에 기록!
 
         // 📢 모든 유저 화면에 전광판 발사! (등수는 1등 고정!)
+        // 💰 상금 지급은 _checkDailyMission 트랜잭션에서 이미 처리됨 (여기서 또 주면 중복 지급!)
         _showGlobalWinnerAnnouncement(1, winnerName);
-
-        // 🚀 [입금 로직] 당첨자 본인인지 확인!
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null && currentUser.uid == data[winnerKey]) {
-          
-          int rewardPoint = 2000; // 🚨 선착순 1명 상금 2000P 고정!
-          
-          // 💰 파이어베이스 'point' 필드에 안전하게 찐 입금!
-          FirebaseFirestore.instance.collection('users').doc(currentUser.uid).update({
-            'gold': FieldValue.increment(rewardPoint) 
-          }).then((_) {
-            print("🎉 1등 당첨! 2000 포인트 실제 입금 완료!");
-          }).catchError((e) {
-            print("🚨 상금 입금 에러: $e");
-          });
-        }
       } // 👈 1등 당첨 확인 if문 끝
     }); // 👈 핫타임 감시 CCTV(.listen) 끝
   } // 👈 _startMissionListener() 함수 끝
