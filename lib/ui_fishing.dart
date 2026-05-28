@@ -2782,6 +2782,11 @@ void _showTodayMissionInfo() {
     // 🚨 [핵심!] 지금 있는 낚시터가 미션 장소가 아니거나, 고기 이름이 다르면 가차 없이 탈락!
     if (widget.locationName != mission['loc'] || fishName != mission['fish']) return;
 
+    // ⏰ [시간 제한] 안내한 이벤트 시각(1시간) 안에서만 미션 완수 인정! (로비 _getTodayEventHour와 동일 로직)
+    const List<int> eventHours = [14, 15, 16, 19, 20, 21];
+    int eventHour = eventHours[(now.day + now.month) % eventHours.length];
+    if (now.hour != eventHour) return; // 미션 시간이 아니면 카운트 안 함
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     String today = DateTime.now().toIso8601String().substring(0, 10);
