@@ -8,15 +8,13 @@ import 'fishing_logic.dart'; // 🔊 audioManager 사용
 void showGlobalWinnerAnnouncement(BuildContext context, String name) {
   audioManager.playSfx("sfx_mission_alert.mp3");
 
-  const String prizeText = "상금 2,000P 지급 완료! 💰";
-
   // 🎙️ 아라 매니저가 긴급 속보 읽어주기
   FlutterTts tts = FlutterTts();
   tts.setLanguage("ko-KR");
   tts.setSpeechRate(0.8);
   tts.setPitch(1.2);
   tts.setVolume(1.0);
-  tts.speak("이벤트 알림!! $name 조사님이 미션을 달성하셨습니다!\n상금 이천 포인트를 받으셨습니다!\n축하합니다!\n오늘의 이벤트가 종료되었습니다!");
+  tts.speak("핫타임 실시간 속보입니다!\n$name 조사님이 오늘의 미션을 최초로 달성하셨습니다!\n오늘의 미션이 종료되었습니다!\n내일도 기대해 주세요!");
 
   showDialog(
     context: context,
@@ -48,20 +46,29 @@ void showGlobalWinnerAnnouncement(BuildContext context, String name) {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      '[$name] 조사님\n오늘의 1등 달성!!',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      prizeText,
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                    ),
-                    const SizedBox(height: 12),
+                    // 1. 핫타임 속보 헤드라인
                     const Text(
                       '핫타임 실시간 속보입니다! 🚨',
-                      style: TextStyle(fontSize: 16, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 18, color: Colors.redAccent, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    // 2. 닉네임 + 최초 달성
+                    Text(
+                      '[$name] 조사님\n오늘의 미션 최초 달성!',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 10),
+                    // 3. 미션 종료 안내
+                    const Text(
+                      '오늘의 미션이 종료되었습니다.',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 6),
+                    // 4. 내일 기대
+                    const Text(
+                      '내일도 기대해 주세요!',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black54),
                     ),
                     const SizedBox(height: 20),
                     Text(

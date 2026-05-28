@@ -2722,19 +2722,15 @@ void _showTodayMissionInfo() {
           'mission_progress': { 'date': today, 'count': myTodayCatch }
         }, SetOptions(merge: true));
 
-        // 🎯 [사장님 룰 적용] 딱! 3마리째 달성하는 '그 순간'에만 1등 판정!
-        if (myTodayCatch == mission['count']) {
+        // 🎯 [사장님 룰 적용] 딱! 지정된 마릿수 달성하는 '그 순간'에만 1등 판정!
+        if (myTodayCatch >= mission['count']) {
           transaction.set(missionRef, {
             'winner_uid': user.uid,
             'winner_name': widget.nickname,
             'time': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
 
-          // 🎁 보상금 쏘기!
-          transaction.set(userRef, {
-            'gold': FieldValue.increment(mission['prize'])
-          }, SetOptions(merge: true));
-
+          // 💰 상금은 팝업에서 '보상받기'를 눌렀을 때 지급! (여기선 당첨 기록만)
           // 화면에 1등 팝업 띄우기
           Future.microtask(() => _showMissionWinnerPopup(mission));
         }
@@ -2781,7 +2777,7 @@ void _showTodayMissionInfo() {
               ),
               child: Column(
                 children: [
-                  const Text('상금이 지급되었습니다 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text('상금을 수령하세요 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Text('+ ${mission['prize']} P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 30, fontWeight: FontWeight.w900)),
                 ],
@@ -2795,8 +2791,51 @@ void _showTodayMissionInfo() {
           Center(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('보상 수령', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                // 💰 '보상받기'를 눌러야 실제로 상금 지급!
+                final u = FirebaseAuth.instance.currentUser;
+                if (u != null) {
+                  await FirebaseFirestore.instance.collection('users').doc(u.uid).set({
+                    'gold': FieldValue.increment(mission['prize'])
+                  }, SetOptions(merge: true));
+                }
+                // ✅ 지급 완료 안내 팝업 (스낵바 대신 일관성 있게 팝업창으로!)
+                if (mounted) {
+                  showDialog(
+                    context: context,
+                    builder: (c) => AlertDialog(
+                      backgroundColor: Colors.black.withOpacity(0.95),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: const BorderSide(color: Color(0xFFD4AF37), width: 2.5),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('💰 보상 수령 완료!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 22, fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 14),
+                          Text(
+                            '상금 ${mission['prize']}P가\n지급되었습니다!',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        Center(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+                            onPressed: () => Navigator.pop(c),
+                            child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              child: const Text('보상받기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           )
         ],
