@@ -1915,6 +1915,18 @@ Positioned(
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('현재 장착 릴: ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), Text(equippedReel != null ? equippedReel!['name'] : '가방에서 터치!', style: TextStyle(color: equippedReel != null ? const Color(0xFFD4AF37) : Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold))]),
           ],
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: const Color(0xFFD4AF37),
+              side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+              minimumSize: const Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: _runAutoEquip,
+            child: const Text('⚡ 자동 장착', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), minimumSize: const Size(double.infinity, 50)),
             onPressed: () {
                             // 👇 [아레나 VIP 하이패스 적용 완료!]
@@ -2192,6 +2204,7 @@ Positioned(
 
   // 👇 1. 인벤토리 상태가 매초 초기화되지 않도록 기억하는 변수들 (함수 바로 위에 빼두기!)
   Stream<DocumentSnapshot>? _inventoryStream;
+  List<dynamic> _latestInventory = []; // ⚡ 자동 장착이 참조할 최신 인벤토리 캐시
   final ScrollController _invScrollCtrl = ScrollController();
   String _currentFilter = 'ALL';
 
@@ -2231,6 +2244,7 @@ Positioned(
         
         bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼'); }
 
+        _latestInventory = inventory; // ⚡ 자동 장착용으로 최신 인벤토리 기억
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setInvState) {
             List<dynamic> filteredItems = inventory.where((item) {
@@ -2349,115 +2363,26 @@ Positioned(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.black, 
                           foregroundColor: const Color(0xFFD4AF37), 
-                          side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5), 
-                          padding: const EdgeInsets.symmetric(vertical: 12), 
+                          side: const BorderSide(color: Color(0xFFD4AF37), width: 2),
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-                        ), 
-                        onPressed: () { 
-                          audioManager.playSfx("sfx_click.mp3"); 
+                        ),
+                        onPressed: () {
+                          audioManager.playSfx("sfx_click.mp3");
                           Navigator.push(
-                            context, 
+                            context,
                             MaterialPageRoute(
                               builder: (context) => StoreScreen(
-                                currentGold: myGold, 
-                                currentLevel: myLevel, 
-                                currentInventory: inventory 
+                                currentGold: myGold,
+                                currentLevel: myLevel,
+                                currentInventory: inventory
                               )
                             )
-                          ); 
-                        }, 
-                        child: const Text('🛒 KREFT 상점', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13))
+                          );
+                        },
+                        child: const Text('🛒 KREFT 상점', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
                       )
                     ), 
-                    const SizedBox(width: 8), 
-                    Expanded(
-                      child: ElevatedButton(
-                         
-                        onPressed: () { 
-                          // 🛡️ [아레나 검문소] 대회 중에는 자동 장착 금지!
-                              if (widget.roomId != null) {
-                                _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
-                               return; // 🛑 여기서 코드를 멈춰서, 밑에 있는 장비 교체 코드가 아예 실행되지 않게 콱 막아버립니다!
-                            }
-                          audioManager.playSfx("sfx_click.mp3"); 
-                          setState(() { 
-                            List<dynamic> validItems = inventory.where((item) { 
-                              String cat = item['category'] ?? ''; 
-                              if (widget.isSea && cat == 'FW') return false; 
-                              if (!widget.isSea && cat == 'SEA') return false; 
-                              return true; 
-                            }).toList(); 
-                            
-                            equippedRod = null; equippedFloat = null; equippedBait = null; 
-                            equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null; 
-
-                            Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel;
-                            int maxBaitQty = -1;
-
-                            int getSkinTier(String name) { if (name.contains('마스터')) return 5; if (name.contains('프로') || name.contains('고수')) return 4; if (name.contains('중수')) return 3; if (name.contains('하수') || name.contains('초보')) return 2; return 1; }
-                            int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
-                            int getFloatTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40; if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
-                            int getSeaRodTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40; if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
-                            int getReelTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KF8000')) return 80; if (n.contains('KF6000')) return 60; if (n.contains('KF5000')) return 50; if (n.contains('CF5000')) return 40; if (n.contains('CF3000')) return 30; return 1; } 
-
-                            for (var item in validItems) { 
-                              String name = item['name'].toString(); 
-                              if (name.contains('스킨') || name.contains('조사') || name.contains('마스터')) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } } 
-                              else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
-                              else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } } 
-                              else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴')) {
-                                bool isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
-                                if (widget.isSea) { if (isSeaRod) { if (bestRod == null || getSeaRodTier(name) > getSeaRodTier(bestRod!['name'].toString())) { bestRod = item; } } } 
-                                else { if (!isSeaRod) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
-                              }
-                              else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; } 
-                              else if (name.contains('휘장')) { if (widget.isSea && name.contains('바다')) equippedBadge = item; if (!widget.isSea && name.contains('민물')) equippedBadge = item; }
-                              else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기')) {
-                                int qty = item['quantity'] as int? ?? 0;
-                                if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; }
-                              } 
-                            } 
-                            equippedSkin = bestSkin; 
-                            equippedBait = bestBait; 
-                            equippedRod = bestRod; 
-                            equippedReel = bestReel; 
-                            equippedFloat = bestFloat; 
-                            isRodEquipped = equippedRod != null;
-
-                            if (widget.isSea) {
-                              selectedRodCount = 1; 
-                            } else {
-                              int autoMaxRods = 2; 
-                              String skinName = equippedSkin != null ? equippedSkin!['name'].toString() : '초보';
-                              
-                              if (skinName.contains('마스터')) autoMaxRods = 14;
-                              else if (skinName.contains('프로')) autoMaxRods = 10;
-                              else if (skinName.contains('고수')) autoMaxRods = 8;
-                              else if (skinName.contains('중수')) autoMaxRods = 6;
-                              else if (skinName.contains('하수')) autoMaxRods = 4;
-                              
-                              selectedRodCount = autoMaxRods; 
-                            } 
-                          }); 
-
-                          _showNotificationPopup('⚡ 세팅 완료!', '현재 맵에 맞는 최고 효율 장비로\n완벽하게 세팅되었습니다. (대편성: $selectedRodCount대)', const Color(0xFFD4AF37)); 
-                        },
-                       style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.black, // 🎩 상점과 똑같은 고급진 블랙!
-            foregroundColor: const Color(0xFFD4AF37), // ✨ 클릭할 때 물결 효과도 황금색!
-            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5), // 얇은 황금 테두리
-            padding: const EdgeInsets.symmetric(vertical: 12), // 📏 상점이랑 완벽하게 똑같은 12 높이!
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          child: const Text(
-              '⚡ 자동 장착',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
-              ),
-            ),
-          ), 
-        ), 
       ], 
     ), 
   ], 
@@ -2467,6 +2392,77 @@ Positioned(
         );
       },
     );
+  }
+
+  // ⚡ [자동 장착] 현재 맵에 맞는 최고 효율 장비로 자동 세팅 (출조 셋팅 패널에서 호출)
+  void _runAutoEquip() {
+    // 🛡️ [아레나 검문소] 대회 중에는 자동 장착 금지!
+    if (widget.roomId != null) {
+      _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+      return;
+    }
+    audioManager.playSfx("sfx_click.mp3");
+    setState(() {
+      List<dynamic> validItems = _latestInventory.where((item) {
+        String cat = item['category'] ?? '';
+        if (widget.isSea && cat == 'FW') return false;
+        if (!widget.isSea && cat == 'SEA') return false;
+        return true;
+      }).toList();
+
+      equippedRod = null; equippedFloat = null; equippedBait = null;
+      equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null;
+
+      Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel;
+      int maxBaitQty = -1;
+
+      int getSkinTier(String name) { if (name.contains('마스터')) return 5; if (name.contains('프로') || name.contains('고수')) return 4; if (name.contains('중수')) return 3; if (name.contains('하수') || name.contains('초보')) return 2; return 1; }
+      int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
+      int getFloatTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40; if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
+      int getSeaRodTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40; if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
+      int getReelTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KF8000')) return 80; if (n.contains('KF6000')) return 60; if (n.contains('KF5000')) return 50; if (n.contains('CF5000')) return 40; if (n.contains('CF3000')) return 30; return 1; }
+
+      for (var item in validItems) {
+        String name = item['name'].toString();
+        if (name.contains('스킨') || name.contains('조사') || name.contains('마스터')) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
+        else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
+        else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
+        else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴')) {
+          bool isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
+          if (widget.isSea) { if (isSeaRod) { if (bestRod == null || getSeaRodTier(name) > getSeaRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
+          else { if (!isSeaRod) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
+        }
+        else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; }
+        else if (name.contains('휘장')) { if (widget.isSea && name.contains('바다')) equippedBadge = item; if (!widget.isSea && name.contains('민물')) equippedBadge = item; }
+        else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기')) {
+          int qty = item['quantity'] as int? ?? 0;
+          if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; }
+        }
+      }
+      equippedSkin = bestSkin;
+      equippedBait = bestBait;
+      equippedRod = bestRod;
+      equippedReel = bestReel;
+      equippedFloat = bestFloat;
+      isRodEquipped = equippedRod != null;
+
+      if (widget.isSea) {
+        selectedRodCount = 1;
+      } else {
+        int autoMaxRods = 2;
+        String skinName = equippedSkin != null ? equippedSkin!['name'].toString() : '초보';
+
+        if (skinName.contains('마스터')) autoMaxRods = 14;
+        else if (skinName.contains('프로')) autoMaxRods = 10;
+        else if (skinName.contains('고수')) autoMaxRods = 8;
+        else if (skinName.contains('중수')) autoMaxRods = 6;
+        else if (skinName.contains('하수')) autoMaxRods = 4;
+
+        selectedRodCount = autoMaxRods;
+      }
+    });
+
+    _showNotificationPopup('⚡ 세팅 완료!', '현재 맵에 맞는 최고 효율 장비로\n완벽하게 세팅되었습니다. (대편성: $selectedRodCount대)', const Color(0xFFD4AF37));
   }
 
   void _showNotificationPopup(String title, String content, Color color, {VoidCallback? onConfirm}) {
