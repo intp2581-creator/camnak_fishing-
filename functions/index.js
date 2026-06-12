@@ -10,34 +10,34 @@ const itemDatabase = {
     category: "TICKET", type: "ETC", icon: "item_ticket_1h.png",
     limitType: "DAILY" // 👈 1일 1회 제한
   },
-  "하수 스킨": { 
-    name: "하수 조사", 
-    reqLevel: 6, // 👈 레벨 제한 (6레벨 이상만)
+  "하수 스킨": {
+    name: "하수 조사",
+    reqLevel: 5, // 👈 레벨 제한 (5레벨 이상만) - 상점 표시와 일치
     category: "SKIN", type: "SKIN", icon: "../images/skin_novice.jpg", stats: { P: 20, C: 20, S: 20 },
     limitType: "ONCE"  // 👈 계정당 1회 한정
   },
-  "중수 스킨": { 
-    name: "중수 조사", 
-    reqLevel: 11,
+  "중수 스킨": {
+    name: "중수 조사",
+    reqLevel: 10,
     category: "SKIN", type: "SKIN", icon: "../images/skin_intermediate.jpg", stats: { P: 50, C: 50, S: 50 },
     limitType: "ONCE"
   },
-  "고수 스킨": { 
-    name: "고수 조사", 
-    reqLevel: 16,
+  "고수 스킨": {
+    name: "고수 조사",
+    reqLevel: 15,
     category: "SKIN", type: "SKIN", icon: "../images/skin_expert.jpg", stats: { P: 100, C: 100, S: 100 },
     limitType: "ONCE"
   }
   ,
-  "프로 스킨": { 
-    name: "프로 조사", 
-    reqLevel: 21,
+  "프로 스킨": {
+    name: "프로 조사",
+    reqLevel: 20,
     category: "SKIN", type: "SKIN", icon: "../images/skin_pro.jpg", stats: { P: 200, C: 200, S: 200 },
     limitType: "ONCE"
   },
-  "마스터 스킨": { 
-    name: "마스터 조사", 
-    reqLevel: 26,
+  "마스터 스킨": {
+    name: "마스터 조사",
+    reqLevel: 25,
     category: "SKIN", type: "SKIN", icon: "../images/skin_master.jpg", stats: { P: 300, C: 300, S: 300 },
     limitType: "ONCE"
   }
