@@ -113,15 +113,17 @@ async function logPaymentIssue(email, orderName, orderNo, reason) {
 
 exports.imwebWebhook = functions.https.onRequest(async (req, res) => {
   try {
-    // 🔐 [보안 1] webhook 인증: 미리 정한 시크릿 토큰이 일치할 때만 처리 (공짜 지급 해킹 차단)
-    const token = req.query.token || req.get("x-webhook-token") || "";
-    if (!WEBHOOK_SECRET) {
-      console.error("[설정 오류] IMWEB_WEBHOOK_SECRET 미설정 → 보안상 모든 요청을 거부합니다.");
-      return res.status(500).send("Webhook secret not configured");
-    }
-    if (token !== WEBHOOK_SECRET) {
-      console.error("[보안 차단] 잘못된 토큰으로 webhook 호출됨");
-      return res.status(401).send("Unauthorized");
+    // 🔐 [보안 1] webhook 인증: 시크릿을 설정해 둔 경우에만 토큰을 검사 (공짜 지급 해킹 차단)
+    //    - IMWEB_WEBHOOK_SECRET 미설정 시: 기존처럼 그냥 동작 (단, 경고 로그) → 작동 중인 연동이 안 끊김
+    //    - 설정 시: 아임웹 webhook URL 뒤 ?token=값 이 일치해야만 처리
+    if (WEBHOOK_SECRET) {
+      const token = req.query.token || req.get("x-webhook-token") || "";
+      if (token !== WEBHOOK_SECRET) {
+        console.error("[보안 차단] 잘못된 토큰으로 webhook 호출됨");
+        return res.status(401).send("Unauthorized");
+      }
+    } else {
+      console.warn("[보안 경고] IMWEB_WEBHOOK_SECRET 미설정 → 인증 없이 동작 중입니다. 정식 오픈 전 반드시 설정하세요.");
     }
 
     const data = req.body || {};
