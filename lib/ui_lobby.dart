@@ -470,6 +470,24 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
   );
 }
 
+  // 🏅 내 등수 계산: 나보다 점수가 높은 사람 수 + 1 (10위 밖이어도 정확한 등수 표시)
+  Future<int> _getMyRank(Map<String, dynamic> myData) async {
+    final col = FirebaseFirestore.instance.collection('users');
+    try {
+      if (selectedTab == '레벨') {
+        int myExp = myData['exp'] ?? 0;
+        final agg = await col.where('exp', isGreaterThan: myExp).count().get();
+        return (agg.count ?? 0) + 1;
+      } else {
+        double mySize = (myData['maxCatch']?[selectedFish]?['size'] ?? 0.0).toDouble();
+        final agg = await col.where('maxCatch.$selectedFish.size', isGreaterThan: mySize).count().get();
+        return (agg.count ?? 0) + 1;
+      }
+    } catch (e) {
+      return 0; // 실패 시 0 → 화면엔 '-' 로 표시
+    }
+  }
+
   Widget _buildMyStaticRank() {
     final user = FirebaseAuth.instance.currentUser;
     return StreamBuilder<DocumentSnapshot>(
@@ -477,7 +495,7 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data!.data() == null) return const SizedBox();
         var myData = snapshot.data!.data() as Map<String, dynamic>;
-        
+
         String displayVal = '';
         if (selectedTab == '레벨') {
           int exp = myData['exp'] ?? 0;
@@ -487,25 +505,34 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
           displayVal = '${mySize.toStringAsFixed(1)}${selectedFish == '문어' ? 'Kg' : 'Cm'}';
         }
 
-        return Container(
-          // 💡 하단 내 랭킹 박스도 살짝 슬림하게 다이어트!
-          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 16), 
-          decoration: BoxDecoration(
-            color: Colors.cyanAccent.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 2), 
-          ),
-          child: Row(
-            children: [
-              // 🚨🚨 사장님 요청 패치: 'MY' -> '내 랭킹' 으로 완벽 한글화! 🚨🚨
-              const Text('내 랭킹', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)), 
-              // 💡 '내 랭킹' 글자가 'MY'보다 길어졌으니, 닉네임 줄을 맞추기 위해 간격을 45 -> 25로 살짝 줄여줍니다!
-              const SizedBox(width: 25), 
-              Text(myData['nickname'] ?? '나', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)), 
-              const Spacer(),
-              Text(displayVal, style: const TextStyle(color: Colors.cyanAccent, fontSize: 26, fontWeight: FontWeight.w900)), 
-            ],
-          ),
+        return FutureBuilder<int>(
+          future: _getMyRank(myData),
+          builder: (context, rankSnap) {
+            final int myRank = rankSnap.data ?? 0;
+            final String rankText = myRank > 0 ? '$myRank위' : '-';
+            return Container(
+              // 💡 하단 내 랭킹 박스도 살짝 슬림하게 다이어트!
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 2),
+              ),
+              child: Row(
+                children: [
+                  const Text('내 랭킹', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 16),
+                  // 🏅 실제 등수 표시 (10위 밖이어도 정확히 보여줌)
+                  Text(rankText, style: TextStyle(color: (myRank > 0 && myRank <= 3) ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(myData['nickname'] ?? '나', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis),
+                  ),
+                  Text(displayVal, style: const TextStyle(color: Colors.cyanAccent, fontSize: 26, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            );
+          },
         );
       },
     );
