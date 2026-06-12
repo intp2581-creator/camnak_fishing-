@@ -1907,8 +1907,10 @@ Positioned(
           Text('대편성 갯수: $selectedRodCount대', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           if (maxRods > 1) Slider(value: selectedRodCount.toDouble(), min: 1, max: maxRods.toDouble(), divisions: maxRods - 1, activeColor: const Color(0xFFD4AF37), inactiveColor: Colors.grey.shade800, onChanged: (v) { audioManager.playSfx("sfx_click.mp3"); setState(() => selectedRodCount = v.toInt()); }),
           if (maxRods == 1) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('바다 낚시는 1대만 지원됩니다.', style: TextStyle(color: Colors.grey, fontSize: 12))),
-          const SizedBox(height: 15), const Text('케미라이트 색상', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 10),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [ _chemiCircle(Colors.green), const SizedBox(width: 10), _chemiCircle(Colors.red), const SizedBox(width: 10), _chemiCircle(Colors.blue), const SizedBox(width: 10), _chemiCircle(Colors.yellow) ]), const SizedBox(height: 20),
+          if (!widget.isSea) ...[
+            const SizedBox(height: 15), const Text('케미라이트 색상', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 10),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [ _chemiCircle(Colors.green), const SizedBox(width: 10), _chemiCircle(Colors.red), const SizedBox(width: 10), _chemiCircle(Colors.blue), const SizedBox(width: 10), _chemiCircle(Colors.yellow) ]), const SizedBox(height: 20),
+          ],
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [ const Text('현재 장착 미끼: ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), Text(equippedBait != null ? equippedBait!['name'] : '가방에서 터치!', style: TextStyle(color: equippedBait != null ? const Color(0xFFD4AF37) : Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)) ]), const SizedBox(height: 20),
           if (widget.isSea) ...[
             const SizedBox(height: 10), 
