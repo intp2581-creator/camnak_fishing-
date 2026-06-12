@@ -114,7 +114,7 @@ final List<String> _garamMessages = [
 
   final double fieldFloatBottomOffset = 290.0; 
   final double fieldFloatSpacing = 0.0;        
-  final double fieldFloatDepthOffset = 0.0;    
+  final double fieldFloatDepthOffset = -12.0;  // 찌 높이 미세조정: 음수면 더 깊이(아래로) 잠김
   
   final double platformWidth = 1000.0;         
   final double platformHeight = 200.0;         
