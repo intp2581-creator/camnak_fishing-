@@ -3304,11 +3304,11 @@ else fishCurrentMove = math.max(0.001, -powerDiff / 150000); // 내가 강하면
                       duration: const Duration(milliseconds: 50), alignment: Alignment(gaugeVal * 2 - 1, 0),
                       child: Transform(
                         alignment: Alignment.center,
-                        transform: Matrix4.rotationY(_isFishFacingRight ? math.pi : 0),
-                        child: Transform.scale(
-                          scaleX: 1.5,
-                          scaleY: 0.8,
-                          child: const Text('🐟', style: TextStyle(fontSize: 34)),
+                        transform: Matrix4.rotationY(_isFishFacingRight ? 0 : math.pi),
+                        child: Image.asset(
+                          'assets/images/fighting_fish.png',
+                          width: 64,
+                          fit: BoxFit.contain,
                         ),
                       ),
                     );
