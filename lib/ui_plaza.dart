@@ -124,23 +124,67 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return 'assets/images/char_beginner.png';
   }
 
-  void _moveTo(Offset target, double w, double h) {
-    final dx = (target.dx - _charPos.dx) * w;
-    final dy = (target.dy - _charPos.dy) * h;
+  // 🗺️ 광장 걷기 가능 구역(섬 경계) — 캐릭터 발 기준 다각형(0~1 비율). 빨간 라인 좌표.
+  static const List<Offset> _plazaPoly = [
+    Offset(0.00, 1.00), Offset(0.00, 0.58), Offset(0.10, 0.52), Offset(0.23, 0.50),
+    Offset(0.28, 0.46), Offset(0.30, 0.34), Offset(0.35, 0.30), Offset(0.48, 0.28),
+    Offset(0.56, 0.28), Offset(0.63, 0.30), Offset(0.56, 0.34), Offset(0.57, 0.38),
+    Offset(0.66, 0.44), Offset(0.72, 0.46), Offset(0.79, 0.43), Offset(0.80, 0.40),
+    Offset(0.89, 0.44), Offset(0.78, 0.48), Offset(0.87, 0.55), Offset(1.00, 1.00),
+  ];
+
+  // 점이 다각형 안인지 (ray casting)
+  bool _inPoly(Offset p) {
+    bool inside = false;
+    final poly = _plazaPoly;
+    for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      final pi = poly[i], pj = poly[j];
+      if (((pi.dy > p.dy) != (pj.dy > p.dy)) &&
+          (p.dx < (pj.dx - pi.dx) * (p.dy - pi.dy) / (pj.dy - pi.dy) + pi.dx)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  }
+
+  Offset _nearestOnSeg(Offset p, Offset a, Offset b) {
+    final dx = b.dx - a.dx, dy = b.dy - a.dy;
+    final len2 = dx * dx + dy * dy;
+    double t = len2 == 0 ? 0 : ((p.dx - a.dx) * dx + (p.dy - a.dy) * dy) / len2;
+    t = t.clamp(0.0, 1.0);
+    return Offset(a.dx + t * dx, a.dy + t * dy);
+  }
+
+  // 다각형 안이면 그대로, 밖이면 가장 가까운 가장자리 점으로
+  Offset _clampToPlaza(Offset p) {
+    if (_inPoly(p)) return p;
+    final poly = _plazaPoly;
+    Offset best = poly.first;
+    double bestD = double.infinity;
+    for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      final q = _nearestOnSeg(p, poly[j], poly[i]);
+      final d = (q - p).distanceSquared;
+      if (d < bestD) {
+        bestD = d;
+        best = q;
+      }
+    }
+    return best;
+  }
+
+  void _moveTo(Offset rawTarget, double w, double h) {
+    final dest = _clampToPlaza(rawTarget); // 섬 안으로 보정
+    final dx = (dest.dx - _charPos.dx) * w;
+    final dy = (dest.dy - _charPos.dy) * h;
     final dist = math.sqrt(dx * dx + dy * dy);
     final ms = (dist / 0.32).clamp(350, 2200).toInt(); // 걷기 속도(등속)
     final moveDur = Duration(milliseconds: ms);
     setState(() {
-      _facingRight = target.dx >= _charPos.dx;
-      // 🏝️ 광장(섬) 모양에 맞춘 사다리꼴 걷기 구역: 위(다리쪽)는 좁고, 앞(아래)으로 갈수록 넓어짐 → 물 위에 못 서게
-      final clampedY = target.dy.clamp(0.46, 0.95);
-      final t = ((clampedY - 0.46) / (0.95 - 0.46)).clamp(0.0, 1.0);
-      final halfW = 0.14 + t * 0.32; // 폭 절반: 0.14(위) → 0.46(아래)
-      final clampedX = target.dx.clamp(0.5 - halfW, 0.5 + halfW);
-      _charPos = Offset(clampedX, clampedY);
+      _facingRight = dest.dx >= _charPos.dx;
+      _charPos = dest;
       _moveDuration = moveDur;
       _walking = true;
-      _lastTap = target;
+      _lastTap = rawTarget;
     });
     // 걷기 바운스 시작, 도착하면 멈춤
     final token = ++_moveToken;
