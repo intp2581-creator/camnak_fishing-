@@ -36,6 +36,7 @@ flutter:
     - assets/images/
     - assets/items/
     - assets/fields/
+    - assets/plaza/
     - assets/fish_fw/
     - assets/fish_sea/
     - assets/sound/

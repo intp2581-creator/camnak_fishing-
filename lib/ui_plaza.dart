@@ -98,6 +98,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (mounted) setState(() => _loading = false);
   }
 
+  // 광장 전용 배경 경로: assets/fields/bg_OOO.jpg → assets/plaza/plaza_OOO.jpg
+  // (파일 없으면 아래 build에서 낚시 배경으로 폴백)
+  String get _plazaBg {
+    final f = widget.spot['image'].toString();
+    return f.replaceFirst('fields/bg_', 'plaza/plaza_');
+  }
+
   String get _charImage {
     if (globalEquippedSkin != null) {
       return FishingLogic.getLobbyCharacterImage(globalEquippedSkin!['name'].toString());
@@ -317,12 +324,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
           return Stack(
             children: [
-              // 1) 배경 (임시: 해당 낚시터 배경 + 어둠막) — 추후 광장 전용 그림으로 교체
+              // 1) 배경: 광장 전용 그림(plaza_OOO.jpg) 우선, 없으면 낚시 배경으로 폴백
               Positioned.fill(
                 child: Image.asset(
-                  widget.spot['image'],
+                  _plazaBg,
                   fit: BoxFit.cover,
-                  errorBuilder: (a, b, d) => Container(color: const Color(0xFF11202E)),
+                  errorBuilder: (a, b, d) => Image.asset(
+                    widget.spot['image'],
+                    fit: BoxFit.cover,
+                    errorBuilder: (a2, b2, d2) => Container(color: const Color(0xFF11202E)),
+                  ),
                 ),
               ),
               Positioned.fill(
