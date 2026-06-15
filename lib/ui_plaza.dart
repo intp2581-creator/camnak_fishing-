@@ -85,6 +85,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   final TextEditingController _chatCtrl = TextEditingController();
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
+  // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
+  final Map<String, String> _bubbleMsg = {};
+  final Map<String, DateTime> _bubbleUntil = {};
+  final Map<String, int> _lastMsgT = {};
+  String? _myBubble;
+  DateTime? _myBubbleUntil;
+  Timer? _bubbleTimer;
+
   @override
   void initState() {
     super.initState();
@@ -99,6 +107,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _roomSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
+    _bubbleTimer?.cancel();
     super.dispose();
   }
 
@@ -130,19 +139,35 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _myRef = _db.ref('plaza/$_roomKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e')); // 접속 끊기면 자동 사라짐
     _writeMe();
+    // 말풍선 만료 처리용 1초 타이머
+    _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
     _roomSub = _db.ref('plaza/$_roomKey').onValue.listen((event) {
       final val = event.snapshot.value;
       final next = <String, Map<String, dynamic>>{};
       if (val is Map) {
         val.forEach((k, v) {
           if (k.toString() == uid || v is! Map) return; // 나 제외
-          next[k.toString()] = {
+          final kk = k.toString();
+          next[kk] = {
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
           };
+          // 💬 말풍선: 메시지 타임스탬프가 새로 바뀌면 5초 표시 (처음 본 유저의 옛 메시지는 무시)
+          final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
+          final mmsg = v['msg']?.toString() ?? '';
+          if (mt != (_lastMsgT[kk] ?? -1)) {
+            final firstSeen = !_lastMsgT.containsKey(kk);
+            _lastMsgT[kk] = mt;
+            if (!firstSeen && mt > 0 && mmsg.isNotEmpty) {
+              _bubbleMsg[kk] = mmsg;
+              _bubbleUntil[kk] = DateTime.now().add(const Duration(seconds: 5));
+            }
+          }
         });
       }
       if (mounted) setState(() => _others = next);
@@ -213,6 +238,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
               ),
             ),
+            // 💬 다른 유저 말풍선
+            if (_bubbleUntil[uid] != null && DateTime.now().isBefore(_bubbleUntil[uid]!))
+              Positioned(
+                bottom: rH * 0.98,
+                left: -150,
+                right: -150,
+                child: Center(child: _bubble(_bubbleMsg[uid] ?? '')),
+              ),
           ],
         ),
       ),
@@ -545,7 +578,32 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'receiver': receiver,
       'timestamp': FieldValue.serverTimestamp(),
     });
+    // 💬 전체 채팅이면 RTDB에 실어서 머리 위 말풍선으로 (귓속말은 제외)
+    if (type == 'global') {
+      _myRef?.update({'msg': text, 'msgT': ServerValue.timestamp})
+          .catchError((Object e) => debugPrint('🌐 RTDB MSG ERR: $e'));
+      setState(() {
+        _myBubble = text;
+        _myBubbleUntil = DateTime.now().add(const Duration(seconds: 5));
+      });
+    }
     _chatCtrl.clear();
+  }
+
+  // 💬 말풍선 위젯
+  Widget _bubble(String text) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 160),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 4)],
+      ),
+      child: Text(text,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.w600)),
+    );
   }
 
   void _showUserMenu(String nick) {
@@ -880,6 +938,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
+                          // 💬 내 말풍선
+                          if (_myBubble != null &&
+                              _myBubbleUntil != null &&
+                              DateTime.now().isBefore(_myBubbleUntil!))
+                            Positioned(
+                              bottom: charH * 0.98,
+                              left: -150,
+                              right: -150,
+                              child: Center(child: _bubble(_myBubble!)),
+                            ),
                         ],
                       );
                     },
