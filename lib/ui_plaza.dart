@@ -248,13 +248,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🗺️ 미니맵(세계지도) — 다른 낚시터 광장으로 이동
   void _openMinimap() {
-    final entries = <Map<String, dynamic>>[];
+    final fresh = <Map<String, dynamic>>[];
+    final seaList = <Map<String, dynamic>>[];
     locations.forEach((category, spots) {
-      final sea = (category == '갯바위' || category == '선상');
+      final isSeaCat = (category == '갯바위' || category == '선상');
       for (final s in spots) {
-        entries.add({'spot': s, 'category': category, 'isSea': sea});
+        (isSeaCat ? seaList : fresh).add({'spot': s, 'isSea': isSeaCat});
       }
     });
+    bool seaTab = widget.isSea; // 현재 광장 타입 탭부터
 
     showDialog(
       context: context,
@@ -263,26 +265,58 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: _kGold, width: 1.5)),
-        child: SizedBox(
-          width: 720,
-          height: 560,
-          child: Column(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text('🗺️  어느 낚시터로 떠날까요?',
-                    style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
-              ),
-              const Divider(color: Colors.white12, height: 1),
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: entries.length,
-                  itemBuilder: (c, i) {
-                    final e = entries[i];
-                    final s = e['spot'] as Map<String, dynamic>;
-                    final isHere = s['name'] == widget.spot['name'];
-                    return Container(
+        child: StatefulBuilder(
+          builder: (ctx, setDialog) {
+            Widget miniTab(String label, bool active, VoidCallback onTap) {
+              return Expanded(
+                child: GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(
+                              color: active ? _kGold : Colors.transparent, width: 3)),
+                    ),
+                    child: Text(label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: active ? _kGold : Colors.white54,
+                            fontSize: 18,
+                            fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
+                  ),
+                ),
+              );
+            }
+
+            final list = seaTab ? seaList : fresh;
+            return SizedBox(
+              width: 720,
+              height: 560,
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+                    child: Text('🗺️  어느 낚시터로 떠날까요?',
+                        style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
+                  ),
+                  Row(
+                    children: [
+                      miniTab('🏞️ 민물낚시', !seaTab, () => setDialog(() => seaTab = false)),
+                      miniTab('🌊 바다낚시', seaTab, () => setDialog(() => seaTab = true)),
+                    ],
+                  ),
+                  const Divider(color: Colors.white12, height: 1),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: list.length,
+                      itemBuilder: (c, i) {
+                        final e = list[i];
+                        final s = e['spot'] as Map<String, dynamic>;
+                        final isSeaSpot = e['isSea'] as bool;
+                        final isHere = s['name'] == widget.spot['name'];
+                        return Container(
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: isHere ? _kGold.withOpacity(0.12) : Colors.grey.shade900,
@@ -292,7 +326,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             width: isHere ? 1.5 : 1),
                       ),
                       child: ListTile(
-                        leading: Text(e['isSea'] as bool ? '🌊' : '🏞️',
+                        leading: Text(isSeaSpot ? '🌊' : '🏞️',
                             style: const TextStyle(fontSize: 22)),
                         title: Text(s['name'],
                             style: const TextStyle(
@@ -321,7 +355,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       nickname: widget.nickname,
                                       level: _level,
                                       spot: s,
-                                      isSea: e['isSea'] as bool,
+                                      isSea: isSeaSpot,
                                     ),
                                   ),
                                 );
@@ -339,6 +373,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ],
           ),
+            );
+          },
         ),
       ),
     );
@@ -421,16 +457,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         clipBehavior: Clip.none,
                         alignment: Alignment.bottomCenter,
                         children: [
-                          // 발밑 그림자
+                          // 발밑 그림자 (두 발 — 스케이트보드 느낌 제거, 발보다 살짝 크게)
                           Positioned(
                             bottom: 2,
-                            child: Container(
-                              width: charW * 0.4,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.35),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: charW * 0.17,
+                                  height: charW * 0.08,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.32),
+                                    borderRadius: BorderRadius.circular(40),
+                                  ),
+                                ),
+                                SizedBox(width: charW * 0.07),
+                                Container(
+                                  width: charW * 0.17,
+                                  height: charW * 0.08,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.32),
+                                    borderRadius: BorderRadius.circular(40),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           // 캐릭터 (들썩 + 기우뚱 + 방향)
