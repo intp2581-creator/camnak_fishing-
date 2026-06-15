@@ -248,15 +248,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🗺️ 미니맵(세계지도) — 다른 낚시터 광장으로 이동
   void _openMinimap() {
-    final fresh = <Map<String, dynamic>>[];
-    final seaList = <Map<String, dynamic>>[];
-    locations.forEach((category, spots) {
-      final isSeaCat = (category == '갯바위' || category == '선상');
-      for (final s in spots) {
-        (isSeaCat ? seaList : fresh).add({'spot': s, 'isSea': isSeaCat});
-      }
-    });
-    bool seaTab = widget.isSea; // 현재 광장 타입 탭부터
+    String subCat = widget.isSea ? '갯바위' : '저수지'; // 현재 광장 타입의 첫 서브탭
 
     showDialog(
       context: context,
@@ -267,12 +259,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             side: const BorderSide(color: _kGold, width: 1.5)),
         child: StatefulBuilder(
           builder: (ctx, setDialog) {
-            Widget miniTab(String label, bool active, VoidCallback onTap) {
+            final bool isMainSea = (subCat == '갯바위' || subCat == '선상');
+            final List<String> subs = isMainSea ? ['갯바위', '선상'] : ['저수지', '수로'];
+            final List<Map<String, dynamic>> spots =
+                List<Map<String, dynamic>>.from(locations[subCat] ?? []);
+
+            Widget tab(String label, bool active, VoidCallback onTap, {double fontSize = 18}) {
               return Expanded(
                 child: GestureDetector(
                   onTap: onTap,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
                       border: Border(
                           bottom: BorderSide(
@@ -282,97 +279,105 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         textAlign: TextAlign.center,
                         style: TextStyle(
                             color: active ? _kGold : Colors.white54,
-                            fontSize: 18,
+                            fontSize: fontSize,
                             fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
                   ),
                 ),
               );
             }
 
-            final list = seaTab ? seaList : fresh;
             return SizedBox(
               width: 720,
-              height: 560,
+              height: 580,
               child: Column(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+                    padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
                     child: Text('🗺️  어느 낚시터로 떠날까요?',
                         style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
                   ),
+                  // 메인 탭: 민물 / 바다
                   Row(
                     children: [
-                      miniTab('🏞️ 민물낚시', !seaTab, () => setDialog(() => seaTab = false)),
-                      miniTab('🌊 바다낚시', seaTab, () => setDialog(() => seaTab = true)),
+                      tab('🏞️ 민물낚시', !isMainSea, () => setDialog(() => subCat = '저수지')),
+                      tab('🌊 바다낚시', isMainSea, () => setDialog(() => subCat = '갯바위')),
                     ],
+                  ),
+                  // 서브 탭: 저수지/수로 또는 갯바위/선상
+                  Container(
+                    color: Colors.black26,
+                    child: Row(
+                      children: [
+                        for (final c in subs)
+                          tab(c, subCat == c, () => setDialog(() => subCat = c), fontSize: 15),
+                      ],
+                    ),
                   ),
                   const Divider(color: Colors.white12, height: 1),
                   Expanded(
                     child: ListView.builder(
                       padding: const EdgeInsets.all(12),
-                      itemCount: list.length,
+                      itemCount: spots.length,
                       itemBuilder: (c, i) {
-                        final e = list[i];
-                        final s = e['spot'] as Map<String, dynamic>;
-                        final isSeaSpot = e['isSea'] as bool;
+                        final s = spots[i];
                         final isHere = s['name'] == widget.spot['name'];
                         return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: isHere ? _kGold.withOpacity(0.12) : Colors.grey.shade900,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: isHere ? _kGold : Colors.white10,
-                            width: isHere ? 1.5 : 1),
-                      ),
-                      child: ListTile(
-                        leading: Text(isSeaSpot ? '🌊' : '🏞️',
-                            style: const TextStyle(fontSize: 22)),
-                        title: Text(s['name'],
-                            style: const TextStyle(
-                                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-                        subtitle: Row(
-                          children: List.generate(
-                            5,
-                            (k) => Icon(
-                                k < (s['stars'] as int) ? Icons.star : Icons.star_border,
-                                color: _kGold,
-                                size: 15),
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: isHere ? _kGold.withOpacity(0.12) : Colors.grey.shade900,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                                color: isHere ? _kGold : Colors.white10,
+                                width: isHere ? 1.5 : 1),
                           ),
-                        ),
-                        trailing: isHere
-                            ? const Text('현재 위치',
-                                style: TextStyle(color: _kGold, fontWeight: FontWeight.bold))
-                            : const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
-                        onTap: isHere
-                            ? null
-                            : () {
-                                Navigator.pop(ctx);
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => PlazaScreen(
-                                      nickname: widget.nickname,
-                                      level: _level,
-                                      spot: s,
-                                      isSea: isSeaSpot,
-                                    ),
-                                  ),
-                                );
-                              },
-                      ),
-                    );
-                  },
-                ),
+                          child: ListTile(
+                            leading: Text(isMainSea ? '🌊' : '🏞️',
+                                style: const TextStyle(fontSize: 22)),
+                            title: Text(s['name'],
+                                style: const TextStyle(
+                                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
+                            subtitle: Row(
+                              children: List.generate(
+                                5,
+                                (k) => Icon(
+                                    k < (s['stars'] as int) ? Icons.star : Icons.star_border,
+                                    color: _kGold,
+                                    size: 15),
+                              ),
+                            ),
+                            trailing: isHere
+                                ? const Text('현재 위치',
+                                    style: TextStyle(color: _kGold, fontWeight: FontWeight.bold))
+                                : const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
+                            onTap: isHere
+                                ? null
+                                : () {
+                                    Navigator.pop(ctx);
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => PlazaScreen(
+                                          nickname: widget.nickname,
+                                          level: _level,
+                                          spot: s,
+                                          isSea: isMainSea,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('닫기', style: TextStyle(color: Colors.white54))),
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: TextButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('닫기', style: TextStyle(color: Colors.white54))),
-              ),
-            ],
-          ),
             );
           },
         ),
