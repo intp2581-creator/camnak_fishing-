@@ -120,7 +120,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (user == null) return;
     final uid = user.uid;
     _myRef = _db.ref('plaza/$_roomKey/$uid');
-    _myRef!.onDisconnect().remove(); // 접속 끊기면 자동 사라짐
+    _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e')); // 접속 끊기면 자동 사라짐
     _writeMe();
     _roomSub = _db.ref('plaza/$_roomKey').onValue.listen((event) {
       final val = event.snapshot.value;
@@ -138,6 +138,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         });
       }
       if (mounted) setState(() => _others = next);
+    }, onError: (Object e) {
+      debugPrint('🌐 RTDB READ ERR: $e');
     });
   }
 
@@ -154,6 +156,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'y': _charPos.dy,
       'face': _facingRight,
       't': ServerValue.timestamp,
+    }).catchError((Object e) {
+      debugPrint('🌐 RTDB WRITE ERR: $e');
     });
   }
 
@@ -324,7 +328,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _moveDuration = moveDur;
       _walking = true;
     });
-    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}); // 실시간 위치 전송
+    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}).catchError((Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e')); // 실시간 위치 전송
     // 걷기 바운스 시작, 도착하면 멈춤
     final token = ++_moveToken;
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
