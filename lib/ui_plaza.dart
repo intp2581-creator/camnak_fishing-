@@ -83,6 +83,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구
   String? _whisperTarget;
   final TextEditingController _chatCtrl = TextEditingController();
+  final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   @override
   void initState() {
@@ -676,6 +677,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       : StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('global_chat')
+                              .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
                               .orderBy('timestamp', descending: true)
                               .limit(30)
                               .snapshots(),
