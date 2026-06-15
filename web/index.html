@@ -44,6 +44,17 @@
    <script>
       window.flutterWebRenderer = "html";
     </script>
-   <script src="flutter_bootstrap.js?v=1.0.1" async></script>
+    <!-- 🛠️ 테스트 중: 서비스워커(캐시) 비활성화 — 항상 최신 빌드 로드. 정식 오픈 전 원복 고려. -->
+    <script src="flutter.js" defer></script>
+    <script>
+      window.addEventListener("load", function () {
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+        }
+        _flutter.loader.load();
+      });
+    </script>
   </body>
 </html> 
