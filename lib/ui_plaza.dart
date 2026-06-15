@@ -57,7 +57,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   List<dynamic> _inventory = [];
 
   // 캐릭터 위치 (0~1 비율 좌표, dy는 발 위치 기준)
-  Offset _charPos = const Offset(0.5, 0.82);
+  Offset _charPos = const Offset(0.5, 0.74);
   bool _facingRight = true;
   Duration _moveDuration = const Duration(milliseconds: 500);
 
@@ -65,6 +65,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   late final AnimationController _walkCtrl;
   bool _walking = false;
   int _moveToken = 0;
+  Offset? _lastTap; // 🛠️ 개발용: 마지막 탭 좌표(NPC 위치 잡기용, 추후 제거)
 
   @override
   void initState() {
@@ -132,10 +133,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     setState(() {
       _facingRight = target.dx >= _charPos.dx;
       // dy는 바닥(걷는 구역)으로만 제한 — 너무 위로 못 올라가게
-      final clampedY = target.dy.clamp(0.62, 0.92);
+      final clampedY = target.dy.clamp(0.50, 0.95);
       _charPos = Offset(target.dx.clamp(0.05, 0.95), clampedY);
       _moveDuration = moveDur;
       _walking = true;
+      _lastTap = target;
     });
     // 걷기 바운스 시작, 도착하면 멈춤
     final token = ++_moveToken;
@@ -303,7 +305,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         builder: (context, c) {
           final w = c.maxWidth;
           final h = c.maxHeight;
-          final charH = h * 0.34;
+          final charH = h * 0.28;
           final charW = charH * 0.55;
 
           return Stack(
@@ -410,14 +412,32 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
               ),
 
-              // 4) NPC / 시설들
-              _npc(w, h, 0.16, 0.50, '🏪', '상점', _openStore),
-              _npc(w, h, 0.37, 0.46, '🏆', '랭킹', _openRanking),
-              _npc(w, h, 0.58, 0.46, '⚔️', '아레나', _openArena),
-              _npc(w, h, 0.82, 0.52, '🌀', '포탈', _openMinimap),
+              // 4) NPC / 시설들 (예당호 광장 그림 랜드마크에 맞춤)
+              _npc(w, h, 0.76, 0.40, '🏪', '상점', _openStore),   // 카페 건물(오른쪽)
+              _npc(w, h, 0.17, 0.48, '🏆', '랭킹', _openRanking), // 왼쪽
+              _npc(w, h, 0.35, 0.55, '⚔️', '아레나', _openArena), // 중앙 좌측 광장
+              _npc(w, h, 0.50, 0.25, '🌀', '포탈', _openMinimap), // 출렁다리 입구(위 중앙)
 
               // 5) 상단 HUD
               _topHud(),
+
+              // 🛠️ (개발용) 마지막 탭 좌표 — NPC 위치 잡을 때 참고. 추후 제거.
+              if (_lastTap != null)
+                Positioned(
+                  left: 12,
+                  bottom: 12,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '좌표 ${_lastTap!.dx.toStringAsFixed(2)}, ${_lastTap!.dy.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ),
+                ),
 
               // 6) 낚시 시작 버튼 (이 낚시터에서 바로 낚시)
               Positioned(
