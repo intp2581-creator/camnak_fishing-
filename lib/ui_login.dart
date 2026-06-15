@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'game_config.dart'; 
 import 'ui_lobby.dart';    
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 장착!
+import 'ui_plaza.dart';    // 🏛️ 광장 (메인 허브)
 
 // 🏢 [별관] 시스템 및 로비 구역 (로그인, 프로필, 맵 선택)
 class LoginPage extends StatefulWidget {
@@ -205,7 +206,7 @@ class ProfileCheckScreen extends StatelessWidget {
           var userData = snapshot.data!.data() as Map<String, dynamic>;
           String dbNickname = userData['nickname'] ?? '조사님';
           int dbLevel = userData['level'] ?? 1; 
-          return LobbyScreen(nickname: dbNickname, level: dbLevel); 
+          return PlazaScreen.defaultEntry(nickname: dbNickname, level: dbLevel);
         }
         return const LoginPage();
       },
@@ -349,10 +350,10 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
 
     if (mounted) {
       // 🚀 [해결 완료] "나 처음 왔어!" (isFirstTime: true) 쪽지를 쥐어주고 바로 로비로 꽂아버리기!
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LobbyScreen(
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PlazaScreen.defaultEntry(
         nickname: _nickController.text.trim(),
         level: 1,
-        isFirstTime: true, // 👈 이게 윤슬님을 부르는 마법의 쪽지입니다!
+        isFirstTime: true, // 👈 신규 유저도 광장으로 입장!
       )));
     }
   }
