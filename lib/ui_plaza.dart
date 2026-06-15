@@ -477,10 +477,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
 
               // 4) NPC / 시설들 (예당호 광장 그림 랜드마크에 맞춤)
-              _npc(w, h, 0.68, 0.35,'🏪', '상점', _openStore),   // 카페 건물(오른쪽)
-              _npc(w, h, 0.27, 0.37,'🏆', '랭킹', _openRanking), // 왼쪽
-              _npc(w, h, 0.90, 0.55,'⚔️', '아레나', _openArena), // 중앙 좌측 광장
-              _npc(w, h, 0.50, 0.32,'🌀', '포탈', _openMinimap), // 출렁다리 입구(위 중앙)
+              _npc(w, h, widget.isSea ? 0.77 : 0.93, widget.isSea ? 0.30 : 0.42,'🏪', '상점', _openStore),   // 카페 건물(오른쪽)
+              _npc(w, h, widget.isSea ? 0.14 : 0.15, widget.isSea ? 0.27 : 0.25,'🏆', '랭킹', _openRanking), // 왼쪽
+              _npc(w, h, widget.isSea ? 0.95 : 0.72, widget.isSea ? 0.54 : 0.28,'⚔️', '아레나', _openArena), // 중앙 좌측 광장
+              _npc(w, h, widget.isSea ? 0.51 : 0.50, widget.isSea ? 0.22 : 0.20,'🌀', '포탈', _openMinimap), // 출렁다리 입구(위 중앙)
 
               // 5) 상단 HUD
               _topHud(),
