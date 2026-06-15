@@ -141,6 +141,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
   }
 
+  String _shortUid() {
+    final u = FirebaseAuth.instance.currentUser?.uid ?? '?';
+    return u.length > 6 ? u.substring(0, 6) : u;
+  }
+
   void _writeMe() {
     _myRef?.set({
       'nick': widget.nickname,
@@ -685,7 +690,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       color: Colors.black.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text('방:$_roomKey · 다른유저:${_others.length}',
+                    child: Text('방:$_roomKey · 나:${_shortUid()} · 다른:${_others.length}',
                         style: const TextStyle(
                             color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.w900)),
                   ),
