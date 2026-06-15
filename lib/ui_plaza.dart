@@ -124,16 +124,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 타입별. 민물=예당호 광장 빨간라인 좌표.
   static const List<Offset> _freshPoly = [
-    Offset(0.00, 1.00), Offset(0.00, 0.58), Offset(0.10, 0.52), Offset(0.23, 0.50),
-    Offset(0.28, 0.46), Offset(0.30, 0.34), Offset(0.35, 0.30), Offset(0.48, 0.28),
-    Offset(0.56, 0.28), Offset(0.63, 0.30), Offset(0.56, 0.34), Offset(0.57, 0.38),
-    Offset(0.66, 0.44), Offset(0.72, 0.46), Offset(0.79, 0.43), Offset(0.80, 0.40),
-    Offset(0.89, 0.44), Offset(0.78, 0.48), Offset(0.87, 0.55), Offset(1.00, 1.00),
+    Offset(0.01, 1.00), Offset(0.01, 0.50), Offset(0.13, 0.43), Offset(0.20, 0.37),
+    Offset(0.27, 0.34), Offset(0.38, 0.31), Offset(0.39, 0.25), Offset(0.44, 0.23),
+    Offset(0.53, 0.23), Offset(0.60, 0.23), Offset(0.66, 0.26), Offset(0.69, 0.31),
+    Offset(0.75, 0.32), Offset(0.80, 0.34), Offset(0.90, 0.33), Offset(0.99, 0.38),
+    Offset(0.84, 0.38), Offset(0.83, 0.47), Offset(0.80, 0.51), Offset(0.82, 0.56),
+    Offset(0.88, 0.64), Offset(0.99, 0.63), Offset(0.99, 0.99),
   ];
-  // 바다 광장 임시 경계(넓은 사다리꼴) — 실제 바다 광장 그림 나오면 좌표로 교체
   static const List<Offset> _seaPoly = [
-    Offset(0.00, 1.00), Offset(0.05, 0.62), Offset(0.30, 0.50), Offset(0.50, 0.48),
-    Offset(0.70, 0.50), Offset(0.95, 0.62), Offset(1.00, 1.00),
+    Offset(0.01, 1.00), Offset(0.01, 0.50), Offset(0.10, 0.42), Offset(0.20, 0.37),
+    Offset(0.30, 0.34), Offset(0.38, 0.33), Offset(0.45, 0.32), Offset(0.55, 0.32),
+    Offset(0.63, 0.34), Offset(0.58, 0.42), Offset(0.66, 0.48), Offset(0.71, 0.53),
+    Offset(0.75, 0.58), Offset(0.86, 0.55), Offset(0.85, 0.49), Offset(0.90, 0.42),
+    Offset(0.99, 0.47), Offset(0.99, 0.99),
   ];
   List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
 
