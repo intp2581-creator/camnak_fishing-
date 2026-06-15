@@ -466,7 +466,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(color: _kGold.withOpacity(0.7)),
                                 ),
-                                child: Text('Lv.$_level ${widget.nickname}',
+                                child: Text(widget.nickname,
                                     maxLines: 1,
                                     style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                               ),
