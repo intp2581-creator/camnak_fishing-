@@ -10,6 +10,7 @@ import 'fishing_logic.dart';
 import 'ui_fishing.dart';
 import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
+import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -186,24 +187,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _openRanking() {
-    // TODO(2단계 전): 전용 랭킹 화면으로 분리 예정. 지금은 안내만.
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey.shade900,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-            side: const BorderSide(color: _kGold)),
-        title: const Text('🏆 랭킹', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold)),
-        content: const Text('랭킹 보드는 곧 광장 NPC로 들어옵니다.\n(다음 업데이트)',
-            style: TextStyle(color: Colors.white70)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('확인', style: TextStyle(color: _kGold)))
-        ],
-      ),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen()));
   }
 
   // 🗺️ 미니맵(세계지도) — 다른 낚시터 광장으로 이동
