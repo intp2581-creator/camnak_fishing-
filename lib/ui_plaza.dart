@@ -1,10 +1,13 @@
 // ignore_for_file: deprecated_member_use, use_build_context_synchronously
 // 🏛️ [광장 시스템] 낚시터별 광장(허브). 1단계: 나 혼자 걸어다니며 상점/아레나/포탈/낚시 진입.
 //    2단계에서 RTDB로 다른 유저 실시간 표시 예정.
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'game_config.dart';
 import 'fishing_logic.dart';
 import 'ui_fishing.dart';
@@ -65,7 +68,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   late final AnimationController _walkCtrl;
   bool _walking = false;
   int _moveToken = 0;
-  Offset? _lastTap; // 🛠️ 개발용: 마지막 탭 좌표(NPC 위치 잡기용, 추후 제거)
+  // 🌐 실시간(2단계) — 같은 광장 다른 유저
+  static final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
+    app: Firebase.app(),
+    databaseURL: 'https://camnak-fishing-default-rtdb.asia-southeast1.firebasedatabase.app',
+  );
+  DatabaseReference? _myRef;
+  StreamSubscription<DatabaseEvent>? _roomSub;
+  Map<String, Map<String, dynamic>> _others = {};
+  String get _roomKey => widget.isSea ? 'sea' : 'fresh';
 
   @override
   void initState() {
@@ -78,6 +89,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   @override
   void dispose() {
     _walkCtrl.dispose();
+    _roomSub?.cancel();
+    _myRef?.remove();
     super.dispose();
   }
 
@@ -98,7 +111,121 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _level = calcLevelFromExp(exp);
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+    _initPresence();
   }
+
+  // 🌐 실시간 접속/위치 송수신
+  void _initPresence() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
+    _myRef = _db.ref('plaza/$_roomKey/$uid');
+    _myRef!.onDisconnect().remove(); // 접속 끊기면 자동 사라짐
+    _writeMe();
+    _roomSub = _db.ref('plaza/$_roomKey').onValue.listen((event) {
+      final val = event.snapshot.value;
+      final next = <String, Map<String, dynamic>>{};
+      if (val is Map) {
+        val.forEach((k, v) {
+          if (k.toString() == uid || v is! Map) return; // 나 제외
+          next[k.toString()] = {
+            'nick': v['nick']?.toString() ?? '조사',
+            'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
+            'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
+            'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
+            'face': v['face'] == true,
+          };
+        });
+      }
+      if (mounted) setState(() => _others = next);
+    });
+  }
+
+  void _writeMe() {
+    _myRef?.set({
+      'nick': widget.nickname,
+      'img': _charImage,
+      'x': _charPos.dx,
+      'y': _charPos.dy,
+      'face': _facingRight,
+      't': ServerValue.timestamp,
+    });
+  }
+
+  // 🌐 다른 유저 캐릭터 (실시간 위치로 부드럽게 이동)
+  Widget _remoteAvatar(String uid, Map<String, dynamic> d, double w, double h) {
+    final dx = (d['x'] as double).clamp(0.02, 0.98);
+    final dy = (d['y'] as double).clamp(0.0, 1.0);
+    final pT = ((dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
+    final rH = h * (0.18 + pT * 0.16);
+    final rW = rH * 0.55;
+    final face = d['face'] == true;
+    return AnimatedPositioned(
+      key: ValueKey('remote_$uid'),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.linear,
+      left: dx * w - rW / 2,
+      top: dy * h - rH,
+      width: rW,
+      height: rH,
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          children: [
+            Positioned(
+              bottom: 2,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _footShadow(rW),
+                  SizedBox(width: rW * 0.07),
+                  _footShadow(rW),
+                ],
+              ),
+            ),
+            Positioned.fill(
+              child: Transform(
+                alignment: Alignment.bottomCenter,
+                transform: Matrix4.rotationY(face ? 0 : math.pi),
+                child: Image.asset(d['img'] as String,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomCenter,
+                    errorBuilder: (a, b, c) => const SizedBox.shrink()),
+              ),
+            ),
+            Positioned(
+              bottom: rH * 0.70,
+              left: -150,
+              right: -150,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Text(d['nick'] as String,
+                      maxLines: 1,
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _footShadow(double charW) => Container(
+        width: charW * 0.17,
+        height: charW * 0.08,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(40),
+        ),
+      );
 
   // 광장 배경: 타입별 공용 1장 (민물=plaza_fw, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
   String get _plazaBg => widget.isSea
@@ -191,8 +318,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _charPos = dest;
       _moveDuration = moveDur;
       _walking = true;
-      _lastTap = rawTarget;
     });
+    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}); // 실시간 위치 전송
     // 걷기 바운스 시작, 도착하면 멈춤
     final token = ++_moveToken;
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
@@ -534,6 +661,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
               ),
 
+              // 🌐 다른 유저들 (실시간)
+              ..._others.entries.map((e) => _remoteAvatar(e.key, e.value, w, h)),
+
               // 4) NPC / 시설들 (예당호 광장 그림 랜드마크에 맞춤)
               _npc(w, h, widget.isSea ? 0.75 : 0.90, widget.isSea ? 0.32 : 0.35,'🏪', '상점', _openStore),   // 카페 건물(오른쪽)
               _npc(w, h, widget.isSea ? 0.15 : 0.15, widget.isSea ? 0.28 : 0.20,'🏆', '랭킹', _openRanking), // 왼쪽
@@ -542,24 +672,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 5) 상단 HUD
               _topHud(),
-
-              // 🛠️ (개발용) 마지막 탭 좌표 — NPC 위치 잡을 때 참고. 추후 제거.
-              if (_lastTap != null)
-                Positioned(
-                  left: 12,
-                  bottom: 12,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '좌표 ${_lastTap!.dx.toStringAsFixed(2)}, ${_lastTap!.dy.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                ),
 
               // 6) 낚시 시작 버튼 (이 낚시터에서 바로 낚시)
               Positioned(

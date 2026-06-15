@@ -21,6 +21,7 @@ dependencies:
   url_launcher: ^6.3.2
   firebase_crashlytics: ^5.2.0
   flutter_tts: ^4.2.5
+  firebase_database: ^12.4.2
 
 dev_dependencies:
   flutter_test:
