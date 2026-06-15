@@ -100,10 +100,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (mounted) setState(() => _loading = false);
   }
 
-  // 광장 배경: 타입별 공용 1장 (민물=예당호 광장, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
+  // 광장 배경: 타입별 공용 1장 (민물=plaza_fw, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
   String get _plazaBg => widget.isSea
       ? 'assets/plaza/plaza_sea.jpg'
-      : 'assets/plaza/plaza_yedang.jpg';
+      : 'assets/plaza/plaza_fw.jpg';
 
   String get _charImage {
     if (globalEquippedSkin != null) {
