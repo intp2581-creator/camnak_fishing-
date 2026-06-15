@@ -479,8 +479,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 4) NPC / 시설들 (예당호 광장 그림 랜드마크에 맞춤)
               _npc(w, h, widget.isSea ? 0.77 : 0.93, widget.isSea ? 0.30 : 0.42,'🏪', '상점', _openStore),   // 카페 건물(오른쪽)
               _npc(w, h, widget.isSea ? 0.14 : 0.15, widget.isSea ? 0.27 : 0.25,'🏆', '랭킹', _openRanking), // 왼쪽
-              _npc(w, h, widget.isSea ? 0.95 : 0.72, widget.isSea ? 0.54 : 0.28,'⚔️', '아레나', _openArena), // 중앙 좌측 광장
-              _npc(w, h, widget.isSea ? 0.51 : 0.50, widget.isSea ? 0.22 : 0.20,'🌀', '포탈', _openMinimap), // 출렁다리 입구(위 중앙)
+              _npc(w, h, widget.isSea ? 0.95 : 0.72, widget.isSea ? 0.54 : 0.28,'⚔️', '아레나', _openArena, iconWidget: _crossedRods()), // 중앙 좌측 광장
+              _npc(w, h, widget.isSea ? 0.51 : 0.50, widget.isSea ? 0.22 : 0.20,'🌀', '낚시터', _openMinimap), // 출렁다리 입구(위 중앙)
 
               // 5) 상단 HUD
               _topHud(),
@@ -532,7 +532,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // NPC 한 명 (이모지 뱃지 + 라벨)
-  Widget _npc(double w, double h, double cx, double cy, String emoji, String label, VoidCallback onTap) {
+  // 🎣 낚시대 두 개 교차 아이콘 (아레나용 — 칼싸움 아님 ㅋㅋ)
+  Widget _crossedRods() {
+    return SizedBox(
+      width: 36,
+      height: 32,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Transform.rotate(angle: -0.35, child: const Text('🎣', style: TextStyle(fontSize: 22))),
+          Transform.flip(
+            flipX: true,
+            child: Transform.rotate(angle: -0.35, child: const Text('🎣', style: TextStyle(fontSize: 22))),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _npc(double w, double h, double cx, double cy, String emoji, String label, VoidCallback onTap, {Widget? iconWidget}) {
     const double npcW = 96;
     const double npcH = 96;
     return Positioned(
@@ -554,7 +572,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 border: Border.all(color: _kGold, width: 2),
                 boxShadow: [BoxShadow(color: _kGold.withOpacity(0.4), blurRadius: 10)],
               ),
-              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 28))),
+              child: Center(child: iconWidget ?? Text(emoji, style: const TextStyle(fontSize: 28))),
             ),
             const SizedBox(height: 4),
             Container(
@@ -592,13 +610,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               children: [
                 Text(widget.isSea ? '🌊' : '🏞️', style: const TextStyle(fontSize: 18)),
                 const SizedBox(width: 8),
-                Text(widget.spot['name'],
+                Text(widget.isSea ? '바다낚시 광장' : '민물낚시 광장',
                     style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
-                const SizedBox(width: 8),
-                ...List.generate(
-                  widget.spot['stars'] as int,
-                  (i) => const Icon(Icons.star, color: _kGold, size: 14),
-                ),
               ],
             ),
           ),
