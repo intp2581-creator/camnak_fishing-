@@ -177,17 +177,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           clipBehavior: Clip.none,
           alignment: Alignment.bottomCenter,
           children: [
-            Positioned(
-              bottom: 2,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _footShadow(rW),
-                  SizedBox(width: rW * 0.07),
-                  _footShadow(rW),
-                ],
-              ),
-            ),
             Positioned.fill(
               child: Transform(
                 alignment: Alignment.bottomCenter,
@@ -222,14 +211,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _footShadow(double charW) => Container(
-        width: charW * 0.17,
-        height: charW * 0.08,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.3),
-          borderRadius: BorderRadius.circular(40),
-        ),
-      );
 
   // 광장 배경: 타입별 공용 1장 (민물=plaza_fw, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
   String get _plazaBg => widget.isSea
@@ -593,32 +574,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         clipBehavior: Clip.none,
                         alignment: Alignment.bottomCenter,
                         children: [
-                          // 발밑 그림자 (두 발 — 스케이트보드 느낌 제거, 발보다 살짝 크게)
-                          Positioned(
-                            bottom: 2,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: charW * 0.17,
-                                  height: charW * 0.08,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.32),
-                                    borderRadius: BorderRadius.circular(40),
-                                  ),
-                                ),
-                                SizedBox(width: charW * 0.07),
-                                Container(
-                                  width: charW * 0.17,
-                                  height: charW * 0.08,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.32),
-                                    borderRadius: BorderRadius.circular(40),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                           // 캐릭터 (들썩 + 기우뚱 + 방향)
                           Positioned.fill(
                             child: Transform.translate(
