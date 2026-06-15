@@ -297,7 +297,7 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
   final TextEditingController _nickController = TextEditingController();
   bool isChecked = false; 
   String checkMessage = "";
-  int _tutorialStep = 0; 
+  int _tutorialStep = -1; // 윤슬 튜토리얼 전부 제거 (광장 개편)
 
   @override
   void initState() {
@@ -353,7 +353,7 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => PlazaScreen.defaultEntry(
         nickname: _nickController.text.trim(),
         level: 1,
-        isFirstTime: true, // 👈 신규 유저도 광장으로 입장!
+        isFirstTime: false, // 윤슬 튜토리얼 제거 → 낚시 화면 튜토리얼도 안 뜸
       )));
     }
   }
@@ -434,7 +434,7 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
                     height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: isChecked ? const Color(0xFFD4AF37) : Colors.grey.shade800, foregroundColor: isChecked ? Colors.black : Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                      onPressed: isChecked ? _showSuccessTutorial : null, 
+                      onPressed: isChecked ? _realSaveAndStart : null, // 윤슬 성공 안내 건너뛰고 바로 입장
                       child: const Text("캠피싱 낚시대회 시작하기", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                   )
