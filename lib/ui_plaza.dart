@@ -356,7 +356,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         builder: (context, c) {
           final w = c.maxWidth;
           final h = c.maxHeight;
-          final charH = h * 0.28;
+          // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
+          final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
+          final charH = h * (0.18 + perspT * 0.16); // 멀리=0.18h ~ 가까이=0.34h
           final charW = charH * 0.55;
 
           return Stack(
