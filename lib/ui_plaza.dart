@@ -358,59 +358,70 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 width: charW,
                 height: charH,
                 child: IgnorePointer(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // 닉네임/레벨 머리표
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.6),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _kGold.withOpacity(0.7)),
-                        ),
-                        child: Text('Lv.$_level ${widget.nickname}',
-                            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ),
-                      Expanded(
-                        child: AnimatedBuilder(
-                          animation: _walkCtrl,
-                          builder: (context, _) {
-                            final bob = _walking
-                                ? (math.sin(_walkCtrl.value * 2 * math.pi)).abs() * 5.0
-                                : 0.0;
-                            return Stack(
-                              alignment: Alignment.bottomCenter,
-                              children: [
-                                // 발밑 그림자
-                                Positioned(
-                                  bottom: 2,
-                                  child: Container(
-                                    width: charW * 0.4,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.35),
-                                      borderRadius: BorderRadius.circular(20),
-                                    ),
+                  child: AnimatedBuilder(
+                    animation: _walkCtrl,
+                    builder: (context, _) {
+                      final phase = _walkCtrl.value * 2 * math.pi;
+                      final bob = _walking ? math.sin(phase).abs() * 2.5 : 0.0; // 작은 들썩
+                      final tilt = _walking ? math.sin(phase) * 0.035 : 0.0;     // 좌우 기우뚱
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.bottomCenter,
+                        children: [
+                          // 발밑 그림자
+                          Positioned(
+                            bottom: 2,
+                            child: Container(
+                              width: charW * 0.4,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.35),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          ),
+                          // 캐릭터 (들썩 + 기우뚱 + 방향)
+                          Positioned.fill(
+                            child: Transform.translate(
+                              offset: Offset(0, -bob),
+                              child: Transform.rotate(
+                                angle: tilt,
+                                alignment: Alignment.bottomCenter,
+                                child: Transform(
+                                  alignment: Alignment.bottomCenter,
+                                  transform: Matrix4.rotationY(_facingRight ? 0 : math.pi),
+                                  child: Image.asset(
+                                    _charImage,
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.bottomCenter,
+                                    errorBuilder: (a, b, d) => const SizedBox.shrink(),
                                   ),
                                 ),
-                                // 캐릭터 (걸을 때 통통)
-                                Transform.translate(
-                                  offset: Offset(0, -bob),
-                                  child: Transform(
-                                    alignment: Alignment.center,
-                                    transform: Matrix4.rotationY(_facingRight ? 0 : math.pi),
-                                    child: Image.asset(_charImage,
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (a, b, d) => const SizedBox.shrink()),
-                                  ),
+                              ),
+                            ),
+                          ),
+                          // 닉네임/레벨 머리표 (머리 바로 위로)
+                          Positioned(
+                            bottom: charH * 0.78,
+                            left: 0,
+                            right: 0,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.6),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: _kGold.withOpacity(0.7)),
                                 ),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+                                child: Text('Lv.$_level ${widget.nickname}',
+                                    maxLines: 1,
+                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ),
