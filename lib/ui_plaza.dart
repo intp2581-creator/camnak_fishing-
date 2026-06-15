@@ -49,7 +49,7 @@ class PlazaScreen extends StatefulWidget {
   State<PlazaScreen> createState() => _PlazaScreenState();
 }
 
-class _PlazaScreenState extends State<PlazaScreen> {
+class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStateMixin {
   bool _loading = true;
   int _gold = 0;
   int _level = 1;
@@ -60,11 +60,23 @@ class _PlazaScreenState extends State<PlazaScreen> {
   bool _facingRight = true;
   Duration _moveDuration = const Duration(milliseconds: 500);
 
+  // 🚶 걷기 바운스용
+  late final AnimationController _walkCtrl;
+  bool _walking = false;
+  int _moveToken = 0;
+
   @override
   void initState() {
     super.initState();
     _level = widget.level;
+    _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     _loadUser();
+  }
+
+  @override
+  void dispose() {
+    _walkCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadUser() async {
@@ -107,13 +119,24 @@ class _PlazaScreenState extends State<PlazaScreen> {
     final dx = (target.dx - _charPos.dx) * w;
     final dy = (target.dy - _charPos.dy) * h;
     final dist = math.sqrt(dx * dx + dy * dy);
-    final ms = (dist / 0.5).clamp(250, 1500).toInt(); // 이동 속도
+    final ms = (dist / 0.32).clamp(350, 2200).toInt(); // 걷기 속도(등속)
+    final moveDur = Duration(milliseconds: ms);
     setState(() {
       _facingRight = target.dx >= _charPos.dx;
       // dy는 바닥(걷는 구역)으로만 제한 — 너무 위로 못 올라가게
       final clampedY = target.dy.clamp(0.62, 0.92);
       _charPos = Offset(target.dx.clamp(0.05, 0.95), clampedY);
-      _moveDuration = Duration(milliseconds: ms);
+      _moveDuration = moveDur;
+      _walking = true;
+    });
+    // 걷기 바운스 시작, 도착하면 멈춤
+    final token = ++_moveToken;
+    if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
+    Future.delayed(moveDur, () {
+      if (!mounted || token != _moveToken) return;
+      setState(() => _walking = false);
+      _walkCtrl.stop();
+      _walkCtrl.value = 0;
     });
   }
 
@@ -329,7 +352,7 @@ class _PlazaScreenState extends State<PlazaScreen> {
               // 3) 내 캐릭터 (탭 통과)
               AnimatedPositioned(
                 duration: _moveDuration,
-                curve: Curves.easeInOut,
+                curve: Curves.linear,
                 left: _charPos.dx * w - charW / 2,
                 top: _charPos.dy * h - charH,
                 width: charW,
@@ -350,12 +373,41 @@ class _PlazaScreenState extends State<PlazaScreen> {
                             style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                       ),
                       Expanded(
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.rotationY(_facingRight ? 0 : math.pi),
-                          child: Image.asset(_charImage,
-                              fit: BoxFit.contain,
-                              errorBuilder: (a, b, d) => const SizedBox.shrink()),
+                        child: AnimatedBuilder(
+                          animation: _walkCtrl,
+                          builder: (context, _) {
+                            final bob = _walking
+                                ? (math.sin(_walkCtrl.value * 2 * math.pi)).abs() * 5.0
+                                : 0.0;
+                            return Stack(
+                              alignment: Alignment.bottomCenter,
+                              children: [
+                                // 발밑 그림자
+                                Positioned(
+                                  bottom: 2,
+                                  child: Container(
+                                    width: charW * 0.4,
+                                    height: 8,
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.35),
+                                      borderRadius: BorderRadius.circular(20),
+                                    ),
+                                  ),
+                                ),
+                                // 캐릭터 (걸을 때 통통)
+                                Transform.translate(
+                                  offset: Offset(0, -bob),
+                                  child: Transform(
+                                    alignment: Alignment.center,
+                                    transform: Matrix4.rotationY(_facingRight ? 0 : math.pi),
+                                    child: Image.asset(_charImage,
+                                        fit: BoxFit.contain,
+                                        errorBuilder: (a, b, d) => const SizedBox.shrink()),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ),
                     ],
