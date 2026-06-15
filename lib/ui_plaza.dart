@@ -132,9 +132,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final moveDur = Duration(milliseconds: ms);
     setState(() {
       _facingRight = target.dx >= _charPos.dx;
-      // dy는 바닥(걷는 구역)으로만 제한 — 너무 위로 못 올라가게
-      final clampedY = target.dy.clamp(0.50, 0.95);
-      _charPos = Offset(target.dx.clamp(0.05, 0.95), clampedY);
+      // 🏝️ 광장(섬) 모양에 맞춘 사다리꼴 걷기 구역: 위(다리쪽)는 좁고, 앞(아래)으로 갈수록 넓어짐 → 물 위에 못 서게
+      final clampedY = target.dy.clamp(0.46, 0.95);
+      final t = ((clampedY - 0.46) / (0.95 - 0.46)).clamp(0.0, 1.0);
+      final halfW = 0.14 + t * 0.32; // 폭 절반: 0.14(위) → 0.46(아래)
+      final clampedX = target.dx.clamp(0.5 - halfW, 0.5 + halfW);
+      _charPos = Offset(clampedX, clampedY);
       _moveDuration = moveDur;
       _walking = true;
       _lastTap = target;
