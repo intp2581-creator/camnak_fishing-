@@ -100,12 +100,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (mounted) setState(() => _loading = false);
   }
 
-  // 광장 전용 배경 경로: assets/fields/bg_OOO.jpg → assets/plaza/plaza_OOO.jpg
-  // (파일 없으면 아래 build에서 낚시 배경으로 폴백)
-  String get _plazaBg {
-    final f = widget.spot['image'].toString();
-    return f.replaceFirst('fields/bg_', 'plaza/plaza_');
-  }
+  // 광장 배경: 타입별 공용 1장 (민물=예당호 광장, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
+  String get _plazaBg => widget.isSea
+      ? 'assets/plaza/plaza_sea.jpg'
+      : 'assets/plaza/plaza_yedang.jpg';
 
   String get _charImage {
     if (globalEquippedSkin != null) {
@@ -124,19 +122,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return 'assets/images/char_beginner.png';
   }
 
-  // 🗺️ 광장 걷기 가능 구역(섬 경계) — 캐릭터 발 기준 다각형(0~1 비율). 빨간 라인 좌표.
-  static const List<Offset> _plazaPoly = [
+  // 🗺️ 걷기 구역(섬 경계) 다각형 — 타입별. 민물=예당호 광장 빨간라인 좌표.
+  static const List<Offset> _freshPoly = [
     Offset(0.00, 1.00), Offset(0.00, 0.58), Offset(0.10, 0.52), Offset(0.23, 0.50),
     Offset(0.28, 0.46), Offset(0.30, 0.34), Offset(0.35, 0.30), Offset(0.48, 0.28),
     Offset(0.56, 0.28), Offset(0.63, 0.30), Offset(0.56, 0.34), Offset(0.57, 0.38),
     Offset(0.66, 0.44), Offset(0.72, 0.46), Offset(0.79, 0.43), Offset(0.80, 0.40),
     Offset(0.89, 0.44), Offset(0.78, 0.48), Offset(0.87, 0.55), Offset(1.00, 1.00),
   ];
+  // 바다 광장 임시 경계(넓은 사다리꼴) — 실제 바다 광장 그림 나오면 좌표로 교체
+  static const List<Offset> _seaPoly = [
+    Offset(0.00, 1.00), Offset(0.05, 0.62), Offset(0.30, 0.50), Offset(0.50, 0.48),
+    Offset(0.70, 0.50), Offset(0.95, 0.62), Offset(1.00, 1.00),
+  ];
+  List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
 
   // 점이 다각형 안인지 (ray casting)
   bool _inPoly(Offset p) {
     bool inside = false;
-    final poly = _plazaPoly;
+    final poly = _activePoly;
     for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       final pi = poly[i], pj = poly[j];
       if (((pi.dy > p.dy) != (pj.dy > p.dy)) &&
@@ -158,7 +162,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 다각형 안이면 그대로, 밖이면 가장 가까운 가장자리 점으로
   Offset _clampToPlaza(Offset p) {
     if (_inPoly(p)) return p;
-    final poly = _plazaPoly;
+    final poly = _activePoly;
     Offset best = poly.first;
     double bestD = double.infinity;
     for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
