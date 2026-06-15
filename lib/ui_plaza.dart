@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/gestures.dart'; // 채팅 닉네임 탭
 import 'game_config.dart';
 import 'fishing_logic.dart';
 import 'ui_fishing.dart';
@@ -78,6 +79,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Map<String, Map<String, dynamic>> _others = {};
   String get _roomKey => widget.isSea ? 'sea' : 'fresh';
 
+  // 💬 채팅 (낚시터와 동일한 global_chat / friends 공유)
+  int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구
+  String? _whisperTarget;
+  final TextEditingController _chatCtrl = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -91,6 +97,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _walkCtrl.dispose();
     _roomSub?.cancel();
     _myRef?.remove();
+    _chatCtrl.dispose();
     super.dispose();
   }
 
@@ -497,6 +504,264 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // ===== 💬 채팅 =====
+  Widget _chatTabBtn(int index, String title) {
+    final active = _chatTab == index;
+    return GestureDetector(
+      onTap: () => setState(() {
+        _chatTab = index;
+        if (index == 0) _whisperTarget = null;
+      }),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        margin: const EdgeInsets.only(right: 2),
+        decoration: BoxDecoration(
+          color: active ? _kGold : Colors.grey.shade700,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+        ),
+        child: Text(title,
+            style: TextStyle(
+                color: active ? Colors.black : Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
+  void _sendChat() {
+    final text = _chatCtrl.text.trim();
+    if (text.isEmpty) return;
+    String type = 'global';
+    String receiver = '';
+    if (_chatTab == 1 && _whisperTarget != null) {
+      type = 'whisper';
+      receiver = _whisperTarget!;
+    }
+    FirebaseFirestore.instance.collection('global_chat').add({
+      'nickname': widget.nickname,
+      'message': text,
+      'type': type,
+      'receiver': receiver,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    _chatCtrl.clear();
+  }
+
+  void _showUserMenu(String nick) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black87,
+        shape: RoundedRectangleBorder(
+            side: const BorderSide(color: Colors.amber, width: 2),
+            borderRadius: BorderRadius.circular(8)),
+        title: Text('[$nick] 님',
+            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.chat_bubble_outline, color: Colors.yellowAccent),
+              title: const Text('귓속말 보내기', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _whisperTarget = nick;
+                  _chatTab = 1;
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1, color: Colors.greenAccent),
+              title: const Text('친구 추가하기', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(ctx);
+                _addFriend(nick);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cancel_outlined, color: Colors.grey),
+              title: const Text('취소', style: TextStyle(color: Colors.grey)),
+              onTap: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addFriend(String nick) {
+    FirebaseFirestore.instance
+        .collection('friends')
+        .doc(widget.nickname)
+        .collection('my_list')
+        .doc(nick)
+        .set({'nickname': nick, 'addedAt': FieldValue.serverTimestamp()}).then((_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('[$nick]님을 친구 목록에 추가했습니다! 🤝'),
+          backgroundColor: Colors.blueGrey,
+          duration: const Duration(seconds: 2),
+        ));
+      }
+    });
+  }
+
+  Widget _chatPanel() {
+    return Positioned(
+      left: 16,
+      bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _chatTabBtn(0, '전체'),
+            _chatTabBtn(1, '귓속말'),
+            _chatTabBtn(2, '친구'),
+          ]),
+          Container(
+            width: 360,
+            height: 170,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.65),
+              border: Border.all(color: Colors.amber, width: 2),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: _chatTab == 2
+                      ? StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('friends')
+                              .doc(widget.nickname)
+                              .collection('my_list')
+                              .orderBy('addedAt', descending: true)
+                              .snapshots(),
+                          builder: (c, snap) {
+                            if (!snap.hasData) {
+                              return const Center(child: CircularProgressIndicator(color: Colors.amber));
+                            }
+                            final docs = snap.data!.docs;
+                            if (docs.isEmpty) {
+                              return const Center(
+                                  child: Text('아직 친구가 없습니다.\n채팅에서 닉네임을 눌러 추가하세요!',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(color: Colors.white54, fontSize: 12)));
+                            }
+                            return ListView.builder(
+                              itemCount: docs.length,
+                              itemBuilder: (c, i) {
+                                final f = docs[i].data() as Map<String, dynamic>;
+                                final fn = f['nickname'] ?? '?';
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                                  visualDensity: VisualDensity.compact,
+                                  leading: const Icon(Icons.person, color: Colors.greenAccent, size: 20),
+                                  title: Text(fn,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
+                                    onPressed: () => setState(() {
+                                      _whisperTarget = fn;
+                                      _chatTab = 1;
+                                    }),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        )
+                      : StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('global_chat')
+                              .orderBy('timestamp', descending: true)
+                              .limit(30)
+                              .snapshots(),
+                          builder: (c, snap) {
+                            if (!snap.hasData) return const SizedBox.shrink();
+                            final docs = snap.data!.docs;
+                            final me = widget.nickname;
+                            return ListView.builder(
+                              reverse: true,
+                              itemCount: docs.length,
+                              itemBuilder: (c, i) {
+                                final d = docs[i].data() as Map<String, dynamic>;
+                                final type = d['type'] ?? 'global';
+                                final receiver = d['receiver'] ?? '';
+                                final sender = d['nickname'] ?? '조사';
+                                final msg = d['message'] ?? '';
+                                if (_chatTab == 1) {
+                                  if (type != 'whisper') return const SizedBox.shrink();
+                                  if (sender != me && receiver != me) return const SizedBox.shrink();
+                                } else {
+                                  // 전체 탭: 남의 귓속말은 숨김
+                                  if (type == 'whisper' && sender != me && receiver != me) {
+                                    return const SizedBox.shrink();
+                                  }
+                                }
+                                Color pc = Colors.white;
+                                String pt = '전체>';
+                                if (type == 'notice') {
+                                  pc = Colors.amber;
+                                  pt = '공지>';
+                                } else if (type == 'whisper') {
+                                  pc = Colors.yellowAccent;
+                                  pt = '귓속말>';
+                                }
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 4),
+                                  child: RichText(
+                                    text: TextSpan(children: [
+                                      TextSpan(text: '$pt ', style: TextStyle(color: pc, fontSize: 13)),
+                                      TextSpan(
+                                        text: '$sender: ',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        recognizer: TapGestureRecognizer()
+                                          ..onTap = () {
+                                            if (sender != me) _showUserMenu(sender);
+                                          },
+                                      ),
+                                      TextSpan(
+                                          text: msg,
+                                          style: TextStyle(
+                                              color: type == 'notice' ? Colors.amber : Colors.white,
+                                              fontSize: 13)),
+                                    ]),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 34,
+                  child: TextField(
+                    controller: _chatCtrl,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: (_chatTab == 1 && _whisperTarget != null)
+                          ? '[$_whisperTarget]님에게 귓속말...'
+                          : '메시지를 입력하세요...',
+                      hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      border: const OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _sendChat(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -631,6 +896,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 5) 상단 HUD
               _topHud(),
+
+              // 💬 채팅 패널 (낚시터와 동일)
+              _chatPanel(),
 
               // 6) 낚시 시작 버튼 (이 낚시터에서 바로 낚시)
               Positioned(
