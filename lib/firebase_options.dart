@@ -46,6 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '755892653855',
     projectId: 'camnak-fishing',
     authDomain: 'camnak-fishing.firebaseapp.com',
+    databaseURL: 'https://camnak-fishing-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'camnak-fishing.firebasestorage.app',
     measurementId: 'G-VS4N2N7YGD',
   );
