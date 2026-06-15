@@ -455,9 +455,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           ),
                           // 닉네임/레벨 머리표 (머리 바로 위로)
                           Positioned(
-                            bottom: charH * 0.78,
-                            left: 0,
-                            right: 0,
+                            bottom: charH * 0.70,
+                            left: -150,
+                            right: -150,
                             child: Center(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
