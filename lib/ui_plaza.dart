@@ -143,11 +143,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
   }
 
-  String _shortUid() {
-    final u = FirebaseAuth.instance.currentUser?.uid ?? '?';
-    return u.length > 6 ? u.substring(0, 6) : u;
-  }
-
   void _writeMe() {
     _myRef?.set({
       'nick': widget.nickname,
@@ -681,25 +676,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 5) 상단 HUD
               _topHud(),
-
-              // 🛠️ 디버그: 방/다른유저 수 (진단용, 곧 제거)
-              Positioned(
-                top: 72,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('방:$_roomKey · 나:${_shortUid()} · 다른:${_others.length}',
-                        style: const TextStyle(
-                            color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ),
 
               // 6) 낚시 시작 버튼 (이 낚시터에서 바로 낚시)
               Positioned(
