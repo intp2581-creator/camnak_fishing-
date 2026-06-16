@@ -524,10 +524,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: TextButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        child: const Text('닫기', style: TextStyle(color: Colors.white54))),
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('닫기', style: TextStyle(color: Colors.white54))),
+                        const Spacer(),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            _goFishing();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kGold,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Text('🎣', style: TextStyle(fontSize: 16)),
+                          label: const Text('여기서 낚시 시작',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -969,28 +989,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 💬 채팅 패널 (낚시터와 동일)
               _chatPanel(),
-
-              // 6) 낚시 시작 버튼 (이 낚시터에서 바로 낚시)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 24,
-                child: Center(
-                  child: ElevatedButton.icon(
-                    onPressed: _goFishing,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kGold,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                      elevation: 8,
-                    ),
-                    icon: const Text('🎣', style: TextStyle(fontSize: 20)),
-                    label: const Text('낚시 시작',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                  ),
-                ),
-              ),
             ],
           );
         },
@@ -1280,12 +1278,26 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: _kGold.withOpacity(0.6)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(widget.isSea ? '🌊' : '🏞️', style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 8),
-                Text(widget.isSea ? '바다낚시 광장' : '민물낚시 광장',
-                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+                Row(children: [
+                  Text(widget.isSea ? '🌊' : '🏞️', style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 6),
+                  Text(widget.isSea ? '바다낚시 광장' : '민물낚시 광장',
+                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                ]),
+                const SizedBox(height: 3),
+                Row(children: [
+                  const Icon(Icons.place, color: _kGold, size: 14),
+                  const SizedBox(width: 2),
+                  Text(widget.spot['name'].toString(),
+                      style: const TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 6),
+                  ...List.generate(widget.spot['stars'] as int,
+                      (i) => const Icon(Icons.star, color: _kGold, size: 11)),
+                ]),
               ],
             ),
           ),
