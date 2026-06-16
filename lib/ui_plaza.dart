@@ -221,7 +221,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             Positioned(
-              bottom: rH * 0.70,
+              bottom: rH * 0.50,
               left: -150,
               right: -150,
               child: Center(
@@ -241,7 +241,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             // 💬 다른 유저 말풍선
             if (_bubbleUntil[uid] != null && DateTime.now().isBefore(_bubbleUntil[uid]!))
               Positioned(
-                bottom: rH * 0.98,
+                bottom: rH * 0.68,
                 left: -150,
                 right: -150,
                 child: Center(child: _bubble(_bubbleMsg[uid] ?? '')),
@@ -921,7 +921,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           ),
                           // 닉네임/레벨 머리표 (머리 바로 위로)
                           Positioned(
-                            bottom: charH * 0.70,
+                            bottom: charH * 0.50,
                             left: -150,
                             right: -150,
                             child: Center(
@@ -943,7 +943,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               _myBubbleUntil != null &&
                               DateTime.now().isBefore(_myBubbleUntil!))
                             Positioned(
-                              bottom: charH * 0.98,
+                              bottom: charH * 0.68,
                               left: -150,
                               right: -150,
                               child: Center(child: _bubble(_myBubble!)),
