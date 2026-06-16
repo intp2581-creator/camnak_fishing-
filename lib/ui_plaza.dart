@@ -1057,7 +1057,123 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 🎒 인벤토리 (읽기 전용 보기)
+  String _itemIconPath(String icon) {
+    if (icon.isEmpty) return 'assets/items/rod_fw_cf20.png';
+    if (icon.startsWith('../images/')) return 'assets/${icon.substring(3)}';
+    if (icon.startsWith('assets/')) return icon;
+    return 'assets/items/$icon';
+  }
+
+  Widget _invItem(Map<String, dynamic> item) {
+    final name = item['name']?.toString() ?? '';
+    final qty = item['quantity'];
+    final icon = _itemIconPath(item['icon']?.toString() ?? '');
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Image.asset(icon,
+                        fit: BoxFit.contain,
+                        errorBuilder: (a, b, c) =>
+                            const Icon(Icons.inventory_2, color: Colors.white24, size: 30)),
+                  ),
+                ),
+                if (qty != null)
+                  Positioned(
+                    right: 4,
+                    bottom: 4,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                          color: Colors.black87, borderRadius: BorderRadius.circular(6)),
+                      child: Text('$qty개',
+                          style: const TextStyle(
+                              color: _kGold, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6, left: 4, right: 4),
+            child: Text(name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openInventory() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF141414),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _kGold, width: 1.5)),
+        child: SizedBox(
+          width: 760,
+          height: 560,
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 8, 6),
+                child: Row(
+                  children: [
+                    const Text('🎒 KREFT 인벤토리',
+                        style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
+                    const Spacer(),
+                    IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close, color: Colors.white, size: 26)),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Expanded(
+                child: _inventory.isEmpty
+                    ? const Center(
+                        child: Text('인벤토리가 비어있어요', style: TextStyle(color: Colors.white54)))
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(14),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 5,
+                          childAspectRatio: 0.85,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                        ),
+                        itemCount: _inventory.length,
+                        itemBuilder: (c, i) => _invItem(_inventory[i] as Map<String, dynamic>),
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _topHud() {
+    final lv = _level.clamp(1, 30);
+    final curBase = globalExpTable[lv];
+    final nextBase = lv < 30 ? globalExpTable[lv + 1] : globalExpTable[30];
+    final span = nextBase - curBase;
+    final prog = (lv >= 30 || span <= 0) ? 1.0 : ((currentExp - curBase) / span).clamp(0.0, 1.0);
     return Positioned(
       top: 16,
       left: 16,
@@ -1082,26 +1198,82 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
-          // 내 정보
+          // 내 정보 카드 (스킨/레벨/경험치바/머니/가방)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: _kGold.withOpacity(0.6)),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('Lv.$_level',
-                    style: const TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 16)),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _kGold, width: 1.5),
+                    image: DecorationImage(
+                        image: AssetImage(_charImage),
+                        fit: BoxFit.cover,
+                        alignment: const Alignment(0, -0.7)),
+                  ),
+                ),
                 const SizedBox(width: 10),
-                Text(widget.nickname,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(width: 12),
-                const Icon(Icons.toll, color: _kGold, size: 16),
-                const SizedBox(width: 4),
-                Text('$_gold',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text('Lv.$_level',
+                          style: const TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 15)),
+                      const SizedBox(width: 6),
+                      Text(widget.nickname,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    ]),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      width: 150,
+                      child: Stack(children: [
+                        Container(
+                            height: 9,
+                            decoration: BoxDecoration(
+                                color: Colors.white24, borderRadius: BorderRadius.circular(5))),
+                        FractionallySizedBox(
+                          widthFactor: prog,
+                          child: Container(
+                              height: 9,
+                              decoration: BoxDecoration(
+                                  color: _kGold, borderRadius: BorderRadius.circular(5))),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(lv >= 30 ? 'MAX LEVEL' : '$currentExp / $nextBase EXP',
+                        style: const TextStyle(color: Colors.white70, fontSize: 10)),
+                    const SizedBox(height: 3),
+                    Row(children: [
+                      const Icon(Icons.toll, color: _kGold, size: 14),
+                      const SizedBox(width: 4),
+                      Text('$_gold P',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    ]),
+                  ],
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _openInventory,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(color: _kGold, borderRadius: BorderRadius.circular(8)),
+                    child: const Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.backpack, color: Colors.black, size: 22),
+                      Text('가방', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                ),
               ],
             ),
           ),
