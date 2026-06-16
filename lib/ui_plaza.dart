@@ -1119,6 +1119,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _openInventory() {
+    String tab = '전체';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -1126,43 +1127,99 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: _kGold, width: 1.5)),
-        child: SizedBox(
-          width: 760,
-          height: 560,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 8, 6),
-                child: Row(
-                  children: [
-                    const Text('🎒 KREFT 인벤토리',
-                        style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
-                    const Spacer(),
-                    IconButton(
-                        onPressed: () => Navigator.pop(ctx),
-                        icon: const Icon(Icons.close, color: Colors.white, size: 26)),
-                  ],
+        child: StatefulBuilder(
+          builder: (ctx, setD) {
+            bool match(Map<String, dynamic> it) {
+              if (tab == '전체') return true;
+              final cat = (it['category'] ?? '').toString().toUpperCase();
+              final type = (it['type'] ?? '').toString().toUpperCase();
+              switch (tab) {
+                case '민물':
+                  return cat == 'FW';
+                case '바다':
+                  return cat == 'SEA';
+                case '미끼':
+                  return type == 'BAIT';
+                case '스킨':
+                  return type == 'SKIN' || cat == 'SKIN';
+              }
+              return true;
+            }
+
+            final items =
+                _inventory.map((e) => e as Map<String, dynamic>).where(match).toList();
+
+            Widget tabBtn(String t) {
+              final active = tab == t;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setD(() => tab = t),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border(
+                          bottom: BorderSide(
+                              color: active ? _kGold : Colors.transparent, width: 3)),
+                    ),
+                    child: Text(t,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: active ? _kGold : Colors.white54,
+                            fontSize: 15,
+                            fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
+                  ),
                 ),
+              );
+            }
+
+            return SizedBox(
+              width: 760,
+              height: 560,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 8, 4),
+                    child: Row(
+                      children: [
+                        const Text('🎒 KREFT 인벤토리',
+                            style: TextStyle(
+                                color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
+                        const Spacer(),
+                        IconButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            icon: const Icon(Icons.close, color: Colors.white, size: 26)),
+                      ],
+                    ),
+                  ),
+                  Row(children: [
+                    tabBtn('전체'),
+                    tabBtn('민물'),
+                    tabBtn('바다'),
+                    tabBtn('미끼'),
+                    tabBtn('스킨'),
+                  ]),
+                  const Divider(color: Colors.white12, height: 1),
+                  Expanded(
+                    child: items.isEmpty
+                        ? const Center(
+                            child: Text('이 분류에 아이템이 없어요',
+                                style: TextStyle(color: Colors.white54)))
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(14),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 5,
+                              childAspectRatio: 0.85,
+                              mainAxisSpacing: 10,
+                              crossAxisSpacing: 10,
+                            ),
+                            itemCount: items.length,
+                            itemBuilder: (c, i) => _invItem(items[i]),
+                          ),
+                  ),
+                ],
               ),
-              const Divider(color: Colors.white12, height: 1),
-              Expanded(
-                child: _inventory.isEmpty
-                    ? const Center(
-                        child: Text('인벤토리가 비어있어요', style: TextStyle(color: Colors.white54)))
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(14),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          childAspectRatio: 0.85,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                        ),
-                        itemCount: _inventory.length,
-                        itemBuilder: (c, i) => _invItem(_inventory[i] as Map<String, dynamic>),
-                      ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
