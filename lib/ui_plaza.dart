@@ -419,21 +419,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
             Widget tab(String label, bool active, VoidCallback onTap, {double fontSize = 18}) {
               return Expanded(
-                child: GestureDetector(
-                  onTap: onTap,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      border: Border(
-                          bottom: BorderSide(
-                              color: active ? _kGold : Colors.transparent, width: 3)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+                  child: GestureDetector(
+                    onTap: onTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: active ? _kGold : Colors.grey.shade800,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: active ? _kGold : Colors.white24, width: 1),
+                      ),
+                      child: Text(label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: active ? Colors.black : Colors.white70,
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w900)),
                     ),
-                    child: Text(label,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: active ? _kGold : Colors.white54,
-                            fontSize: fontSize,
-                            fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
                   ),
                 ),
               );
@@ -1358,10 +1362,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         style: const TextStyle(color: Colors.white70, fontSize: 10)),
                     const SizedBox(height: 3),
                     Row(children: [
-                      const Icon(Icons.toll, color: _kGold, size: 14),
-                      const SizedBox(width: 4),
-                      Text('$_gold P',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      const Text('포인트',
+                          style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12)),
+                      const SizedBox(width: 6),
+                      Text('$_gold',
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                     ]),
                   ],
                 ),
