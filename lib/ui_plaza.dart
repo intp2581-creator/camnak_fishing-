@@ -1129,25 +1129,59 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             side: const BorderSide(color: _kGold, width: 1.5)),
         child: StatefulBuilder(
           builder: (ctx, setD) {
+            int typeRank(Map<String, dynamic> it) {
+              switch ((it['type'] ?? '').toString().toUpperCase()) {
+                case 'SKIN':
+                  return 0;
+                case 'ROD':
+                  return 1;
+                case 'REEL':
+                case 'FLOAT':
+                  return 2;
+                case 'ETC':
+                  return 3;
+                case 'BAIT':
+                  return 4;
+              }
+              return 5;
+            }
+
+            int catRank(Map<String, dynamic> it) {
+              final c = (it['category'] ?? '').toString().toUpperCase();
+              if (c == 'FW') return 0;
+              if (c == 'SEA') return 1;
+              return 2;
+            }
+
             bool match(Map<String, dynamic> it) {
-              if (tab == '전체') return true;
               final cat = (it['category'] ?? '').toString().toUpperCase();
               final type = (it['type'] ?? '').toString().toUpperCase();
               switch (tab) {
                 case '민물':
-                  return cat == 'FW';
+                  return (cat == 'FW' && type != 'BAIT') || (type == 'ETC' && cat != 'SEA');
                 case '바다':
-                  return cat == 'SEA';
+                  return (cat == 'SEA' && type != 'BAIT') || (type == 'ETC' && cat != 'FW');
                 case '미끼':
                   return type == 'BAIT';
                 case '스킨':
                   return type == 'SKIN' || cat == 'SKIN';
               }
-              return true;
+              return true; // 전체
             }
 
             final items =
                 _inventory.map((e) => e as Map<String, dynamic>).where(match).toList();
+            items.sort((a, b) {
+              if (tab == '미끼') {
+                final c = catRank(a).compareTo(catRank(b)); // 민물 미끼 → 바다 미끼
+                if (c != 0) return c;
+                return (a['name'] ?? '').toString().compareTo((b['name'] ?? '').toString());
+              }
+              // 전체/민물/바다: 스킨>낚시대>릴찌>악세>미끼, 같으면 민물>바다
+              final t = typeRank(a).compareTo(typeRank(b));
+              if (t != 0) return t;
+              return catRank(a).compareTo(catRank(b));
+            });
 
             Widget tabBtn(String t) {
               final active = tab == t;
