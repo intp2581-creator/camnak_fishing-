@@ -413,31 +413,27 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         child: StatefulBuilder(
           builder: (ctx, setDialog) {
             final bool isMainSea = (subCat == '갯바위' || subCat == '선상');
-            final List<String> subs = isMainSea ? ['갯바위', '선상'] : ['저수지', '수로'];
             final List<Map<String, dynamic>> spots =
                 List<Map<String, dynamic>>.from(locations[subCat] ?? []);
 
             Widget tab(String label, bool active, VoidCallback onTap, {double fontSize = 18}) {
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-                  child: GestureDetector(
-                    onTap: onTap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: active ? _kGold : Colors.grey.shade800,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: active ? _kGold : Colors.white24, width: 1),
-                      ),
-                      child: Text(label,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                              color: active ? Colors.black : Colors.white70,
-                              fontSize: fontSize,
-                              fontWeight: FontWeight.w900)),
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+                child: GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: active ? _kGold : Colors.grey.shade800,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: active ? _kGold : Colors.white24, width: 1),
                     ),
+                    child: Text(label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: active ? Colors.black : Colors.white70,
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w900)),
                   ),
                 ),
               );
@@ -453,20 +449,47 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     child: Text('🗺️  어느 낚시터로 떠날까요?',
                         style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
                   ),
-                  // 메인 탭: 민물 / 바다
-                  Row(
-                    children: [
-                      tab('🏞️ 민물낚시', !isMainSea, () => setDialog(() => subCat = '저수지')),
-                      tab('🌊 바다낚시', isMainSea, () => setDialog(() => subCat = '갯바위')),
-                    ],
-                  ),
-                  // 서브 탭: 저수지/수로 또는 갯바위/선상
-                  Container(
-                    color: Colors.black26,
+                  // 민물(저수지/수로) · 바다(갯바위/선상) 한눈에
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final c in subs)
-                          tab(c, subCat == c, () => setDialog(() => subCat = c), fontSize: 15),
+                        Expanded(
+                          child: Column(children: [
+                            Row(children: [
+                              Expanded(
+                                  child: tab('🏞️ 민물낚시', !isMainSea,
+                                      () => setDialog(() => subCat = '저수지'))),
+                            ]),
+                            Row(children: [
+                              Expanded(
+                                  child: tab('저수지', subCat == '저수지',
+                                      () => setDialog(() => subCat = '저수지'), fontSize: 14)),
+                              Expanded(
+                                  child: tab('수로', subCat == '수로',
+                                      () => setDialog(() => subCat = '수로'), fontSize: 14)),
+                            ]),
+                          ]),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(children: [
+                            Row(children: [
+                              Expanded(
+                                  child: tab('🌊 바다낚시', isMainSea,
+                                      () => setDialog(() => subCat = '갯바위'))),
+                            ]),
+                            Row(children: [
+                              Expanded(
+                                  child: tab('갯바위', subCat == '갯바위',
+                                      () => setDialog(() => subCat = '갯바위'), fontSize: 14)),
+                              Expanded(
+                                  child: tab('선상', subCat == '선상',
+                                      () => setDialog(() => subCat = '선상'), fontSize: 14)),
+                            ]),
+                          ]),
+                        ),
                       ],
                     ),
                   ),
