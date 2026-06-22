@@ -152,6 +152,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           // 길드 나가면 길드 채팅 탭에서 전체로 복귀
           if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
         });
+        // 머리 위 길드명 즉시 갱신(다른 유저에게도 반영)
+        _writeMe();
       }
     });
   }
@@ -178,6 +180,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           next[kk] = {
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
+            'guild': v['guild']?.toString() ?? '',
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
@@ -205,6 +208,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _myRef?.set({
       'nick': widget.nickname,
       'img': _charImage,
+      'guild': _guildName,
       'x': _charPos.dx,
       'y': _charPos.dy,
       'face': _facingRight,
@@ -250,17 +254,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               left: -150,
               right: -150,
               child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: Text(d['nick'] as String,
-                      maxLines: 1,
-                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                ),
+                child: _nameTag(d['nick'] as String, (d['guild'] ?? '') as String),
               ),
             ),
             // 💬 다른 유저 말풍선
@@ -677,6 +671,40 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _chatCtrl.clear();
   }
 
+  // 🏷️ 머리 위 이름표 (길드명 + 닉네임)
+  Widget _nameTag(String nick, String guild, {bool isMe = false}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (guild.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xCC123A52),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF7FD4FF), width: 0.8),
+            ),
+            child: Text('〈$guild〉',
+                maxLines: 1,
+                style: const TextStyle(
+                    color: Color(0xFF9FE0FF), fontSize: 10, fontWeight: FontWeight.bold)),
+          ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.6),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isMe ? _kGold.withOpacity(0.7) : Colors.white24),
+          ),
+          child: Text(nick,
+              maxLines: 1,
+              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ),
+      ],
+    );
+  }
+
   // 💬 말풍선 위젯
   Widget _bubble(String text) {
     return Container(
@@ -1064,23 +1092,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                          // 닉네임/레벨 머리표 (머리 바로 위로)
+                          // 닉네임/길드 머리표 (머리 바로 위로)
                           Positioned(
                             bottom: charH * 0.50,
                             left: -150,
                             right: -150,
                             child: Center(
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: _kGold.withOpacity(0.7)),
-                                ),
-                                child: Text(widget.nickname,
-                                    maxLines: 1,
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                              ),
+                              child: _nameTag(widget.nickname, _guildName, isMe: true),
                             ),
                           ),
                           // 💬 내 말풍선
@@ -1542,6 +1560,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  int _guildTab = 0; // 0 길드원 / 1 혜택 / 2 설정
+
   Widget _guildHome(BuildContext ctx, String uid, String gid) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('guilds').doc(gid).snapshots(),
@@ -1568,100 +1588,237 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         }
         final g = gsnap.data!.data() as Map<String, dynamic>;
         final isMaster = (g['masterUid'] ?? '') == uid;
-        return Column(
-          children: [
-            _guildDialogHeader(g['name']?.toString() ?? '길드',
-                trailing: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white54),
-                    onPressed: () => Navigator.pop(ctx))),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(children: [
-                const Icon(Icons.military_tech, color: _kGold, size: 16),
-                const SizedBox(width: 4),
-                Text('길드장 ${g['master'] ?? '-'}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(width: 12),
-                const Icon(Icons.people, color: _kGold, size: 16),
-                const SizedBox(width: 4),
-                Text('멤버 ${g['memberCount'] ?? 0}명',
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              ]),
-            ),
-            const Divider(color: Colors.white12, height: 1),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('guilds')
-                    .doc(gid)
-                    .collection('members')
-                    .snapshots(),
-                builder: (c, msnap) {
-                  if (!msnap.hasData) {
-                    return const Center(child: CircularProgressIndicator(color: _kGold));
-                  }
-                  final members = msnap.data!.docs
-                      .map((d) => d.data() as Map<String, dynamic>)
-                      .toList()
-                    ..sort((a, b) {
-                      final ra = (a['role'] == 'master') ? 0 : 1;
-                      final rb = (b['role'] == 'master') ? 0 : 1;
-                      if (ra != rb) return ra - rb;
-                      return ((b['level'] ?? 0) as int).compareTo((a['level'] ?? 0) as int);
-                    });
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    itemCount: members.length,
-                    itemBuilder: (c, i) {
-                      final m = members[i];
-                      final mMaster = m['role'] == 'master';
-                      return Container(
-                        margin: const EdgeInsets.symmetric(vertical: 3),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                            color: const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(8)),
-                        child: Row(children: [
-                          Icon(mMaster ? Icons.military_tech : Icons.person,
-                              color: mMaster ? _kGold : Colors.white38, size: 18),
-                          const SizedBox(width: 8),
-                          Text(m['nickname']?.toString() ?? '',
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 6),
-                          Text('Lv.${m['level'] ?? 1}',
-                              style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                          const Spacer(),
-                          if (mMaster)
-                            const Text('길드장',
-                                style: TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
-                        ]),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            const Divider(color: Colors.white12, height: 1),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.redAccent,
-                      side: const BorderSide(color: Colors.redAccent),
-                      padding: const EdgeInsets.symmetric(vertical: 10)),
-                  icon: Icon(isMaster ? Icons.delete_forever : Icons.logout, size: 18),
-                  label: Text(isMaster ? '길드 해체' : '길드 탈퇴',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  onPressed: () => _leaveGuild(ctx, uid, gid, isMaster),
+        final guildExp = (g['guildExp'] is num) ? (g['guildExp'] as num).toInt() : 0;
+        final gLevel = FishingLogic.guildLevelFromExp(guildExp);
+        return StatefulBuilder(
+          builder: (ctx2, setTab) {
+            return Column(
+              children: [
+                _guildDialogHeader(g['name']?.toString() ?? '길드',
+                    trailing: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white54),
+                        onPressed: () => Navigator.pop(ctx))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                          color: _kGold, borderRadius: BorderRadius.circular(8)),
+                      child: Text('Lv.$gLevel',
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 13, fontWeight: FontWeight.w900)),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(Icons.military_tech, color: _kGold, size: 16),
+                    const SizedBox(width: 4),
+                    Text('${g['master'] ?? '-'}',
+                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                    const SizedBox(width: 12),
+                    const Icon(Icons.people, color: _kGold, size: 16),
+                    const SizedBox(width: 4),
+                    Text('${g['memberCount'] ?? 0}명',
+                        style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                  ]),
                 ),
-              ),
-            ),
-          ],
+                Row(children: [
+                  _guildTabBtn('길드원', 0, setTab),
+                  _guildTabBtn('혜택', 1, setTab),
+                  _guildTabBtn('설정', 2, setTab),
+                ]),
+                const Divider(color: Colors.white12, height: 1),
+                Expanded(
+                  child: _guildTab == 1
+                      ? _guildPerksTab(gLevel, guildExp)
+                      : _guildTab == 2
+                          ? _guildSettingsTab(ctx, uid, gid, isMaster)
+                          : _guildMembersTab(gid),
+                ),
+              ],
+            );
+          },
         );
       },
+    );
+  }
+
+  Widget _guildTabBtn(String label, int index, void Function(void Function()) setTab) {
+    final active = _guildTab == index;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setTab(() => _guildTab = index),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            border: Border(
+                bottom: BorderSide(color: active ? _kGold : Colors.transparent, width: 3)),
+          ),
+          child: Text(label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: active ? _kGold : Colors.white54,
+                  fontSize: 14,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
+        ),
+      ),
+    );
+  }
+
+  Widget _guildMembersTab(String gid) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('guilds')
+          .doc(gid)
+          .collection('members')
+          .snapshots(),
+      builder: (c, msnap) {
+        if (!msnap.hasData) {
+          return const Center(child: CircularProgressIndicator(color: _kGold));
+        }
+        final members = msnap.data!.docs
+            .map((d) => d.data() as Map<String, dynamic>)
+            .toList()
+          ..sort((a, b) {
+            final ra = (a['role'] == 'master') ? 0 : 1;
+            final rb = (b['role'] == 'master') ? 0 : 1;
+            if (ra != rb) return ra - rb;
+            return ((b['level'] ?? 0) as int).compareTo((a['level'] ?? 0) as int);
+          });
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          itemCount: members.length,
+          itemBuilder: (c, i) {
+            final m = members[i];
+            final mMaster = m['role'] == 'master';
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(8)),
+              child: Row(children: [
+                Icon(mMaster ? Icons.military_tech : Icons.person,
+                    color: mMaster ? _kGold : Colors.white38, size: 18),
+                const SizedBox(width: 8),
+                Text(m['nickname']?.toString() ?? '',
+                    style: const TextStyle(
+                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(width: 6),
+                Text('Lv.${m['level'] ?? 1}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                const Spacer(),
+                if (mMaster)
+                  const Text('길드장',
+                      style: TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _guildPerksTab(int gLevel, int guildExp) {
+    final bonus = FishingLogic.guildStatBonus(gLevel);
+    final isMax = gLevel >= FishingLogic.guildMaxLevel;
+    final curBase = FishingLogic.guildExpTable[gLevel];
+    final nextBase = isMax
+        ? FishingLogic.guildExpTable[FishingLogic.guildMaxLevel]
+        : FishingLogic.guildExpTable[gLevel + 1];
+    final span = nextBase - curBase;
+    final prog = isMax || span <= 0 ? 1.0 : ((guildExp - curBase) / span).clamp(0.0, 1.0);
+    Widget statRow(IconData icon, String name, int v) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Row(children: [
+          Icon(icon, color: _kGold, size: 20),
+          const SizedBox(width: 10),
+          Text(name, style: const TextStyle(color: Colors.white, fontSize: 15)),
+          const Spacer(),
+          Text('+$v',
+              style: const TextStyle(
+                  color: Color(0xFF7FFFB0), fontSize: 17, fontWeight: FontWeight.w900)),
+        ]),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Text('길드 레벨 $gLevel',
+                style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(width: 8),
+            if (isMax)
+              const Text('MAX',
+                  style: TextStyle(color: Colors.orangeAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 8),
+          Stack(children: [
+            Container(
+                height: 12,
+                decoration: BoxDecoration(
+                    color: Colors.white24, borderRadius: BorderRadius.circular(6))),
+            FractionallySizedBox(
+              widthFactor: prog,
+              child: Container(
+                  height: 12,
+                  decoration: BoxDecoration(
+                      color: _kGold, borderRadius: BorderRadius.circular(6))),
+            ),
+          ]),
+          const SizedBox(height: 4),
+          Text(isMax ? '최고 레벨 달성!' : '길드 경험치 $guildExp / $nextBase',
+              style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          const SizedBox(height: 16),
+          const Text('길드원 전체 능력치 보너스',
+              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+                color: const Color(0xFF22301F),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF3A6B33))),
+            child: Column(children: [
+              statRow(Icons.fitness_center, '힘', bonus),
+              statRow(Icons.sports_esports, '컨트롤', bonus),
+              statRow(Icons.graphic_eq, '감도', bonus),
+            ]),
+          ),
+          const SizedBox(height: 12),
+          const Text('💡 길드원이 물고기를 잡을 때마다 길드 경험치가 쌓이고,\n레벨이 오르면 모든 길드원의 능력치 보너스가 커집니다.',
+              style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
+        ],
+      ),
+    );
+  }
+
+  Widget _guildSettingsTab(BuildContext ctx, String uid, String gid, bool isMaster) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+              isMaster
+                  ? '길드장은 길드를 해체할 수 있어요.\n해체하면 모든 길드원이 나가게 됩니다.'
+                  : '길드를 탈퇴할 수 있어요.\n언제든 다시 가입할 수 있습니다.',
+              style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5)),
+          const SizedBox(height: 20),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.redAccent,
+                side: const BorderSide(color: Colors.redAccent),
+                padding: const EdgeInsets.symmetric(vertical: 12)),
+            icon: Icon(isMaster ? Icons.delete_forever : Icons.logout, size: 18),
+            label: Text(isMaster ? '길드 해체' : '길드 탈퇴',
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            onPressed: () => _leaveGuild(ctx, uid, gid, isMaster),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1729,6 +1886,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'master': widget.nickname,
       'masterUid': uid,
       'memberCount': 1,
+      'guildExp': 0,
       'createdAt': FieldValue.serverTimestamp(),
     });
     batch.set(guildRef.collection('members').doc(uid), {

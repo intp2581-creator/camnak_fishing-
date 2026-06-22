@@ -354,9 +354,31 @@ Widget _buildChatTab(int index, String title) {
 
   final TextEditingController _chatController = TextEditingController();
 
-  // 🏢 Helper: 능력치 긁어오기 (게임 두뇌로 연결!)
+  // 🛡️ 길드 버프 (길드 레벨에 따른 능력치 보너스)
+  String _guildId = '';
+  int _guildLevel = 0;
+
+  Future<void> _loadGuildBuff() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final udoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final gid = (udoc.data()?['guildId'] ?? '').toString();
+      if (gid.isEmpty) return;
+      final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
+      final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+      if (mounted) {
+        setState(() {
+          _guildId = gid;
+          _guildLevel = FishingLogic.guildLevelFromExp(gexp);
+        });
+      }
+    } catch (_) {}
+  }
+
+  // 🏢 Helper: 능력치 긁어오기 (게임 두뇌로 연결!) + 길드 버프 합산
   Map<String, int> getMyTotalStats() {
-    return FishingLogic.getMyTotalStats(
+    final s = FishingLogic.getMyTotalStats(
       equippedSkin: equippedSkin,
       equippedRod: equippedRod,
       equippedFloat: equippedFloat,
@@ -364,6 +386,13 @@ Widget _buildChatTab(int index, String title) {
       equippedSunglasses: equippedSunglasses,
       equippedBadge: equippedBadge,
     );
+    final b = FishingLogic.guildStatBonus(_guildLevel);
+    if (b <= 0) return s;
+    return {
+      'strength': (s['strength'] ?? 0) + b,
+      'control': (s['control'] ?? 0) + b,
+      'sensitivity': (s['sensitivity'] ?? 0) + b,
+    };
   }
 
   // 🌟 1. initState() 바로 위에 이 줄을 추가해서 타이머 변수를 만듭니다.
@@ -377,6 +406,9 @@ Widget _buildChatTab(int index, String title) {
 
     // 🚀 [추가] 낚시터 입장 시 윤슬이 출입증 검사!
     _blockYunseulInFishing();
+
+    // 🛡️ 길드 버프 불러오기 (능력치 보너스)
+    _loadGuildBuff();
 
     // 🚀 [추가] 튜토리얼 중인 쌩초보 유저면 윤슬님 출근시키기!
     if (widget.isFirstTime) {
@@ -982,6 +1014,14 @@ Widget _buildChatTab(int index, String title) {
                 }, SetOptions(merge: true));
               } else {
                 await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
+              }
+              // 🛡️ 길드원이면 길드 경험치 누적 (활동 → 길드 레벨업)
+              if (_guildId.isNotEmpty) {
+                FirebaseFirestore.instance
+                    .collection('guilds')
+                    .doc(_guildId)
+                    .update({'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch)})
+                    .catchError((Object e) => debugPrint('🛡️ 길드 경험치 누적 실패: $e'));
               }
             }
           }

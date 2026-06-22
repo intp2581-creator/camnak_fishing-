@@ -286,6 +286,29 @@ size = double.parse(size.toStringAsFixed(1));
     return {'strength': totalStr, 'control': totalCtrl, 'sensitivity': totalSens};
   }
 
+  // 🛡️ 길드 레벨/버프 (광장·낚시 공용 계산식)
+  // guildExpTable[레벨] = 그 레벨이 되기 위한 누적 길드 경험치 (index 0 미사용, 최대 Lv10)
+  static const List<int> guildExpTable = [
+    0, 0, 300, 800, 1600, 2800, 4500, 7000, 10500, 15000, 21000,
+  ];
+  static const int guildMaxLevel = 10;
+  static const int guildExpPerCatch = 10; // 길드원이 물고기 1마리 잡을 때마다 누적
+
+  static int guildLevelFromExp(int exp) {
+    int lv = 1;
+    for (int l = 2; l < guildExpTable.length; l++) {
+      if (exp >= guildExpTable[l]) {
+        lv = l;
+      } else {
+        break;
+      }
+    }
+    return lv;
+  }
+
+  // 길드 레벨이 주는 능력치 보너스(힘/컨트롤/감도 각각 +레벨)
+  static int guildStatBonus(int guildLevel) => guildLevel.clamp(0, guildMaxLevel);
+
   // 👤 3. 스킨(호칭)에 맞는 투명 캐릭터 이미지 찾아주기
   static String getLobbyCharacterImage(String skinName) {
     String cleanName = skinName.replaceAll(' ', '').toUpperCase();
