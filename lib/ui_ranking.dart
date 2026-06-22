@@ -104,10 +104,11 @@ class _RankingScreenState extends State<RankingScreen> {
               _buildTabButton('레벨'),
               _buildTabButton('민물'),
               _buildTabButton('바다'),
+              _buildTabButton('길드'),
             ],
           ),
           const SizedBox(height: 30),
-          if (selectedTab != '레벨')
+          if (selectedTab == '민물' || selectedTab == '바다')
             Container(
               margin: const EdgeInsets.only(bottom: 20),
               height: 55,
@@ -151,7 +152,7 @@ class _RankingScreenState extends State<RankingScreen> {
             ),
           const Divider(color: Colors.cyanAccent, height: 30, thickness: 2),
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
+            child: selectedTab == '길드' ? _buildGuildList() : StreamBuilder<QuerySnapshot>(
               stream: selectedTab == '레벨'
                   ? FirebaseFirestore.instance.collection('users').orderBy('exp', descending: true).limit(10).snapshots()
                   : FirebaseFirestore.instance.collection('users').orderBy('maxCatch.$selectedFish.size', descending: true).limit(10).snapshots(),
@@ -205,10 +206,173 @@ class _RankingScreenState extends State<RankingScreen> {
             ),
           ),
           const Divider(color: Colors.white24, height: 30, thickness: 2),
-          _buildMyStaticRank(),
+          selectedTab == '길드' ? _buildMyGuildRank() : _buildMyStaticRank(),
         ],
       ),
     );
+  }
+
+  // 🛡️ 길드 랭킹 목록 (길드 경험치 순)
+  Widget _buildGuildList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('guilds')
+          .orderBy('guildExp', descending: true)
+          .limit(10)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('아직 길드가 없습니다.', style: TextStyle(color: Colors.white54)));
+        }
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
+        final docs = snapshot.data!.docs;
+        return ListView.builder(
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data = docs[index].data() as Map<String, dynamic>;
+            final name = data['name'] ?? '길드';
+            final master = data['master'] ?? '-';
+            final mc = (data['memberCount'] is num) ? (data['memberCount'] as num).toInt() : 0;
+            final gExp = (data['guildExp'] is num) ? (data['guildExp'] as num).toInt() : 0;
+            final lv = FishingLogic.guildLevelFromExp(gExp);
+            final isMine = data['masterUid'] == myUid; // 내가 길드장인 길드 강조
+            return _buildGuildRankItem(index + 1, name, master, lv, mc, isMine);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGuildRankItem(int rank, String name, String master, int lv, int members, bool isMine) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMine ? Colors.cyanAccent.withOpacity(0.1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 50,
+            child: Text('$rank위',
+                style: TextStyle(
+                    color: rank <= 3 ? Colors.amberAccent : Colors.white70,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 24)),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            margin: const EdgeInsets.only(right: 15),
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFFD4AF37),
+            ),
+            child: const Icon(Icons.shield, color: Colors.black, size: 26),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: TextStyle(
+                        color: isMine ? Colors.cyanAccent : Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900),
+                    overflow: TextOverflow.ellipsis),
+                Text('길드장 $master · $members명',
+                    style: const TextStyle(color: Colors.white54, fontSize: 14)),
+              ],
+            ),
+          ),
+          Text('Lv.$lv',
+              style: TextStyle(
+                  color: rank <= 3 ? Colors.amberAccent : Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900)),
+        ],
+      ),
+    );
+  }
+
+  // 🛡️ 내 길드 순위 (하단 고정)
+  Widget _buildMyGuildRank() {
+    final user = FirebaseAuth.instance.currentUser;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.data() == null) return const SizedBox();
+        final myData = snapshot.data!.data() as Map<String, dynamic>;
+        final gid = (myData['guildId'] ?? '').toString();
+        if (gid.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Text('가입한 길드가 없습니다. 광장의 길드 건물에서 가입해보세요!',
+                style: TextStyle(color: Colors.white54, fontSize: 18, fontWeight: FontWeight.bold)),
+          );
+        }
+        return FutureBuilder<Map<String, dynamic>?>(
+          future: _getMyGuildRank(gid),
+          builder: (context, snap) {
+            final info = snap.data;
+            final rankText = (info != null && info['rank'] > 0) ? '${info['rank']}위' : '-';
+            final name = info?['name'] ?? myData['guildName'] ?? '내 길드';
+            final lv = info?['level'] ?? 1;
+            final rank = info?['rank'] ?? 0;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.cyanAccent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.cyanAccent.withOpacity(0.4), width: 2),
+              ),
+              child: Row(
+                children: [
+                  const Text('내 길드', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 16),
+                  Text(rankText, style: TextStyle(color: (rank > 0 && rank <= 3) ? Colors.amberAccent : Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis),
+                  ),
+                  Text('Lv.$lv', style: const TextStyle(color: Colors.cyanAccent, fontSize: 26, fontWeight: FontWeight.w900)),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>?> _getMyGuildRank(String gid) async {
+    try {
+      final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
+      if (!gdoc.exists) return null;
+      final gExp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+      final agg = await FirebaseFirestore.instance
+          .collection('guilds')
+          .where('guildExp', isGreaterThan: gExp)
+          .count()
+          .get();
+      return {
+        'rank': (agg.count ?? 0) + 1,
+        'name': gdoc.data()?['name'] ?? '내 길드',
+        'level': FishingLogic.guildLevelFromExp(gExp),
+      };
+    } catch (e) {
+      return null;
+    }
   }
 
   Widget _buildTabButton(String title) {

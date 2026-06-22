@@ -86,6 +86,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
+  static const int _guildMaxMembers = 50; // 길드 최대 인원
   String _guildId = '';
   String _guildName = '';
   StreamSubscription<DocumentSnapshot>? _userSub;
@@ -1518,6 +1519,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 itemBuilder: (c, i) {
                   final g = docs[i].data() as Map<String, dynamic>;
                   final gid = docs[i].id;
+                  final mc = (g['memberCount'] is num) ? (g['memberCount'] as num).toInt() : 0;
+                  final gExp = (g['guildExp'] is num) ? (g['guildExp'] as num).toInt() : 0;
+                  final full = mc >= _guildMaxMembers;
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1526,6 +1530,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.white12)),
                     child: Row(children: [
+                      Container(
+                        margin: const EdgeInsets.only(right: 10),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: _kGold, borderRadius: BorderRadius.circular(6)),
+                        child: Text('Lv.${FishingLogic.guildLevelFromExp(gExp)}',
+                            style: const TextStyle(
+                                color: Colors.black, fontSize: 11, fontWeight: FontWeight.w900)),
+                      ),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1534,20 +1547,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 2),
-                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 ${g['memberCount'] ?? 0}명',
+                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$_guildMaxMembers명',
                                 style: const TextStyle(color: Colors.white54, fontSize: 11)),
                           ],
                         ),
                       ),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: _kGold,
-                            foregroundColor: Colors.black,
+                            backgroundColor: full ? Colors.grey.shade700 : _kGold,
+                            foregroundColor: full ? Colors.white54 : Colors.black,
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             minimumSize: const Size(0, 0),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                        onPressed: () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
-                        child: const Text('가입', style: TextStyle(fontWeight: FontWeight.bold)),
+                        onPressed: full ? null : () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
+                        child: Text(full ? '만원' : '가입', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ]),
                   );
@@ -1617,7 +1630,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     const SizedBox(width: 12),
                     const Icon(Icons.people, color: _kGold, size: 16),
                     const SizedBox(width: 4),
-                    Text('${g['memberCount'] ?? 0}명',
+                    Text('${g['memberCount'] ?? 0}/$_guildMaxMembers명',
                         style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   ]),
                 ),
@@ -1915,21 +1928,33 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _joinGuild(String uid, String gid, String gname) async {
     final fs = FirebaseFirestore.instance;
     final guildRef = fs.collection('guilds').doc(gid);
-    final batch = fs.batch();
-    batch.set(guildRef.collection('members').doc(uid), {
-      'uid': uid,
-      'nickname': widget.nickname,
-      'role': 'member',
-      'level': _level,
-      'joinedAt': FieldValue.serverTimestamp(),
-    });
-    batch.update(guildRef, {'memberCount': FieldValue.increment(1)});
-    batch.update(fs.collection('users').doc(uid), {
-      'guildId': gid,
-      'guildName': gname,
-    });
-    await batch.commit();
-    _toast('"$gname" 길드에 가입했어요!');
+    try {
+      await fs.runTransaction((tx) async {
+        final gsnap = await tx.get(guildRef);
+        if (!gsnap.exists) throw '길드가 사라졌어요.';
+        final mc = (gsnap.data()?['memberCount'] is num)
+            ? (gsnap.data()!['memberCount'] as num).toInt()
+            : 0;
+        if (mc >= _guildMaxMembers) {
+          throw '길드 인원이 가득 찼어요. (최대 $_guildMaxMembers명)';
+        }
+        tx.set(guildRef.collection('members').doc(uid), {
+          'uid': uid,
+          'nickname': widget.nickname,
+          'role': 'member',
+          'level': _level,
+          'joinedAt': FieldValue.serverTimestamp(),
+        });
+        tx.update(guildRef, {'memberCount': FieldValue.increment(1)});
+        tx.update(fs.collection('users').doc(uid), {
+          'guildId': gid,
+          'guildName': gname,
+        });
+      });
+      _toast('"$gname" 길드에 가입했어요!');
+    } catch (e) {
+      _toast(e.toString());
+    }
   }
 
   Future<void> _leaveGuild(BuildContext ctx, String uid, String gid, bool isMaster) async {
