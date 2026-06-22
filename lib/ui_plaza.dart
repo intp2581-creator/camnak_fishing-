@@ -80,10 +80,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String get _roomKey => widget.isSea ? 'sea' : 'fresh';
 
   // 💬 채팅 (낚시터와 동일한 global_chat / friends 공유)
-  int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구
+  int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
   final TextEditingController _chatCtrl = TextEditingController();
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
+
+  // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
+  String _guildId = '';
+  String _guildName = '';
+  StreamSubscription<DocumentSnapshot>? _userSub;
 
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
   final Map<String, String> _bubbleMsg = {};
@@ -105,6 +110,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void dispose() {
     _walkCtrl.dispose();
     _roomSub?.cancel();
+    _userSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
     _bubbleTimer?.cancel();
@@ -129,6 +135,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
     _initPresence();
+    // 🛡️ 길드 가입 상태 실시간 추적
+    _userSub = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen((doc) {
+      final d = doc.data() ?? {};
+      final gid = (d['guildId'] ?? '').toString();
+      final gname = (d['guildName'] ?? '').toString();
+      if (!mounted) return;
+      if (gid != _guildId || gname != _guildName) {
+        setState(() {
+          _guildId = gid;
+          _guildName = gname;
+          // 길드 나가면 길드 채팅 탭에서 전체로 복귀
+          if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
+        });
+      }
+    });
   }
 
   // 🌐 실시간 접속/위치 송수신
@@ -612,6 +637,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _sendChat() {
     final text = _chatCtrl.text.trim();
     if (text.isEmpty) return;
+    // 🛡️ 길드 탭: 길드 전용 채팅으로 전송
+    if (_chatTab == 3) {
+      if (_guildId.isEmpty) return;
+      FirebaseFirestore.instance
+          .collection('guilds')
+          .doc(_guildId)
+          .collection('chat')
+          .add({
+        'nickname': widget.nickname,
+        'message': text,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      _chatCtrl.clear();
+      return;
+    }
     String type = 'global';
     String receiver = '';
     if (_chatTab == 1 && _whisperTarget != null) {
@@ -713,6 +753,59 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
   }
 
+  // 🛡️ 길드 채팅 목록
+  Widget _guildChatView() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('guilds')
+          .doc(_guildId)
+          .collection('chat')
+          .orderBy('timestamp', descending: true)
+          .limit(30)
+          .snapshots(),
+      builder: (c, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final docs = snap.data!.docs;
+        if (docs.isEmpty) {
+          return Center(
+              child: Text('[$_guildName] 길드 채팅\n첫 인사를 남겨보세요!',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12)));
+        }
+        final me = widget.nickname;
+        return ListView.builder(
+          reverse: true,
+          itemCount: docs.length,
+          itemBuilder: (c, i) {
+            final d = docs[i].data() as Map<String, dynamic>;
+            final sender = d['nickname'] ?? '길드원';
+            final msg = d['message'] ?? '';
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: RichText(
+                text: TextSpan(children: [
+                  const TextSpan(
+                      text: '길드> ',
+                      style: TextStyle(color: Color(0xFF7FD4FF), fontSize: 13)),
+                  TextSpan(
+                    text: '$sender: ',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        if (sender != me) _showUserMenu(sender);
+                      },
+                  ),
+                  TextSpan(text: msg, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                ]),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _chatPanel() {
     return Positioned(
       left: 16,
@@ -724,6 +817,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             _chatTabBtn(0, '전체'),
             _chatTabBtn(1, '귓속말'),
             _chatTabBtn(2, '친구'),
+            if (_guildId.isNotEmpty) _chatTabBtn(3, '길드'),
           ]),
           Container(
             width: 360,
@@ -779,6 +873,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             );
                           },
                         )
+                      : _chatTab == 3
+                      ? _guildChatView()
                       : StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('global_chat')
@@ -853,7 +949,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     decoration: InputDecoration(
                       hintText: (_chatTab == 1 && _whisperTarget != null)
                           ? '[$_whisperTarget]님에게 귓속말...'
-                          : '메시지를 입력하세요...',
+                          : _chatTab == 3
+                              ? '[$_guildName] 길드원에게...'
+                              : '메시지를 입력하세요...',
                       hintStyle: const TextStyle(color: Colors.white38, fontSize: 12),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10),
                       border: const OutlineInputBorder(),
