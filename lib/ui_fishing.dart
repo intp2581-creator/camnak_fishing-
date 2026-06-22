@@ -354,9 +354,10 @@ Widget _buildChatTab(int index, String title) {
 
   final TextEditingController _chatController = TextEditingController();
 
-  // 🛡️ 길드 버프 (길드 레벨에 따른 능력치 보너스)
+  // 🛡️ 길드 버프 (길드 레벨 + 주간 리그 챔피언)
   String _guildId = '';
   int _guildLevel = 0;
+  bool _isChampionGuild = false; // 지난주 길드 리그 1위 → 이번주 추가 버프
 
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -367,10 +368,18 @@ Widget _buildChatTab(int index, String title) {
       if (gid.isEmpty) return;
       final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
       final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+      // 🏆 주간 리그 챔피언 여부
+      bool champ = false;
+      try {
+        final st = await FirebaseFirestore.instance.collection('guild_league').doc('state').get();
+        champ = (st.data()?['championGuildId'] ?? '') == gid &&
+            (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _guildId = gid;
           _guildLevel = FishingLogic.guildLevelFromExp(gexp);
+          _isChampionGuild = champ;
         });
       }
     } catch (_) {}
@@ -386,7 +395,8 @@ Widget _buildChatTab(int index, String title) {
       equippedSunglasses: equippedSunglasses,
       equippedBadge: equippedBadge,
     );
-    final b = FishingLogic.guildStatBonus(_guildLevel);
+    int b = FishingLogic.guildStatBonus(_guildLevel);
+    if (_isChampionGuild) b += FishingLogic.guildChampionBonus;
     if (b <= 0) return s;
     return {
       'strength': (s['strength'] ?? 0) + b,
@@ -1015,13 +1025,28 @@ Widget _buildChatTab(int index, String title) {
               } else {
                 await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
               }
-              // 🛡️ 길드원이면 길드 경험치 누적 (활동 → 길드 레벨업)
+              // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
               if (_guildId.isNotEmpty) {
-                FirebaseFirestore.instance
-                    .collection('guilds')
-                    .doc(_guildId)
-                    .update({'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch)})
-                    .catchError((Object e) => debugPrint('🛡️ 길드 경험치 누적 실패: $e'));
+                final guildRef = FirebaseFirestore.instance.collection('guilds').doc(_guildId);
+                final curWeek = FishingLogic.weekKey(DateTime.now());
+                try {
+                  await FirebaseFirestore.instance.runTransaction((tx) async {
+                    final gs = await tx.get(guildRef);
+                    if (!gs.exists) return;
+                    final wk = (gs.data()?['weekKey'] ?? '').toString();
+                    final prevWs = (gs.data()?['weeklyScore'] is num)
+                        ? (gs.data()!['weeklyScore'] as num).toInt()
+                        : 0;
+                    final ws = (wk == curWeek) ? prevWs + 1 : 1; // 새 주면 1부터
+                    tx.update(guildRef, {
+                      'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
+                      'weeklyScore': ws,
+                      'weekKey': curWeek,
+                    });
+                  });
+                } catch (e) {
+                  debugPrint('🛡️ 길드 점수 누적 실패: $e');
+                }
               }
             }
           }

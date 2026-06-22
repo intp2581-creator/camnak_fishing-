@@ -347,6 +347,16 @@ size = double.parse(size.toStringAsFixed(1));
     return 20;
   }
 
+  // 🗓️ 주간 길드 리그: 그 주(월요일 시작)의 키. 월요일 00:00에 새 주 시작.
+  static String weekKey(DateTime t) {
+    final monday = t.subtract(Duration(days: t.weekday - 1)); // weekday: 월=1..일=7
+    final d = DateTime(monday.year, monday.month, monday.day);
+    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+  }
+
+  // 주간 리그 1위 길드가 다음 한 주 동안 받는 추가 능력치 보너스(힘/컨트롤/감도 각각)
+  static const int guildChampionBonus = 5;
+
   // 👤 3. 스킨(호칭)에 맞는 투명 캐릭터 이미지 찾아주기
   static String getLobbyCharacterImage(String skinName) {
     String cleanName = skinName.replaceAll(' ', '').toUpperCase();

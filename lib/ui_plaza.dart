@@ -90,6 +90,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _guildName = '';
   StreamSubscription<DocumentSnapshot>? _userSub;
 
+  // 🏆 주간 길드 리그 (1위 길드 챔피언 → 머리 위 👑 + 추가 버프)
+  bool _isChampionGuild = false;
+  String _champGuildId = '';
+  String _champWeek = '';
+  StreamSubscription<DocumentSnapshot>? _leagueSub;
+
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
   final Map<String, String> _bubbleMsg = {};
   final Map<String, DateTime> _bubbleUntil = {};
@@ -111,6 +117,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _walkCtrl.dispose();
     _roomSub?.cancel();
     _userSub?.cancel();
+    _leagueSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
     _bubbleTimer?.cancel();
@@ -152,10 +159,75 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           // 길드 나가면 길드 채팅 탭에서 전체로 복귀
           if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
         });
+        _recomputeChampion(); // 길드 바뀌면 챔피언 여부 재계산
         // 머리 위 길드명 즉시 갱신(다른 유저에게도 반영)
         _writeMe();
       }
     });
+    // 🏆 주간 길드 리그: 주차 넘어갔으면 정산 + 챔피언 상태 구독
+    _settleLeagueIfNeeded();
+    _leagueSub = FirebaseFirestore.instance
+        .collection('guild_league')
+        .doc('state')
+        .snapshots()
+        .listen((doc) {
+      _champGuildId = (doc.data()?['championGuildId'] ?? '').toString();
+      _champWeek = (doc.data()?['activeWeek'] ?? '').toString();
+      _recomputeChampion();
+    });
+  }
+
+  void _recomputeChampion() {
+    final isChamp = _guildId.isNotEmpty &&
+        _champGuildId == _guildId &&
+        _champWeek == FishingLogic.weekKey(DateTime.now());
+    if (isChamp != _isChampionGuild) {
+      if (mounted) setState(() => _isChampionGuild = isChamp);
+      _writeMe(); // 👑 머리 위 왕관 갱신
+    }
+  }
+
+  // 🏆 주차가 바뀌었으면 지난주 1위 길드를 챔피언으로 확정 (서버 크론 없이 클라가 지연 정산)
+  Future<void> _settleLeagueIfNeeded() async {
+    final fs = FirebaseFirestore.instance;
+    final cur = FishingLogic.weekKey(DateTime.now());
+    final stateRef = fs.collection('guild_league').doc('state');
+    try {
+      final snap = await stateRef.get();
+      final activeWeek = (snap.data()?['activeWeek'] ?? '').toString();
+      if (activeWeek == cur) return; // 이미 이번 주
+      String champId = '', champName = '';
+      if (activeWeek.isNotEmpty) {
+        // 지난주(activeWeek) 최고 점수 길드 = 챔피언
+        final q = await fs
+            .collection('guilds')
+            .orderBy('weeklyScore', descending: true)
+            .limit(10)
+            .get();
+        for (final d in q.docs) {
+          final dd = d.data();
+          final ws = (dd['weeklyScore'] is num) ? (dd['weeklyScore'] as num).toInt() : 0;
+          if ((dd['weekKey'] ?? '') == activeWeek && ws > 0) {
+            champId = d.id;
+            champName = (dd['name'] ?? '').toString();
+            break;
+          }
+        }
+      }
+      await fs.runTransaction((tx) async {
+        final s = await tx.get(stateRef);
+        if ((s.data()?['activeWeek'] ?? '') == cur) return; // 다른 클라가 먼저 정산함
+        tx.set(stateRef, {
+          'activeWeek': cur,
+          'championGuildId': champId,
+          'championGuildName': champName,
+          'championWeek': cur,
+          'settledAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+    } catch (e) {
+      debugPrint('🏆 길드 리그 정산 실패: $e');
+    }
   }
 
   // 🌐 실시간 접속/위치 송수신
@@ -181,6 +253,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
+            'champ': v['champ'] == true,
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
@@ -209,6 +282,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'nick': widget.nickname,
       'img': _charImage,
       'guild': _guildName,
+      'champ': _isChampionGuild,
       'x': _charPos.dx,
       'y': _charPos.dy,
       'face': _facingRight,
@@ -254,7 +328,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               left: -150,
               right: -150,
               child: Center(
-                child: _nameTag(d['nick'] as String, (d['guild'] ?? '') as String),
+                child: _nameTag(d['nick'] as String, (d['guild'] ?? '') as String,
+                    champ: d['champ'] == true),
               ),
             ),
             // 💬 다른 유저 말풍선
@@ -671,8 +746,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _chatCtrl.clear();
   }
 
-  // 🏷️ 머리 위 이름표 (길드명 + 닉네임)
-  Widget _nameTag(String nick, String guild, {bool isMe = false}) {
+  // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑)
+  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -681,14 +756,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             margin: const EdgeInsets.only(bottom: 2),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: const Color(0xCC123A52),
+              color: champ ? const Color(0xCC4A3A00) : const Color(0xCC123A52),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFF7FD4FF), width: 0.8),
+              border: Border.all(
+                  color: champ ? _kGold : const Color(0xFF7FD4FF), width: champ ? 1.0 : 0.8),
             ),
-            child: Text('〈$guild〉',
+            child: Text(champ ? '👑〈$guild〉' : '〈$guild〉',
                 maxLines: 1,
-                style: const TextStyle(
-                    color: Color(0xFF9FE0FF), fontSize: 10, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: champ ? _kGold : const Color(0xFF9FE0FF),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
           ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1098,7 +1176,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             left: -150,
                             right: -150,
                             child: Center(
-                              child: _nameTag(widget.nickname, _guildName, isMe: true),
+                              child: _nameTag(widget.nickname, _guildName,
+                                  isMe: true, champ: _isChampionGuild),
                             ),
                           ),
                           // 💬 내 말풍선
@@ -1731,7 +1810,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Widget _guildPerksTab(int gLevel, int guildExp) {
-    final bonus = FishingLogic.guildStatBonus(gLevel);
+    final levelBonus = FishingLogic.guildStatBonus(gLevel);
+    final champBonus = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
+    final bonus = levelBonus + champBonus;
     final isMax = gLevel >= FishingLogic.guildMaxLevel;
     final curBase = FishingLogic.guildExpTable[gLevel];
     final nextBase = isMax
@@ -1784,9 +1865,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           const SizedBox(height: 4),
           Text(isMax ? '최고 레벨 달성!' : '길드 경험치 $guildExp / $nextBase',
               style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          if (_isChampionGuild) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                  color: const Color(0xCC4A3A00),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kGold)),
+              child: Text('👑 이번 주 길드 리그 챔피언!  전 능력치 +$champBonus (1주일)',
+                  style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+            ),
+          ],
           const SizedBox(height: 16),
-          const Text('길드원 전체 능력치 보너스',
-              style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+          Text(
+              _isChampionGuild
+                  ? '길드원 전체 능력치 보너스 (레벨 +$levelBonus, 챔피언 +$champBonus)'
+                  : '길드원 전체 능력치 보너스',
+              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
