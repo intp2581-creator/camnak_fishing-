@@ -1395,7 +1395,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내)
   Widget _araNpc(double w, double h) {
-    final figH = h * 0.18; // 작게
+    final figH = h * 0.21; // 캐릭터와 비슷한 크기
     final figW = figH * 0.6;
     const cx = 0.075;
     const cy = 0.73; // 발 위치 (채팅창 바로 위)
