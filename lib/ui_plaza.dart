@@ -1284,6 +1284,457 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // ───────────────────────── 길드 시스템 ─────────────────────────
+  Widget _iconBtn(IconData icon, String label, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(color: _kGold, borderRadius: BorderRadius.circular(8)),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: Colors.black, size: 22),
+          Text(label, style: const TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    );
+  }
+
+  void _openGuild() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final uid = user.uid;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 460,
+          height: 520,
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+            builder: (c, snap) {
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator(color: _kGold));
+              }
+              final data = snap.data!.data() as Map<String, dynamic>? ?? {};
+              final gid = (data['guildId'] ?? '').toString();
+              if (gid.isEmpty) {
+                return _guildBrowse(ctx, uid);
+              }
+              return _guildHome(ctx, uid, gid);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guildDialogHeader(String title, {Widget? trailing}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFF262626),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.groups, color: _kGold, size: 22),
+        const SizedBox(width: 8),
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
+        const Spacer(),
+        if (trailing != null) trailing,
+      ]),
+    );
+  }
+
+  Widget _guildBrowse(BuildContext ctx, String uid) {
+    return Column(
+      children: [
+        _guildDialogHeader('길드',
+            trailing: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white54),
+                onPressed: () => Navigator.pop(ctx))),
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: _kGold,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 12)),
+              icon: const Icon(Icons.add),
+              label: const Text('길드 만들기 (10,000 P)',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              onPressed: () => _createGuildDialog(uid),
+            ),
+          ),
+        ),
+        const Divider(color: Colors.white12, height: 1),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+          child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text('길드 목록',
+                  style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold))),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('guilds')
+                .orderBy('memberCount', descending: true)
+                .snapshots(),
+            builder: (c, snap) {
+              if (!snap.hasData) {
+                return const Center(child: CircularProgressIndicator(color: _kGold));
+              }
+              final docs = snap.data!.docs;
+              if (docs.isEmpty) {
+                return const Center(
+                    child: Text('아직 길드가 없어요.\n첫 길드를 만들어보세요!',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white38)));
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                itemCount: docs.length,
+                itemBuilder: (c, i) {
+                  final g = docs[i].data() as Map<String, dynamic>;
+                  final gid = docs[i].id;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                        color: const Color(0xFF2A2A2A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white12)),
+                    child: Row(children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(g['name']?.toString() ?? '',
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                            const SizedBox(height: 2),
+                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 ${g['memberCount'] ?? 0}명',
+                                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: _kGold,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                            minimumSize: const Size(0, 0),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                        onPressed: () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
+                        child: const Text('가입', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ]),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _guildHome(BuildContext ctx, String uid, String gid) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('guilds').doc(gid).snapshots(),
+      builder: (c, gsnap) {
+        if (!gsnap.hasData) {
+          return const Center(child: CircularProgressIndicator(color: _kGold));
+        }
+        if (!gsnap.data!.exists) {
+          // 길드가 해체됨 → 내 정보 정리
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(uid)
+              .update({'guildId': '', 'guildName': ''});
+          return Column(children: [
+            _guildDialogHeader('길드',
+                trailing: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white54),
+                    onPressed: () => Navigator.pop(ctx))),
+            const Expanded(
+                child: Center(
+                    child: Text('길드가 해체되었어요.',
+                        style: TextStyle(color: Colors.white54)))),
+          ]);
+        }
+        final g = gsnap.data!.data() as Map<String, dynamic>;
+        final isMaster = (g['masterUid'] ?? '') == uid;
+        return Column(
+          children: [
+            _guildDialogHeader(g['name']?.toString() ?? '길드',
+                trailing: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white54),
+                    onPressed: () => Navigator.pop(ctx))),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(children: [
+                const Icon(Icons.military_tech, color: _kGold, size: 16),
+                const SizedBox(width: 4),
+                Text('길드장 ${g['master'] ?? '-'}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                const SizedBox(width: 12),
+                const Icon(Icons.people, color: _kGold, size: 16),
+                const SizedBox(width: 4),
+                Text('멤버 ${g['memberCount'] ?? 0}명',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ]),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            Expanded(
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                    .collection('guilds')
+                    .doc(gid)
+                    .collection('members')
+                    .snapshots(),
+                builder: (c, msnap) {
+                  if (!msnap.hasData) {
+                    return const Center(child: CircularProgressIndicator(color: _kGold));
+                  }
+                  final members = msnap.data!.docs
+                      .map((d) => d.data() as Map<String, dynamic>)
+                      .toList()
+                    ..sort((a, b) {
+                      final ra = (a['role'] == 'master') ? 0 : 1;
+                      final rb = (b['role'] == 'master') ? 0 : 1;
+                      if (ra != rb) return ra - rb;
+                      return ((b['level'] ?? 0) as int).compareTo((a['level'] ?? 0) as int);
+                    });
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    itemCount: members.length,
+                    itemBuilder: (c, i) {
+                      final m = members[i];
+                      final mMaster = m['role'] == 'master';
+                      return Container(
+                        margin: const EdgeInsets.symmetric(vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                            color: const Color(0xFF2A2A2A),
+                            borderRadius: BorderRadius.circular(8)),
+                        child: Row(children: [
+                          Icon(mMaster ? Icons.military_tech : Icons.person,
+                              color: mMaster ? _kGold : Colors.white38, size: 18),
+                          const SizedBox(width: 8),
+                          Text(m['nickname']?.toString() ?? '',
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 6),
+                          Text('Lv.${m['level'] ?? 1}',
+                              style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                          const Spacer(),
+                          if (mMaster)
+                            const Text('길드장',
+                                style: TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ]),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.redAccent,
+                      side: const BorderSide(color: Colors.redAccent),
+                      padding: const EdgeInsets.symmetric(vertical: 10)),
+                  icon: Icon(isMaster ? Icons.delete_forever : Icons.logout, size: 18),
+                  label: Text(isMaster ? '길드 해체' : '길드 탈퇴',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  onPressed: () => _leaveGuild(ctx, uid, gid, isMaster),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _createGuildDialog(String uid) {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('길드 만들기', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: ctrl,
+              maxLength: 12,
+              style: const TextStyle(color: Colors.white),
+              decoration: const InputDecoration(
+                hintText: '길드 이름 (최대 12자)',
+                hintStyle: TextStyle(color: Colors.white38),
+                counterStyle: TextStyle(color: Colors.white38),
+                enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _kGold)),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text('생성 비용: 10,000 P',
+                style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => _createGuild(ctx, uid, ctrl.text.trim()),
+            child: const Text('만들기', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _createGuild(BuildContext ctx, String uid, String name) async {
+    if (name.isEmpty) {
+      _toast('길드 이름을 입력해주세요.');
+      return;
+    }
+    if (_gold < 10000) {
+      _toast('포인트가 부족해요. (10,000 P 필요)');
+      return;
+    }
+    final fs = FirebaseFirestore.instance;
+    // 중복 이름 확인
+    final dup = await fs.collection('guilds').where('name', isEqualTo: name).limit(1).get();
+    if (dup.docs.isNotEmpty) {
+      _toast('이미 있는 길드 이름이에요.');
+      return;
+    }
+    final guildRef = fs.collection('guilds').doc();
+    final batch = fs.batch();
+    batch.set(guildRef, {
+      'name': name,
+      'master': widget.nickname,
+      'masterUid': uid,
+      'memberCount': 1,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(guildRef.collection('members').doc(uid), {
+      'uid': uid,
+      'nickname': widget.nickname,
+      'role': 'master',
+      'level': _level,
+      'joinedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(fs.collection('users').doc(uid), {
+      'gold': FieldValue.increment(-10000),
+      'guildId': guildRef.id,
+      'guildName': name,
+    });
+    await batch.commit();
+    if (mounted) {
+      setState(() {
+        _gold -= 10000;
+        currentPoints = _gold;
+      });
+    }
+    if (ctx.mounted) Navigator.pop(ctx); // 생성 다이얼로그 닫기
+    _toast('"$name" 길드를 만들었어요! 🎉');
+  }
+
+  Future<void> _joinGuild(String uid, String gid, String gname) async {
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    final batch = fs.batch();
+    batch.set(guildRef.collection('members').doc(uid), {
+      'uid': uid,
+      'nickname': widget.nickname,
+      'role': 'member',
+      'level': _level,
+      'joinedAt': FieldValue.serverTimestamp(),
+    });
+    batch.update(guildRef, {'memberCount': FieldValue.increment(1)});
+    batch.update(fs.collection('users').doc(uid), {
+      'guildId': gid,
+      'guildName': gname,
+    });
+    await batch.commit();
+    _toast('"$gname" 길드에 가입했어요!');
+  }
+
+  Future<void> _leaveGuild(BuildContext ctx, String uid, String gid, bool isMaster) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: Text(isMaster ? '길드 해체' : '길드 탈퇴',
+            style: const TextStyle(color: Colors.white)),
+        content: Text(
+            isMaster
+                ? '길드를 해체하면 모든 멤버가 나가게 돼요.\n정말 해체할까요?'
+                : '정말 길드를 탈퇴할까요?',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(c, true),
+            child: Text(isMaster ? '해체' : '탈퇴'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    if (isMaster) {
+      // 모든 멤버 정보 정리 + 길드 삭제
+      final members = await guildRef.collection('members').get();
+      final batch = fs.batch();
+      for (final m in members.docs) {
+        batch.update(fs.collection('users').doc(m.id), {'guildId': '', 'guildName': ''});
+        batch.delete(m.reference);
+      }
+      batch.delete(guildRef);
+      await batch.commit();
+      _toast('길드를 해체했어요.');
+    } else {
+      final batch = fs.batch();
+      batch.delete(guildRef.collection('members').doc(uid));
+      batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
+      batch.update(fs.collection('users').doc(uid), {'guildId': '', 'guildName': ''});
+      await batch.commit();
+      _toast('길드를 탈퇴했어요.');
+    }
+  }
+
+  void _toast(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: const Color(0xFF333333),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   Widget _topHud() {
     final lv = _level.clamp(1, 30);
     final curBase = globalExpTable[lv];
@@ -1394,17 +1845,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   ],
                 ),
                 const SizedBox(width: 10),
-                GestureDetector(
-                  onTap: _openInventory,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(color: _kGold, borderRadius: BorderRadius.circular(8)),
-                    child: const Column(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.backpack, color: Colors.black, size: 22),
-                      Text('가방', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
-                ),
+                _iconBtn(Icons.backpack, '가방', _openInventory),
+                const SizedBox(width: 6),
+                _iconBtn(Icons.groups, '길드', _openGuild),
               ],
             ),
           ),
