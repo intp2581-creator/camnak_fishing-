@@ -1395,40 +1395,37 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내)
   Widget _araNpc(double w, double h) {
-    final figH = h * 0.30;
-    final figW = figH * 0.55;
-    const cx = 0.085;
-    const cy = 0.60; // 발 위치
+    final figH = h * 0.18; // 작게
+    final figW = figH * 0.6;
+    const cx = 0.075;
+    const cy = 0.73; // 발 위치 (채팅창 바로 위)
     return Positioned(
       left: cx * w - figW / 2,
-      top: cy * h - figH,
-      width: figW,
-      height: figH,
+      top: cy * h - figH - 26, // 라벨 높이만큼 위로 보정
       child: GestureDetector(
         onTap: () => setState(() => _showQuest = true),
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.topCenter,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Positioned.fill(
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _kGold),
+                boxShadow: [BoxShadow(color: _kGold.withOpacity(0.5), blurRadius: 8)],
+              ),
+              child: const Text('📋 일일퀘스트',
+                  style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 2),
+            SizedBox(
+              width: figW,
+              height: figH,
               child: Image.asset('assets/images/npc_manager_quest.png',
                   fit: BoxFit.contain,
-                  alignment: Alignment.bottomCenter,
+                  alignment: Alignment.topCenter,
                   errorBuilder: (a, b, c) => const SizedBox.shrink()),
-            ),
-            Positioned(
-              top: -14,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _kGold),
-                  boxShadow: [BoxShadow(color: _kGold.withOpacity(0.5), blurRadius: 8)],
-                ),
-                child: const Text('📋 일일퀘스트',
-                    style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
             ),
           ],
         ),
