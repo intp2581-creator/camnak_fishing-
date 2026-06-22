@@ -1108,7 +1108,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               _npc(w, h, widget.isSea ? 0.15 : 0.15, widget.isSea ? 0.28 : 0.20,'🏆', '랭킹', _openRanking), // 왼쪽
               _npc(w, h, widget.isSea ? 0.95 : 0.72, widget.isSea ? 0.54 : 0.22,'⚔️', '아레나', _openArena, iconWidget: _crossedRods()), // 중앙 좌측 광장
               _npc(w, h, widget.isSea ? 0.52 : 0.52, widget.isSea ? 0.22 : 0.16,'🌀', '낚시터', _openMinimap), // 출렁다리 입구(위 중앙)
-              _npc(w, h, widget.isSea ? 0.34 : 0.33, widget.isSea ? 0.25 : 0.17,'🛡️', '길드', _openGuild), // 랭킹과 낚시터 사이
+              _npc(w, h, widget.isSea ? 0.345 : 0.32, widget.isSea ? 0.37 : 0.30,'🛡️', '길드', _openGuild), // 길드 건물 위
 
               // 5) 상단 HUD
               _topHud(),
