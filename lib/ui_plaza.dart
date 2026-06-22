@@ -15,6 +15,7 @@ import 'ui_fishing.dart';
 import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
+import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -96,6 +97,91 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _champWeek = '';
   StreamSubscription<DocumentSnapshot>? _leagueSub;
 
+  // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
+  bool _showQuest = false;
+  bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
+  final List<int> _eventHours = [14, 15, 16, 19, 20, 21];
+  final List<Map<String, dynamic>> _missionPool = [
+    {'loc': '예산 예당지', 'fish': '붕어', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '블루길', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '살치', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '베스', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '잉어', 'count': 3},
+    {'loc': '예산 예당지', 'fish': '메기', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '붕어', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '떡붕어', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '베스', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '잉어', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '메기', 'count': 3},
+    {'loc': '예산 신양수로', 'fish': '가물치', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '고등어', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '우럭', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '갈치', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '참돔', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '광어', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '감성돔', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '갑오징어', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '주꾸미', 'count': 3},
+    {'loc': '통영 척포 갯바위', 'fish': '문어', 'count': 3},
+    {'loc': '거제 선상', 'fish': '고등어', 'count': 3},
+    {'loc': '거제 선상', 'fish': '우럭', 'count': 3},
+    {'loc': '거제 선상', 'fish': '갈치', 'count': 3},
+    {'loc': '거제 선상', 'fish': '참돔', 'count': 3},
+    {'loc': '거제 선상', 'fish': '광어', 'count': 3},
+    {'loc': '거제 선상', 'fish': '감성돔', 'count': 3},
+    {'loc': '거제 선상', 'fish': '갑오징어', 'count': 3},
+    {'loc': '거제 선상', 'fish': '주꾸미', 'count': 3},
+    {'loc': '거제 선상', 'fish': '문어', 'count': 3},
+  ];
+
+  Map<String, dynamic> _getTodayMission() {
+    final now = DateTime.now();
+    final seed = now.year * 10000 + now.month * 100 + now.day;
+    return _missionPool[math.Random(seed).nextInt(_missionPool.length)];
+  }
+
+  int _getTodayEventHour() {
+    final now = DateTime.now();
+    return _eventHours[(now.day + now.month) % _eventHours.length];
+  }
+
+  String _getBriefingText() {
+    final mission = _getTodayMission();
+    final eventHour = _getTodayEventHour();
+    final currentHour = DateTime.now().hour;
+    final amPm = eventHour >= 12 ? '오후' : '오전';
+    final displayHour = eventHour >= 12 ? (eventHour == 12 ? 12 : eventHour - 12) : eventHour;
+    final endHour = eventHour + 1;
+    final displayEndHour = endHour >= 12 ? (endHour == 12 ? 12 : endHour - 12) : endHour;
+    String greeting = '안녕하세요! 😊';
+    if (currentHour >= 5 && currentHour < 12) {
+      greeting = '좋은 아침이에요! ☀️';
+    } else if (currentHour >= 12 && currentHour < 18) {
+      greeting = '안녕하세요! ☕';
+    } else {
+      greeting = '밤낚시 오셨군요! 🌙';
+    }
+    if (currentHour < eventHour) {
+      return '$greeting\n'
+          '🏆 오늘의 미션입니다.\n'
+          '⏰ $amPm $displayHour시 ~ $displayEndHour시 (1시간)\n'
+          '🎣 ${mission['loc']}\n'
+          '🐟 ${mission['fish']} ${mission['count']}마리 먼저 잡기!\n'
+          '1등 상금은 2,000P 입니다.';
+    } else if (currentHour == eventHour) {
+      return '$greeting\n'
+          '🔥 지금 바로! ($amPm $displayEndHour시 까지)\n'
+          '🎣 ${mission['loc']}\n'
+          '🐟 ${mission['fish']} ${mission['count']}마리\n'
+          '선착순 1명 2,000P!';
+    } else {
+      return '$greeting\n'
+          '오늘 미션 종료 😊\n'
+          '내일 미션도\n기대해 주세요!';
+    }
+  }
+
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
   final Map<String, String> _bubbleMsg = {};
   final Map<String, DateTime> _bubbleUntil = {};
@@ -139,8 +225,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       currentExp = exp;
       currentPoints = _gold;
       _level = calcLevelFromExp(exp);
+      // 💰 매일 첫 접속 500P 보상 (로비에서 광장으로 이전)
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      if ((data['lastLoginDate'] ?? '').toString() != today) {
+        await doc.reference.set(
+            {'gold': FieldValue.increment(500), 'lastLoginDate': today},
+            SetOptions(merge: true));
+        _gold += 500;
+        currentPoints = _gold;
+        _gotDailyReward = true;
+      }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
+    // 🎁 첫 접속 보상 안내 + 일일 퀘스트 자동 안내
+    if (_gotDailyReward) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _toast('🎁 오늘 첫 접속 보상 500P 지급!');
+      });
+    }
     _initPresence();
     // 🛡️ 길드 가입 상태 실시간 추적
     _userSub = FirebaseFirestore.instance
@@ -1207,11 +1309,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               _npc(w, h, widget.isSea ? 0.52 : 0.52, widget.isSea ? 0.22 : 0.16,'🌀', '낚시터', _openMinimap), // 출렁다리 입구(위 중앙)
               _npc(w, h, widget.isSea ? 0.34 : 0.33, widget.isSea ? 0.25 : 0.17,'🛡️', '길드', _openGuild), // 길드 건물(원래 위치)
 
+              // 📋 일일퀘스트 매니저 '아라'
+              _araNpc(w, h),
+
               // 5) 상단 HUD
               _topHud(),
 
               // 💬 채팅 패널 (낚시터와 동일)
               _chatPanel(),
+
+              // 📋 일일퀘스트 안내 오버레이 (아라)
+              if (_showQuest)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: _getBriefingText(),
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () => setState(() => _showQuest = false),
+                  ),
+                ),
             ],
           );
         },
@@ -1271,6 +1386,49 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
               child: Text(label,
                   style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내)
+  Widget _araNpc(double w, double h) {
+    final figH = h * 0.30;
+    final figW = figH * 0.55;
+    const cx = 0.085;
+    const cy = 0.60; // 발 위치
+    return Positioned(
+      left: cx * w - figW / 2,
+      top: cy * h - figH,
+      width: figW,
+      height: figH,
+      child: GestureDetector(
+        onTap: () => setState(() => _showQuest = true),
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.topCenter,
+          children: [
+            Positioned.fill(
+              child: Image.asset('assets/images/npc_manager_quest.png',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.bottomCenter,
+                  errorBuilder: (a, b, c) => const SizedBox.shrink()),
+            ),
+            Positioned(
+              top: -14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _kGold),
+                  boxShadow: [BoxShadow(color: _kGold.withOpacity(0.5), blurRadius: 8)],
+                ),
+                child: const Text('📋 일일퀘스트',
+                    style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         ),
