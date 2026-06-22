@@ -339,6 +339,14 @@ size = double.parse(size.toStringAsFixed(1));
   // 길드 레벨이 주는 능력치 보너스(힘/컨트롤/감도 각각 +레벨)
   static int guildStatBonus(int guildLevel) => guildLevel.clamp(0, guildMaxLevel);
 
+  // 길드 레벨에 비례한 최대 가입 인원 (Lv1~9:20, 10~19:30, 20~29:40, 30:50)
+  static int guildMaxMembers(int guildLevel) {
+    if (guildLevel >= 30) return 50;
+    if (guildLevel >= 20) return 40;
+    if (guildLevel >= 10) return 30;
+    return 20;
+  }
+
   // 👤 3. 스킨(호칭)에 맞는 투명 캐릭터 이미지 찾아주기
   static String getLobbyCharacterImage(String skinName) {
     String cleanName = skinName.replaceAll(' ', '').toUpperCase();

@@ -86,7 +86,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
-  static const int _guildMaxMembers = 50; // 길드 최대 인원
   String _guildId = '';
   String _guildName = '';
   StreamSubscription<DocumentSnapshot>? _userSub;
@@ -1521,7 +1520,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   final gid = docs[i].id;
                   final mc = (g['memberCount'] is num) ? (g['memberCount'] as num).toInt() : 0;
                   final gExp = (g['guildExp'] is num) ? (g['guildExp'] as num).toInt() : 0;
-                  final full = mc >= _guildMaxMembers;
+                  final cap = FishingLogic.guildMaxMembers(FishingLogic.guildLevelFromExp(gExp));
+                  final full = mc >= cap;
                   return Container(
                     margin: const EdgeInsets.symmetric(vertical: 4),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1547,7 +1547,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 2),
-                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$_guildMaxMembers명',
+                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$cap명',
                                 style: const TextStyle(color: Colors.white54, fontSize: 11)),
                           ],
                         ),
@@ -1630,7 +1630,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     const SizedBox(width: 12),
                     const Icon(Icons.people, color: _kGold, size: 16),
                     const SizedBox(width: 4),
-                    Text('${g['memberCount'] ?? 0}/$_guildMaxMembers명',
+                    Text('${g['memberCount'] ?? 0}/${FishingLogic.guildMaxMembers(gLevel)}명',
                         style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   ]),
                 ),
@@ -1800,8 +1800,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               statRow(Icons.graphic_eq, '감도', bonus),
             ]),
           ),
+          const SizedBox(height: 14),
+          Row(children: [
+            const Icon(Icons.groups, color: _kGold, size: 18),
+            const SizedBox(width: 8),
+            const Text('최대 가입 인원',
+                style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            Text('${FishingLogic.guildMaxMembers(gLevel)}명',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+          ]),
           const SizedBox(height: 12),
-          const Text('💡 길드원이 물고기를 잡을 때마다 길드 경험치가 쌓이고,\n레벨이 오르면 모든 길드원의 능력치 보너스가 커집니다.',
+          const Text('💡 길드원이 물고기를 잡을 때마다 길드 경험치가 쌓이고,\n레벨이 오르면 능력치 보너스와 최대 인원이 늘어납니다.\n(Lv10→30명, Lv20→40명, Lv30→50명)',
               style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.4)),
         ],
       ),
@@ -1932,11 +1942,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       await fs.runTransaction((tx) async {
         final gsnap = await tx.get(guildRef);
         if (!gsnap.exists) throw '길드가 사라졌어요.';
-        final mc = (gsnap.data()?['memberCount'] is num)
-            ? (gsnap.data()!['memberCount'] as num).toInt()
-            : 0;
-        if (mc >= _guildMaxMembers) {
-          throw '길드 인원이 가득 찼어요. (최대 $_guildMaxMembers명)';
+        final data = gsnap.data() ?? {};
+        final mc = (data['memberCount'] is num) ? (data['memberCount'] as num).toInt() : 0;
+        final gExp = (data['guildExp'] is num) ? (data['guildExp'] as num).toInt() : 0;
+        final cap = FishingLogic.guildMaxMembers(FishingLogic.guildLevelFromExp(gExp));
+        if (mc >= cap) {
+          throw '길드 인원이 가득 찼어요. (최대 $cap명)\n길드 레벨을 올리면 정원이 늘어나요.';
         }
         tx.set(guildRef.collection('members').doc(uid), {
           'uid': uid,
