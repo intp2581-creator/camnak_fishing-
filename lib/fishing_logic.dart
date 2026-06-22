@@ -287,12 +287,42 @@ size = double.parse(size.toStringAsFixed(1));
   }
 
   // 🛡️ 길드 레벨/버프 (광장·낚시 공용 계산식)
-  // guildExpTable[레벨] = 그 레벨이 되기 위한 누적 길드 경험치 (index 0 미사용, 최대 Lv10)
+  // guildExpTable[레벨] = 그 레벨이 되기 위한 누적 길드 경험치(=누적 마릿수) (index 0 미사용, 최대 Lv30)
   static const List<int> guildExpTable = [
-    0, 0, 300, 800, 1600, 2800, 4500, 7000, 10500, 15000, 21000,
+    0,      // 0 (미사용)
+    0,      // Lv1
+    50,     // Lv2
+    150,    // Lv3
+    300,    // Lv4
+    500,    // Lv5
+    800,    // Lv6
+    1200,   // Lv7
+    1700,   // Lv8
+    2300,   // Lv9
+    3000,   // Lv10
+    3900,   // Lv11
+    5000,   // Lv12
+    6300,   // Lv13
+    7800,   // Lv14
+    9500,   // Lv15
+    11500,  // Lv16
+    13800,  // Lv17
+    16400,  // Lv18
+    19300,  // Lv19
+    22500,  // Lv20
+    26100,  // Lv21
+    30100,  // Lv22
+    34500,  // Lv23
+    39300,  // Lv24
+    44500,  // Lv25
+    50200,  // Lv26
+    56400,  // Lv27
+    63100,  // Lv28
+    70300,  // Lv29
+    78000,  // Lv30
   ];
-  static const int guildMaxLevel = 10;
-  static const int guildExpPerCatch = 10; // 길드원이 물고기 1마리 잡을 때마다 누적
+  static const int guildMaxLevel = 30;
+  static const int guildExpPerCatch = 1; // 길드원이 물고기 1마리 잡을 때마다 누적
 
   static int guildLevelFromExp(int exp) {
     int lv = 1;
