@@ -1274,15 +1274,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
           return Stack(
             children: [
-              // 🌍 월드 레이어 (카메라가 캐릭터 따라 스크롤)
-              ClipRect(
-                child: Transform.translate(
-                  offset: Offset(-camX, -camY),
-                  child: SizedBox(
-                    width: worldW,
-                    height: worldH,
-                    child: Stack(
-                      children: [
+              // 🌍 월드 레이어 (카메라가 캐릭터 따라 스크롤). 바깥 Stack이 뷰포트로 클립
+              Positioned(
+                left: -camX,
+                top: -camY,
+                width: worldW,
+                height: worldH,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
                         // 배경(큰 광장 그림). 없으면 낚시 배경으로 폴백
                         Positioned.fill(
                           child: Image.asset(
@@ -1405,8 +1405,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         _araNpc(worldW, worldH, h),
                       ],
                     ),
-                  ),
-                ),
               ),
 
               // 화면 고정 비네트(가장자리 어둡게)
