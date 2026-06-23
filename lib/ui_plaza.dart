@@ -1498,18 +1498,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 🌐 다른 유저들 (실시간)
                         ..._others.entries
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
-                        // 4) NPC / 시설들 (좌표는 새 그림 좌표 받으면 조정)
-                        _npc(worldW, worldH, widget.isSea ? 0.75 : 0.90,
-                            widget.isSea ? 0.32 : 0.35, '🏪', '상점', _openStore),
-                        _npc(worldW, worldH, widget.isSea ? 0.15 : 0.15,
-                            widget.isSea ? 0.28 : 0.20, '🏆', '랭킹', _openRanking),
-                        _npc(worldW, worldH, widget.isSea ? 0.95 : 0.72,
-                            widget.isSea ? 0.54 : 0.22, '⚔️', '아레나', _openArena,
+                        // 4) NPC / 시설 클릭존 (바다=새 그림 좌표 적용, 민물=추후)
+                        _npc(worldW, worldH, widget.isSea ? 0.950 : 0.90,
+                            widget.isSea ? 0.570 : 0.35, '🏪', '상점', _openStore),
+                        _npc(worldW, worldH, widget.isSea ? 0.129 : 0.15,
+                            widget.isSea ? 0.167 : 0.20, '🏆', '랭킹', _openRanking),
+                        _npc(worldW, worldH, widget.isSea ? 0.872 : 0.72,
+                            widget.isSea ? 0.266 : 0.22, '⚔️', '아레나', _openArena,
                             iconWidget: _crossedRods()),
-                        _npc(worldW, worldH, widget.isSea ? 0.52 : 0.52,
-                            widget.isSea ? 0.22 : 0.16, '🌀', '낚시터', _openMinimap),
-                        _npc(worldW, worldH, widget.isSea ? 0.34 : 0.33,
-                            widget.isSea ? 0.25 : 0.17, '🛡️', '길드', _openGuild),
+                        _npc(worldW, worldH, widget.isSea ? 0.625 : 0.52,
+                            widget.isSea ? 0.232 : 0.16, '🌀', '낚시터', _openMinimap),
+                        _npc(worldW, worldH, widget.isSea ? 0.379 : 0.33,
+                            widget.isSea ? 0.167 : 0.17, '🛡️', '길드', _openGuild),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
                       ],
@@ -1602,41 +1602,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 랜드마크 클릭 영역 (그림에 시설이 그려져 있으니 이모지 없이 투명 클릭존 + 라벨만)
   Widget _npc(double w, double h, double cx, double cy, String emoji, String label, VoidCallback onTap, {Widget? iconWidget}) {
-    const double npcW = 96;
-    const double npcH = 96;
+    const double zoneW = 150;
+    const double zoneH = 160;
     return Positioned(
-      left: cx * w - npcW / 2,
-      top: cy * h - npcH / 2,
-      width: npcW,
-      height: npcH,
+      left: cx * w - zoneW / 2,
+      top: cy * h - zoneH / 2,
+      width: zoneW,
+      height: zoneH,
       child: GestureDetector(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black.withOpacity(0.55),
-                border: Border.all(color: _kGold, width: 2),
-                boxShadow: [BoxShadow(color: _kGold.withOpacity(0.4), blurRadius: 10)],
-              ),
-              child: Center(child: iconWidget ?? Text(emoji, style: const TextStyle(fontSize: 28))),
+        behavior: HitTestBehavior.opaque, // 영역 전체가 클릭 (시설 탭하면 열림)
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _kGold.withOpacity(0.85)),
+              boxShadow: [BoxShadow(color: _kGold.withOpacity(0.35), blurRadius: 8)],
             ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(label,
-                  style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.bold)),
-            ),
-          ],
+            child: Text(label,
+                style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.bold)),
+          ),
         ),
       ),
     );
@@ -1646,8 +1636,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final figH = sizeH * 0.21; // 캐릭터와 비슷한 크기
     final figW = figH * 0.6;
-    const cx = 0.075;
-    const cy = 0.73; // 발 위치
+    final cx = widget.isSea ? 0.265 : 0.075;
+    final cy = widget.isSea ? 0.775 : 0.73; // 발 위치
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 26, // 라벨 높이만큼 위로 보정
