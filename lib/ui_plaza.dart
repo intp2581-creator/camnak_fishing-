@@ -2,6 +2,7 @@
 // 🏛️ [광장 시스템] 낚시터별 광장(허브). 1단계: 나 혼자 걸어다니며 상점/아레나/포탈/낚시 진입.
 //    2단계에서 RTDB로 다른 유저 실시간 표시 예정.
 import 'dart:async';
+import 'dart:html' as html; // 전체화면 토글
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -202,6 +203,42 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🎵 광장 배경음악 (낚시/아레나 다녀오면 다시 재생)
   void _playPlazaBgm() {
     audioManager.playBgm('bgm_menu.mp3');
+  }
+
+  // 🖥️ 전체화면 토글 (낚시 화면과 동일)
+  void _toggleFullScreen() {
+    try {
+      if (html.document.fullscreenElement == null) {
+        html.document.documentElement?.requestFullscreen().then((_) {
+          html.window.screen?.orientation?.lock('landscape');
+        }).catchError((Object e) {
+          debugPrint('가로 고정 실패: $e');
+        });
+      } else {
+        html.document.exitFullscreen();
+        html.window.screen?.orientation?.unlock();
+      }
+    } catch (e) {
+      debugPrint('전체화면 전환 실패: $e');
+    }
+  }
+
+  // 상단 미니 버튼 (소리/전체화면)
+  Widget _miniBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: _kGold, width: 1.5),
+          boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+        ),
+        child: Icon(icon, color: _kGold, size: 24),
+      ),
+    );
   }
 
   @override
@@ -2346,6 +2383,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
+          // 🔊 소리끄기 / 🖥️ 전체화면 (낚시 화면과 동일)
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            _miniBtn(audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
+                () => setState(() => audioManager.toggleMute())),
+            const SizedBox(width: 8),
+            _miniBtn(Icons.fullscreen, _toggleFullScreen),
+          ]),
           // 내 정보 카드 (스킨/레벨/경험치바/머니/가방)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
