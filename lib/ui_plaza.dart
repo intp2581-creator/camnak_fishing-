@@ -1499,17 +1499,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         ..._others.entries
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
                         // 4) NPC / 시설 클릭존 (바다=새 그림 좌표 적용, 민물=추후)
-                        _npc(worldW, worldH, widget.isSea ? 0.950 : 0.90,
-                            widget.isSea ? 0.570 : 0.35, '🏪', '상점', _openStore),
-                        _npc(worldW, worldH, widget.isSea ? 0.129 : 0.15,
-                            widget.isSea ? 0.167 : 0.20, '🏆', '랭킹', _openRanking),
-                        _npc(worldW, worldH, widget.isSea ? 0.872 : 0.72,
-                            widget.isSea ? 0.266 : 0.22, '⚔️', '아레나', _openArena,
+                        _npc(worldW, worldH, widget.isSea ? 0.903 : 0.90,
+                            widget.isSea ? 0.634 : 0.35, '🏪', '상점', _openStore),
+                        _npc(worldW, worldH, widget.isSea ? 0.138 : 0.15,
+                            widget.isSea ? 0.373 : 0.20, '🏆', '랭킹', _openRanking),
+                        _npc(worldW, worldH, widget.isSea ? 0.863 : 0.72,
+                            widget.isSea ? 0.399 : 0.22, '⚔️', '아레나', _openArena,
                             iconWidget: _crossedRods()),
-                        _npc(worldW, worldH, widget.isSea ? 0.625 : 0.52,
-                            widget.isSea ? 0.232 : 0.16, '🌀', '낚시터', _openMinimap),
-                        _npc(worldW, worldH, widget.isSea ? 0.379 : 0.33,
-                            widget.isSea ? 0.167 : 0.17, '🛡️', '길드', _openGuild),
+                        _npc(worldW, worldH, widget.isSea ? 0.617 : 0.52,
+                            widget.isSea ? 0.338 : 0.16, '🌀', '낚시터', _openMinimap),
+                        _npc(worldW, worldH, widget.isSea ? 0.383 : 0.33,
+                            widget.isSea ? 0.396 : 0.17, '🛡️', '길드', _openGuild),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
                       ],
@@ -1615,7 +1615,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         onTap: onTap,
         behavior: HitTestBehavior.opaque, // 영역 전체가 클릭 (시설 탭하면 열림)
         child: Align(
-          alignment: Alignment.bottomCenter,
+          alignment: Alignment.center,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
             decoration: BoxDecoration(
