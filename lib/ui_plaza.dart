@@ -640,7 +640,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _joyMove(fromCenter);
     _moveToken++; // 진행 중이던 탭 이동 종료
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
-    _joyTimer ??= Timer.periodic(const Duration(milliseconds: 33), (_) => _joyTick());
+    _joyTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) => _joyTick());
   }
 
   void _joyEnd() {
@@ -659,7 +659,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _joyTick() {
     if (_joyDir == Offset.zero || !mounted) return;
     const speedPxPerSec = 320.0; // 월드 스크린px 기준 이동 속도
-    const dt = 33 / 1000.0;
+    const dt = 16 / 1000.0;
     final movePx = _joyDir * speedPxPerSec * dt; // 방향*세기
     var np = Offset(
       _charPos.dx + movePx.dx / _worldW,
@@ -671,7 +671,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       // 좌우 데드존: 상하로 갈 땐 dx가 0 근처라 좌우 반전이 깜빡여서 떨림 → 충분히 좌우일 때만 전환
       if (_joyDir.dx.abs() > 0.3) _facingRight = _joyDir.dx >= 0;
       _charPos = np;
-      _moveDuration = const Duration(milliseconds: 33);
+      _moveDuration = Duration.zero; // 보간 끔 → 캐릭터·카메라(배경) 같은 프레임에 이동(싱크)
       _walking = true;
     });
     final now = DateTime.now();
