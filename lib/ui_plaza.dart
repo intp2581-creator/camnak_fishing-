@@ -1513,7 +1513,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             '⚔️ 아레나', _openArena),
                         _standNpc(worldW, worldH, h, widget.isSea ? 0.809 : 0.90,
                             widget.isSea ? 0.926 : 0.35, 'npc_shop.png', 'npc_manager.png',
-                            '🏪 상점', _openStore),
+                            '🏪 상점', _openStore, scale: 1.2),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
                       ],
@@ -1629,8 +1629,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🧍 시설 NPC (포털/시설 앞에 한 명씩 세움). img 없으면 fallback 이미지로.
   Widget _standNpc(double worldW, double worldH, double sizeH, double cx, double cy,
-      String img, String fallback, String label, VoidCallback onTap) {
-    final figH = sizeH * 0.21;
+      String img, String fallback, String label, VoidCallback onTap, {double scale = 1.0}) {
+    final figH = sizeH * 0.21 * scale;
     final figW = figH * 0.6;
     return Positioned(
       left: cx * worldW - figW / 2,
