@@ -29,48 +29,55 @@ bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 
 // =========================================================================
 // 📈 [경험치 & 레벨 밸런스 테이블]
-// 사장님! 이제 여기서 경험치 통을 한 번에 조절하세요! (HUD와 계산 로직 통합용)
+// 🆙 만렙 100레벨! 총 경험치(0~130만)는 그대로, 기존 30레벨 곡선을 100칸으로 잘게 보간.
+//    레벨업이 더 자주 일어나 성취감↑ (만렙 경험치/획득량/밸런스 불변)
 // =========================================================================
-final List<int> globalExpTable = [
-  0,        // 인덱스 0 (안 씀)
-  0,        // Lv.1
-  5000,     // Lv.2
-  10000,    // Lv.3
-  20000,    // Lv.4
-  30000,    // Lv.5 (하수 스킨!)
-  50000,    // Lv.6 
-  70000,   // Lv.7
-  90000,   // Lv.8
-  110000,   // Lv.9
-  130000,   // Lv.10 (중수 스킨!)
-  160000,   // Lv.11 
-  190000,   // Lv.12
-  210000,   // Lv.13
-  240000,   // Lv.14
-  270000,   // Lv.15 (고수 스킨!)
-  310000,   // Lv.16 
-  350000,   // Lv.17
-  390000,  // Lv.18
-  430000,  // Lv.19
-  500000,  // Lv.20 (프로 스킨!)
-  550000,  // Lv.21 
-  600000,  // Lv.22
-  650000,  // Lv.23
-  700000,  // Lv.24
-  800000,  // Lv.25 (마스터 스킨!)
-  900000,  // Lv.26 
-  1000000,  // Lv.27
-  1100000,  // Lv.28
-  1200000,  // Lv.29
-  1300000,   // Lv.30 (현재 만렙!)
+const int globalMaxLevel = 100;
+
+// 기존 30레벨 누적 경험치(곡선 원본). 이 곡선 모양을 그대로 100칸으로 보간한다.
+const List<int> _oldExpTable30 = [
+  0, 0, 5000, 10000, 20000, 30000, 50000, 70000, 90000, 110000, 130000,
+  160000, 190000, 210000, 240000, 270000, 310000, 350000, 390000, 430000, 500000,
+  550000, 600000, 650000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000,
 ];
+
+List<int> _buildExpTable() {
+  final table = List<int>.filled(globalMaxLevel + 1, 0);
+  for (int n = 1; n <= globalMaxLevel; n++) {
+    final p = 1 + (n - 1) * 29 / (globalMaxLevel - 1); // 1.0 ~ 30.0 위치
+    final lo = p.floor();
+    final hi = (lo + 1) > 30 ? 30 : (lo + 1);
+    final frac = p - lo;
+    final val = _oldExpTable30[lo] + (_oldExpTable30[hi] - _oldExpTable30[lo]) * frac;
+    table[n] = (val / 100).round() * 100; // 100단위로 깔끔하게
+  }
+  // 단조 증가 보정 + 만렙 정확히
+  for (int n = 2; n <= globalMaxLevel; n++) {
+    if (table[n] <= table[n - 1]) table[n] = table[n - 1] + 100;
+  }
+  table[globalMaxLevel] = 1300000;
+  return table;
+}
+
+// 전역 경험치 테이블 (index 0 안 씀, 1~100)
+final List<int> globalExpTable = _buildExpTable();
 
 // 전역 레벨 계산기 함수
 int calcLevelFromExp(int exp) {
-  for (int i = 30; i >= 1; i--) {
+  for (int i = globalMaxLevel; i >= 1; i--) {
     if (exp >= globalExpTable[i]) return i;
   }
   return 1;
+}
+
+// 🏅 칭호(초보~마스터): 레벨이 아니라 '경험치'에 묶음 → 100레벨 개편에도 풀리는 시점 동일
+String calcRankFromExp(int exp) {
+  if (exp >= 800000) return '마스터';
+  if (exp >= 500000) return '프로';
+  if (exp >= 270000) return '고수';
+  if (exp >= 130000) return '중수';
+  if (exp >= 30000) return '하수';
+  return '초보';
 }
 
 
@@ -216,10 +223,10 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'},
   {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
-  {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 5},
-  {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 10},
-  {'name': '고수 조사', 'price': 20000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 15},
-  {'name': '프로 조사', 'price': 50000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 20},
-  {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 25},
+  {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 14},
+  {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 31},
+  {'name': '고수 조사', 'price': 20000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 48},
+  {'name': '프로 조사', 'price': 50000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 65},
+  {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 82},
 ];
 

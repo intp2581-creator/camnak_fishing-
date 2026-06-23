@@ -2281,11 +2281,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Widget _topHud() {
-    final lv = _level.clamp(1, 30);
+    final lv = _level.clamp(1, globalMaxLevel);
     final curBase = globalExpTable[lv];
-    final nextBase = lv < 30 ? globalExpTable[lv + 1] : globalExpTable[30];
+    final nextBase = lv < globalMaxLevel ? globalExpTable[lv + 1] : globalExpTable[globalMaxLevel];
     final span = nextBase - curBase;
-    final prog = (lv >= 30 || span <= 0) ? 1.0 : ((currentExp - curBase) / span).clamp(0.0, 1.0);
+    final prog = (lv >= globalMaxLevel || span <= 0) ? 1.0 : ((currentExp - curBase) / span).clamp(0.0, 1.0);
     return Positioned(
       top: 16,
       left: 16,
@@ -2377,7 +2377,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       ]),
                     ),
                     const SizedBox(height: 2),
-                    Text(lv >= 30 ? 'MAX LEVEL' : '$currentExp / $nextBase EXP',
+                    Text(lv >= globalMaxLevel ? 'MAX LEVEL' : '$currentExp / $nextBase EXP',
                         style: const TextStyle(color: Colors.white70, fontSize: 10)),
                     const SizedBox(height: 3),
                     Row(children: [

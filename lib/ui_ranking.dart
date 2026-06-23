@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_logic.dart'; // audioManager
+import 'game_config.dart'; // calcLevelFromExp (100레벨 공용)
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -22,38 +23,8 @@ class _RankingScreenState extends State<RankingScreen> {
   String selectedTab = '레벨';
   String selectedFish = '붕어';
 
-  int _calcLevelFromExp(int exp) {
-    if (exp >= 1300000) return 30;
-    if (exp >= 1200000) return 29;
-    if (exp >= 1100000) return 28;
-    if (exp >= 1000000) return 27;
-    if (exp >= 900000) return 26;
-    if (exp >= 800000) return 25;
-    if (exp >= 700000) return 24;
-    if (exp >= 650000) return 23;
-    if (exp >= 600000) return 22;
-    if (exp >= 550000) return 21;
-    if (exp >= 500000) return 20;
-    if (exp >= 430000) return 19;
-    if (exp >= 390000) return 18;
-    if (exp >= 350000) return 17;
-    if (exp >= 310000) return 16;
-    if (exp >= 270000) return 15;
-    if (exp >= 240000) return 14;
-    if (exp >= 210000) return 13;
-    if (exp >= 190000) return 12;
-    if (exp >= 160000) return 11;
-    if (exp >= 130000) return 10;
-    if (exp >= 110000) return 9;
-    if (exp >= 90000) return 8;
-    if (exp >= 70000) return 7;
-    if (exp >= 50000) return 6;
-    if (exp >= 30000) return 5;
-    if (exp >= 20000) return 4;
-    if (exp >= 10000) return 3;
-    if (exp >= 5000) return 2;
-    return 1;
-  }
+  // 100레벨 공용 계산 사용 (game_config)
+  int _calcLevelFromExp(int exp) => calcLevelFromExp(exp);
 
   @override
   Widget build(BuildContext context) {

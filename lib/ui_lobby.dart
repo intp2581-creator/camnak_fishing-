@@ -229,39 +229,8 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
   final List<String> fwFishList = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];
   final List<String> seaFishList = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치'];
 
- // 🏆 랭킹판 & 메인 화면 공용: 최신 30레벨 계산기 패치 완! (괄호 추가로 잔소리 완벽 차단!)
-  int _calcLevelFromExp(int exp) {
-    if (exp >= 1300000) { return 30; }
-    else if (exp >= 1200000) { return 29; }
-    else if (exp >= 1100000) { return 28; }
-    else if (exp >= 1000000) { return 27; }
-    else if (exp >= 900000)  { return 26; }
-    else if (exp >= 800000)  { return 25; }
-    else if (exp >= 700000)  { return 24; }
-    else if (exp >= 650000)  { return 23; }
-    else if (exp >= 600000)  { return 22; }
-    else if (exp >= 550000)  { return 21; }
-    else if (exp >= 500000)  { return 20; }
-    else if (exp >= 430000)  { return 19; }
-    else if (exp >= 390000)  { return 18; }
-    else if (exp >= 350000)  { return 17; }
-    else if (exp >= 310000)  { return 16; }
-    else if (exp >= 270000)  { return 15; }
-    else if (exp >= 240000)  { return 14; }
-    else if (exp >= 210000)  { return 13; }
-    else if (exp >= 190000)  { return 12; }
-    else if (exp >= 160000)  { return 11; }
-    else if (exp >= 130000)  { return 10; }
-    else if (exp >= 110000)  { return 9; }
-    else if (exp >= 90000)   { return 8; }
-    else if (exp >= 70000)   { return 7; }
-    else if (exp >= 50000)   { return 6; }
-    else if (exp >= 30000)   { return 5; }
-    else if (exp >= 20000)   { return 4; }
-    else if (exp >= 10000)   { return 3; }
-    else if (exp >= 5000)    { return 2; }
-    else                     { return 1; }
-  }
+ // 🆙 100레벨 공용 계산 사용 (game_config)
+  int _calcLevelFromExp(int exp) => calcLevelFromExp(exp);
   Widget _buildRankingBoard() {
     return Container( 
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), 

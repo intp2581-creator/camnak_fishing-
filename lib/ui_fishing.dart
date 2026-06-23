@@ -1487,39 +1487,11 @@ Positioned(
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
                   }
 
-                  int realLevel = 1; int nextLevelExp = 5000; int prevLevelExp = 0;
-
-    // 🏆 30레벨 만렙 확장 패치 적용! (칭호: 초보 -> 하수 -> 중수 -> 고수 -> 프로 -> 마스터)
-    if (realExp >= 1300000) { realLevel = 30; nextLevelExp = 1300000; prevLevelExp = 1300000; realRank = '마스터'; }
-    else if (realExp >= 1200000) { realLevel = 29; nextLevelExp = 1300000; prevLevelExp = 1200000; realRank = '마스터'; }
-    else if (realExp >= 1100000) { realLevel = 28; nextLevelExp = 1200000; prevLevelExp = 1100000; realRank = '마스터'; }
-    else if (realExp >= 1000000) { realLevel = 27; nextLevelExp = 1100000; prevLevelExp = 1000000; realRank = '마스터'; }
-    else if (realExp >= 900000)  { realLevel = 26; nextLevelExp = 1000000; prevLevelExp = 900000; realRank = '마스터'; }
-    else if (realExp >= 800000)  { realLevel = 25; nextLevelExp = 900000; prevLevelExp = 800000; realRank = '마스터'; }
-    else if (realExp >= 700000)  { realLevel = 24; nextLevelExp = 800000; prevLevelExp = 700000; realRank = '프로'; }
-    else if (realExp >= 650000)  { realLevel = 23; nextLevelExp = 700000; prevLevelExp = 650000; realRank = '프로'; }
-    else if (realExp >= 600000)  { realLevel = 22; nextLevelExp = 650000; prevLevelExp = 600000; realRank = '프로'; }
-    else if (realExp >= 550000)  { realLevel = 21; nextLevelExp = 600000; prevLevelExp = 550000; realRank = '프로'; }
-    else if (realExp >= 500000)  { realLevel = 20; nextLevelExp = 550000; prevLevelExp = 500000; realRank = '프로'; }
-    else if (realExp >= 430000)  { realLevel = 19; nextLevelExp = 500000; prevLevelExp = 430000; realRank = '고수'; }
-    else if (realExp >= 390000)  { realLevel = 18; nextLevelExp = 430000; prevLevelExp = 390000; realRank = '고수'; }
-    else if (realExp >= 350000)  { realLevel = 17; nextLevelExp = 390000; prevLevelExp = 350000; realRank = '고수'; }
-    else if (realExp >= 310000)  { realLevel = 16; nextLevelExp = 350000; prevLevelExp = 310000; realRank = '고수'; }
-    else if (realExp >= 270000)  { realLevel = 15; nextLevelExp = 310000; prevLevelExp = 270000; realRank = '고수'; }
-    else if (realExp >= 240000)  { realLevel = 14; nextLevelExp = 270000; prevLevelExp = 240000; realRank = '중수'; }
-    else if (realExp >= 210000)  { realLevel = 13; nextLevelExp = 240000; prevLevelExp = 210000; realRank = '중수'; }
-    else if (realExp >= 190000)  { realLevel = 12; nextLevelExp = 210000; prevLevelExp = 190000; realRank = '중수'; }
-    else if (realExp >= 160000)  { realLevel = 11; nextLevelExp = 190000; prevLevelExp = 160000; realRank = '중수'; }
-    else if (realExp >= 130000)  { realLevel = 10; nextLevelExp = 160000; prevLevelExp = 130000; realRank = '중수'; }
-    else if (realExp >= 110000)  { realLevel = 9;  nextLevelExp = 130000; prevLevelExp = 110000; realRank = '하수'; }
-    else if (realExp >= 90000)   { realLevel = 8;  nextLevelExp = 110000; prevLevelExp = 90000; realRank = '하수'; }
-    else if (realExp >= 70000)   { realLevel = 7;  nextLevelExp = 90000; prevLevelExp = 70000; realRank = '하수'; }
-    else if (realExp >= 50000)   { realLevel = 6;  nextLevelExp = 70000; prevLevelExp = 50000; realRank = '하수'; }
-    else if (realExp >= 30000)   { realLevel = 5;  nextLevelExp = 50000; prevLevelExp = 30000; realRank = '하수'; }
-    else if (realExp >= 20000)   { realLevel = 4;  nextLevelExp = 30000; prevLevelExp = 20000; realRank = '초보'; }
-    else if (realExp >= 10000)   { realLevel = 3;  nextLevelExp = 20000; prevLevelExp = 10000; realRank = '초보'; }
-    else if (realExp >= 5000)    { realLevel = 2;  nextLevelExp = 10000; prevLevelExp = 5000; realRank = '초보'; }
-    else                         { realLevel = 1;  nextLevelExp = 5000; prevLevelExp = 0; realRank = '초보'; }
+    // 🆙 100레벨 개편: 경험치 테이블/칭호 공용 함수 사용 (game_config)
+    int realLevel = calcLevelFromExp(realExp);
+    realRank = calcRankFromExp(realExp);
+    int prevLevelExp = globalExpTable[realLevel];
+    int nextLevelExp = realLevel < globalMaxLevel ? globalExpTable[realLevel + 1] : globalExpTable[globalMaxLevel];
 
     // 🛡️ [수정] 가짜 데이터(0.1초)일 때는 무시하고, 진짜 DB 데이터가 도착했을 때만 레벨업 판독!
     if (snapshot.hasData && snapshot.data!.exists) {
@@ -1531,11 +1503,11 @@ Positioned(
       }
     }
                   
-                  int levelBonus = (realLevel - 1) * 10;
+                  int levelBonus = (realLevel - 1) * 3; // 100레벨 개편: 만렙 제압력 보너스 ≈ 기존(약 290) 유지
                   Map<String, int> currentStats = getMyTotalStats();
                   int equipP = currentStats['strength'] ?? 0; int equipC = currentStats['control'] ?? 0; int equipS = currentStats['sensitivity'] ?? 0;
                   int myEquipSum = equipP + equipC + equipS; int myTotalPower = myEquipSum + levelBonus;
-                  double expPercent = (realLevel < 30) ? (realExp - prevLevelExp) / (nextLevelExp - prevLevelExp) : 1.0;
+                  double expPercent = (realLevel < globalMaxLevel) ? (realExp - prevLevelExp) / (nextLevelExp - prevLevelExp) : 1.0;
                   return Stack(
                     clipBehavior: Clip.none,
                     children: [
