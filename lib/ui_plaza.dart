@@ -2383,15 +2383,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
-          // 🔊 소리끄기 / 🖥️ 전체화면 (낚시 화면과 동일)
+          // 🔊 소리/전체화면 + 내 정보 카드 (오른쪽에 함께)
           Row(mainAxisSize: MainAxisSize.min, children: [
             _miniBtn(audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
                 () => setState(() => audioManager.toggleMute())),
             const SizedBox(width: 8),
             _miniBtn(Icons.fullscreen, _toggleFullScreen),
-          ]),
-          // 내 정보 카드 (스킨/레벨/경험치바/머니/가방)
-          Container(
+            const SizedBox(width: 12),
+            // 내 정보 카드 (스킨/레벨/경험치바/머니/가방)
+            Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6),
@@ -2462,6 +2462,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
+          ]),
         ],
       ),
     );
