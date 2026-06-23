@@ -196,6 +196,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _level = widget.level;
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     _loadUser();
+    _playPlazaBgm(); // 🎵 광장 배경음악 (옛 로비 BGM)
+  }
+
+  // 🎵 광장 배경음악 (낚시/아레나 다녀오면 다시 재생)
+  void _playPlazaBgm() {
+    audioManager.playBgm('bgm_menu.mp3');
   }
 
   @override
@@ -582,7 +588,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           isFirstTime: widget.isFirstTime,
         ),
       ),
-    );
+    ).then((_) {
+      if (mounted) _playPlazaBgm(); // 🎵 낚시터에서 돌아오면 광장 BGM 재개
+    });
   }
 
   void _openStore() {
@@ -599,7 +607,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _openArena() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ArenaScreen()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ArenaScreen()))
+        .then((_) {
+      if (mounted) _playPlazaBgm(); // 🎵 아레나(낚시 BGM) 다녀오면 광장 BGM 재개
+    });
   }
 
   void _openRanking() {
