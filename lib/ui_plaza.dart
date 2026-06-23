@@ -72,6 +72,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   late final AnimationController _walkCtrl;
   bool _walking = false;
   int _moveToken = 0;
+
+  // 🕹️ 가상 조이스틱 (우하단, 드래그 방향으로 연속 이동)
+  static const double _joyRadius = 55;
+  Offset _joyKnob = Offset.zero; // 노브 오프셋(화면px)
+  Offset _joyDir = Offset.zero; // 방향*세기 (길이 0~1)
+  Timer? _joyTimer;
+  double _worldW = 1, _worldH = 1; // build에서 갱신 (조이스틱 이동 환산용)
+  DateTime _lastNetSend = DateTime.fromMillisecondsSinceEpoch(0);
   // 🌐 실시간(2단계) — 같은 광장 다른 유저
   static final FirebaseDatabase _db = FirebaseDatabase.instanceFor(
     app: Firebase.app(),
@@ -245,6 +253,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   @override
   void dispose() {
     _walkCtrl.dispose();
+    _joyTimer?.cancel();
     _roomSub?.cancel();
     _userSub?.cancel();
     _leagueSub?.cancel();
@@ -614,6 +623,103 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _walkCtrl.stop();
       _walkCtrl.value = 0;
     });
+  }
+
+  // 🕹️ 조이스틱 ---------------------------------------------------------
+  void _joyMove(Offset fromCenter) {
+    var v = fromCenter;
+    final len = v.distance;
+    if (len > _joyRadius) v = v / len * _joyRadius; // 베이스 밖으로 안 나가게
+    setState(() {
+      _joyKnob = v;
+      _joyDir = v / _joyRadius; // 길이 0~1 (방향+세기)
+    });
+  }
+
+  void _joyStart(Offset fromCenter) {
+    _joyMove(fromCenter);
+    _moveToken++; // 진행 중이던 탭 이동 종료
+    if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
+    _joyTimer ??= Timer.periodic(const Duration(milliseconds: 33), (_) => _joyTick());
+  }
+
+  void _joyEnd() {
+    _joyTimer?.cancel();
+    _joyTimer = null;
+    setState(() {
+      _joyKnob = Offset.zero;
+      _joyDir = Offset.zero;
+      _walking = false;
+    });
+    _walkCtrl.stop();
+    _walkCtrl.value = 0;
+    _sendPos(); // 멈춘 위치 전송
+  }
+
+  void _joyTick() {
+    if (_joyDir == Offset.zero || !mounted) return;
+    const speedPxPerSec = 320.0; // 월드 스크린px 기준 이동 속도
+    const dt = 33 / 1000.0;
+    final movePx = _joyDir * speedPxPerSec * dt; // 방향*세기
+    var np = Offset(
+      _charPos.dx + movePx.dx / _worldW,
+      _charPos.dy + movePx.dy / _worldH,
+    );
+    np = Offset(np.dx.clamp(0.0, 1.0), np.dy.clamp(0.0, 1.0));
+    if (!_devCoords) np = _clampToPlaza(np); // 정식 모드에선 걷기 영역 안으로
+    setState(() {
+      if (movePx.dx.abs() > 0.0001) _facingRight = movePx.dx >= 0;
+      _charPos = np;
+      _moveDuration = const Duration(milliseconds: 33);
+      _walking = true;
+    });
+    final now = DateTime.now();
+    if (now.difference(_lastNetSend).inMilliseconds > 120) {
+      _lastNetSend = now;
+      _sendPos();
+    }
+  }
+
+  void _sendPos() {
+    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}).catchError(
+        (Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e'));
+  }
+
+  Widget _joystick() {
+    return Positioned(
+      right: 34,
+      bottom: 34,
+      child: GestureDetector(
+        onPanDown: (d) => _joyStart(d.localPosition - const Offset(_joyRadius, _joyRadius)),
+        onPanUpdate: (d) => _joyMove(d.localPosition - const Offset(_joyRadius, _joyRadius)),
+        onPanEnd: (_) => _joyEnd(),
+        onPanCancel: _joyEnd,
+        child: Container(
+          width: _joyRadius * 2,
+          height: _joyRadius * 2,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withOpacity(0.32),
+            border: Border.all(color: _kGold.withOpacity(0.55), width: 2),
+          ),
+          child: Center(
+            child: Transform.translate(
+              offset: _joyKnob,
+              child: Container(
+                width: _joyRadius,
+                height: _joyRadius,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kGold.withOpacity(0.85),
+                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+                ),
+                child: const Icon(Icons.open_with, color: Colors.black54, size: 24),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   // ---- 진입 액션들 (기존 화면 재활용) ----
@@ -1262,6 +1368,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           // 🗺️ 월드 크기(스크린px): 화면은 월드 세로의 _viewFracH만큼만, 나머지는 카메라가 스크롤
           final worldH = h / _viewFracH;
           final worldW = worldH * _imgAspect;
+          _worldW = worldW; // 조이스틱 이동 환산용
+          _worldH = worldH;
           // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
           final charH = h * (0.18 + perspT * 0.16); // 멀리=0.18h ~ 가까이=0.34h
@@ -1431,10 +1539,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 💬 채팅 패널
               _chatPanel(),
 
+              // 🕹️ 가상 조이스틱 (우하단)
+              _joystick(),
+
               // 🔧 좌표 수집 표시 (개발용 — 좌표 다 받으면 _devCoords=false)
               if (_devCoords)
                 Positioned(
-                  bottom: 8,
+                  bottom: 150,
                   right: 14,
                   child: IgnorePointer(
                     child: Container(
