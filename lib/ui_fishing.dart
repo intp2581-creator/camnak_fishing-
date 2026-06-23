@@ -562,7 +562,10 @@ Widget _buildChatTab(int index, String title) {
     _clearAllBiteTimers();
     _rodController.dispose();
     _castController.dispose();
-    _missionListener?.cancel(); 
+    _missionListener?.cancel();
+    // 🔇 낚시터 배경음(물소리)·효과음 정지 — 광장으로 나가도 계속 들리던 버그 수정
+    audioManager.stopBgm();
+    audioManager.stopEfx();
     super.dispose();
   }
 
