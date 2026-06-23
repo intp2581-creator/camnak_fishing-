@@ -1512,7 +1512,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png',
                             '⚔️ 아레나', _openArena),
                         _standNpc(worldW, worldH, h, widget.isSea ? 0.809 : 0.809,
-                            widget.isSea ? 0.976 : 0.976, 'npc_shop.png', 'npc_manager.png',
+                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png',
                             '🏪 상점', _openStore, scale: 1.2),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
