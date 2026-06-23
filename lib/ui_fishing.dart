@@ -563,8 +563,9 @@ Widget _buildChatTab(int index, String title) {
     _rodController.dispose();
     _castController.dispose();
     _missionListener?.cancel();
-    // 🔇 낚시터 배경음(물소리)·효과음 정지 — 광장으로 나가도 계속 들리던 버그 수정
-    audioManager.stopBgm();
+    // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
+    //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
+    //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
     audioManager.stopEfx();
     super.dispose();
   }
