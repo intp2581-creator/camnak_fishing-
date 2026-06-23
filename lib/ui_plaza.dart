@@ -1499,20 +1499,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         ..._others.entries
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.150 : 0.15,
-                            widget.isSea ? 0.492 : 0.20, 'npc_rank.png', 'gm_garam.png',
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.150 : 0.156,
+                            widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png',
                             '🏆 랭킹', _openRanking),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.396 : 0.33,
-                            widget.isSea ? 0.551 : 0.17, 'npc_guild.png', 'npc_manager_congrats.png',
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.396 : 0.407,
+                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
                             '🛡️ 길드', _openGuild),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.585 : 0.52,
-                            widget.isSea ? 0.598 : 0.16, 'npc_fishing.png', 'npc_girl_intro.png',
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.585 : 0.599,
+                            widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
                             '🌀 낚시터', _openMinimap),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.834 : 0.72,
-                            widget.isSea ? 0.657 : 0.22, 'npc_arena.png', 'npc_girl_point.png',
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.834 : 0.846,
+                            widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png',
                             '⚔️ 아레나', _openArena),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.809 : 0.90,
-                            widget.isSea ? 0.926 : 0.35, 'npc_shop.png', 'npc_manager.png',
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.809 : 0.809,
+                            widget.isSea ? 0.926 : 0.926, 'npc_shop.png', 'npc_manager.png',
                             '🏪 상점', _openStore, scale: 1.2),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
@@ -1591,8 +1591,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final figH = sizeH * 0.21; // 캐릭터와 비슷한 크기
     final figW = figH * 0.6;
-    final cx = widget.isSea ? 0.281 : 0.075;
-    final cy = widget.isSea ? 0.837 : 0.73; // 발 위치
+    const cx = 0.281;
+    const cy = 0.837; // 발 위치 (민물·바다 동일 구도)
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 26, // 라벨 높이만큼 위로 보정
