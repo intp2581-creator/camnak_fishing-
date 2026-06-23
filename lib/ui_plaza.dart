@@ -1498,18 +1498,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 🌐 다른 유저들 (실시간)
                         ..._others.entries
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
-                        // 4) NPC / 시설 클릭존 (바다=새 그림 좌표 적용, 민물=추후)
-                        _npc(worldW, worldH, widget.isSea ? 0.903 : 0.90,
-                            widget.isSea ? 0.634 : 0.35, '🏪', '상점', _openStore),
-                        _npc(worldW, worldH, widget.isSea ? 0.138 : 0.15,
-                            widget.isSea ? 0.373 : 0.20, '🏆', '랭킹', _openRanking),
-                        _npc(worldW, worldH, widget.isSea ? 0.863 : 0.72,
-                            widget.isSea ? 0.399 : 0.22, '⚔️', '아레나', _openArena,
-                            iconWidget: _crossedRods()),
-                        _npc(worldW, worldH, widget.isSea ? 0.617 : 0.52,
-                            widget.isSea ? 0.338 : 0.16, '🌀', '낚시터', _openMinimap),
-                        _npc(worldW, worldH, widget.isSea ? 0.383 : 0.33,
-                            widget.isSea ? 0.396 : 0.17, '🛡️', '길드', _openGuild),
+                        // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.138 : 0.15,
+                            widget.isSea ? 0.373 : 0.20, 'npc_rank.png', 'gm_garam.png',
+                            '🏆 랭킹', _openRanking),
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.383 : 0.33,
+                            widget.isSea ? 0.396 : 0.17, 'npc_guild.png', 'npc_manager_congrats.png',
+                            '🛡️ 길드', _openGuild),
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.617 : 0.52,
+                            widget.isSea ? 0.338 : 0.16, 'npc_fishing.png', 'npc_girl_intro.png',
+                            '🌀 낚시터', _openMinimap),
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.863 : 0.72,
+                            widget.isSea ? 0.399 : 0.22, 'npc_arena.png', 'npc_girl_point.png',
+                            '⚔️ 아레나', _openArena),
+                        _standNpc(worldW, worldH, h, widget.isSea ? 0.903 : 0.90,
+                            widget.isSea ? 0.634 : 0.35, 'npc_shop.png', 'npc_manager.png',
+                            '🏪 상점', _openStore),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, h),
                       ],
@@ -1583,55 +1587,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // NPC 한 명 (이모지 뱃지 + 라벨)
-  // 🎣 낚시대 두 개 교차 아이콘 (아레나용 — 칼싸움 아님 ㅋㅋ)
-  Widget _crossedRods() {
-    return SizedBox(
-      width: 36,
-      height: 32,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Transform.rotate(angle: -0.35, child: const Text('🎣', style: TextStyle(fontSize: 22))),
-          Transform.flip(
-            flipX: true,
-            child: Transform.rotate(angle: -0.35, child: const Text('🎣', style: TextStyle(fontSize: 22))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 랜드마크 클릭 영역 (그림에 시설이 그려져 있으니 이모지 없이 투명 클릭존 + 라벨만)
-  Widget _npc(double w, double h, double cx, double cy, String emoji, String label, VoidCallback onTap, {Widget? iconWidget}) {
-    const double zoneW = 150;
-    const double zoneH = 160;
-    return Positioned(
-      left: cx * w - zoneW / 2,
-      top: cy * h - zoneH / 2,
-      width: zoneW,
-      height: zoneH,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque, // 영역 전체가 클릭 (시설 탭하면 열림)
-        child: Align(
-          alignment: Alignment.center,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _kGold.withOpacity(0.85)),
-              boxShadow: [BoxShadow(color: _kGold.withOpacity(0.35), blurRadius: 8)],
-            ),
-            child: Text(label,
-                style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ),
-    );
-  }
-
   // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내) — 위치=월드, 크기=뷰포트
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final figH = sizeH * 0.21; // 캐릭터와 비슷한 크기
@@ -1665,6 +1620,48 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   fit: BoxFit.contain,
                   alignment: Alignment.topCenter,
                   errorBuilder: (a, b, c) => const SizedBox.shrink()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🧍 시설 NPC (포털/시설 앞에 한 명씩 세움). img 없으면 fallback 이미지로.
+  Widget _standNpc(double worldW, double worldH, double sizeH, double cx, double cy,
+      String img, String fallback, String label, VoidCallback onTap) {
+    final figH = sizeH * 0.21;
+    final figW = figH * 0.6;
+    return Positioned(
+      left: cx * worldW - figW / 2,
+      top: cy * worldH - figH - 26, // cy=발 위치, 라벨 높이 보정
+      child: GestureDetector(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.65),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _kGold),
+                boxShadow: [BoxShadow(color: _kGold.withOpacity(0.4), blurRadius: 7)],
+              ),
+              child: Text(label,
+                  style: const TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 2),
+            SizedBox(
+              width: figW,
+              height: figH,
+              child: Image.asset('assets/images/$img',
+                  fit: BoxFit.contain,
+                  alignment: Alignment.topCenter,
+                  errorBuilder: (a, b, c) => Image.asset('assets/images/$fallback',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.topCenter,
+                      errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
             ),
           ],
         ),
