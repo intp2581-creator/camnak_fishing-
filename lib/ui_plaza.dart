@@ -451,19 +451,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🌐 다른 유저 캐릭터 (실시간 위치로 부드럽게 이동)
-  Widget _remoteAvatar(String uid, Map<String, dynamic> d, double w, double h) {
+  Widget _remoteAvatar(String uid, Map<String, dynamic> d, double worldW, double worldH, double sizeH) {
     final dx = (d['x'] as double).clamp(0.02, 0.98);
     final dy = (d['y'] as double).clamp(0.0, 1.0);
     final pT = ((dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final rH = h * (0.18 + pT * 0.16);
+    final rH = sizeH * (0.18 + pT * 0.16);
     final rW = rH * 0.55;
     final face = d['face'] == true;
     return AnimatedPositioned(
       key: ValueKey('remote_$uid'),
       duration: const Duration(milliseconds: 650),
       curve: Curves.linear,
-      left: dx * w - rW / 2,
-      top: dy * h - rH,
+      left: dx * worldW - rW / 2,
+      top: dy * worldH - rH,
       width: rW,
       height: rH,
       child: IgnorePointer(
@@ -527,6 +527,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return 'assets/images/char_beginner.png';
   }
 
+  // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
+  static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
+  static const double _viewFracH = 0.72; // 화면이 보여주는 월드 세로 비율(나머지는 스크롤)
+  static const bool _devCoords = true; // 🔧 좌표 수집 모드: 걷기제한 해제 + 탭 좌표 표시 (좌표 다 받으면 false)
+  Offset? _lastTapWorld;
+
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 타입별. 민물=예당호 광장 빨간라인 좌표.
   static const List<Offset> _freshPoly = [
     Offset(0.01, 1.00), Offset(0.01, 0.50), Offset(0.13, 0.43), Offset(0.20, 0.37),
@@ -585,7 +591,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _moveTo(Offset rawTarget, double w, double h) {
-    final dest = _clampToPlaza(rawTarget); // 섬 안으로 보정
+    if (_devCoords) _lastTapWorld = rawTarget; // 🔧 좌표 수집
+    final dest = _devCoords ? rawTarget : _clampToPlaza(rawTarget); // 섬 안으로 보정(수집모드는 자유 이동)
     final dx = (dest.dx - _charPos.dx) * w;
     final dy = (dest.dy - _charPos.dy) * h;
     final dist = math.sqrt(dx * dx + dy * dy);
@@ -1252,133 +1259,203 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         builder: (context, c) {
           final w = c.maxWidth;
           final h = c.maxHeight;
+          // 🗺️ 월드 크기(스크린px): 화면은 월드 세로의 _viewFracH만큼만, 나머지는 카메라가 스크롤
+          final worldH = h / _viewFracH;
+          final worldW = worldH * _imgAspect;
           // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
           final charH = h * (0.18 + perspT * 0.16); // 멀리=0.18h ~ 가까이=0.34h
           final charW = charH * 0.55;
+          // 📷 카메라: 캐릭터 중심, 월드 가장자리 클램프
+          final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
+          final maxCamY = (worldH - h) > 0 ? (worldH - h) : 0.0;
+          final camX = (_charPos.dx * worldW - w / 2).clamp(0.0, maxCamX);
+          final camY = (_charPos.dy * worldH - h / 2).clamp(0.0, maxCamY);
 
           return Stack(
             children: [
-              // 1) 배경: 광장 전용 그림(plaza_OOO.jpg) 우선, 없으면 낚시 배경으로 폴백
-              Positioned.fill(
-                child: Image.asset(
-                  _plazaBg,
-                  fit: BoxFit.cover,
-                  errorBuilder: (a, b, d) => Image.asset(
-                    widget.spot['image'],
-                    fit: BoxFit.cover,
-                    errorBuilder: (a2, b2, d2) => Container(color: const Color(0xFF11202E)),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.35),
-                        Colors.black.withOpacity(0.15),
-                        Colors.black.withOpacity(0.55),
+              // 🌍 월드 레이어 (카메라가 캐릭터 따라 스크롤)
+              ClipRect(
+                child: Transform.translate(
+                  offset: Offset(-camX, -camY),
+                  child: SizedBox(
+                    width: worldW,
+                    height: worldH,
+                    child: Stack(
+                      children: [
+                        // 배경(큰 광장 그림). 없으면 낚시 배경으로 폴백
+                        Positioned.fill(
+                          child: Image.asset(
+                            _plazaBg,
+                            fit: BoxFit.cover,
+                            errorBuilder: (a, b, d) => Image.asset(
+                              widget.spot['image'],
+                              fit: BoxFit.cover,
+                              errorBuilder: (a2, b2, d2) =>
+                                  Container(color: const Color(0xFF11202E)),
+                            ),
+                          ),
+                        ),
+                        // 바닥 탭 → 캐릭터 이동 (월드 좌표)
+                        Positioned.fill(
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTapUp: (d) => _moveTo(
+                                Offset(d.localPosition.dx / worldW, d.localPosition.dy / worldH),
+                                worldW, worldH),
+                          ),
+                        ),
+                        // 🔧 좌표 수집 마커
+                        if (_devCoords && _lastTapWorld != null)
+                          Positioned(
+                            left: _lastTapWorld!.dx * worldW - 7,
+                            top: _lastTapWorld!.dy * worldH - 7,
+                            child: IgnorePointer(
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                ),
+                              ),
+                            ),
+                          ),
+                        // 내 캐릭터 (탭 통과)
+                        AnimatedPositioned(
+                          duration: _moveDuration,
+                          curve: Curves.linear,
+                          left: _charPos.dx * worldW - charW / 2,
+                          top: _charPos.dy * worldH - charH,
+                          width: charW,
+                          height: charH,
+                          child: IgnorePointer(
+                            child: AnimatedBuilder(
+                              animation: _walkCtrl,
+                              builder: (context, _) {
+                                final phase = _walkCtrl.value * 2 * math.pi;
+                                final bob = _walking ? math.sin(phase).abs() * 2.5 : 0.0;
+                                final tilt = _walking ? math.sin(phase) * 0.035 : 0.0;
+                                return Stack(
+                                  clipBehavior: Clip.none,
+                                  alignment: Alignment.bottomCenter,
+                                  children: [
+                                    Positioned.fill(
+                                      child: Transform.translate(
+                                        offset: Offset(0, -bob),
+                                        child: Transform.rotate(
+                                          angle: tilt,
+                                          alignment: Alignment.bottomCenter,
+                                          child: Transform(
+                                            alignment: Alignment.bottomCenter,
+                                            transform: Matrix4.rotationY(
+                                                _facingRight ? 0 : math.pi),
+                                            child: Image.asset(
+                                              _charImage,
+                                              fit: BoxFit.contain,
+                                              alignment: Alignment.bottomCenter,
+                                              errorBuilder: (a, b, d) =>
+                                                  const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned(
+                                      bottom: charH * 0.50,
+                                      left: -150,
+                                      right: -150,
+                                      child: Center(
+                                        child: _nameTag(widget.nickname, _guildName,
+                                            isMe: true, champ: _isChampionGuild),
+                                      ),
+                                    ),
+                                    if (_myBubble != null &&
+                                        _myBubbleUntil != null &&
+                                        DateTime.now().isBefore(_myBubbleUntil!))
+                                      Positioned(
+                                        bottom: charH * 0.68,
+                                        left: -150,
+                                        right: -150,
+                                        child: Center(child: _bubble(_myBubble!)),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        // 🌐 다른 유저들 (실시간)
+                        ..._others.entries
+                            .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
+                        // 4) NPC / 시설들 (좌표는 새 그림 좌표 받으면 조정)
+                        _npc(worldW, worldH, widget.isSea ? 0.75 : 0.90,
+                            widget.isSea ? 0.32 : 0.35, '🏪', '상점', _openStore),
+                        _npc(worldW, worldH, widget.isSea ? 0.15 : 0.15,
+                            widget.isSea ? 0.28 : 0.20, '🏆', '랭킹', _openRanking),
+                        _npc(worldW, worldH, widget.isSea ? 0.95 : 0.72,
+                            widget.isSea ? 0.54 : 0.22, '⚔️', '아레나', _openArena,
+                            iconWidget: _crossedRods()),
+                        _npc(worldW, worldH, widget.isSea ? 0.52 : 0.52,
+                            widget.isSea ? 0.22 : 0.16, '🌀', '낚시터', _openMinimap),
+                        _npc(worldW, worldH, widget.isSea ? 0.34 : 0.33,
+                            widget.isSea ? 0.25 : 0.17, '🛡️', '길드', _openGuild),
+                        // 📋 일일퀘스트 매니저 '아라'
+                        _araNpc(worldW, worldH, h),
                       ],
                     ),
                   ),
                 ),
               ),
 
-              // 2) 바닥 탭 → 캐릭터 이동
+              // 화면 고정 비네트(가장자리 어둡게)
               Positioned.fill(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapUp: (d) => _moveTo(Offset(d.localPosition.dx / w, d.localPosition.dy / h), w, h),
-                ),
-              ),
-
-              // 3) 내 캐릭터 (탭 통과)
-              AnimatedPositioned(
-                duration: _moveDuration,
-                curve: Curves.linear,
-                left: _charPos.dx * w - charW / 2,
-                top: _charPos.dy * h - charH,
-                width: charW,
-                height: charH,
                 child: IgnorePointer(
-                  child: AnimatedBuilder(
-                    animation: _walkCtrl,
-                    builder: (context, _) {
-                      final phase = _walkCtrl.value * 2 * math.pi;
-                      final bob = _walking ? math.sin(phase).abs() * 2.5 : 0.0; // 작은 들썩
-                      final tilt = _walking ? math.sin(phase) * 0.035 : 0.0;     // 좌우 기우뚱
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        alignment: Alignment.bottomCenter,
-                        children: [
-                          // 캐릭터 (들썩 + 기우뚱 + 방향)
-                          Positioned.fill(
-                            child: Transform.translate(
-                              offset: Offset(0, -bob),
-                              child: Transform.rotate(
-                                angle: tilt,
-                                alignment: Alignment.bottomCenter,
-                                child: Transform(
-                                  alignment: Alignment.bottomCenter,
-                                  transform: Matrix4.rotationY(_facingRight ? 0 : math.pi),
-                                  child: Image.asset(
-                                    _charImage,
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.bottomCenter,
-                                    errorBuilder: (a, b, d) => const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // 닉네임/길드 머리표 (머리 바로 위로)
-                          Positioned(
-                            bottom: charH * 0.50,
-                            left: -150,
-                            right: -150,
-                            child: Center(
-                              child: _nameTag(widget.nickname, _guildName,
-                                  isMe: true, champ: _isChampionGuild),
-                            ),
-                          ),
-                          // 💬 내 말풍선
-                          if (_myBubble != null &&
-                              _myBubbleUntil != null &&
-                              DateTime.now().isBefore(_myBubbleUntil!))
-                            Positioned(
-                              bottom: charH * 0.68,
-                              left: -150,
-                              right: -150,
-                              child: Center(child: _bubble(_myBubble!)),
-                            ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.30),
+                          Colors.black.withOpacity(0.10),
+                          Colors.black.withOpacity(0.45),
                         ],
-                      );
-                    },
+                      ),
+                    ),
                   ),
                 ),
               ),
 
-              // 🌐 다른 유저들 (실시간)
-              ..._others.entries.map((e) => _remoteAvatar(e.key, e.value, w, h)),
-
-              // 4) NPC / 시설들 (예당호 광장 그림 랜드마크에 맞춤)
-              _npc(w, h, widget.isSea ? 0.75 : 0.90, widget.isSea ? 0.32 : 0.35,'🏪', '상점', _openStore),   // 카페 건물(오른쪽)
-              _npc(w, h, widget.isSea ? 0.15 : 0.15, widget.isSea ? 0.28 : 0.20,'🏆', '랭킹', _openRanking), // 왼쪽
-              _npc(w, h, widget.isSea ? 0.95 : 0.72, widget.isSea ? 0.54 : 0.22,'⚔️', '아레나', _openArena, iconWidget: _crossedRods()), // 중앙 좌측 광장
-              _npc(w, h, widget.isSea ? 0.52 : 0.52, widget.isSea ? 0.22 : 0.16,'🌀', '낚시터', _openMinimap), // 출렁다리 입구(위 중앙)
-              _npc(w, h, widget.isSea ? 0.34 : 0.33, widget.isSea ? 0.25 : 0.17,'🛡️', '길드', _openGuild), // 길드 건물(원래 위치)
-
-              // 📋 일일퀘스트 매니저 '아라'
-              _araNpc(w, h),
-
               // 5) 상단 HUD
               _topHud(),
-
-              // 💬 채팅 패널 (낚시터와 동일)
+              // 💬 채팅 패널
               _chatPanel(),
+
+              // 🔧 좌표 수집 표시 (개발용 — 좌표 다 받으면 _devCoords=false)
+              if (_devCoords)
+                Positioned(
+                  bottom: 8,
+                  right: 14,
+                  child: IgnorePointer(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.redAccent),
+                      ),
+                      child: Text(
+                        _lastTapWorld == null
+                            ? '🔧 좌표: 화면을 탭하세요'
+                            : '🔧 Offset(${_lastTapWorld!.dx.toStringAsFixed(3)}, ${_lastTapWorld!.dy.toStringAsFixed(3)})',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ),
+                ),
 
               // 📋 일일퀘스트 안내 오버레이 (아라)
               if (_showQuest)
@@ -1455,15 +1532,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내)
-  Widget _araNpc(double w, double h) {
-    final figH = h * 0.21; // 캐릭터와 비슷한 크기
+  // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내) — 위치=월드, 크기=뷰포트
+  Widget _araNpc(double worldW, double worldH, double sizeH) {
+    final figH = sizeH * 0.21; // 캐릭터와 비슷한 크기
     final figW = figH * 0.6;
     const cx = 0.075;
-    const cy = 0.73; // 발 위치 (채팅창 바로 위)
+    const cy = 0.73; // 발 위치
     return Positioned(
-      left: cx * w - figW / 2,
-      top: cy * h - figH - 26, // 라벨 높이만큼 위로 보정
+      left: cx * worldW - figW / 2,
+      top: cy * worldH - figH - 26, // 라벨 높이만큼 위로 보정
       child: GestureDetector(
         onTap: () => setState(() => _showQuest = true),
         child: Column(
