@@ -235,6 +235,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         currentPoints = _gold;
         _gotDailyReward = true;
       }
+      // 🛡️ 길드원 목록에 저장된 내 레벨 최신화 (가입 때 박제된 옛 레벨 갱신)
+      final gidForLevel = (data['guildId'] ?? '').toString();
+      if (gidForLevel.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('guilds')
+            .doc(gidForLevel)
+            .collection('members')
+            .doc(user.uid)
+            .set({'level': _level, 'nickname': widget.nickname}, SetOptions(merge: true))
+            .catchError((Object e) => debugPrint('🛡️ 길드원 레벨 갱신 실패: $e'));
+      }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
     // 🎁 첫 접속 보상 안내 + 일일 퀘스트 자동 안내
