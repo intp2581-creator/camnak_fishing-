@@ -1029,6 +1029,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           .collection('guilds')
           .doc(_guildId)
           .collection('chat')
+          .where('timestamp', isGreaterThanOrEqualTo: _joinTime) // 입장 이후만 (재접속 시 클리어)
           .orderBy('timestamp', descending: true)
           .limit(30)
           .snapshots(),
