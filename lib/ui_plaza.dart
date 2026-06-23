@@ -668,7 +668,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     np = Offset(np.dx.clamp(0.0, 1.0), np.dy.clamp(0.0, 1.0));
     if (!_devCoords) np = _clampToPlaza(np); // 정식 모드에선 걷기 영역 안으로
     setState(() {
-      if (movePx.dx.abs() > 0.0001) _facingRight = movePx.dx >= 0;
+      // 좌우 데드존: 상하로 갈 땐 dx가 0 근처라 좌우 반전이 깜빡여서 떨림 → 충분히 좌우일 때만 전환
+      if (_joyDir.dx.abs() > 0.3) _facingRight = _joyDir.dx >= 0;
       _charPos = np;
       _moveDuration = const Duration(milliseconds: 33);
       _walking = true;
