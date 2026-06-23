@@ -17,6 +17,7 @@ import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
+import 'ui_guild.dart'; // 길드 접속표시(presence) + 접속 점
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -393,6 +394,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final uid = user.uid;
     _myRef = _db.ref('plaza/$_roomKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e')); // 접속 끊기면 자동 사라짐
+    guildGoOnline(); // 🟢 전역 접속표시
     _writeMe();
     // 말풍선 만료 처리용 1초 타이머
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
@@ -2002,6 +2004,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               decoration: BoxDecoration(
                   color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(8)),
               child: Row(children: [
+                guildOnlineDot((m['uid'] ?? '').toString()),
+                const SizedBox(width: 8),
                 Icon(mMaster ? Icons.military_tech : Icons.person,
                     color: mMaster ? _kGold : Colors.white38, size: 18),
                 const SizedBox(width: 8),
@@ -2457,8 +2461,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
                 const SizedBox(width: 10),
                 _iconBtn(Icons.backpack, '가방', _openInventory),
-                const SizedBox(width: 6),
-                _iconBtn(Icons.groups, '길드', _openGuild),
               ],
             ),
           ),

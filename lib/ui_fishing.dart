@@ -14,6 +14,7 @@ import 'fishing_logic.dart';
 import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
+import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
 import 'mission_announcement.dart'; // 📢 미션 1등 공지 (로비와 공용)
 
 
@@ -419,6 +420,7 @@ Widget _buildChatTab(int index, String title) {
 
     // 🛡️ 길드 버프 불러오기 (능력치 보너스)
     _loadGuildBuff();
+    guildGoOnline(); // 🟢 전역 접속표시
 
     // 🚀 [추가] 튜토리얼 중인 쌩초보 유저면 윤슬님 출근시키기!
     if (widget.isFirstTime) {
@@ -1574,6 +1576,12 @@ Positioned(
               _buildTopMiniButton(
                 icon: Icons.fullscreen,
                 onPressed: toggleFullScreen,
+              ),
+              const SizedBox(width: 8),
+              // 🛡️ 길드 정보 보기 (접속/비접속 확인)
+              _buildTopMiniButton(
+                icon: Icons.groups,
+                onPressed: () => showGuildInfoDialog(context),
               ),
               const SizedBox(width: 20), // 황금 버튼들과 닉네임 바 사이의 넉넉한 간격!
 
