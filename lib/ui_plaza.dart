@@ -539,7 +539,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _viewFracH = 0.72; // 화면이 보여주는 월드 세로 비율(나머지는 스크롤)
-  static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
+  static const bool _devCoords = true; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
