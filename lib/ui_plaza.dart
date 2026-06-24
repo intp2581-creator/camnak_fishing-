@@ -254,6 +254,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void dispose() {
     _walkCtrl.dispose();
     _joyTimer?.cancel();
+    _zoomTimer?.cancel();
     _roomSub?.cancel();
     _userSub?.cancel();
     _leagueSub?.cancel();
@@ -540,6 +541,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _viewFracH = _baseFrac; // 🔍 줌으로 변함 (작을수록 확대). 0.5~0.95
+  double _zoomTarget = _baseFrac; // 줌 목표값(부드럽게 보간)
+  Timer? _zoomTimer;
   static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
@@ -725,9 +728,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         (Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e'));
   }
 
-  // 🔍 줌 (작을수록 확대). 캐릭터·NPC·배경 같이 스케일
+  // 🔍 줌 (작을수록 확대). 캐릭터·NPC·배경 같이 스케일. 부드럽게 보간해서 튐 방지
   void _zoom(double delta) {
-    setState(() => _viewFracH = (_viewFracH + delta).clamp(0.5, 0.95));
+    _zoomTarget = (_zoomTarget + delta).clamp(0.5, 0.95);
+    _zoomTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      final diff = _zoomTarget - _viewFracH;
+      if (diff.abs() < 0.003) {
+        _zoomTimer?.cancel();
+        _zoomTimer = null;
+        if (mounted) setState(() => _viewFracH = _zoomTarget);
+        return;
+      }
+      if (mounted) setState(() => _viewFracH += diff * 0.25);
+    });
   }
 
   Widget _zoomBtn(IconData icon, VoidCallback onTap) {
