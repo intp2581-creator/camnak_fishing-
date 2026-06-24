@@ -4,6 +4,7 @@
 import 'dart:async';
 import 'dart:html' as html; // 전체화면 토글
 import 'dart:math' as math;
+import 'dart:ui' as ui; // 블러(맵 밖 배경)
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -254,7 +255,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void dispose() {
     _walkCtrl.dispose();
     _joyTimer?.cancel();
-    _zoomTimer?.cancel();
     _roomSub?.cancel();
     _userSub?.cancel();
     _leagueSub?.cancel();
@@ -541,8 +541,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _viewFracH = _baseFrac; // 🔍 줌으로 변함 (작을수록 확대). 0.5~0.95
-  double _zoomTarget = _baseFrac; // 줌 목표값(부드럽게 보간)
-  Timer? _zoomTimer;
   double _zoomStartFrac = _baseFrac; // 핀치 시작 시점 줌
   static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
@@ -731,10 +729,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🔍 줌 (작을수록 확대). 휠마다 즉시 조금씩 — 애니메이션 출렁임 없음
   void _zoom(double delta) {
-    setState(() {
-      _viewFracH = (_viewFracH + delta).clamp(0.42, 0.95);
-      _zoomTarget = _viewFracH;
-    });
+    setState(() => _viewFracH = (_viewFracH + delta).clamp(0.42, 0.95));
   }
 
   Widget _joystick() {
@@ -1434,14 +1429,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
           final charH = sizeRef * (0.18 + perspT * 0.16); // 멀리=0.18 ~ 가까이=0.34
           final charW = charH * 0.55;
-          // 📷 카메라: 캐릭터 중심, 맵 가장자리에서 멈춤(검은 영역 안 보이게)
-          final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
-          final maxCamY = (worldH - h) > 0 ? (worldH - h) : 0.0;
-          final camX = (_charPos.dx * worldW - w / 2).clamp(0.0, maxCamX);
-          final camY = (_charPos.dy * worldH - h / 2).clamp(0.0, maxCamY);
+          // 📷 카메라: 캐릭터 항상 화면 중앙 (클램프 없음 → 줌해도 제자리). 맵 밖은 블러 배경이 채움
+          final camX = _charPos.dx * worldW - w / 2;
+          final camY = _charPos.dy * worldH - h / 2;
 
           return Stack(
             children: [
+              // 🖼️ 맵 밖 채우는 블러 배경(검은색 대신 광장 흐림). 캐릭터 중앙고정이라 가장자리에서만 보임
+              Positioned.fill(
+                child: ImageFiltered(
+                  imageFilter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                  child: Image.asset(
+                    _plazaBg,
+                    fit: BoxFit.cover,
+                    color: Colors.black.withOpacity(0.35),
+                    colorBlendMode: BlendMode.darken,
+                    errorBuilder: (a, b, d) => Container(color: const Color(0xFF11202E)),
+                  ),
+                ),
+              ),
               // 🌍 월드 레이어 (카메라가 캐릭터 따라 스크롤). 바깥 Stack이 뷰포트로 클립
               Positioned(
                 left: -camX,
@@ -1474,13 +1480,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             onScaleStart: (_) => _zoomStartFrac = _viewFracH,
                             onScaleUpdate: (d) {
                               if (d.pointerCount >= 2) {
-                                _zoomTimer?.cancel();
-                                _zoomTimer = null;
                                 final v = (_zoomStartFrac / d.scale).clamp(0.42, 0.95);
-                                setState(() {
-                                  _viewFracH = v;
-                                  _zoomTarget = v;
-                                });
+                                setState(() => _viewFracH = v);
                               }
                             },
                           ),
