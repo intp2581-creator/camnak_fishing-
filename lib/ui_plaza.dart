@@ -539,7 +539,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _viewFracH = 0.72; // 화면이 보여주는 월드 세로 비율(나머지는 스크롤)
-  static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
+  static const bool _devCoords = true; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
@@ -560,10 +560,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const List<Offset> _seaPoly = _freshPoly; // 동일 구도 — 다르면 바다 좌표 따로 받아 교체
   List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
 
+  // 🚫 못 가는 구역(화단·구조물) — 바깥 폴리곤 안에서도 여기 안이면 못 감
+  static const List<List<Offset>> _freshObstacles = [
+    // 화단 외곽선 좌표 받으면 여기에 [ [Offset(...), ...], ... ] 채움
+  ];
+  static const List<List<Offset>> _seaObstacles = _freshObstacles;
+  List<List<Offset>> get _activeObstacles => widget.isSea ? _seaObstacles : _freshObstacles;
+
   // 점이 다각형 안인지 (ray casting)
-  bool _inPoly(Offset p) {
+  bool _inPolyOf(Offset p, List<Offset> poly) {
     bool inside = false;
-    final poly = _activePoly;
     for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
       final pi = poly[i], pj = poly[j];
       if (((pi.dy > p.dy) != (pj.dy > p.dy)) &&
@@ -574,6 +580,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return inside;
   }
 
+  bool _inPoly(Offset p) => _inPolyOf(p, _activePoly);
+
+  // 걸을 수 있는 곳 = 바깥 폴리곤 안 + 모든 장애물 밖
+  bool _inWalkable(Offset p) {
+    if (!_inPoly(p)) return false;
+    for (final o in _activeObstacles) {
+      if (_inPolyOf(p, o)) return false;
+    }
+    return true;
+  }
+
   Offset _nearestOnSeg(Offset p, Offset a, Offset b) {
     final dx = b.dx - a.dx, dy = b.dy - a.dy;
     final len2 = dx * dx + dy * dy;
@@ -582,21 +599,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return Offset(a.dx + t * dx, a.dy + t * dy);
   }
 
-  // 다각형 안이면 그대로, 밖이면 가장 가까운 가장자리 점으로
+  // 걸을 수 있으면 그대로, 아니면 가장 가까운 경계(바깥+장애물)로 보정
   Offset _clampToPlaza(Offset p) {
-    if (_inPoly(p)) return p;
-    final poly = _activePoly;
-    Offset best = poly.first;
+    if (_inWalkable(p)) return p;
+    Offset best = p;
     double bestD = double.infinity;
-    for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-      final q = _nearestOnSeg(p, poly[j], poly[i]);
-      final d = (q - p).distanceSquared;
-      if (d < bestD) {
-        bestD = d;
-        best = q;
+    void consider(List<Offset> poly) {
+      for (int i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        final q = _nearestOnSeg(p, poly[j], poly[i]);
+        final d = (q - p).distanceSquared;
+        if (d < bestD) {
+          bestD = d;
+          best = q;
+        }
       }
     }
-    return best;
+    consider(_activePoly);
+    for (final o in _activeObstacles) {
+      consider(o);
+    }
+    // 경계선 위 점은 살짝 현재 위치 쪽으로 밀어 walkable 안으로
+    final nudged = Offset(
+        best.dx + (_charPos.dx - best.dx) * 0.04, best.dy + (_charPos.dy - best.dy) * 0.04);
+    return _inWalkable(nudged) ? nudged : best;
   }
 
   void _moveTo(Offset rawTarget, double w, double h) {
