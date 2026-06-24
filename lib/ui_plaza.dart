@@ -731,7 +731,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🔍 줌 (작을수록 확대). 캐릭터·NPC·배경 같이 스케일. 부드럽게 보간해서 튐 방지
   void _zoom(double delta) {
-    _zoomTarget = (_zoomTarget + delta).clamp(0.5, 0.95);
+    _zoomTarget = (_zoomTarget + delta).clamp(0.42, 0.95);
     _zoomTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
       final diff = _zoomTarget - _viewFracH;
       if (diff.abs() < 0.003) {
@@ -1481,7 +1481,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               if (d.pointerCount >= 2) {
                                 _zoomTimer?.cancel();
                                 _zoomTimer = null;
-                                final v = (_zoomStartFrac / d.scale).clamp(0.5, 0.95);
+                                final v = (_zoomStartFrac / d.scale).clamp(0.42, 0.95);
                                 setState(() {
                                   _viewFracH = v;
                                   _zoomTarget = v;
