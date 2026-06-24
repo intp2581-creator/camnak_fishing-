@@ -539,22 +539,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _viewFracH = 0.72; // 화면이 보여주는 월드 세로 비율(나머지는 스크롤)
-  static const bool _devCoords = true; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
+  static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
   static const List<Offset> _freshPoly = [
     Offset(0.007, 0.387), Offset(0.090, 0.364), Offset(0.094, 0.419), Offset(0.130, 0.432),
     Offset(0.182, 0.413), Offset(0.180, 0.336), Offset(0.210, 0.321), Offset(0.251, 0.372),
-    Offset(0.346, 0.339), Offset(0.277, 0.526), Offset(0.573, 0.487), Offset(0.624, 0.535),
-    Offset(0.666, 0.535), Offset(0.750, 0.585), Offset(0.806, 0.541), Offset(0.819, 0.562),
-    Offset(0.870, 0.589), Offset(0.906, 0.595), Offset(0.864, 0.713), Offset(0.776, 0.857),
-    Offset(0.879, 0.996), Offset(0.782, 0.998), Offset(0.741, 0.945), Offset(0.735, 0.997),
-    Offset(0.631, 0.998), Offset(0.556, 0.820), Offset(0.523, 0.836), Offset(0.473, 0.921),
-    Offset(0.329, 0.911), Offset(0.208, 0.861), Offset(0.005, 0.843), Offset(0.009, 0.775),
-    Offset(0.148, 0.773), Offset(0.217, 0.596), Offset(0.236, 0.739), Offset(0.306, 0.702),
-    Offset(0.291, 0.562), Offset(0.269, 0.543), Offset(0.207, 0.547), Offset(0.189, 0.433),
-    Offset(0.096, 0.488), Offset(0.053, 0.391),
+    Offset(0.349, 0.383), Offset(0.297, 0.399), Offset(0.238, 0.430), Offset(0.264, 0.527),
+    Offset(0.294, 0.521), Offset(0.379, 0.470), Offset(0.431, 0.440), Offset(0.460, 0.466),
+    Offset(0.573, 0.487), Offset(0.624, 0.535), Offset(0.666, 0.535), Offset(0.750, 0.585),
+    Offset(0.806, 0.541), Offset(0.819, 0.562), Offset(0.870, 0.589), Offset(0.906, 0.595),
+    Offset(0.864, 0.713), Offset(0.776, 0.857), Offset(0.879, 0.996), Offset(0.782, 0.998),
+    Offset(0.741, 0.945), Offset(0.735, 0.997), Offset(0.631, 0.998), Offset(0.556, 0.820),
+    Offset(0.523, 0.836), Offset(0.473, 0.921), Offset(0.329, 0.911), Offset(0.208, 0.861),
+    Offset(0.003, 0.826), Offset(0.009, 0.775), Offset(0.057, 0.767), Offset(0.148, 0.773),
+    Offset(0.150, 0.780), Offset(0.156, 0.662), Offset(0.218, 0.571), Offset(0.202, 0.532),
+    Offset(0.188, 0.427), Offset(0.083, 0.489), Offset(0.068, 0.429), Offset(0.038, 0.401),
   ];
   static const List<Offset> _seaPoly = _freshPoly; // 동일 구도 — 다르면 바다 좌표 따로 받아 교체
   List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
