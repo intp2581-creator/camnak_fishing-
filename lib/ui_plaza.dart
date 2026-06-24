@@ -750,7 +750,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return Positioned(
       right: 50,
       bottom: 160,
-      child: Column(children: [
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
         _zoomBtn(Icons.add, () => _zoom(-0.09)), // 확대
         const SizedBox(height: 8),
         _zoomBtn(Icons.remove, () => _zoom(0.09)), // 축소
