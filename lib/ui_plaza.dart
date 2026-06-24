@@ -1441,9 +1441,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
           final charH = sizeRef * (0.18 + perspT * 0.16); // 멀리=0.18 ~ 가까이=0.34
           final charW = charH * 0.55;
-          // 📷 카메라: 캐릭터 항상 화면 중앙 (클램프 없음 — 줌해도 안 튐)
-          final camX = _charPos.dx * worldW - w / 2;
-          final camY = _charPos.dy * worldH - h / 2;
+          // 📷 카메라: 캐릭터 중심, 맵 가장자리에서 멈춤(검은 영역 안 보이게)
+          final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
+          final maxCamY = (worldH - h) > 0 ? (worldH - h) : 0.0;
+          final camX = (_charPos.dx * worldW - w / 2).clamp(0.0, maxCamX);
+          final camY = (_charPos.dy * worldH - h / 2).clamp(0.0, maxCamY);
 
           return Stack(
             children: [
