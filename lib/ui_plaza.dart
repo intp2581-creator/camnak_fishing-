@@ -543,6 +543,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   double _viewFracH = _baseFrac; // 🔍 줌으로 변함 (작을수록 확대). 0.5~0.95
   double _zoomTarget = _baseFrac; // 줌 목표값(부드럽게 보간)
   Timer? _zoomTimer;
+  double _zoomStartFrac = _baseFrac; // 핀치 시작 시점 줌
   static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
@@ -741,34 +742,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       }
       if (mounted) setState(() => _viewFracH += diff * 0.25);
     });
-  }
-
-  Widget _zoomBtn(IconData icon, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.55),
-          shape: BoxShape.circle,
-          border: Border.all(color: _kGold.withOpacity(0.7), width: 1.5),
-        ),
-        child: Icon(icon, color: _kGold, size: 22),
-      ),
-    );
-  }
-
-  Widget _zoomControls() {
-    return Positioned(
-      right: 50,
-      bottom: 160,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        _zoomBtn(Icons.add, () => _zoom(-0.09)), // 확대
-        const SizedBox(height: 8),
-        _zoomBtn(Icons.remove, () => _zoom(0.09)), // 축소
-      ]),
-    );
   }
 
   Widget _joystick() {
@@ -1447,7 +1420,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: LayoutBuilder(
+      body: Listener(
+        onPointerSignal: (e) {
+          if (e is PointerScrollEvent) {
+            _zoom(e.scrollDelta.dy > 0 ? 0.06 : -0.06); // 휠 위=확대, 아래=축소
+          }
+        },
+        child: LayoutBuilder(
         builder: (context, c) {
           final w = c.maxWidth;
           final h = c.maxHeight;
@@ -1462,11 +1441,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
           final charH = sizeRef * (0.18 + perspT * 0.16); // 멀리=0.18 ~ 가까이=0.34
           final charW = charH * 0.55;
-          // 📷 카메라: 캐릭터 중심, 월드 가장자리 클램프
-          final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
-          final maxCamY = (worldH - h) > 0 ? (worldH - h) : 0.0;
-          final camX = (_charPos.dx * worldW - w / 2).clamp(0.0, maxCamX);
-          final camY = (_charPos.dy * worldH - h / 2).clamp(0.0, maxCamY);
+          // 📷 카메라: 캐릭터 항상 화면 중앙 (클램프 없음 — 줌해도 안 튐)
+          final camX = _charPos.dx * worldW - w / 2;
+          final camY = _charPos.dy * worldH - h / 2;
 
           return Stack(
             children: [
@@ -1492,13 +1469,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                        // 바닥 탭 → 캐릭터 이동 (월드 좌표)
+                        // 바닥 탭 → 캐릭터 이동 (월드 좌표) + 두 손가락 핀치 줌
                         Positioned.fill(
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
                             onTapUp: (d) => _moveTo(
                                 Offset(d.localPosition.dx / worldW, d.localPosition.dy / worldH),
                                 worldW, worldH),
+                            onScaleStart: (_) => _zoomStartFrac = _viewFracH,
+                            onScaleUpdate: (d) {
+                              if (d.pointerCount >= 2) {
+                                _zoomTimer?.cancel();
+                                _zoomTimer = null;
+                                final v = (_zoomStartFrac / d.scale).clamp(0.5, 0.95);
+                                setState(() {
+                                  _viewFracH = v;
+                                  _zoomTarget = v;
+                                });
+                              }
+                            },
                           ),
                         ),
                         // 🔧 좌표 수집 마커
@@ -1633,8 +1622,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),
-              // 🔍 줌 인/아웃
-              _zoomControls(),
 
               // 🔧 좌표 수집 표시 (개발용 — 좌표 다 받으면 _devCoords=false)
               if (_devCoords)
@@ -1672,6 +1659,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ],
           );
         },
+        ),
       ),
     );
   }
