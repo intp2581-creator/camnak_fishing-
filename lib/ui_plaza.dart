@@ -538,7 +538,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
-  static const double _viewFracH = 0.72; // 화면이 보여주는 월드 세로 비율(나머지는 스크롤)
+  static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
+  double _viewFracH = _baseFrac; // 🔍 줌으로 변함 (작을수록 확대). 0.5~0.95
   static const bool _devCoords = false; // 🔧 좌표 수집 모드(걷기제한 해제+탭좌표 표시). 좌표 받으면 false
   Offset? _lastTapWorld;
 
@@ -722,6 +723,39 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _sendPos() {
     _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}).catchError(
         (Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e'));
+  }
+
+  // 🔍 줌 (작을수록 확대). 캐릭터·NPC·배경 같이 스케일
+  void _zoom(double delta) {
+    setState(() => _viewFracH = (_viewFracH + delta).clamp(0.5, 0.95));
+  }
+
+  Widget _zoomBtn(IconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.55),
+          shape: BoxShape.circle,
+          border: Border.all(color: _kGold.withOpacity(0.7), width: 1.5),
+        ),
+        child: Icon(icon, color: _kGold, size: 22),
+      ),
+    );
+  }
+
+  Widget _zoomControls() {
+    return Positioned(
+      right: 50,
+      bottom: 160,
+      child: Column(children: [
+        _zoomBtn(Icons.add, () => _zoom(-0.09)), // 확대
+        const SizedBox(height: 8),
+        _zoomBtn(Icons.remove, () => _zoom(0.09)), // 축소
+      ]),
+    );
   }
 
   Widget _joystick() {
@@ -1409,9 +1443,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final worldW = worldH * _imgAspect;
           _worldW = worldW; // 조이스틱 이동 환산용
           _worldH = worldH;
+          // 캐릭터/NPC 크기 기준: 월드에 비례(줌하면 같이 커짐). 기본 줌에선 = h
+          final sizeRef = worldH * _baseFrac;
           // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-          final charH = h * (0.18 + perspT * 0.16); // 멀리=0.18h ~ 가까이=0.34h
+          final charH = sizeRef * (0.18 + perspT * 0.16); // 멀리=0.18 ~ 가까이=0.34
           final charW = charH * 0.55;
           // 📷 카메라: 캐릭터 중심, 월드 가장자리 클램프
           final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
@@ -1535,25 +1571,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         ),
                         // 🌐 다른 유저들 (실시간)
                         ..._others.entries
-                            .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, h)),
+                            .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.150 : 0.156,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
                             widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png',
                             '🏆 랭킹', _openRanking),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.396 : 0.407,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
                             widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
                             '🛡️ 길드', _openGuild),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.585 : 0.599,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
                             widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
                             '🌀 낚시터', _openMinimap),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.834 : 0.846,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.846,
                             widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png',
                             '⚔️ 아레나', _openArena),
-                        _standNpc(worldW, worldH, h, widget.isSea ? 0.809 : 0.809,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
                             widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png',
                             '🏪 상점', _openStore, scale: 1.2),
                         // 📋 일일퀘스트 매니저 '아라'
-                        _araNpc(worldW, worldH, h),
+                        _araNpc(worldW, worldH, sizeRef),
                       ],
                     ),
               ),
@@ -1584,6 +1620,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),
+              // 🔍 줌 인/아웃
+              _zoomControls(),
 
               // 🔧 좌표 수집 표시 (개발용 — 좌표 다 받으면 _devCoords=false)
               if (_devCoords)
