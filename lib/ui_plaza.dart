@@ -1563,7 +1563,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       ),
                                     ),
                                     Positioned(
-                                      bottom: charH * 0.98, // 머리 위(꽉찬 스프라이트라 박스 위쪽)
+                                      bottom: charH * 0.72, // 머리 위(스프라이트 상단 여백 고려)
                                       left: -150,
                                       right: -150,
                                       child: Center(
@@ -1575,7 +1575,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         _myBubbleUntil != null &&
                                         DateTime.now().isBefore(_myBubbleUntil!))
                                       Positioned(
-                                        bottom: charH * 1.15,
+                                        bottom: charH * 0.90,
                                         left: -150,
                                         right: -150,
                                         child: Center(child: _bubble(_myBubble!)),
