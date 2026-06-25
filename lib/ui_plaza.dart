@@ -1592,19 +1592,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
                             widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png',
-                            '🏆 랭킹', _openRanking),
+                            '🏆 랭킹', _openRanking, scale: 1.2), // 작아서 키움
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
                             widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
-                            '🛡️ 길드', _openGuild, scale: 0.7), // 임시 fallback 거인 방지(실제 그림 넣으면 1.0로)
+                            '🛡️ 길드', _openGuild, scale: 0.75),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
                             widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
-                            '🌀 낚시터', _openMinimap),
+                            '🌀 낚시터', _openMinimap, scale: 0.9), // 살짝 줄임
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.846,
                             widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png',
-                            '⚔️ 아레나', _openArena),
+                            '⚔️ 아레나', _openArena, scale: 0.82), // 커서 줄임
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
                             widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png',
-                            '🏪 상점', _openStore, scale: 1.2),
+                            '🏪 상점', _openStore, scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, sizeRef),
                       ],
