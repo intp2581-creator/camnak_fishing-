@@ -654,7 +654,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final dx = (dest.dx - _charPos.dx) * w;
     final dy = (dest.dy - _charPos.dy) * h;
     final dist = math.sqrt(dx * dx + dy * dy);
-    final ms = (dist / 0.32).clamp(350, 2200).toInt(); // 걷기 속도(등속)
+    final ms = (dist / 0.16).clamp(700, 4400).toInt(); // 걷기 속도(절반으로 느리게)
     final moveDur = Duration(milliseconds: ms);
     setState(() {
       // 🚶 이동 방향 → 스프라이트 방향 (가로 우세=옆, 세로=위/아래)
@@ -713,7 +713,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _joyTick() {
     if (_joyDir == Offset.zero || !mounted) return;
-    const speedPxPerSec = 320.0; // 월드 스크린px 기준 이동 속도
+    const speedPxPerSec = 160.0; // 월드 스크린px 기준 이동 속도(절반으로 느리게)
     const dt = 16 / 1000.0;
     final movePx = _joyDir * speedPxPerSec * dt; // 방향*세기
     var np = Offset(
@@ -1447,7 +1447,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final sizeRef = h; // 캐릭터/NPC 기본 크기(줌은 Transform.scale로)
           // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-          final charH = sizeRef * (0.18 + perspT * 0.16); // 멀리=0.18 ~ 가까이=0.34
+          final charH = sizeRef * (0.13 + perspT * 0.115); // 줄임(꽉찬 캔버스 스프라이트라 작게)
           final charW = charH * 0.55;
           // 📷 카메라: 캐릭터 중심, 맵 가장자리에서 멈춤(검은 영역 안 보이게)
           final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
@@ -1563,7 +1563,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       ),
                                     ),
                                     Positioned(
-                                      bottom: charH * 0.50,
+                                      bottom: charH * 0.98, // 머리 위(꽉찬 스프라이트라 박스 위쪽)
                                       left: -150,
                                       right: -150,
                                       child: Center(
@@ -1575,7 +1575,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         _myBubbleUntil != null &&
                                         DateTime.now().isBefore(_myBubbleUntil!))
                                       Positioned(
-                                        bottom: charH * 0.68,
+                                        bottom: charH * 1.15,
                                         left: -150,
                                         right: -150,
                                         child: Center(child: _bubble(_myBubble!)),
