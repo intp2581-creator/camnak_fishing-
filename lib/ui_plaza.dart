@@ -66,6 +66,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 캐릭터 위치 (0~1 비율 좌표, dy는 발 위치 기준)
   Offset _charPos = const Offset(0.5, 0.74);
   bool _facingRight = true;
+  String _moveDir = 'down'; // 'down'(앞) / 'up'(뒤) / 'side'(옆) — 걷기 방향 스프라이트
   Duration _moveDuration = const Duration(milliseconds: 500);
 
   // 🚶 걷기 바운스용
@@ -536,6 +537,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return 'assets/images/char_beginner.png';
   }
 
+  // 🚶 4방향 걷기 스프라이트 경로 (예: char_beginner_up1.png).
+  //    이미지 없으면 build의 errorBuilder가 기본 _charImage로 폴백.
+  String get _charSprite {
+    final base = _charImage.replaceAll('.png', ''); // assets/images/char_beginner
+    final frame = _walking ? (_walkCtrl.value < 0.5 ? 1 : 2) : 0; // 걷기A/B, 멈추면 서있기
+    return '${base}_$_moveDir$frame.png';
+  }
+
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
@@ -648,7 +657,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final ms = (dist / 0.32).clamp(350, 2200).toInt(); // 걷기 속도(등속)
     final moveDur = Duration(milliseconds: ms);
     setState(() {
-      _facingRight = dest.dx >= _charPos.dx;
+      // 🚶 이동 방향 → 스프라이트 방향 (가로 우세=옆, 세로=위/아래)
+      if (dx.abs() >= dy.abs()) {
+        _moveDir = 'side';
+        _facingRight = dx >= 0;
+      } else {
+        _moveDir = dy < 0 ? 'up' : 'down';
+      }
       _charPos = dest;
       _moveDuration = moveDur;
       _walking = true;
@@ -708,8 +723,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     np = Offset(np.dx.clamp(0.0, 1.0), np.dy.clamp(0.0, 1.0));
     if (!_devCoords) np = _clampToPlaza(np); // 정식 모드에선 걷기 영역 안으로
     setState(() {
-      // 좌우 데드존: 상하로 갈 땐 dx가 0 근처라 좌우 반전이 깜빡여서 떨림 → 충분히 좌우일 때만 전환
-      if (_joyDir.dx.abs() > 0.3) _facingRight = _joyDir.dx >= 0;
+      // 🚶 조이스틱 방향 → 스프라이트 방향 (가로 우세=옆, 세로=위/아래). 데드존으로 깜빡임 방지
+      if (_joyDir.dx.abs() >= _joyDir.dy.abs()) {
+        if (_joyDir.dx.abs() > 0.2) {
+          _moveDir = 'side';
+          _facingRight = _joyDir.dx >= 0;
+        }
+      } else {
+        _moveDir = _joyDir.dy < 0 ? 'up' : 'down';
+      }
       _charPos = np;
       _moveDuration = Duration.zero; // 보간 끔 → 캐릭터·카메라(배경) 같은 프레임에 이동(싱크)
       _walking = true;
@@ -1511,8 +1533,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               animation: _walkCtrl,
                               builder: (context, _) {
                                 final phase = _walkCtrl.value * 2 * math.pi;
-                                final bob = _walking ? math.sin(phase).abs() * 2.5 : 0.0;
-                                final tilt = _walking ? math.sin(phase) * 0.035 : 0.0;
+                                final bob = _walking ? math.sin(phase).abs() * 2.0 : 0.0;
+                                // 옆모습일 때만 좌우반전(왼쪽). 앞/뒤는 반전 안 함
+                                final flip = (_moveDir == 'side' && !_facingRight);
                                 return Stack(
                                   clipBehavior: Clip.none,
                                   alignment: Alignment.bottomCenter,
@@ -1520,18 +1543,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                     Positioned.fill(
                                       child: Transform.translate(
                                         offset: Offset(0, -bob),
-                                        child: Transform.rotate(
-                                          angle: tilt,
+                                        child: Transform(
                                           alignment: Alignment.bottomCenter,
-                                          child: Transform(
+                                          transform: Matrix4.rotationY(flip ? math.pi : 0),
+                                          child: Image.asset(
+                                            _charSprite,
+                                            fit: BoxFit.contain,
                                             alignment: Alignment.bottomCenter,
-                                            transform: Matrix4.rotationY(
-                                                _facingRight ? 0 : math.pi),
-                                            child: Image.asset(
+                                            // 방향 스프라이트 없으면 기본 이미지로 폴백
+                                            errorBuilder: (a, b, d) => Image.asset(
                                               _charImage,
                                               fit: BoxFit.contain,
                                               alignment: Alignment.bottomCenter,
-                                              errorBuilder: (a, b, d) =>
+                                              errorBuilder: (a2, b2, d2) =>
                                                   const SizedBox.shrink(),
                                             ),
                                           ),
