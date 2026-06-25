@@ -2033,17 +2033,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 인벤토리에서 클릭한 아이템을 알맞은 슬롯에 장착 (이름 기반, 낚시화면과 동일 규칙)
+  // 인벤토리에서 클릭한 아이템을 알맞은 슬롯에 장착 (광장에선 민물·바다 다 착용 가능 — 미리보기)
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
-    final cat = (item['category'] ?? '').toString().toUpperCase();
-    if (widget.isSea && cat == 'FW') {
-      _toast('바다 광장에선 민물 장비를 장착할 수 없어요');
-      return;
-    }
-    if (!widget.isSea && cat == 'SEA') {
-      _toast('민물 광장에선 바다 장비를 장착할 수 없어요');
-      return;
-    }
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
     if (n.contains('찌')) {
       globalEquippedFloat = item;
@@ -2064,7 +2055,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     setD(() {}); // 다이얼로그 슬롯·스텟 갱신
     setState(() {}); // 플라자 HUD(아바타/스킨) 갱신
-    _toast('${item['name']} 장착!');
   }
 
   void _openStatusWindow() {
@@ -2163,26 +2153,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     child: Column(children: [
                       Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.all(10),
-                          child: Stack(children: [
-                            Positioned.fill(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 6),
-                                child: Image.asset(_charImage,
-                                    fit: BoxFit.contain,
-                                    alignment: Alignment.bottomCenter,
-                                    errorBuilder: (a, b, c) => const SizedBox.shrink()),
-                              ),
+                          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                          child: Row(children: [
+                            // 왼쪽 슬롯 열
+                            Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                              _equipSlot('스킨', Icons.checkroom, globalEquippedSkin),
+                              _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses),
+                              _equipSlot('뱃지', Icons.shield, globalEquippedBadge),
+                              _equipSlot('낚시대', Icons.phishing, globalEquippedRod),
+                            ]),
+                            // 캐릭터 (가운데, 크게)
+                            Expanded(
+                              child: Image.asset(_charImage,
+                                  fit: BoxFit.contain,
+                                  alignment: Alignment.bottomCenter,
+                                  errorBuilder: (a, b, c) => const SizedBox.shrink()),
                             ),
-                            Positioned(
-                                top: 0, left: 0, right: 0,
-                                child: Center(child: _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses))),
-                            Positioned(top: 66, left: 0, child: _equipSlot('뱃지', Icons.shield, globalEquippedBadge)),
-                            Positioned(top: 140, left: 0, child: _equipSlot('낚시대', Icons.phishing, globalEquippedRod)),
-                            Positioned(top: 140, right: 0, child: _equipSlot('릴/찌', Icons.album, reelOrFloat)),
-                            Positioned(
-                                bottom: 0, left: 0, right: 0,
-                                child: Center(child: _equipSlot('신발', Icons.directions_walk, null))),
+                            // 오른쪽 슬롯 열
+                            Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                              _equipSlot('릴/찌', Icons.album, reelOrFloat),
+                              _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
+                              _equipSlot('신발', Icons.directions_walk, null),
+                            ]),
                           ]),
                         ),
                       ),
