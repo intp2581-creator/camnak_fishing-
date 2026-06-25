@@ -1914,6 +1914,192 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // ───────────────── 📋 내 정보(상태창) ─────────────────
+  Widget _equipSlot(String label, IconData fallback, Map<String, dynamic>? item) {
+    final hasItem = item != null;
+    final iconPath = hasItem ? _itemIconPath(item['icon']?.toString() ?? '') : '';
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 46,
+        height: 46,
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.55),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: hasItem ? _kGold : Colors.white24, width: 1.5),
+        ),
+        child: hasItem
+            ? Padding(
+                padding: const EdgeInsets.all(4),
+                child: Image.asset(iconPath,
+                    fit: BoxFit.contain,
+                    errorBuilder: (a, b, c) => Icon(fallback, color: _kGold, size: 20)))
+            : Icon(fallback, color: Colors.white30, size: 22),
+      ),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.bold)),
+    ]);
+  }
+
+  Widget _statBreakRow(String name, Color color, int equipV, int guildV, int champV) {
+    final total = 10 + equipV + guildV + champV;
+    Widget chip(String t, Color c) => Text(t,
+        style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(children: [
+        SizedBox(
+            width: 52,
+            child: Text(name,
+                style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w900))),
+        Text('$total',
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Wrap(spacing: 6, children: [
+            chip('기본 10', Colors.white54),
+            if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
+            if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
+            if (champV != 0) chip('👑 +$champV', _kGold),
+          ]),
+        ),
+      ]),
+    );
+  }
+
+  Widget _statusStats() {
+    final equip = FishingLogic.getMyTotalStats(
+      equippedSkin: globalEquippedSkin,
+      equippedRod: globalEquippedRod,
+      equippedFloat: globalEquippedFloat,
+      equippedReel: globalEquippedReel,
+      equippedSunglasses: globalEquippedSunglasses,
+      equippedBadge: globalEquippedBadge,
+    );
+    final eP = (equip['strength'] ?? 10) - 10;
+    final eC = (equip['control'] ?? 10) - 10;
+    final eS = (equip['sensitivity'] ?? 10) - 10;
+
+    Widget body(int gLevel) {
+      final gB = FishingLogic.guildStatBonus(gLevel);
+      final cB = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
+      final totP = 10 + eP + gB + cB, totC = 10 + eC + gB + cB, totS = 10 + eS + gB + cB;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Text('Lv.$_level', style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.w900)),
+            const SizedBox(width: 8),
+            Text(calcRankFromExp(currentExp),
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            const Spacer(),
+            if (_guildName.isNotEmpty)
+              Text(_isChampionGuild ? '👑〈$_guildName〉Lv.$gLevel' : '〈$_guildName〉Lv.$gLevel',
+                  style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 2),
+          Text('경험치 $currentExp · 포인트 $_gold',
+              style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          const Divider(color: Colors.white12, height: 18),
+          const Text('능력치 (기본 + 장비 + 길드 + 챔피언)',
+              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, gB, cB),
+          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, gB, cB),
+          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, gB, cB),
+          const Divider(color: Colors.white12, height: 18),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+                color: const Color(0xFF22301F), borderRadius: BorderRadius.circular(10)),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              const Text('총 제압력', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text('${totP + totC + totS}',
+                  style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 20, fontWeight: FontWeight.w900)),
+            ]),
+          ),
+        ]),
+      );
+    }
+
+    if (_guildId.isEmpty) return body(0);
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('guilds').doc(_guildId).snapshots(),
+      builder: (c, snap) {
+        final gExp = (snap.data?.data() as Map<String, dynamic>?)?['guildExp'];
+        final lv = FishingLogic.guildLevelFromExp((gExp is num) ? gExp.toInt() : 0);
+        return body(lv);
+      },
+    );
+  }
+
+  void _openStatusWindow() {
+    final reelOrFloat = globalEquippedReel ?? globalEquippedFloat;
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: const Color(0xFF161616),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: _kGold, width: 1.2)),
+        child: SizedBox(
+          width: 680,
+          height: 470,
+          child: Column(children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 8, 4),
+              child: Row(children: [
+                const Icon(Icons.badge, color: _kGold, size: 22),
+                const SizedBox(width: 8),
+                Text('${widget.nickname} 조사님',
+                    style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.w900)),
+                const Spacer(),
+                IconButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    icon: const Icon(Icons.close, color: Colors.white54)),
+              ]),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            Expanded(
+              child: Row(children: [
+                // 왼쪽: 캐릭터 + 장비 슬롯
+                Expanded(
+                  flex: 5,
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Stack(children: [
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
+                          child: Image.asset(_charImage,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.bottomCenter,
+                              errorBuilder: (a, b, c) => const SizedBox.shrink()),
+                        ),
+                      ),
+                      Positioned(
+                          top: 0, left: 0, right: 0,
+                          child: Center(child: _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses))),
+                      Positioned(top: 76, left: 0, child: _equipSlot('뱃지', Icons.shield, globalEquippedBadge)),
+                      Positioned(top: 162, left: 0, child: _equipSlot('낚시대', Icons.phishing, globalEquippedRod)),
+                      Positioned(top: 162, right: 0, child: _equipSlot('릴/찌', Icons.album, reelOrFloat)),
+                      Positioned(
+                          bottom: 0, left: 0, right: 0,
+                          child: Center(child: _equipSlot('신발', Icons.directions_walk, null))),
+                    ]),
+                  ),
+                ),
+                const VerticalDivider(color: Colors.white12, width: 1),
+                // 오른쪽: 스텟
+                Expanded(flex: 6, child: SingleChildScrollView(child: _statusStats())),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
   void _openInventory() {
     String tab = '전체';
     showDialog(
@@ -2768,16 +2954,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _kGold, width: 1.5),
-                    image: DecorationImage(
-                        image: AssetImage(_charImage),
-                        fit: BoxFit.cover,
-                        alignment: const Alignment(0, -0.7)),
+                GestureDetector(
+                  onTap: _openStatusWindow, // 캐릭터 누르면 상태창
+                  child: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: _kGold, width: 1.5),
+                      image: DecorationImage(
+                          image: AssetImage(_charImage),
+                          fit: BoxFit.cover,
+                          alignment: const Alignment(0, -0.7)),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
