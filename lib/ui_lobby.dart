@@ -1384,12 +1384,48 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen> {
   late int myDisplayGold;
-  String currentTab = 'ROD'; 
+  late List<dynamic> myInventory; // 판매 탭에서 쓰는 내 인벤토리(상태로 관리)
+  String currentTab = 'ROD';
 
   @override
   void initState() {
     super.initState();
     myDisplayGold = widget.currentGold;
+    myInventory = List.from(widget.currentInventory);
+  }
+
+  // 상점 정가 조회(이름으로) — 판매가 계산에 사용
+  int? _storePriceOf(String name) {
+    for (final list in [storeRodItems, storeGearItems, storeBaitItems, storeSkinItems]) {
+      for (final it in list) {
+        if (it['name'] == name) return (it['price'] as int?) ?? 0;
+      }
+    }
+    return null;
+  }
+
+  bool _isBaitItem(Map<String, dynamic> item) {
+    final t = (item['type'] ?? '').toString().toUpperCase();
+    final c = (item['category'] ?? '').toString().toUpperCase();
+    return t.contains('BAIT') || c.contains('BAIT') ||
+        ['지렁이', '글루텐', '옥수수', '크릴', '갯지렁이', '루어'].contains((item['name'] ?? '').toString());
+  }
+
+  // 판매가: 정가의 50%(없으면 기본 100P). 미끼는 개당 5P × 수량(묶음 전체).
+  int _sellPrice(Map<String, dynamic> item) {
+    final name = (item['name'] ?? '').toString();
+    final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
+    if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
+    final p = _storePriceOf(name);
+    final unit = (p != null && p > 0) ? (p * 0.5).floor() : 100;
+    return unit < 10 ? 10 : unit;
+  }
+
+  bool _canSell(Map<String, dynamic> item) {
+    final name = (item['name'] ?? '').toString();
+    // 초보 조사 스킨(기본 지급)은 판매 불가
+    if (name.contains('초보')) return false;
+    return true;
   }
 
   void _showNotificationPopup(String t, String c, Color col, {VoidCallback? onConfirm}) {
@@ -1416,9 +1452,9 @@ class _StoreScreenState extends State<StoreScreen> {
             padding: const EdgeInsets.only(left: 20), 
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start, 
-              children: ['ROD', 'GEAR', 'BAIT', 'SKIN'].map((tab) {
-                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : '스킨/기타';
-                bool isSelected = currentTab == tab; 
+              children: ['ROD', 'GEAR', 'BAIT', 'SKIN', 'SELL'].map((tab) {
+                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : tab == 'SKIN' ? '스킨/기타' : '💰 팔기';
+                bool isSelected = currentTab == tab;
                 return GestureDetector(
                   onTap: () { setState(() => currentTab = tab); },
                   child: Container(margin: const EdgeInsets.only(right: 40), padding: const EdgeInsets.symmetric(vertical: 15), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: isSelected ? const Color(0xFFD4AF37) : Colors.transparent, width: 3))), child: Text(label, style: TextStyle(color: isSelected ? const Color(0xFFD4AF37) : Colors.grey, fontWeight: FontWeight.bold, fontSize: 16))),
@@ -1426,10 +1462,155 @@ class _StoreScreenState extends State<StoreScreen> {
               }).toList(), 
             ),
           ),
-          Expanded(child: GridView.builder(padding: const EdgeInsets.all(20), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 1, mainAxisSpacing: 20, crossAxisSpacing: 20, mainAxisExtent: 160), itemCount: displayList.length, itemBuilder: (context, index) { return _buildStoreItem(displayList[index]); })),
+          Expanded(
+            child: currentTab == 'SELL'
+                ? _buildSellList()
+                : GridView.builder(padding: const EdgeInsets.all(20), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 1, mainAxisSpacing: 20, crossAxisSpacing: 20, mainAxisExtent: 160), itemCount: displayList.length, itemBuilder: (context, index) { return _buildStoreItem(displayList[index]); }),
+          ),
         ],
       ),
     );
+  }
+
+  Widget _buildSellList() {
+    final sellable = myInventory.map((e) => e as Map<String, dynamic>).toList();
+    if (sellable.isEmpty) {
+      return const Center(
+          child: Text('가방이 비어 있어요.', style: TextStyle(color: Colors.white54, fontSize: 16)));
+    }
+    return Column(children: [
+      Container(
+        width: double.infinity,
+        margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+            color: const Color(0xFF1A1A1A),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12)),
+        child: const Text('💡 필요 없는 장비를 팔아 포인트로 바꿀 수 있어요. (판매가 = 정가의 50%)',
+            style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
+      ),
+      Expanded(
+        child: GridView.builder(
+          padding: const EdgeInsets.all(20),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 1, mainAxisSpacing: 14, crossAxisSpacing: 14, mainAxisExtent: 110),
+          itemCount: sellable.length,
+          itemBuilder: (context, index) => _buildSellItem(sellable[index]),
+        ),
+      ),
+    ]);
+  }
+
+  Widget _buildSellItem(Map<String, dynamic> item) {
+    String itemName = item['name'].toString();
+    String imgPath = item['icon']?.toString() ?? '';
+    if (imgPath.contains('../')) imgPath = imgPath.replaceAll('../', 'assets/');
+    if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
+    final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
+    final bait = _isBaitItem(item);
+    final price = _sellPrice(item);
+    final sellable = _canSell(item);
+
+    return Container(
+      decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
+      child: Row(children: [
+        Container(width: 100, padding: const EdgeInsets.all(12), decoration: const BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15))), child: Image.asset(imgPath, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white24, size: 32))),
+        Container(width: 1, color: Colors.white10),
+        Expanded(
+          flex: 3,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 6),
+              if (bait) Text('보유 수량: x$qty개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+        ),
+        Container(width: 1, color: Colors.white10),
+        Expanded(
+          flex: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Center(child: Text(sellable ? '+$price P' : '판매 불가', style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : Colors.white38, fontSize: 18, fontWeight: FontWeight.w900))),
+              const SizedBox(height: 8),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: sellable ? const Color(0xFF2E7D32) : Colors.grey.shade800,
+                    foregroundColor: sellable ? Colors.white : Colors.white38,
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                onPressed: sellable ? () => _confirmSell(item, price, bait, qty) : null,
+                child: Text(sellable ? '팔기' : '기본 지급', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _confirmSell(Map<String, dynamic> item, int price, bool bait, int qty) {
+    audioManager.playSfx("sfx_click.mp3");
+    final name = item['name'].toString();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text('💰 아이템 판매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        content: Text(
+            bait
+                ? '$name x$qty개를 팔고 $price P를 받습니다.\n판매하시겠습니까?'
+                : '$name 을(를) 팔고 $price P를 받습니다.\n판매하시겠습니까?',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _sellItem(item, price);
+              },
+              child: const Text('판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+  }
+
+  void _sellItem(Map<String, dynamic> item, int price) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final name = item['name'].toString();
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
+      inventory.removeWhere((i) => i['name'] == name); // 묶음 전체 판매
+
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'gold': FieldValue.increment(price),
+        'inventory': inventory,
+      });
+
+      // 장착 중이던 장비면 장착 해제(이미지/스텟 꼬임 방지)
+      if (globalEquippedRod?['name'] == name) globalEquippedRod = null;
+      if (globalEquippedReel?['name'] == name) globalEquippedReel = null;
+      if (globalEquippedFloat?['name'] == name) globalEquippedFloat = null;
+      if (globalEquippedBait?['name'] == name) globalEquippedBait = null;
+      if (globalEquippedSkin?['name'] == name) globalEquippedSkin = null;
+      if (globalEquippedSunglasses?['name'] == name) globalEquippedSunglasses = null;
+      if (globalEquippedBadge?['name'] == name) globalEquippedBadge = null;
+
+      if (!mounted) return;
+      setState(() {
+        myInventory.removeWhere((i) => i['name'] == name);
+        myDisplayGold += price;
+      });
+      _showNotificationPopup('🎉 판매 완료', '$name 을(를) 팔고\n$price P를 받았습니다!', const Color(0xFF7FFFB0));
+    } catch (e) {
+      print(e);
+      _showNotificationPopup('오류', '판매 처리 중 문제가 발생했습니다.', Colors.redAccent);
+    }
   }
 
   Widget _buildStatBadge(String label, int val, Color color) {
