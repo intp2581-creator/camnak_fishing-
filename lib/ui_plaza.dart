@@ -2033,8 +2033,42 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 인벤토리에서 클릭한 아이템을 알맞은 슬롯에 장착 (이름 기반, 낚시화면과 동일 규칙)
+  void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
+    final cat = (item['category'] ?? '').toString().toUpperCase();
+    if (widget.isSea && cat == 'FW') {
+      _toast('바다 광장에선 민물 장비를 장착할 수 없어요');
+      return;
+    }
+    if (!widget.isSea && cat == 'SEA') {
+      _toast('민물 광장에선 바다 장비를 장착할 수 없어요');
+      return;
+    }
+    final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
+    if (n.contains('찌')) {
+      globalEquippedFloat = item;
+    } else if (n.contains('스킨') || n.contains('조사') || n.contains('초보') || n.contains('마스터')) {
+      globalEquippedSkin = item;
+    } else if ((n.contains('릴') && !n.contains('크릴')) ||
+        n.contains('2000') || n.contains('3000') || n.contains('5000') ||
+        n.contains('6000') || n.contains('8000')) {
+      globalEquippedReel = item;
+    } else if (n.contains('대') || n.contains('CF') || n.contains('KT')) {
+      globalEquippedRod = item;
+    } else if (n.contains('선글라스')) {
+      globalEquippedSunglasses = item;
+    } else if (n.contains('휘장')) {
+      globalEquippedBadge = item;
+    } else {
+      globalEquippedBait = item;
+    }
+    setD(() {}); // 다이얼로그 슬롯·스텟 갱신
+    setState(() {}); // 플라자 HUD(아바타/스킨) 갱신
+    _toast('${item['name']} 장착!');
+  }
+
   void _openStatusWindow() {
-    final reelOrFloat = globalEquippedReel ?? globalEquippedFloat;
+    String invTab = '전체';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -2043,58 +2077,169 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             borderRadius: BorderRadius.circular(16),
             side: const BorderSide(color: _kGold, width: 1.2)),
         child: SizedBox(
-          width: 680,
-          height: 470,
-          child: Column(children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 8, 4),
-              child: Row(children: [
-                const Icon(Icons.badge, color: _kGold, size: 22),
-                const SizedBox(width: 8),
-                Text('${widget.nickname} 조사님',
-                    style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.w900)),
-                const Spacer(),
-                IconButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    icon: const Icon(Icons.close, color: Colors.white54)),
-              ]),
-            ),
-            const Divider(color: Colors.white12, height: 1),
-            Expanded(
-              child: Row(children: [
-                // 왼쪽: 캐릭터 + 장비 슬롯
-                Expanded(
-                  flex: 5,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Stack(children: [
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 6),
-                          child: Image.asset(_charImage,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.bottomCenter,
-                              errorBuilder: (a, b, c) => const SizedBox.shrink()),
-                        ),
-                      ),
-                      Positioned(
-                          top: 0, left: 0, right: 0,
-                          child: Center(child: _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses))),
-                      Positioned(top: 76, left: 0, child: _equipSlot('뱃지', Icons.shield, globalEquippedBadge)),
-                      Positioned(top: 162, left: 0, child: _equipSlot('낚시대', Icons.phishing, globalEquippedRod)),
-                      Positioned(top: 162, right: 0, child: _equipSlot('릴/찌', Icons.album, reelOrFloat)),
-                      Positioned(
-                          bottom: 0, left: 0, right: 0,
-                          child: Center(child: _equipSlot('신발', Icons.directions_walk, null))),
-                    ]),
+          width: 900,
+          height: 600,
+          child: StatefulBuilder(builder: (ctx, setD) {
+            final reelOrFloat = globalEquippedReel ?? globalEquippedFloat;
+            // 인벤토리 필터/정렬 (가방과 동일)
+            int typeRank(Map<String, dynamic> it) {
+              switch ((it['type'] ?? '').toString().toUpperCase()) {
+                case 'SKIN':
+                  return 0;
+                case 'ROD':
+                  return 1;
+                case 'REEL':
+                case 'FLOAT':
+                  return 2;
+                case 'ETC':
+                  return 3;
+                case 'BAIT':
+                  return 4;
+              }
+              return 5;
+            }
+
+            bool match(Map<String, dynamic> it) {
+              final c = (it['category'] ?? '').toString().toUpperCase();
+              final t = (it['type'] ?? '').toString().toUpperCase();
+              switch (invTab) {
+                case '민물':
+                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA');
+                case '바다':
+                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW');
+                case '미끼':
+                  return t == 'BAIT';
+                case '스킨':
+                  return t == 'SKIN' || c == 'SKIN';
+              }
+              return true;
+            }
+
+            final items = _inventory.map((e) => e as Map<String, dynamic>).where(match).toList()
+              ..sort((a, b) => typeRank(a).compareTo(typeRank(b)));
+
+            Widget tabBtn(String t) {
+              final active = invTab == t;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => setD(() => invTab = t),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                        border: Border(
+                            bottom: BorderSide(
+                                color: active ? _kGold : Colors.transparent, width: 3))),
+                    child: Text(t,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            color: active ? _kGold : Colors.white54,
+                            fontSize: 13,
+                            fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
                   ),
                 ),
-                const VerticalDivider(color: Colors.white12, width: 1),
-                // 오른쪽: 스텟
-                Expanded(flex: 6, child: SingleChildScrollView(child: _statusStats())),
-              ]),
-            ),
-          ]),
+              );
+            }
+
+            return Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 8, 4),
+                child: Row(children: [
+                  const Icon(Icons.badge, color: _kGold, size: 22),
+                  const SizedBox(width: 8),
+                  Text('${widget.nickname} 조사님 — 장비/능력치',
+                      style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.w900)),
+                  const Spacer(),
+                  IconButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      icon: const Icon(Icons.close, color: Colors.white54)),
+                ]),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Expanded(
+                child: Row(children: [
+                  // 왼쪽: 캐릭터 + 슬롯 + 스텟
+                  Expanded(
+                    flex: 5,
+                    child: Column(children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Stack(children: [
+                            Positioned.fill(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 6),
+                                child: Image.asset(_charImage,
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.bottomCenter,
+                                    errorBuilder: (a, b, c) => const SizedBox.shrink()),
+                              ),
+                            ),
+                            Positioned(
+                                top: 0, left: 0, right: 0,
+                                child: Center(child: _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses))),
+                            Positioned(top: 66, left: 0, child: _equipSlot('뱃지', Icons.shield, globalEquippedBadge)),
+                            Positioned(top: 140, left: 0, child: _equipSlot('낚시대', Icons.phishing, globalEquippedRod)),
+                            Positioned(top: 140, right: 0, child: _equipSlot('릴/찌', Icons.album, reelOrFloat)),
+                            Positioned(
+                                bottom: 0, left: 0, right: 0,
+                                child: Center(child: _equipSlot('신발', Icons.directions_walk, null))),
+                          ]),
+                        ),
+                      ),
+                      const Divider(color: Colors.white12, height: 1),
+                      SizedBox(
+                        height: 210,
+                        child: SingleChildScrollView(child: _statusStats()),
+                      ),
+                    ]),
+                  ),
+                  const VerticalDivider(color: Colors.white12, width: 1),
+                  // 오른쪽: 인벤토리 (클릭하면 장착)
+                  Expanded(
+                    flex: 6,
+                    child: Column(children: [
+                      const Padding(
+                        padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('가방 — 아이템을 누르면 장착돼요',
+                              style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      Row(children: [
+                        tabBtn('전체'),
+                        tabBtn('민물'),
+                        tabBtn('바다'),
+                        tabBtn('미끼'),
+                        tabBtn('스킨'),
+                      ]),
+                      const Divider(color: Colors.white12, height: 1),
+                      Expanded(
+                        child: items.isEmpty
+                            ? const Center(
+                                child: Text('이 분류에 아이템이 없어요',
+                                    style: TextStyle(color: Colors.white54)))
+                            : GridView.builder(
+                                padding: const EdgeInsets.all(12),
+                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 4,
+                                  childAspectRatio: 0.82,
+                                  mainAxisSpacing: 10,
+                                  crossAxisSpacing: 10,
+                                ),
+                                itemCount: items.length,
+                                itemBuilder: (c, i) => GestureDetector(
+                                  onTap: () => _equipFromStatus(items[i], setD),
+                                  child: _invItem(items[i]),
+                                ),
+                              ),
+                      ),
+                    ]),
+                  ),
+                ]),
+              ),
+            ]);
+          }),
         ),
       ),
     );
