@@ -1421,13 +1421,6 @@ class _StoreScreenState extends State<StoreScreen> {
     return unit < 10 ? 10 : unit;
   }
 
-  bool _canSell(Map<String, dynamic> item) {
-    final name = (item['name'] ?? '').toString();
-    // 초보 조사 스킨(기본 지급)은 판매 불가
-    if (name.contains('초보')) return false;
-    return true;
-  }
-
   // 부위 분류(최상급 보호 판단용)
   String _slotType(Map<String, dynamic> item) {
     final n = (item['name'] ?? '').toString().replaceAll(' ', '').toUpperCase();
@@ -1556,8 +1549,9 @@ class _StoreScreenState extends State<StoreScreen> {
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
-    final sellable = _canSell(item);
-    final isTop = sellable && _isTopGrade(item);
+    final isBeginner = itemName.contains('초보');
+    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
+    final sellable = !isBeginner && !isTop;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
@@ -1578,7 +1572,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       color: const Color(0xFFD4AF37).withOpacity(0.18),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFD4AF37))),
-                  child: const Text('⭐ 보유 최상급 — 판매 주의',
+                  child: const Text('⭐ 보유 최상급 — 판매 잠금',
                       style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold)),
                 )
               else if (bait)
@@ -1592,7 +1586,7 @@ class _StoreScreenState extends State<StoreScreen> {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Center(child: Text(sellable ? '+$price P' : '판매 불가', style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : Colors.white38, fontSize: 18, fontWeight: FontWeight.w900))),
+              Center(child: Text(sellable ? '+$price P' : (isTop ? '🔒 잠금' : '판매 불가'), style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : (isTop ? const Color(0xFFD4AF37) : Colors.white38), fontSize: 18, fontWeight: FontWeight.w900))),
               const SizedBox(height: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1600,8 +1594,8 @@ class _StoreScreenState extends State<StoreScreen> {
                     foregroundColor: sellable ? Colors.white : Colors.white38,
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                onPressed: sellable ? () => _confirmSell(item, price, bait, qty, isTop) : null,
-                child: Text(sellable ? '팔기' : '기본 지급', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                onPressed: sellable ? () => _confirmSell(item, price, bait, qty) : null,
+                child: Text(sellable ? '팔기' : (isTop ? '최상급 보호' : '기본 지급'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ]),
           ),
@@ -1610,29 +1604,18 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
-  void _confirmSell(Map<String, dynamic> item, int price, bool bait, int qty, bool isTop) {
+  void _confirmSell(Map<String, dynamic> item, int price, bool bait, int qty) {
     audioManager.playSfx("sfx_click.mp3");
     final name = item['name'].toString();
-    final baseMsg = bait
-        ? '$name x$qty개를 팔고 $price P를 받습니다.\n판매하시겠습니까?'
-        : '$name 을(를) 팔고 $price P를 받습니다.\n판매하시겠습니까?';
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey.shade900,
-        shape: isTop
-            ? RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: const BorderSide(color: Colors.redAccent, width: 2))
-            : null,
-        title: Text(isTop ? '⚠️ 최상급 장비 판매 주의' : '💰 아이템 판매',
-            style: TextStyle(
-                color: isTop ? Colors.redAccent : const Color(0xFFD4AF37),
-                fontWeight: FontWeight.bold)),
+        title: const Text('💰 아이템 판매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
         content: Text(
-            isTop
-                ? '🚨 현재 보유 중인 최상급 장비입니다!\n실수로 파는 것은 아닌가요?\n\n$baseMsg'
-                : baseMsg,
+            bait
+                ? '$name x$qty개를 팔고 $price P를 받습니다.\n판매하시겠습니까?'
+                : '$name 을(를) 팔고 $price P를 받습니다.\n판매하시겠습니까?',
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
@@ -1641,10 +1624,7 @@ class _StoreScreenState extends State<StoreScreen> {
                 Navigator.pop(ctx);
                 _sellItem(item, price);
               },
-              child: Text(isTop ? '그래도 판매' : '판매',
-                  style: TextStyle(
-                      color: isTop ? Colors.redAccent : const Color(0xFF7FFFB0),
-                      fontWeight: FontWeight.bold))),
+              child: const Text('판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
         ],
       ),
     );
