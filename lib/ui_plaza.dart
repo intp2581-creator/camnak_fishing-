@@ -69,6 +69,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _moveDir = 'down'; // 'down'(앞) / 'up'(뒤) / 'side'(옆) — 걷기 방향 스프라이트
   Duration _moveDuration = const Duration(milliseconds: 500);
 
+  // 🔧 운영자 전용 스킨 미리보기 (가방/상점 안 건드리고 캐릭터만 바꿔봄)
+  bool get _isOperator =>
+      ['intp2581@gmail.com', 'test_admin@camnak.com']
+          .contains(FirebaseAuth.instance.currentUser?.email);
+  static const List<String> _previewSkins = [
+    '초보 조사', '하수 조사', '중수 조사', '고수 조사', '프로 조사', '마스터 조사', '레전드 조사', '낚시의 신'
+  ];
+  int _skinPreviewIdx = 0;
+  void _cycleSkinPreview() {
+    setState(() {
+      _skinPreviewIdx = (_skinPreviewIdx + 1) % _previewSkins.length;
+      globalEquippedSkin = {
+        'name': _previewSkins[_skinPreviewIdx], 'category': 'SKIN', 'type': 'SKIN'
+      };
+    });
+    _toast('스킨 미리보기 → ${_previewSkins[_skinPreviewIdx]}');
+  }
+
   // 🚶 걷기 바운스용
   late final AnimationController _walkCtrl;
   bool _walking = false;
@@ -1687,6 +1705,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               _topHud(),
               // 💬 채팅 패널
               _chatPanel(),
+
+              // 🔧 운영자 전용: 스킨 미리보기 버튼
+              if (_isOperator)
+                Positioned(
+                  left: 14,
+                  top: 92,
+                  child: GestureDetector(
+                    onTap: _cycleSkinPreview,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.6),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: _kGold, width: 1.2),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.checkroom, color: _kGold, size: 16),
+                        const SizedBox(width: 6),
+                        Text('스킨 미리보기 (${_previewSkins[_skinPreviewIdx]})',
+                            style: const TextStyle(
+                                color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+                      ]),
+                    ),
+                  ),
+                ),
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),

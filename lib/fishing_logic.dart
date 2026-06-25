@@ -365,7 +365,9 @@ size = double.parse(size.toStringAsFixed(1));
     if (cleanName.contains('고수')) return 'assets/images/char_expert.png';
     if (cleanName.contains('프로')) return 'assets/images/char_pro.png';
     if (cleanName.contains('마스터')) return 'assets/images/char_master.png';
-    
-    return 'assets/images/char_beginner.png'; 
+    if (cleanName.contains('레전드')) return 'assets/images/char_legend.png';
+    if (cleanName.contains('낚시의신') || cleanName.contains('신')) return 'assets/images/char_god.png';
+
+    return 'assets/images/char_beginner.png';
   }
 }
