@@ -1592,10 +1592,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
                             widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png',
-                            '🏆 랭킹', _openRanking, scale: 1.2), // 작아서 키움
+                            '🏆 랭킹', _openRanking, scale: 0.9), // 많이 줄임
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
                             widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
-                            '🛡️ 길드', _openGuild, scale: 0.75),
+                            '🛡️ 길드', _openGuild, scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
                             widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
                             '🌀 낚시터', _openMinimap, scale: 0.9), // 살짝 줄임
