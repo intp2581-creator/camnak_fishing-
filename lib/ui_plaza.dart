@@ -108,6 +108,48 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _champWeek = '';
   StreamSubscription<DocumentSnapshot>? _leagueSub;
 
+  // 🧍 시설 NPC 인사말 오버레이 (클릭 → 전체화면 인사 → 입장하기)
+  Map<String, dynamic>? _npcIntro; // {img, msg, label, onEnter}
+  final Map<String, List<String>> _npcGreetings = {
+    'rank': [
+      '안녕하세요! 명예의 전당에 오신 걸 환영해요 🏆',
+      '오늘의 최고 조사는 누구일까요?',
+      '당신의 순위, 궁금하지 않으세요?',
+    ],
+    'guild': [
+      '길드에 관심 있으신가요? 🛡️',
+      '함께 낚시할 동료를 찾고 계신가요?',
+      '좋은 길드는 큰 힘이 된답니다!',
+    ],
+    'fishing': [
+      '어느 낚시터로 떠나볼까요? 🌀',
+      '오늘은 어디서 손맛을 보실 건가요?',
+      '포탈 너머에 명당이 기다려요!',
+    ],
+    'arena': [
+      '실력을 겨뤄볼 준비 되셨나요? ⚔️',
+      '대회에서 1등에 도전해보세요!',
+      '긴장되시죠? 화이팅이에요!',
+    ],
+    'shop': [
+      '필요한 장비 있으세요? 🏪',
+      '싱싱한 미끼 많이 들어왔어요!',
+      '구경만 하셔도 언제나 환영이에요~',
+    ],
+  };
+
+  void _openNpcIntro(String img, String key, String label, VoidCallback onEnter) {
+    final list = _npcGreetings[key] ?? ['안녕하세요!'];
+    setState(() {
+      _npcIntro = {
+        'img': img,
+        'msg': list[math.Random().nextInt(list.length)],
+        'label': label,
+        'onEnter': onEnter,
+      };
+    });
+  }
+
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
   bool _showQuest = false;
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
@@ -1563,7 +1605,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       ),
                                     ),
                                     Positioned(
-                                      bottom: charH * 0.72, // 머리 위(스프라이트 상단 여백 고려)
+                                      bottom: charH * 0.62, // 머리 위(스프라이트 상단 여백 고려)
                                       left: -150,
                                       right: -150,
                                       child: Center(
@@ -1575,7 +1617,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         _myBubbleUntil != null &&
                                         DateTime.now().isBefore(_myBubbleUntil!))
                                       Positioned(
-                                        bottom: charH * 0.90,
+                                        bottom: charH * 0.80,
                                         left: -150,
                                         right: -150,
                                         child: Center(child: _bubble(_myBubble!)),
@@ -1591,20 +1633,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
-                            widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png',
-                            '🏆 랭킹', _openRanking, scale: 0.9), // 많이 줄임
+                            widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png', '🏆 랭킹',
+                            () => _openNpcIntro('npc_rank.png', 'rank', '순위 보기', _openRanking),
+                            scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
-                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
-                            '🛡️ 길드', _openGuild, scale: 0.85),
+                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '🛡️ 길드',
+                            () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
+                            scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
-                            widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
-                            '🌀 낚시터', _openMinimap, scale: 0.9), // 살짝 줄임
+                            widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png', '🌀 낚시터',
+                            () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
+                            scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.846,
-                            widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png',
-                            '⚔️ 아레나', _openArena, scale: 0.82), // 커서 줄임
+                            widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png', '⚔️ 아레나',
+                            () => _openNpcIntro('npc_arena.png', 'arena', '대회 입장', _openArena),
+                            scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
-                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png',
-                            '🏪 상점', _openStore, scale: 1.1),
+                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '🏪 상점',
+                            () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
+                            scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, sizeRef),
                       ],
@@ -1675,6 +1722,45 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     text: _getBriefingText(),
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () => setState(() => _showQuest = false),
+                  ),
+                ),
+
+              // 🧍 시설 NPC 인사말 오버레이 (입장하기 버튼)
+              if (_npcIntro != null)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: _npcIntro!['msg'] as String,
+                    imagePath: 'assets/images/${_npcIntro!['img']}',
+                    onTap: () => setState(() => _npcIntro = null),
+                    action: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _kGold,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                          ),
+                          onPressed: () {
+                            final f = _npcIntro!['onEnter'] as VoidCallback;
+                            setState(() => _npcIntro = null);
+                            f();
+                          },
+                          child: Text(_npcIntro!['label'] as String),
+                        ),
+                        const SizedBox(width: 12),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white70,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () => setState(() => _npcIntro = null),
+                          child: const Text('닫기'),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],

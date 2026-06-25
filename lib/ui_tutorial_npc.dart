@@ -4,13 +4,15 @@ import 'package:flutter/material.dart';
 class NpcTutorialOverlay extends StatelessWidget {
   final String text;       // 띄울 대사
   final String imagePath;  // 띄울 이미지
-  final VoidCallback onTap; // 터치했을 때 할 행동
+  final VoidCallback onTap; // 터치(배경)했을 때 할 행동
+  final Widget? action;     // 하단 버튼들(입장하기/닫기 등). 있으면 '터치해서 계속' 대신 표시
 
   const NpcTutorialOverlay({
     super.key,
     required this.text,
     required this.imagePath,
     required this.onTap,
+    this.action,
   });
 
   @override
@@ -73,20 +75,21 @@ class NpcTutorialOverlay extends StatelessWidget {
               ), 
             ),
             
-            // 💡 3. 터치 유도 안내 (하단 고정)
-            const Positioned(
+            // 💡 3. 하단: 버튼(있으면) 또는 터치 유도 안내
+            Positioned(
               bottom: 30,
               left: 0, right: 0,
               child: Center(
-                child: Text(
-                  "화면을 터치해서 계속 진행 ▶", 
-                  style: TextStyle(
-                    color: Colors.white54, 
-                    fontSize: 18, 
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.none, 
-                  )
-                ),
+                child: action ??
+                    const Text(
+                      "화면을 터치해서 계속 진행 ▶",
+                      style: TextStyle(
+                        color: Colors.white54,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
               ),
             ),
           ],
