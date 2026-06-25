@@ -1595,7 +1595,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             '🏆 랭킹', _openRanking),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
                             widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png',
-                            '🛡️ 길드', _openGuild),
+                            '🛡️ 길드', _openGuild, scale: 0.7), // 임시 fallback 거인 방지(실제 그림 넣으면 1.0로)
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
                             widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png',
                             '🌀 낚시터', _openMinimap),
