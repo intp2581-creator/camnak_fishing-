@@ -2135,8 +2135,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12)),
               icon: const Icon(Icons.add),
-              label: const Text('길드 만들기 (10,000 P)',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              label: const Text('길드 만들기 (Lv.10, 10,000 P)',
+                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
               onPressed: () => _createGuildDialog(uid),
             ),
           ),
@@ -2542,7 +2542,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 6),
-            const Text('생성 비용: 10,000 P',
+            const Text('조건: Lv.10 이상 · 생성 비용 10,000 P',
                 style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -2563,6 +2563,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _createGuild(BuildContext ctx, String uid, String name) async {
     if (name.isEmpty) {
       _toast('길드 이름을 입력해주세요.');
+      return;
+    }
+    if (_level < 10) {
+      _toast('Lv.10부터 길드를 만들 수 있어요. (현재 Lv.$_level)');
       return;
     }
     if (_gold < 10000) {
