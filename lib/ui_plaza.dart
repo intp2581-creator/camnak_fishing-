@@ -1948,9 +1948,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(children: [
         SizedBox(
-            width: 52,
+            width: 74,
             child: Text(name,
-                style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.w900))),
+                maxLines: 1,
+                overflow: TextOverflow.visible,
+                softWrap: false,
+                style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900))),
         Text('$total',
             style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         const SizedBox(width: 10),
@@ -2033,25 +2036,36 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 인벤토리에서 클릭한 아이템을 알맞은 슬롯에 장착 (광장에선 민물·바다 다 착용 가능 — 미리보기)
+  // 인벤토리 아이템 클릭 → 장착/해제 토글 (광장에선 민물·바다 다 착용 가능 — 미리보기)
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
+    bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
     if (n.contains('찌')) {
-      globalEquippedFloat = item;
+      if (same(globalEquippedFloat)) {
+        globalEquippedFloat = null;
+      } else {
+        globalEquippedFloat = item;
+        globalEquippedReel = null; // 릴/찌 한 슬롯
+      }
     } else if (n.contains('스킨') || n.contains('조사') || n.contains('초보') || n.contains('마스터')) {
-      globalEquippedSkin = item;
+      globalEquippedSkin = same(globalEquippedSkin) ? null : item;
     } else if ((n.contains('릴') && !n.contains('크릴')) ||
         n.contains('2000') || n.contains('3000') || n.contains('5000') ||
         n.contains('6000') || n.contains('8000')) {
-      globalEquippedReel = item;
+      if (same(globalEquippedReel)) {
+        globalEquippedReel = null;
+      } else {
+        globalEquippedReel = item;
+        globalEquippedFloat = null; // 릴/찌 한 슬롯
+      }
     } else if (n.contains('대') || n.contains('CF') || n.contains('KT')) {
-      globalEquippedRod = item;
+      globalEquippedRod = same(globalEquippedRod) ? null : item;
     } else if (n.contains('선글라스')) {
-      globalEquippedSunglasses = item;
+      globalEquippedSunglasses = same(globalEquippedSunglasses) ? null : item;
     } else if (n.contains('휘장')) {
-      globalEquippedBadge = item;
+      globalEquippedBadge = same(globalEquippedBadge) ? null : item;
     } else {
-      globalEquippedBait = item;
+      globalEquippedBait = same(globalEquippedBait) ? null : item;
     }
     setD(() {}); // 다이얼로그 슬롯·스텟 갱신
     setState(() {}); // 플라자 HUD(아바타/스킨) 갱신
