@@ -1435,7 +1435,9 @@ class _StoreScreenState extends State<StoreScreen> {
     if (n.contains('스킨') || n.contains('조사') || n.contains('초보') || n.contains('마스터')) return 'skin';
     if ((n.contains('릴') && !n.contains('크릴')) ||
         n.contains('2000') || n.contains('3000') || n.contains('5000') ||
-        n.contains('6000') || n.contains('8000')) return 'reel';
+        n.contains('6000') || n.contains('8000')) {
+      return 'reel';
+    }
     if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'rod';
     if (n.contains('선글라스')) return 'sun';
     if (n.contains('휘장')) return 'badge';
