@@ -109,6 +109,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Map<String, Map<String, dynamic>> _others = {};
   String get _roomKey => widget.isSea ? 'sea' : 'fresh';
 
+  // 🧩 광장 채널 샤딩: 정원 차면 자동으로 ch2, ch3… 생성 (스파이크 대비)
+  //    평소(소수 접속)엔 전원 ch1 → 지금과 체감 동일.
+  static const int _plazaChannelCap = 50; // 채널당 정원
+  String? _channelKey; // 실제 구독 경로 (예: 'fresh/ch3')
+  int _channelNum = 1; // 현재 채널 번호 (UI 표시용)
+
   // 💬 채팅 (낚시터와 동일한 global_chat / friends 공유)
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
@@ -457,12 +463,46 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
   }
 
+  // 🧩 정원 안 찬 채널을 찾아 배정(없으면 새 채널). 평소엔 ch1.
+  //    멤버는 onDisconnect로 자동 제거되므로 자식 수가 곧 실시간 인원 → 별도 카운터 불필요(드리프트 없음).
+  Future<String> _pickChannel(String mode, String uid) async {
+    try {
+      final snap = await _db.ref('plaza/$mode').get();
+      final val = snap.value;
+      if (val is Map) {
+        for (int n = 1; n <= 100000; n++) {
+          final ch = val['ch$n'];
+          if (ch is! Map) {
+            _channelNum = n;
+            return '$mode/ch$n';
+          }
+          if (ch.containsKey(uid)) {
+            _channelNum = n;
+            return '$mode/ch$n'; // 재접속이면 같은 채널 유지
+          }
+          if (ch.length < _plazaChannelCap) {
+            _channelNum = n;
+            return '$mode/ch$n';
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('🌐 채널 선택 실패(ch1 기본): $e');
+    }
+    _channelNum = 1;
+    return '$mode/ch1';
+  }
+
   // 🌐 실시간 접속/위치 송수신
-  void _initPresence() {
+  Future<void> _initPresence() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final uid = user.uid;
-    _myRef = _db.ref('plaza/$_roomKey/$uid');
+    // 🧩 채널 배정 (정원 차면 자동 분할)
+    _channelKey = await _pickChannel(_roomKey, uid);
+    if (!mounted) return;
+    setState(() {}); // 채널 표시 갱신
+    _myRef = _db.ref('plaza/$_channelKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e')); // 접속 끊기면 자동 사라짐
     guildGoOnline(); // 🟢 전역 접속표시
     _writeMe();
@@ -470,7 +510,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-    _roomSub = _db.ref('plaza/$_roomKey').onValue.listen((event) {
+    _roomSub = _db.ref('plaza/$_channelKey').onValue.listen((event) {
       final val = event.snapshot.value;
       final next = <String, Map<String, dynamic>>{};
       if (val is Map) {
@@ -3122,6 +3162,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   const SizedBox(width: 6),
                   Text(widget.isSea ? '바다낚시 광장' : '민물낚시 광장',
                       style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                        color: _kGold.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: _kGold, width: 0.8)),
+                    child: Text('CH$_channelNum',
+                        style: const TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.w900)),
+                  ),
                 ]),
                 const SizedBox(height: 3),
                 Row(children: [
