@@ -2020,6 +2020,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedReel: globalEquippedReel,
       equippedSunglasses: globalEquippedSunglasses,
       equippedBadge: globalEquippedBadge,
+      equippedCooler: globalEquippedCooler,
     );
     final eP = (equip['strength'] ?? 10) - 10;
     final eC = (equip['control'] ?? 10) - 10;
@@ -2082,8 +2083,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 인벤토리 아이템 클릭 → 장착/해제 토글 (광장에선 민물·바다 다 착용 가능 — 미리보기)
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
+    final t = (item['type'] ?? '').toString().toUpperCase();
     bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
-    if (n.contains('찌')) {
+    if (t == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) {
+      globalEquippedCooler = same(globalEquippedCooler) ? null : item;
+    } else if (n.contains('찌')) {
       if (same(globalEquippedFloat)) {
         globalEquippedFloat = null;
       } else {
@@ -2140,10 +2144,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   return 2;
                 case 'ETC':
                   return 3;
-                case 'BAIT':
+                case 'COOLER':
                   return 4;
+                case 'BAIT':
+                  return 5;
               }
-              return 5;
+              return 6;
             }
 
             bool match(Map<String, dynamic> it) {
@@ -2151,9 +2157,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               final t = (it['type'] ?? '').toString().toUpperCase();
               switch (invTab) {
                 case '민물':
-                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA');
+                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA') || t == 'COOLER';
                 case '바다':
-                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW');
+                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER';
                 case '미끼':
                   return t == 'BAIT';
                 case '스킨':

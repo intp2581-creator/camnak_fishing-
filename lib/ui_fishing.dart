@@ -333,7 +333,8 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedSkin;
   Map<String, dynamic>? equippedSunglasses;
   Map<String, dynamic>? equippedBadge;
-  Map<String, dynamic>? equippedReel;  
+  Map<String, dynamic>? equippedReel;
+  Map<String, dynamic>? equippedCooler; // 🧊 아이스박스(발밑 슬롯, 민물·바다 공용)
 
   // 📡 실시간 핫타임 중계 감시용 변수
   StreamSubscription<DocumentSnapshot>? _missionListener;
@@ -395,6 +396,7 @@ Widget _buildChatTab(int index, String title) {
       equippedReel: equippedReel,
       equippedSunglasses: equippedSunglasses,
       equippedBadge: equippedBadge,
+      equippedCooler: equippedCooler,
     );
     int b = FishingLogic.guildStatBonus(_guildLevel);
     if (_isChampionGuild) b += FishingLogic.guildChampionBonus;
@@ -448,7 +450,8 @@ Widget _buildChatTab(int index, String title) {
     equippedSkin = globalEquippedSkin;
     equippedSunglasses = globalEquippedSunglasses;
     equippedBadge = globalEquippedBadge;
-    
+    equippedCooler = globalEquippedCooler; // 🧊 공용(모드 무관)
+
     isRodEquipped = equippedRod != null;
 
     
@@ -556,6 +559,7 @@ Widget _buildChatTab(int index, String title) {
       globalEquippedSunglasses = equippedSunglasses;
       globalEquippedBadge = equippedBadge;
       globalEquippedReel = equippedReel;
+      globalEquippedCooler = equippedCooler; // 🧊
       globalIsSeaMode = widget.isSea;
     }
 
@@ -2564,8 +2568,9 @@ Positioned(
                   else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) equippedSkin = null; 
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = null; 
                   else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = null; isRodEquipped = false; } 
-                  else if (cleanName.contains('선글라스')) equippedSunglasses = null; 
-                  else if (cleanName.contains('휘장')) equippedBadge = null; 
+                  else if (cleanName.contains('선글라스')) equippedSunglasses = null;
+                  else if (cleanName.contains('휘장')) equippedBadge = null;
+                  else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = null;
                   else equippedBait = null;
                 } else {
                   // 🎒 [입기] 기존 장착 로직
@@ -2573,8 +2578,9 @@ Positioned(
                   else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) { equippedSkin = item; } 
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) { equippedReel = item; } 
                   else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = item; isRodEquipped = true; } 
-                  else if (cleanName.contains('선글라스')) { equippedSunglasses = item; } 
-                  else if (cleanName.contains('휘장')) { equippedBadge = item; } 
+                  else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
+                  else if (cleanName.contains('휘장')) { equippedBadge = item; }
+                  else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) { equippedCooler = item; }
                   else { equippedBait = item; }
                 }
               });
@@ -2601,6 +2607,7 @@ Positioned(
       else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = item; isRodEquipped = true; }
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
       else if (cleanName.contains('휘장')) equippedBadge = item;
+      else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = item;
       else equippedBait = item;
     });
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));

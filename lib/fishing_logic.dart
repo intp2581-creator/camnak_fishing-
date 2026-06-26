@@ -265,6 +265,7 @@ size = double.parse(size.toStringAsFixed(1));
     Map<String, dynamic>? equippedReel,
     Map<String, dynamic>? equippedSunglasses,
     Map<String, dynamic>? equippedBadge,
+    Map<String, dynamic>? equippedCooler,
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -280,8 +281,9 @@ size = double.parse(size.toStringAsFixed(1));
     addStats(equippedRod);        
     addStats(equippedFloat);      
     addStats(equippedReel);       
-    addStats(equippedSunglasses); 
-    addStats(equippedBadge);      
+    addStats(equippedSunglasses);
+    addStats(equippedBadge);
+    addStats(equippedCooler);     // 🧊 아이스박스
 
     return {'strength': totalStr, 'control': totalCtrl, 'sensitivity': totalSens};
   }
