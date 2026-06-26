@@ -177,7 +177,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
   bool _showQuest = false;
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
-  final List<int> _eventHours = [14, 15, 16, 19, 20, 21];
   final List<Map<String, dynamic>> _missionPool = [
     {'loc': '예산 예당지', 'fish': '붕어', 'count': 3},
     {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3},
@@ -218,19 +217,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return _missionPool[math.Random(seed).nextInt(_missionPool.length)];
   }
 
-  int _getTodayEventHour() {
-    final now = DateTime.now();
-    return _eventHours[(now.day + now.month) % _eventHours.length];
-  }
-
   String _getBriefingText() {
     final mission = _getTodayMission();
-    final eventHour = _getTodayEventHour();
     final currentHour = DateTime.now().hour;
-    final amPm = eventHour >= 12 ? '오후' : '오전';
-    final displayHour = eventHour >= 12 ? (eventHour == 12 ? 12 : eventHour - 12) : eventHour;
-    final endHour = eventHour + 1;
-    final displayEndHour = endHour >= 12 ? (endHour == 12 ? 12 : endHour - 12) : endHour;
     String greeting = '안녕하세요! 😊';
     if (currentHour >= 5 && currentHour < 12) {
       greeting = '좋은 아침이에요! ☀️';
@@ -239,24 +228,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } else {
       greeting = '밤낚시 오셨군요! 🌙';
     }
-    if (currentHour < eventHour) {
-      return '$greeting\n'
-          '🏆 오늘의 미션입니다.\n'
-          '⏰ $amPm $displayHour시 ~ $displayEndHour시 (1시간)\n'
-          '🎣 ${mission['loc']}\n'
-          '🐟 ${mission['fish']} ${mission['count']}마리 먼저 잡기!\n'
-          '1등 상금은 2,000P 입니다.';
-    } else if (currentHour == eventHour) {
-      return '$greeting\n'
-          '🔥 지금 바로! ($amPm $displayEndHour시 까지)\n'
-          '🎣 ${mission['loc']}\n'
-          '🐟 ${mission['fish']} ${mission['count']}마리\n'
-          '선착순 1명 2,000P!';
-    } else {
-      return '$greeting\n'
-          '오늘 미션 종료 😊\n'
-          '내일 미션도\n기대해 주세요!';
-    }
+    // 🧩 개인별 일일 퀘스트: 오늘 안에 완료하면 누구나 보상 (선착순/이벤트시간 없음)
+    return '$greeting\n'
+        '🏆 오늘의 일일 퀘스트!\n'
+        '🎣 ${mission['loc']}\n'
+        '🐟 ${mission['fish']} ${mission['count']}마리 잡기\n'
+        '✅ 오늘 안에 완료하면 2,000P 지급!';
   }
 
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)

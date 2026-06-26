@@ -108,13 +108,7 @@ class _LobbyScreenState extends State<LobbyScreen> {
 
   String _getBriefingText() {
   final mission = _getTodayMission();
-  final eventHour = _getTodayEventHour();
   final currentHour = DateTime.now().hour;
-  String amPm = eventHour >= 12 ? "오후" : "오전";
-  int displayHour = eventHour >= 12 ? (eventHour == 12 ? 12 : eventHour - 12) : eventHour;
-  // ⏰ 미션은 1시간 동안 진행 — 종료 시각 계산
-  int endHour = eventHour + 1;
-  int displayEndHour = endHour >= 12 ? (endHour == 12 ? 12 : endHour - 12) : endHour;
 
   // 시간대별 인사말
   String greeting = "안녕하세요! 😊";
@@ -122,24 +116,12 @@ class _LobbyScreenState extends State<LobbyScreen> {
 else if (currentHour >= 12 && currentHour < 18) { greeting = "안녕하세요! ☕"; }
 else { greeting = "밤낚시 오셨군요! 🌙"; }
 
-  if (currentHour < eventHour) {
-    return "$greeting\n"
-           "🏆 오늘의 미션입니다.\n"
-           "⏰ $amPm $displayHour시 ~ $displayEndHour시 (1시간)\n"
-           "🎣 ${mission['loc']}\n"
-           "🐟 ${mission['fish']} ${mission['count']}마리 먼저 잡기!\n"
-           "1등 상금은 2,000P 입니다.";
-  } else if (currentHour == eventHour) {
-    return "$greeting\n"
-           "🔥 지금 바로! ($amPm $displayEndHour시 까지)\n"
-           "🎣 ${mission['loc']}\n"
-           "🐟 ${mission['fish']} ${mission['count']}마리\n"
-           "선착순 1명 2,000P!";
-  } else {
-    return "$greeting\n"
-           "오늘 미션 종료 😊\n"
-           "내일 미션도\n기대해 주세요!";
-  }
+  // 🧩 개인별 일일 퀘스트: 오늘 안에 완료하면 누구나 보상 (선착순/이벤트시간 없음)
+  return "$greeting\n"
+         "🏆 오늘의 일일 퀘스트!\n"
+         "🎣 ${mission['loc']}\n"
+         "🐟 ${mission['fish']} ${mission['count']}마리 잡기\n"
+         "✅ 오늘 안에 완료하면 2,000P 지급!";
 }
   
   // 💰 매일 첫 접속 500P 지급 & 날짜 체크 로직

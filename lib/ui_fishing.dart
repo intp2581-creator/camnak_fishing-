@@ -2665,7 +2665,7 @@ void _showTodayMissionInfo() {
           const SizedBox(height: 10),
           const Text('📢 오늘의 미션!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Text('${mission['loc']}에서\n${mission['fish']} ${mission['count']}마리를 잡으세요!\n\n선착순 1명 🏆 ${mission['prize']}P 지급!',
+          Text('${mission['loc']}에서\n${mission['fish']} ${mission['count']}마리를 잡으세요!\n\n완료 시 🏆 ${mission['prize']}P 지급!',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6)),
         ],
@@ -2737,58 +2737,43 @@ void _showTodayMissionInfo() {
     // 🚨 [핵심!] 지금 있는 낚시터가 미션 장소가 아니거나, 고기 이름이 다르면 가차 없이 탈락!
     if (widget.locationName != mission['loc'] || fishName != mission['fish']) return;
 
-    // ⏰ [시간 제한] 안내한 이벤트 시각(1시간) 안에서만 미션 완수 인정! (로비 _getTodayEventHour와 동일 로직)
-    const List<int> eventHours = [14, 15, 16, 19, 20, 21];
-    int eventHour = eventHours[(now.day + now.month) % eventHours.length];
-    if (now.hour != eventHour) return; // 미션 시간이 아니면 카운트 안 함
-
+    // 🧩 [개인별 일일 퀘스트] 선착순/이벤트시간/전역 핫문서 제거 → 누구나 오늘 안에 완료하면 개인 보상.
+    //    진행도·보상은 모두 '내 문서'에만 기록 → 동시접속 폭주에도 경합/핫스팟 없음.
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    String today = DateTime.now().toIso8601String().substring(0, 10);
-    final missionRef = FirebaseFirestore.instance.collection('global_missions').doc(today);
+    final today = DateTime.now().toIso8601String().substring(0, 10);
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final need = (mission['count'] is num) ? (mission['count'] as num).toInt() : 3;
+    final prize = (mission['prize'] is num) ? (mission['prize'] as num).toInt() : 2000;
 
     try {
+      bool justCompleted = false;
       await FirebaseFirestore.instance.runTransaction((transaction) async {
-        // 1. 이미 1등이 나왔나?
-        DocumentSnapshot missionDoc = await transaction.get(missionRef);
-        if (missionDoc.exists && missionDoc.data() != null) {
-          var data = missionDoc.data() as Map<String, dynamic>;
-          if (data.containsKey('winner_uid') && data['winner_uid'] != '') {
-            return; // 😭 누군가 이미 1등을 가져감
-          }
-        }
-
-        // 2. 내 오늘 미션 고기 잡은 마릿수 확인
-        DocumentSnapshot userDoc = await transaction.get(userRef);
-        int myTodayCatch = 0;
+        final userDoc = await transaction.get(userRef);
+        int count = 0;
+        bool rewarded = false;
         if (userDoc.exists && userDoc.data() != null) {
-          var uData = userDoc.data() as Map<String, dynamic>;
-          if (uData.containsKey('mission_progress') && uData['mission_progress']['date'] == today) {
-            myTodayCatch = uData['mission_progress']['count'] ?? 0;
+          final uData = userDoc.data() as Map<String, dynamic>;
+          final mp = uData['mission_progress'];
+          if (mp is Map && mp['date'] == today) {
+            count = (mp['count'] is num) ? (mp['count'] as num).toInt() : 0;
+            rewarded = mp['rewarded'] == true;
           }
         }
+        if (rewarded) return; // 오늘 이미 완료·보상 받음
 
-        myTodayCatch += 1; // 방금 1마리 잡았으니 +1
-
-        // 3. 내 카운트 저장 (DB 업데이트)
+        count += 1;
+        final done = count >= need;
         transaction.set(userRef, {
-          'mission_progress': { 'date': today, 'count': myTodayCatch }
+          if (done) 'gold': FieldValue.increment(prize), // 🏆 완료 즉시 개인 보상(크래시 안전)
+          'mission_progress': {'date': today, 'count': count, 'rewarded': done},
         }, SetOptions(merge: true));
-
-        // 🎯 [사장님 룰 적용] 딱! 지정된 마릿수 달성하는 '그 순간'에만 1등 판정!
-        if (myTodayCatch >= mission['count']) {
-          transaction.set(missionRef, {
-            'winner_uid': user.uid,
-            'winner_name': widget.nickname,
-            'time': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-
-          // 💰 상금은 팝업에서 '보상받기'를 눌렀을 때 지급! (여기선 당첨 기록만)
-          // 화면에 1등 팝업 띄우기
-          Future.microtask(() => _showMissionWinnerPopup(mission));
-        }
+        if (done) justCompleted = true;
       });
+
+      if (justCompleted && mounted) {
+        _showMissionWinnerPopup(mission); // 완료 축하 팝업 (보상은 이미 지급됨)
+      }
     } catch (e) {
       print("미션 트랜잭션 에러: $e");
     }
@@ -2816,7 +2801,7 @@ void _showTodayMissionInfo() {
             const Text('🎉 축하합니다! 🎉', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 24, fontWeight: FontWeight.w900)),
             const SizedBox(height: 12),
             Text(
-              '[${widget.nickname}] 조사님!\n오늘의 선착순 ${mission['fish']} ${mission['count']}마리 미션을\n가장 먼저 달성하셨습니다!',
+              '[${widget.nickname}] 조사님!\n오늘의 ${mission['fish']} ${mission['count']}마리 미션을\n완료하셨습니다!',
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5),
             ),
@@ -2831,7 +2816,7 @@ void _showTodayMissionInfo() {
               ),
               child: Column(
                 children: [
-                  const Text('상금을 수령하세요 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text('보상이 지급되었습니다 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Text('+ ${mission['prize']} P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 30, fontWeight: FontWeight.w900)),
                 ],
@@ -2845,51 +2830,8 @@ void _showTodayMissionInfo() {
           Center(
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-              onPressed: () async {
-                Navigator.pop(ctx);
-                // 💰 '보상받기'를 눌러야 실제로 상금 지급!
-                final u = FirebaseAuth.instance.currentUser;
-                if (u != null) {
-                  await FirebaseFirestore.instance.collection('users').doc(u.uid).set({
-                    'gold': FieldValue.increment(mission['prize'])
-                  }, SetOptions(merge: true));
-                }
-                // ✅ 지급 완료 안내 팝업 (스낵바 대신 일관성 있게 팝업창으로!)
-                if (mounted) {
-                  showDialog(
-                    context: context,
-                    builder: (c) => AlertDialog(
-                      backgroundColor: Colors.black.withOpacity(0.95),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                        side: const BorderSide(color: Color(0xFFD4AF37), width: 2.5),
-                      ),
-                      content: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('💰 보상 수령 완료!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 22, fontWeight: FontWeight.w900)),
-                          const SizedBox(height: 14),
-                          Text(
-                            '상금 ${mission['prize']}P가\n지급되었습니다!',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, height: 1.5),
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        Center(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-              },
-              child: const Text('보상받기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              onPressed: () => Navigator.pop(ctx), // 보상은 트랜잭션에서 이미 지급됨
+              child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           )
         ],
