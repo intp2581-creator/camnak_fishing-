@@ -2067,7 +2067,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           Row(children: [
             Text('Lv.$_level', style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.w900)),
             const SizedBox(width: 8),
-            Text(calcRankFromExp(currentExp),
+            Text(calcRankFromLevel(_level),
                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
             const Spacer(),
             if (_guildName.isNotEmpty)

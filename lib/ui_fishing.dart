@@ -1499,7 +1499,7 @@ Positioned(
 
     // 🆙 100레벨 개편: 경험치 테이블/칭호 공용 함수 사용 (game_config)
     int realLevel = calcLevelFromExp(realExp);
-    realRank = calcRankFromExp(realExp);
+    realRank = calcRankFromLevel(realLevel);
     int prevLevelExp = globalExpTable[realLevel];
     int nextLevelExp = realLevel < globalMaxLevel ? globalExpTable[realLevel + 1] : globalExpTable[globalMaxLevel];
 
