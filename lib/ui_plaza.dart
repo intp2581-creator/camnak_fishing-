@@ -105,8 +105,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     databaseURL: 'https://camnak-fishing-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
   DatabaseReference? _myRef;
-  StreamSubscription<DatabaseEvent>? _roomSub;
-  Map<String, Map<String, dynamic>> _others = {};
+  final List<StreamSubscription<DatabaseEvent>> _presenceSubs = []; // 채널 child 이벤트 구독들
+  final Map<String, Map<String, dynamic>> _others = {};
   String get _roomKey => widget.isSea ? 'sea' : 'fresh';
 
   // 🧩 광장 채널 샤딩: 정원 차면 자동으로 ch2, ch3… 생성 (스파이크 대비)
@@ -321,7 +321,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void dispose() {
     _walkCtrl.dispose();
     _joyTimer?.cancel();
-    _roomSub?.cancel();
+    for (final s in _presenceSubs) {
+      s.cancel();
+    }
+    _presenceSubs.clear();
     _userSub?.cancel();
     _leagueSub?.cancel();
     _myRef?.remove();
@@ -510,39 +513,50 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-    _roomSub = _db.ref('plaza/$_channelKey').onValue.listen((event) {
-      final val = event.snapshot.value;
-      final next = <String, Map<String, dynamic>>{};
-      if (val is Map) {
-        val.forEach((k, v) {
-          if (k.toString() == uid || v is! Map) return; // 나 제외
-          final kk = k.toString();
-          next[kk] = {
-            'nick': v['nick']?.toString() ?? '조사',
-            'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
-            'guild': v['guild']?.toString() ?? '',
-            'champ': v['champ'] == true,
-            'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
-            'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
-            'face': v['face'] == true,
-          };
-          // 💬 말풍선: 메시지 타임스탬프가 새로 바뀌면 5초 표시 (처음 본 유저의 옛 메시지는 무시)
-          final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
-          final mmsg = v['msg']?.toString() ?? '';
-          if (mt != (_lastMsgT[kk] ?? -1)) {
-            final firstSeen = !_lastMsgT.containsKey(kk);
-            _lastMsgT[kk] = mt;
-            if (!firstSeen && mt > 0 && mmsg.isNotEmpty) {
-              _bubbleMsg[kk] = mmsg;
-              _bubbleUntil[kk] = DateTime.now().add(const Duration(seconds: 5));
-            }
-          }
-        });
+    // 🧩 [최적화] 전체(onValue) 대신 child 이벤트로 바뀐 사람만 수신 → 페이로드 ~정원배 절감
+    final ref = _db.ref('plaza/$_channelKey');
+    onErr(Object e) => debugPrint('🌐 RTDB READ ERR: $e');
+    _presenceSubs.add(ref.onChildAdded.listen((e) => _applyOther(uid, e), onError: onErr));
+    _presenceSubs.add(ref.onChildChanged.listen((e) => _applyOther(uid, e), onError: onErr));
+    _presenceSubs.add(ref.onChildRemoved.listen(_removeOther, onError: onErr));
+  }
+
+  // child(add/change) → 그 유저만 갱신
+  void _applyOther(String myUid, DatabaseEvent event) {
+    final k = event.snapshot.key;
+    final v = event.snapshot.value;
+    if (k == null || k == myUid || v is! Map) return; // 나 제외
+    final data = {
+      'nick': v['nick']?.toString() ?? '조사',
+      'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
+      'guild': v['guild']?.toString() ?? '',
+      'champ': v['champ'] == true,
+      'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
+      'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
+      'face': v['face'] == true,
+    };
+    // 💬 말풍선: 메시지 타임스탬프가 새로 바뀌면 5초 표시 (처음 본 유저의 옛 메시지는 무시)
+    final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
+    final mmsg = v['msg']?.toString() ?? '';
+    if (mt != (_lastMsgT[k] ?? -1)) {
+      final firstSeen = !_lastMsgT.containsKey(k);
+      _lastMsgT[k] = mt;
+      if (!firstSeen && mt > 0 && mmsg.isNotEmpty) {
+        _bubbleMsg[k] = mmsg;
+        _bubbleUntil[k] = DateTime.now().add(const Duration(seconds: 5));
       }
-      if (mounted) setState(() => _others = next);
-    }, onError: (Object e) {
-      debugPrint('🌐 RTDB READ ERR: $e');
-    });
+    }
+    if (mounted) setState(() => _others[k] = data);
+  }
+
+  // child(remove) → 그 유저 제거
+  void _removeOther(DatabaseEvent event) {
+    final k = event.snapshot.key;
+    if (k == null) return;
+    _lastMsgT.remove(k);
+    _bubbleMsg.remove(k);
+    _bubbleUntil.remove(k);
+    if (mounted) setState(() => _others.remove(k));
   }
 
   void _writeMe() {
