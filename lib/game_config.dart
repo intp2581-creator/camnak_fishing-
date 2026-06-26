@@ -24,6 +24,7 @@ Map<String, dynamic>? globalEquippedSkin;
 Map<String, dynamic>? globalEquippedSunglasses;
 Map<String, dynamic>? globalEquippedBadge;
 Map<String, dynamic>? globalEquippedReel;
+Map<String, dynamic>? globalEquippedCooler; // 🧊 발밑 슬롯(아이스박스/쿨러) — 신발 대신
 bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 
 

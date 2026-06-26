@@ -2230,7 +2230,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('릴/찌', Icons.album, reelOrFloat),
                               _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
-                              _equipSlot('신발', Icons.directions_walk, null),
+                              _equipSlot('아이스박스', Icons.ac_unit, globalEquippedCooler),
                             ]),
                           ]),
                         ),
