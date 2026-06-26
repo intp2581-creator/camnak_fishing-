@@ -15,7 +15,6 @@ import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
-import 'mission_announcement.dart'; // 📢 미션 1등 공지 (로비와 공용)
 
 
 // 🎣 [메인 낚시터 화면]
@@ -337,7 +336,6 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedCooler; // 🧊 아이스박스(발밑 슬롯, 민물·바다 공용)
 
   // 📡 실시간 핫타임 중계 감시용 변수
-  StreamSubscription<DocumentSnapshot>? _missionListener;
  
   bool isFighting = false;
   bool isPulling = false; 
@@ -413,8 +411,7 @@ Widget _buildChatTab(int index, String title) {
 
   @override
   void initState() {
-  super.initState();  
-    _startMissionListener();
+  super.initState();
     _lastGaramTime = DateTime.now().add(const Duration(minutes: 10));
 
     // 🚀 [추가] 낚시터 입장 시 윤슬이 출입증 검사!
@@ -568,46 +565,11 @@ Widget _buildChatTab(int index, String title) {
     _clearAllBiteTimers();
     _rodController.dispose();
     _castController.dispose();
-    _missionListener?.cancel();
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
     audioManager.stopEfx();
     super.dispose();
-  }
-
-// 📡 실시간 핫타임 중계 감시 센터
-  void _startMissionListener() {
-    String today = DateTime.now().toIso8601String().substring(0, 10); // 오늘 날짜
-    
-    _missionListener = FirebaseFirestore.instance
-        .collection('global_missions') // 🚨 사장님의 핫타임 컬렉션 이름과 맞춰주세요!
-        .doc(today)
-        .snapshots()
-        .listen((doc) {
-      if (!doc.exists) return;
-      final data = doc.data() as Map<String, dynamic>;
-
-      // 🥇 [핵심 패치] 1등 독식 룰! (2, 3등은 이제 안 찾습니다!)
-      String winnerKey = 'winner_uid';
-      String nameKey = 'winner_name';
-
-      // 당첨자가 있고, 아직 전광판에 안 띄운 사람이면?
-      if (data.containsKey(winnerKey) && !globalAnnouncedWinners.contains(data[winnerKey])) {
-        String winnerName = data[nameKey] ?? "무명조사";
-        globalAnnouncedWinners.add(data[winnerKey]); // 장부에 기록!
-
-        // 📢 모든 유저 화면에 전광판 발사! (등수는 1등 고정!)
-        // 💰 상금 지급은 _checkDailyMission 트랜잭션에서 이미 처리됨 (여기서 또 주면 중복 지급!)
-        _showGlobalWinnerAnnouncement(1, winnerName);
-      } // 👈 1등 당첨 확인 if문 끝
-    }); // 👈 핫타임 감시 CCTV(.listen) 끝
-  } // 👈 _startMissionListener() 함수 끝
-
-  // 📢 미션 1등 공지 — 공용 함수(mission_announcement.dart)로 위임. 로비와 동일 팝업!
-  void _showGlobalWinnerAnnouncement(int rank, String name) {
-    if (!mounted) return;
-    showGlobalWinnerAnnouncement(context, name);
   }
 
 // 🚫 바다, 타 지역 & 경력직 유저 윤슬이 접근 금지 로직
