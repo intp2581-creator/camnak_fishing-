@@ -233,7 +233,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         '🏆 오늘의 일일 퀘스트!\n'
         '🎣 ${mission['loc']}\n'
         '🐟 ${mission['fish']} ${mission['count']}마리 잡기\n'
-        '✅ 오늘 안에 완료하면 2,000P 지급!';
+        '✅ 오늘 안에 완료하면 500P 지급!';
   }
 
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)

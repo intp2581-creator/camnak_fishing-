@@ -2687,43 +2687,43 @@ void _showTodayMissionInfo() {
     // 1. 사장님표 1성 낚시터 생태계 100% 반영!
     final List<Map<String, dynamic>> missionPool = [
       // 🏞️ [민물 1성] 예산 예당지 (7종) - 로비 missionPool과 동일하게 유지!
-      {'loc': '예산 예당지', 'fish': '붕어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '블루길', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '살치', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '베스', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '잉어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 예당지', 'fish': '메기', 'count': 3, 'prize': 2000},
+      {'loc': '예산 예당지', 'fish': '붕어', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '블루길', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '살치', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '베스', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '잉어', 'count': 3, 'prize': 500},
+      {'loc': '예산 예당지', 'fish': '메기', 'count': 3, 'prize': 500},
 
       // 🏞️ [민물 1성] 예산 신양수로 (6종) - 로비 missionPool과 동일하게 유지!
-      {'loc': '예산 신양수로', 'fish': '붕어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 신양수로', 'fish': '떡붕어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 신양수로', 'fish': '베스', 'count': 3, 'prize': 2000},
-      {'loc': '예산 신양수로', 'fish': '잉어', 'count': 3, 'prize': 2000},
-      {'loc': '예산 신양수로', 'fish': '메기', 'count': 3, 'prize': 2000},
-      {'loc': '예산 신양수로', 'fish': '가물치', 'count': 3, 'prize': 2000},
+      {'loc': '예산 신양수로', 'fish': '붕어', 'count': 3, 'prize': 500},
+      {'loc': '예산 신양수로', 'fish': '떡붕어', 'count': 3, 'prize': 500},
+      {'loc': '예산 신양수로', 'fish': '베스', 'count': 3, 'prize': 500},
+      {'loc': '예산 신양수로', 'fish': '잉어', 'count': 3, 'prize': 500},
+      {'loc': '예산 신양수로', 'fish': '메기', 'count': 3, 'prize': 500},
+      {'loc': '예산 신양수로', 'fish': '가물치', 'count': 3, 'prize': 500},
 
       // 🌊 [바다 1성] 통영 척포 갯바위 (9종)
-      {'loc': '통영 척포 갯바위', 'fish': '고등어', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '우럭', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '갈치', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '참돔', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '광어', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '감성돔', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '갑오징어', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '주꾸미', 'count': 3, 'prize': 2000},
-      {'loc': '통영 척포 갯바위', 'fish': '문어', 'count': 3, 'prize': 2000},
+      {'loc': '통영 척포 갯바위', 'fish': '고등어', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '우럭', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '갈치', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '참돔', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '광어', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '감성돔', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '갑오징어', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '주꾸미', 'count': 3, 'prize': 500},
+      {'loc': '통영 척포 갯바위', 'fish': '문어', 'count': 3, 'prize': 500},
 
       // 🌊 [바다 1성] 거제 선상 (9종)
-      {'loc': '거제 선상', 'fish': '고등어', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '우럭', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '갈치', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '참돔', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '광어', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '감성돔', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '갑오징어', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '주꾸미', 'count': 3, 'prize': 2000},
-      {'loc': '거제 선상', 'fish': '문어', 'count': 3, 'prize': 2000},
+      {'loc': '거제 선상', 'fish': '고등어', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '우럭', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '갈치', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '참돔', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '광어', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '감성돔', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '갑오징어', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '주꾸미', 'count': 3, 'prize': 500},
+      {'loc': '거제 선상', 'fish': '문어', 'count': 3, 'prize': 500},
     ];
 
     // 🎯 [핵심] 모든 유저가 "동일한 랜덤 미션"을 받도록 날짜 시드(Seed) 동기화!
@@ -2744,7 +2744,7 @@ void _showTodayMissionInfo() {
     final today = DateTime.now().toIso8601String().substring(0, 10);
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final need = (mission['count'] is num) ? (mission['count'] as num).toInt() : 3;
-    final prize = (mission['prize'] is num) ? (mission['prize'] as num).toInt() : 2000;
+    final prize = (mission['prize'] is num) ? (mission['prize'] as num).toInt() : 500;
 
     try {
       bool justCompleted = false;
