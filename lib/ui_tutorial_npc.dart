@@ -77,7 +77,7 @@ class NpcTutorialOverlay extends StatelessWidget {
             
             // 💡 3. 하단: 버튼(있으면) 또는 터치 유도 안내
             Positioned(
-              bottom: 30,
+              bottom: 110,
               left: 0, right: 0,
               child: Center(
                 child: action ??
