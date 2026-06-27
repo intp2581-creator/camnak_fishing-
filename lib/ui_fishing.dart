@@ -1392,7 +1392,7 @@ void _recast() {  // 기존 코드
                           child: Image.asset(currentCharacterImg, fit: BoxFit.contain, errorBuilder: (c, e, s) => const SizedBox.shrink()),
                         ),
                         if (equippedSunglasses != null)
-                          Positioned(bottom: 351, left:222, child: Image.asset('assets/items/item_sunglasses.png', width: 36, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
+                          Positioned(bottom: 351, left:222, child: Image.asset('assets/items/${equippedSunglasses!['icon'] ?? 'item_sunglasses.png'}', width: 36, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
                         if (equippedBadge != null)
                           Positioned(bottom: 290, left: 250, child: Image.asset(equippedBadge!['name'].toString().contains('민물') ? 'assets/items/item_badge_fw.png' : 'assets/items/item_badge_sea.png', width: 28, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
                         if (equippedRod != null)
@@ -2418,6 +2418,7 @@ Positioned(
                           if (equippedSunglasses != null && equippedSunglasses!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedBadge != null && equippedBadge!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedReel != null && equippedReel!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedCooler != null && equippedCooler!['name'] == iName) isCurrentlyEquipped = true;
                           
                           return GestureDetector(
                             onTap: () {

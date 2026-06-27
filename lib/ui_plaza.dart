@@ -2074,8 +2074,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
-  Widget _statBreakRow(String name, Color color, int equipV, int guildV, int champV) {
-    final total = 10 + equipV + guildV + champV;
+  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV) {
+    final total = 10 + equipV + levelV + guildV + champV;
     Widget chip(String t, Color c) => Text(t,
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
     return Padding(
@@ -2095,6 +2095,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           child: Wrap(spacing: 6, children: [
             chip('기본 10', Colors.white54),
             if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
+            if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
             if (champV != 0) chip('👑 +$champV', _kGold),
           ]),
@@ -2118,9 +2119,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final eS = (equip['sensitivity'] ?? 10) - 10;
 
     Widget body(int gLevel) {
+      final lvB = (_level - 1) < 0 ? 0 : (_level - 1); // 🆙 레벨 보너스(각 +1/레벨) — 낚시 전투력과 동일
       final gB = FishingLogic.guildStatBonus(gLevel);
       final cB = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
-      final totP = 10 + eP + gB + cB, totC = 10 + eC + gB + cB, totS = 10 + eS + gB + cB;
+      final totP = 10 + eP + lvB + gB + cB, totC = 10 + eC + lvB + gB + cB, totS = 10 + eS + lvB + gB + cB;
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2138,12 +2140,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           Text('경험치 $currentExp · 포인트 $_gold',
               style: const TextStyle(color: Colors.white54, fontSize: 11)),
           const Divider(color: Colors.white12, height: 18),
-          const Text('능력치 (기본 + 장비 + 길드 + 챔피언)',
+          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, gB, cB),
-          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, gB, cB),
-          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, gB, cB),
+          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB),
+          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB),
+          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB),
           const Divider(color: Colors.white12, height: 18),
           Container(
             width: double.infinity,
