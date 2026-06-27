@@ -560,6 +560,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
+            't': (v['t'] is num) ? (v['t'] as num).toInt() : 0, // 마지막 갱신 시각(고스트 필터용)
           };
           final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
           final mmsg = v['msg']?.toString() ?? '';
@@ -1724,8 +1725,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             ),
                           ),
                         ),
-                        // 🌐 다른 유저들 (실시간)
+                        // 🌐 다른 유저들 (실시간) — 45초 이상 갱신 없는 고스트는 숨김(onDisconnect 누락 대비)
                         ..._others.entries
+                            .where((e) =>
+                                DateTime.now().millisecondsSinceEpoch -
+                                    ((e.value['t'] as int?) ?? 0) <
+                                45000)
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
