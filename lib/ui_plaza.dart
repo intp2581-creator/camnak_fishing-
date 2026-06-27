@@ -1205,10 +1205,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'message': text,
       'type': type,
       'receiver': receiver,
+      'channel': _channelKey ?? '', // 🧩 전체 채팅은 같은 채널끼리만
       'timestamp': FieldValue.serverTimestamp(),
     });
-    // 💬 전체 채팅이면 RTDB에 실어서 머리 위 말풍선으로 (귓속말은 제외)
-    if (type == 'global') {
+    // 💬 전체 채팅(탭0)만 머리 위 말풍선 — 귓속말/길드챗/친구는 말풍선 X
+    if (_chatTab == 0) {
       _myRef?.update({'msg': text, 'msgT': ServerValue.timestamp})
           .catchError((Object e) => debugPrint('🌐 RTDB MSG ERR: $e'));
       setState(() {
@@ -1460,7 +1461,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               .collection('global_chat')
                               .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
                               .orderBy('timestamp', descending: true)
-                              .limit(30)
+                              .limit(20)
                               .snapshots(),
                           builder: (c, snap) {
                             if (!snap.hasData) return const SizedBox.shrink();
@@ -1479,8 +1480,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                   if (type != 'whisper') return const SizedBox.shrink();
                                   if (sender != me && receiver != me) return const SizedBox.shrink();
                                 } else {
-                                  // 전체 탭: 남의 귓속말은 숨김
-                                  if (type == 'whisper' && sender != me && receiver != me) {
+                                  // 전체 탭: 귓속말은 아예 숨김 + 같은 채널 전체채팅만 (공지는 전 채널)
+                                  if (type == 'whisper') return const SizedBox.shrink();
+                                  if (type != 'notice' &&
+                                      (d['channel'] ?? '') != (_channelKey ?? '')) {
                                     return const SizedBox.shrink();
                                   }
                                 }
