@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:html' as html; // 전체화면 토글
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ⌨️ 키보드(WASD) 이동
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -262,6 +263,51 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     _loadUser();
     _playPlazaBgm(); // 🎵 광장 배경음악 (옛 로비 BGM)
+    HardwareKeyboard.instance.addHandler(_onHwKey); // ⌨️ PC 키보드(WASD/화살표) 이동
+  }
+
+  // ⌨️ PC 키보드 이동 (WASD + 화살표). 채팅 입력 중엔 무시.
+  final Set<LogicalKeyboardKey> _pressedKeys = {};
+  bool _onHwKey(KeyEvent e) {
+    // 채팅 등 텍스트 입력 중이면 이동 안 함(타이핑 우선)
+    if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) return false;
+    const moveKeys = {
+      LogicalKeyboardKey.keyW, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyS, LogicalKeyboardKey.keyD,
+      LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight,
+    };
+    if (!moveKeys.contains(e.logicalKey)) return false;
+    if (e is KeyDownEvent || e is KeyRepeatEvent) {
+      _pressedKeys.add(e.logicalKey);
+    } else if (e is KeyUpEvent) {
+      _pressedKeys.remove(e.logicalKey);
+    }
+    _applyKeyboardMove();
+    return true; // 방향키 페이지 스크롤 방지
+  }
+
+  void _applyKeyboardMove() {
+    bool down(LogicalKeyboardKey a, LogicalKeyboardKey b) =>
+        _pressedKeys.contains(a) || _pressedKeys.contains(b);
+    double dx = 0, dy = 0;
+    if (down(LogicalKeyboardKey.keyA, LogicalKeyboardKey.arrowLeft)) dx -= 1;
+    if (down(LogicalKeyboardKey.keyD, LogicalKeyboardKey.arrowRight)) dx += 1;
+    if (down(LogicalKeyboardKey.keyW, LogicalKeyboardKey.arrowUp)) dy -= 1;
+    if (down(LogicalKeyboardKey.keyS, LogicalKeyboardKey.arrowDown)) dy += 1;
+    if (dx == 0 && dy == 0) {
+      _joyTimer?.cancel();
+      _joyTimer = null;
+      if (mounted) setState(() { _joyDir = Offset.zero; _walking = false; });
+      _walkCtrl.stop();
+      _walkCtrl.value = 0;
+      _sendPos();
+      return;
+    }
+    var dir = Offset(dx, dy);
+    if (dir.distance > 1) dir = dir / dir.distance; // 대각선 정규화
+    if (mounted) setState(() => _joyDir = dir);
+    _moveToken++;
+    if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
+    _joyTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) => _joyTick());
   }
 
   // 🎵 광장 배경음악 (낚시/아레나 다녀오면 다시 재생)
@@ -307,6 +353,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onHwKey); // ⌨️ 키보드 핸들러 해제
     _walkCtrl.dispose();
     _joyTimer?.cancel();
     for (final s in _presenceSubs) {
@@ -893,8 +940,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   Widget _joystick() {
     return Positioned(
-      right: 34,
-      bottom: 34,
+      right: 70,
+      bottom: 110, // 모바일 엄지로 조작하기 편하게 구석에서 안쪽·위로
+
       child: GestureDetector(
         onPanDown: (d) => _joyStart(d.localPosition - const Offset(_joyRadius, _joyRadius)),
         onPanUpdate: (d) => _joyMove(d.localPosition - const Offset(_joyRadius, _joyRadius)),
