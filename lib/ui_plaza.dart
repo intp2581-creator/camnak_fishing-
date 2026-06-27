@@ -177,6 +177,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
   bool _showQuest = false;
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
+  bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   final List<Map<String, dynamic>> _missionPool = [
     {'loc': '예산 예당지', 'fish': '붕어', 'count': 3},
     {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3},
@@ -227,6 +228,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       greeting = '안녕하세요! ☕';
     } else {
       greeting = '밤낚시 오셨군요! 🌙';
+    }
+    // #11 오늘 미션 완료했으면 완료 메시지
+    if (_questDone) {
+      return '$greeting\n'
+          '🎉 오늘 일일 퀘스트 완료!\n'
+          '🎣 ${mission['loc']}\n'
+          '🐟 ${mission['fish']} ${mission['count']}마리 달성\n'
+          '💰 보상 500P 수령 완료! 내일도 도전해요!';
     }
     // 🧩 개인별 일일 퀘스트: 오늘 안에 완료하면 누구나 보상 (선착순/이벤트시간 없음)
     return '$greeting\n'
@@ -362,18 +371,41 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         .snapshots()
         .listen((doc) {
       final d = doc.data() ?? {};
+      if (!mounted) return;
       final gid = (d['guildId'] ?? '').toString();
       final gname = (d['guildName'] ?? '').toString();
-      if (!mounted) return;
-      if (gid != _guildId || gname != _guildName) {
-        setState(() {
+      // 💰 #10/#12: 포인트·경험치·레벨·인벤토리 실시간 반영 (구매/판매/획득 즉시)
+      final newGold = (d['gold'] ?? 0) is num ? (d['gold'] as num).toInt() : 0;
+      final newExp = (d['exp'] ?? 0) is num ? (d['exp'] as num).toInt() : 0;
+      final newLevel = calcLevelFromExp(newExp);
+      final levelChanged = newLevel != _level;
+      final guildChanged = gid != _guildId || gname != _guildName;
+      // #11 오늘 일일 퀘스트 완료 여부
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final mp = d['mission_progress'];
+      final questDone = mp is Map && mp['date'] == today && mp['rewarded'] == true;
+      setState(() {
+        _gold = newGold;
+        currentPoints = newGold;
+        currentExp = newExp;
+        _level = newLevel;
+        _questDone = questDone;
+        _inventory = (d['inventory'] ?? []) as List<dynamic>;
+        if (guildChanged) {
           _guildId = gid;
           _guildName = gname;
-          // 길드 나가면 길드 채팅 탭에서 전체로 복귀
           if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
-        });
-        _recomputeChampion(); // 길드 바뀌면 챔피언 여부 재계산
-        // 머리 위 길드명 즉시 갱신(다른 유저에게도 반영)
+        }
+      });
+      // 🛡️ #1: 레벨 바뀌면 길드원 목록의 내 레벨도 즉시 갱신
+      if (levelChanged && _guildId.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('guilds').doc(_guildId).collection('members').doc(user.uid)
+            .set({'level': newLevel, 'nickname': widget.nickname}, SetOptions(merge: true))
+            .catchError((Object e) => debugPrint('🛡️ 길드원 레벨 갱신 실패: $e'));
+      }
+      if (guildChanged) {
+        _recomputeChampion();
         _writeMe();
       }
     });
@@ -1859,11 +1891,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.7),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _kGold),
-                boxShadow: [BoxShadow(color: _kGold.withOpacity(0.5), blurRadius: 8)],
+                border: Border.all(color: _questDone ? const Color(0xFF7FFFB0) : _kGold),
+                boxShadow: [BoxShadow(color: (_questDone ? const Color(0xFF7FFFB0) : _kGold).withOpacity(0.5), blurRadius: 8)],
               ),
-              child: const Text('📋 일일퀘스트',
-                  style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+              child: Text(_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트',
+                  style: TextStyle(color: _questDone ? const Color(0xFF7FFFB0) : _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 2),
             SizedBox(
@@ -3028,6 +3060,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _joinGuild(String uid, String gid, String gname) async {
     final fs = FirebaseFirestore.instance;
     final guildRef = fs.collection('guilds').doc(gid);
+    // #9 탈퇴 후 24시간 재가입 제한
+    try {
+      final usnap = await fs.collection('users').doc(uid).get();
+      final leftAt = usnap.data()?['leftGuildAt'];
+      if (leftAt is Timestamp) {
+        final diff = DateTime.now().difference(leftAt.toDate());
+        if (diff.inHours < 24) {
+          final remainH = 24 - diff.inHours;
+          final remainM = (60 - (diff.inMinutes % 60)) % 60;
+          _toast('길드 탈퇴 후 24시간이 지나야 다시 가입할 수 있어요.\n(약 $remainH시간 $remainM분 남음)');
+          return;
+        }
+      }
+    } catch (_) {}
     try {
       await fs.runTransaction((tx) async {
         final gsnap = await tx.get(guildRef);
@@ -3090,7 +3136,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final members = await guildRef.collection('members').get();
       final batch = fs.batch();
       for (final m in members.docs) {
-        batch.update(fs.collection('users').doc(m.id), {'guildId': '', 'guildName': ''});
+        // 해체한 길드장(본인)만 24h 재가입 제한 / 강제로 나가게 된 멤버는 제한 없음
+        batch.update(fs.collection('users').doc(m.id), {
+          'guildId': '', 'guildName': '',
+          if (m.id == uid) 'leftGuildAt': FieldValue.serverTimestamp(),
+        });
         batch.delete(m.reference);
       }
       batch.delete(guildRef);
@@ -3100,7 +3150,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final batch = fs.batch();
       batch.delete(guildRef.collection('members').doc(uid));
       batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
-      batch.update(fs.collection('users').doc(uid), {'guildId': '', 'guildName': ''});
+      batch.update(fs.collection('users').doc(uid),
+          {'guildId': '', 'guildName': '', 'leftGuildAt': FieldValue.serverTimestamp()}); // #9
       await batch.commit();
       _toast('길드를 탈퇴했어요.');
     }

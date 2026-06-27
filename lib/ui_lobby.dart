@@ -12,6 +12,7 @@ import 'ui_fishing.dart';
 import 'dart:html' as html;
 import 'ui_arena.dart';
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 장착!
+import 'ui_guild.dart'; // 🟢 길드 접속표시(presence)
 import 'package:flutter_tts/flutter_tts.dart'; // 🎙️ 목소리 부품 가져오기
 import 'mission_announcement.dart'; // 📢 미션 1등 공지 (낚시 화면과 공용)
 
@@ -173,6 +174,7 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
     super.initState();
     _checkDailyLogin(); // 🚀 [여기에 2단계 딱 1줄 추가!]
     audioManager.playBgm('bgm_menu.mp3');
+    guildGoOnline(); // 🟢 #6 로비에서도 접속표시(시간 소진 후 머무는 화면)
 
     // 🚀 처음 온 유저면 튜토리얼 스텝을 0으로 시작!
     if (widget.isFirstTime) {

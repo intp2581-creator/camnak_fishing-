@@ -212,8 +212,8 @@ for (var fish in availableFishes) {
     double range = baseMax - baseMin;
 
     double randValue = math.Random().nextDouble();
-    double bellCurveRandom = (math.Random().nextInt(100) < 10) 
-    ? randValue 
+    double bellCurveRandom = (math.Random().nextInt(100) < 14) // #5 대물(극단 사이즈) 확률 살짝↑
+    ? randValue
     : (randValue + math.Random().nextDouble() + math.Random().nextDouble()) / 3;
 if (isHotSpot) bellCurveRandom = math.pow(bellCurveRandom, 0.7).toDouble();
     double effectiveMin = baseMin + (range * minFactor);
@@ -230,7 +230,7 @@ if (effectiveMax < effectiveMin) effectiveMax = effectiveMin + (range * 0.1);
 if (sizeRatioInRange > 0.9) {
     double overRatio = (sizeRatioInRange - 0.9) / 0.1; // 0.0 ~ 1.0
   // 지수적으로 재추첨 확률 증가 (최상위는 99% 재추첨)
-    double rerollChance = math.pow(overRatio, 1.5).toDouble() * 0.99;
+    double rerollChance = math.pow(overRatio, 1.5).toDouble() * 0.92; // #5 대물 억제 살짝 완화
   if (math.Random().nextDouble() < rerollChance) {
     // 재추첨 → 해당 범위의 70~90% 구간으로 이동
     double safeRandom = 0.70 + math.Random().nextDouble() * 0.20;

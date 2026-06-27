@@ -930,9 +930,11 @@ Widget _buildChatTab(int index, String title) {
     setState(() {
       isFighting = true; // ⭐ 1. 앗! 고기 물었다! 파이팅 상태 켜기!
     });
+    _useBaitOne(); // 🪱 #2 입질(파이팅 시작)마다 미끼 1개 소모 — 승리·실패 동일
 
     Map<String, int> myStats = getMyTotalStats();
-    double totalStats = (myStats['strength'] ?? 0) + (myStats['control'] ?? 0) + (myStats['sensitivity'] ?? 0).toDouble();
+    final int lvBonus = ((_currentLevel > 0 ? _currentLevel : 1) - 1) * 3; // 🆙 레벨 보너스(제압력) 전투 반영
+    double totalStats = ((myStats['strength'] ?? 0) + (myStats['control'] ?? 0) + (myStats['sensitivity'] ?? 0) + lvBonus).toDouble();
 
     // 🎣 [내부 함수] 실제 파이팅 미니게임을 띄우는 로직
     void launchFightOverlay() {
@@ -1213,8 +1215,8 @@ int _getLocationStars() {
 void _recast() {  // 기존 코드
     if (!mounted || remainingTimeNotifier.value <= 0) return;
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
-    _useBaitOne();
-    
+    // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
+
     // 👩‍💼 [신규 3단계] 캐스팅 시 가람이 출근 조건 체크!
     final now = DateTime.now();
     
@@ -1470,15 +1472,31 @@ Positioned(
       if (_currentLevel == 0) { 
         _currentLevel = realLevel; // 처음 입장 시 팝업 띄우지 말고 조용히 현재 레벨만 기억!
       } else if (realLevel > _currentLevel) {
+        final oldRank = calcRankFromLevel(_currentLevel); // #13 승급 감지용
         _currentLevel = realLevel; // 찐으로 고기 잡아서 렙업했을 때만 팝업 발사!
         Future.delayed(const Duration(milliseconds: 600), () { if (mounted) _showLevelUpPopup(realLevel); });
+        // 🎖️ #13: 칭호가 바뀌면(승급) 축하 팝업 + 보상 지급
+        final newRank = calcRankFromLevel(realLevel);
+        if (newRank != oldRank) _grantPromotion(newRank);
+        // 🛡️ #1: 레벨업 즉시 길드원 목록의 내 레벨 갱신
+        if (_guildId.isNotEmpty) {
+          final u = FirebaseAuth.instance.currentUser;
+          if (u != null) {
+            FirebaseFirestore.instance.collection('guilds').doc(_guildId)
+                .collection('members').doc(u.uid)
+                .set({'level': realLevel, 'nickname': widget.nickname}, SetOptions(merge: true))
+                .catchError((Object e) => debugPrint('🛡️ 길드원 레벨 갱신 실패: $e'));
+          }
+        }
       }
     }
                   
-                  int levelBonus = (realLevel - 1) * 3; // 100레벨 개편: 만렙 제압력 보너스 ≈ 기존(약 290) 유지
+                  int levelEach = realLevel - 1; // 🆙 레벨업마다 힘·컨트롤·감도 각 +1 (제압력 +3)
                   Map<String, int> currentStats = getMyTotalStats();
-                  int equipP = currentStats['strength'] ?? 0; int equipC = currentStats['control'] ?? 0; int equipS = currentStats['sensitivity'] ?? 0;
-                  int myEquipSum = equipP + equipC + equipS; int myTotalPower = myEquipSum + levelBonus;
+                  int equipP = (currentStats['strength'] ?? 0) + levelEach;
+                  int equipC = (currentStats['control'] ?? 0) + levelEach;
+                  int equipS = (currentStats['sensitivity'] ?? 0) + levelEach;
+                  int myTotalPower = equipP + equipC + equipS;
                   double expPercent = (realLevel < globalMaxLevel) ? (realExp - prevLevelExp) / (nextLevelExp - prevLevelExp) : 1.0;
                   return Stack(
                     clipBehavior: Clip.none,
@@ -1520,6 +1538,40 @@ Positioned(
                           Text('$realExp / $nextLevelExp EXP', style: const TextStyle(color: Colors.white, fontSize: 14)),
                           const SizedBox(height: 10),
                           Text('point $realGold', style: const TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                          // 🛡️ #3 길드 경험치 실시간 진행바 (길드원이 잡으면 바로 차오름)
+                          if (_guildId.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: StreamBuilder<DocumentSnapshot>(
+                                stream: FirebaseFirestore.instance.collection('guilds').doc(_guildId).snapshots(),
+                                builder: (c, snap) {
+                                  final gexp = (snap.data?.data() as Map<String, dynamic>?)?['guildExp'];
+                                  final ge = (gexp is num) ? gexp.toInt() : 0;
+                                  final glv = FishingLogic.guildLevelFromExp(ge);
+                                  final tbl = FishingLogic.guildExpTable;
+                                  final curBase = (glv < tbl.length) ? tbl[glv] : 0;
+                                  final maxed = (glv + 1) >= tbl.length;
+                                  final nextBase = maxed ? curBase : tbl[glv + 1];
+                                  final span = nextBase - curBase;
+                                  final prog = (span > 0) ? ((ge - curBase) / span).clamp(0.0, 1.0) : 1.0;
+                                  return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Row(children: [
+                                      const Icon(Icons.groups, color: Color(0xFF7FFFB0), size: 13),
+                                      const SizedBox(width: 4),
+                                      Text('길드 Lv.$glv', style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 12, fontWeight: FontWeight.bold)),
+                                      const SizedBox(width: 6),
+                                      Text(maxed ? 'MAX' : '$ge / $nextBase', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                                    ]),
+                                    const SizedBox(height: 3),
+                                    Container(
+                                      width: 180, height: 8,
+                                      decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(5), border: Border.all(color: Colors.white24, width: 0.5)),
+                                      child: FractionallySizedBox(alignment: Alignment.centerLeft, widthFactor: prog.toDouble(), child: Container(decoration: BoxDecoration(color: const Color(0xFF7FFFB0), borderRadius: BorderRadius.circular(4)))),
+                                    ),
+                                  ]);
+                                },
+                              ),
+                            ),
                         ],
                       ),
 
@@ -1989,7 +2041,7 @@ Positioned(
       });
       _showNotificationPopup('✨ 기본 장비 장착 완료!', '빈손이시군요!\n창고에 있던 기본 장비를 쥐여드렸습니다.', const Color(0xFFD4AF37));
     }
-              _useBaitOne(); 
+              // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
               audioManager.playSfx("sfx_casting.mp3"); _castController.forward(from: 0.0);
               setState(() { isSettingUp = false; isCasting = true; bitingRods.clear(); });
               Future.delayed(const Duration(milliseconds: 300), () { if (!mounted) return; audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); _startGameTimer(); });
@@ -2575,6 +2627,59 @@ Positioned(
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));
   }
 
+  // 🎖️ #13 승급(랭크업) 보상 — 칭호 도달 시 보상 지급 + 축하 팝업
+  static const Map<String, int> _promotionRewards = {
+    '하수': 1000, '중수': 3000, '고수': 10000, '프로': 30000,
+    '마스터': 100000, '레전드': 300000, '낚시의 신': 1000000,
+  };
+  void _grantPromotion(String rank) async {
+    final reward = _promotionRewards[rank] ?? 0;
+    if (reward <= 0) return;
+    final u = FirebaseAuth.instance.currentUser;
+    if (u != null) {
+      await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
+          {'gold': FieldValue.increment(reward)}, SetOptions(merge: true));
+    }
+    // 레벨업 팝업이 먼저 뜨므로 약간 뒤에 승급 팝업
+    Future.delayed(const Duration(milliseconds: 1700), () {
+      if (mounted) _showPromotionPopup(rank, reward);
+    });
+  }
+
+  void _showPromotionPopup(String rank, int reward) {
+    audioManager.playSfx("sfx_landing_success.mp3");
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.black.withOpacity(0.95),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 3)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🎖️ 승급! 🎖️', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 30, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 12),
+          Text('$rank 조사 달성!', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+            decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFD4AF37))),
+            child: Text('승급 보상 +$reward P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+          ),
+          const SizedBox(height: 10),
+          Text('이제 쇼핑몰에서 [$rank 조사] 스킨을 구매할 수 있어요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+        ]),
+        actions: [
+          Center(child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          )),
+        ],
+      ),
+    );
+  }
+
   void _showLevelUpPopup(int newLevel) {
     audioManager.playSfx("sfx_landing_success.mp3"); 
     showDialog(
@@ -2591,7 +2696,7 @@ Positioned(
             const SizedBox(height: 10),
             Text('Lv.$newLevel 달성!', style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)), child: const Text('💪 기본 제압력이 10 상승했습니다!\n더 큰 대물에 도전하세요!', style: TextStyle(color: Colors.cyanAccent, fontSize: 15, height: 1.5), textAlign: TextAlign.center)),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)), child: const Text('💪 힘·🎯컨트롤·📡감도 각 +1 상승! (제압력 +3)\n더 큰 대물에 도전하세요!', style: TextStyle(color: Colors.cyanAccent, fontSize: 15, height: 1.5), textAlign: TextAlign.center)),
             const SizedBox(height: 20),
             ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), onPressed: () => Navigator.pop(context), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
           ],
@@ -2971,9 +3076,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     String fishName = widget.fish['name']?.toString() ?? '';
     double maxSize = fishMaxSize[fishName] ?? 100.0;
     
-    // 🎯 최대어 대비 비율로 저항력 계산
-    double sizeRatio = size / maxSize;
-    double resistancePower = math.pow(sizeRatio, 2.5).toDouble();
+    // 🎯 [#14] 절대 크기 위주 + 종별 상대크기 보조 → 큰 고기가 항상 더 힘셈(현실 반영)
+    //    (예: 45cm 메기 > 11.8cm 블루길). 트로피(종별 만대)는 상대크기로 가산.
+    double sizeRatio = size / maxSize;        // 종별 상대(트로피)
+    double absFactor = size / 120.0;          // 절대 크기 (120cm ≈ 1.0)
+    double resistancePower = absFactor * 0.7 + math.pow(sizeRatio, 2.0).toDouble() * 0.3;
     
     // safeStats 먼저
 double safeStats = (widget.playerTotalStats.isNaN || 
