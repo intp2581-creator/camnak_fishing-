@@ -43,20 +43,33 @@ const List<int> _oldExpTable30 = [
 ];
 
 List<int> _buildExpTable() {
-  final table = List<int>.filled(globalMaxLevel + 1, 0);
-  for (int n = 1; n <= globalMaxLevel; n++) {
-    final p = 1 + (n - 1) * 29 / (globalMaxLevel - 1); // 1.0 ~ 30.0 위치
+  final M = globalMaxLevel;
+  // 1) 옛 30단계 곡선을 M단계로 보간
+  final raw = List<double>.filled(M + 1, 0);
+  for (int n = 1; n <= M; n++) {
+    final p = 1 + (n - 1) * 29 / (M - 1);
     final lo = p.floor();
     final hi = (lo + 1) > 30 ? 30 : (lo + 1);
     final frac = p - lo;
-    final val = _oldExpTable30[lo] + (_oldExpTable30[hi] - _oldExpTable30[lo]) * frac;
-    table[n] = (val / 100).round() * 100; // 100단위로 깔끔하게
+    raw[n] = _oldExpTable30[lo] + (_oldExpTable30[hi] - _oldExpTable30[lo]) * frac;
   }
-  // 단조 증가 보정 + 만렙 정확히
-  for (int n = 2; n <= globalMaxLevel; n++) {
+  // 2) 레벨당 증가폭(delta)을 '비감소'로 보정 → 중간에 필요경험치 줄어드는 굴곡 제거
+  final delta = List<double>.filled(M + 1, 0);
+  for (int n = 2; n <= M; n++) delta[n] = raw[n] - raw[n - 1];
+  for (int n = 3; n <= M; n++) {
+    if (delta[n] < delta[n - 1]) delta[n] = delta[n - 1];
+  }
+  // 3) 보정된 delta로 재누적
+  final cum = List<double>.filled(M + 1, 0);
+  for (int n = 2; n <= M; n++) cum[n] = cum[n - 1] + delta[n];
+  // 4) 만렙이 정확히 1,300,000이 되도록 정규화 + 100단위 반올림
+  final scale = (cum[M] > 0) ? 1300000 / cum[M] : 1.0;
+  final table = List<int>.filled(M + 1, 0);
+  for (int n = 1; n <= M; n++) table[n] = (cum[n] * scale / 100).round() * 100;
+  for (int n = 2; n <= M; n++) {
     if (table[n] <= table[n - 1]) table[n] = table[n - 1] + 100;
   }
-  table[globalMaxLevel] = 1300000;
+  table[M] = 1300000;
   return table;
 }
 
@@ -71,12 +84,10 @@ int calcLevelFromExp(int exp) {
   return 1;
 }
 
-// 🏅 칭호: 레벨 breakpoint 기준 (스킨 구매 가능 레벨과 동일).
-//    하수15 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드120 → 낚시의 신140
+// 🏅 칭호: 레벨 breakpoint 기준 (실제 칭호는 승급 퀘스트 통과로 결정 — 이건 참고용).
+//    하수15 → 중수30 → 고수50 → 프로70 → 마스터140(만렙). 레전드·낚시의 신은 추후 캡 상향 후.
 String calcRankFromLevel(int level) {
-  if (level >= 140) return '낚시의 신';
-  if (level >= 120) return '레전드';
-  if (level >= 100) return '마스터';
+  if (level >= 140) return '마스터';
   if (level >= 70) return '프로';
   if (level >= 50) return '고수';
   if (level >= 30) return '중수';
@@ -96,7 +107,7 @@ const List<Map<String, dynamic>> promotionTiers = [
   {'rank': '중수', 'level': 30, 'need': 5, 'reward': 3000},
   {'rank': '고수', 'level': 50, 'need': 10, 'reward': 10000},
   {'rank': '프로', 'level': 70, 'need': 15, 'reward': 30000},
-  {'rank': '마스터', 'level': 100, 'need': 20, 'reward': 100000},
+  {'rank': '마스터', 'level': 140, 'need': 20, 'reward': 100000}, // 만렙(1.3M)이 마스터. 레전드/신은 추후 캡 상향 후
 ];
 
 // 현재 칭호(promoRank) 기준 '다음 승급' 정보 (없으면 null = 더 승급 없음/미구현)
