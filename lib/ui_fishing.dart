@@ -1193,9 +1193,23 @@ Widget _buildChatTab(int index, String title) {
           if (q > 0) {
             inventory[i]['quantity'] = q - 1;
             if (inventory[i]['quantity'] == 0) {
-              inventory.removeAt(i); 
-              setState(() { equippedBait = null; });
-              _showNotificationPopup('🛑 미끼 소진!', '준비한 미끼를 모두 사용했습니다.\n가방에서 새로 장착하세요!', Colors.orangeAccent);
+              inventory.removeAt(i);
+              // 🔁 같은 종류(민물/바다) 미끼가 가방에 남아있으면 자동 교체
+              final wantCat = widget.isSea ? 'SEA' : 'FW';
+              Map<String, dynamic>? nextBait;
+              for (final it in inventory) {
+                final m = it as Map<String, dynamic>;
+                final t = (m['type'] ?? '').toString().toUpperCase();
+                final c = (m['category'] ?? '').toString().toUpperCase();
+                final qn = (m['quantity'] is num) ? (m['quantity'] as num).toInt() : 0;
+                if (t == 'BAIT' && c == wantCat && qn > 0) { nextBait = m; break; }
+              }
+              setState(() { equippedBait = nextBait; });
+              if (nextBait != null) {
+                _showNotificationPopup('🔁 미끼 자동 교체', '$targetBaitName 소진!\n[${nextBait['name']}](으)로 자동 교체했어요.', const Color(0xFFD4AF37));
+              } else {
+                _showNotificationPopup('🛑 미끼 소진!', '준비한 미끼를 모두 사용했습니다.\n가방에서 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+              }
             }
             break;
           }
@@ -1221,6 +1235,11 @@ int _getLocationStars() {
 void _recast() {  // 기존 코드
     if (!mounted || remainingTimeNotifier.value <= 0) return;
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
+    // 🪱 미끼 없으면 캐스팅 불가
+    if (equippedBait == null) {
+      _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착해야 낚시를 할 수 있어요.\n가방에서 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+      return;
+    }
     // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
 
     // 👩‍💼 [신규 3단계] 캐스팅 시 가람이 출근 조건 체크!
@@ -2027,21 +2046,26 @@ Positioned(
                                 return;
                              } // 👈 하이패스 게이트 종료
                            }
-              if (equippedRod == null || equippedBait == null) {
+              if (equippedRod == null) {
+      // 진짜 빈손(낚시대도 없음) → 스타터 기본 장비 지급
       setState(() {
-        equippedRod ??= widget.isSea 
+        equippedRod ??= widget.isSea
             ? {'name': '오션 스타터', 'category': 'SEA', 'icon': 'assets/items/rod_sea_cf250.png'} // 👈 items 로 변경!
             : {'name': '베이직 민물대', 'category': 'FW', 'icon': 'assets/items/rod_fw_cf20.png'}; // 👈 items 로 변경!
-            
+
         equippedFloat ??= {'name': '기본 찌', 'icon': 'assets/items/float_fw_normal.png'}; // 👈 items 로 변경!
-        
+
         equippedBait ??= {'name': '지렁이 (기본)', 'icon': 'assets/items/bait_fw_worm.png'}; // 👈 items 로 변경!
-        
+
         if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'icon': 'assets/items/reel_sea_cf2000.png'}; // 👈 오타(imagos) 수정 및 items 로 변경!
-        
+
         isRodEquipped = true;
       });
       _showNotificationPopup('✨ 기본 장비 장착 완료!', '빈손이시군요!\n창고에 있던 기본 장비를 쥐여드렸습니다.', const Color(0xFFD4AF37));
+    } else if (equippedBait == null) {
+      // 🪱 낚시대는 있는데 미끼만 없음 → 가짜 미끼 지급 X, 캐스팅 차단
+      _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+      return;
     }
               // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
               audioManager.playSfx("sfx_casting.mp3"); _castController.forward(from: 0.0);
