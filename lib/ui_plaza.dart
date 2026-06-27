@@ -490,50 +490,45 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
     });
-    // 🧩 [최적화] 전체(onValue) 대신 child 이벤트로 바뀐 사람만 수신 → 페이로드 ~정원배 절감
+    // 🧩 채널 단위 구독(onValue). 채널당 정원 50이라 페이로드는 항상 한정(샤딩 효과).
+    //    ※ child 이벤트 방식은 멀티 표시 이슈가 있어 검증된 onValue로 복구.
     final ref = _db.ref('plaza/$_channelKey');
-    onErr(Object e) => debugPrint('🌐 RTDB READ ERR: $e');
-    _presenceSubs.add(ref.onChildAdded.listen((e) => _applyOther(uid, e), onError: onErr));
-    _presenceSubs.add(ref.onChildChanged.listen((e) => _applyOther(uid, e), onError: onErr));
-    _presenceSubs.add(ref.onChildRemoved.listen(_removeOther, onError: onErr));
-  }
-
-  // child(add/change) → 그 유저만 갱신
-  void _applyOther(String myUid, DatabaseEvent event) {
-    final k = event.snapshot.key;
-    final v = event.snapshot.value;
-    if (k == null || k == myUid || v is! Map) return; // 나 제외
-    final data = {
-      'nick': v['nick']?.toString() ?? '조사',
-      'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
-      'guild': v['guild']?.toString() ?? '',
-      'champ': v['champ'] == true,
-      'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
-      'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
-      'face': v['face'] == true,
-    };
-    // 💬 말풍선: 메시지 타임스탬프가 새로 바뀌면 5초 표시 (처음 본 유저의 옛 메시지는 무시)
-    final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
-    final mmsg = v['msg']?.toString() ?? '';
-    if (mt != (_lastMsgT[k] ?? -1)) {
-      final firstSeen = !_lastMsgT.containsKey(k);
-      _lastMsgT[k] = mt;
-      if (!firstSeen && mt > 0 && mmsg.isNotEmpty) {
-        _bubbleMsg[k] = mmsg;
-        _bubbleUntil[k] = DateTime.now().add(const Duration(seconds: 5));
+    _presenceSubs.add(ref.onValue.listen((event) {
+      final val = event.snapshot.value;
+      final next = <String, Map<String, dynamic>>{};
+      if (val is Map) {
+        val.forEach((k, v) {
+          if (k.toString() == uid || v is! Map) return; // 나 제외
+          final kk = k.toString();
+          next[kk] = {
+            'nick': v['nick']?.toString() ?? '조사',
+            'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
+            'guild': v['guild']?.toString() ?? '',
+            'champ': v['champ'] == true,
+            'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
+            'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
+            'face': v['face'] == true,
+          };
+          final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
+          final mmsg = v['msg']?.toString() ?? '';
+          if (mt != (_lastMsgT[kk] ?? -1)) {
+            final firstSeen = !_lastMsgT.containsKey(kk);
+            _lastMsgT[kk] = mt;
+            if (!firstSeen && mt > 0 && mmsg.isNotEmpty) {
+              _bubbleMsg[kk] = mmsg;
+              _bubbleUntil[kk] = DateTime.now().add(const Duration(seconds: 5));
+            }
+          }
+        });
       }
-    }
-    if (mounted) setState(() => _others[k] = data);
-  }
-
-  // child(remove) → 그 유저 제거
-  void _removeOther(DatabaseEvent event) {
-    final k = event.snapshot.key;
-    if (k == null) return;
-    _lastMsgT.remove(k);
-    _bubbleMsg.remove(k);
-    _bubbleUntil.remove(k);
-    if (mounted) setState(() => _others.remove(k));
+      if (mounted) {
+        setState(() {
+          _others
+            ..clear()
+            ..addAll(next);
+        });
+      }
+    }, onError: (Object e) => debugPrint('🌐 RTDB READ ERR: $e')));
   }
 
   void _writeMe() {
