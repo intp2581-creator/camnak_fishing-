@@ -271,7 +271,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _onHwKey(KeyEvent e) {
     // 채팅 등 텍스트 입력 중이면 이동 안 함(타이핑 우선)
     if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) return false;
-    const moveKeys = {
+    final moveKeys = <LogicalKeyboardKey>{
       LogicalKeyboardKey.keyW, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyS, LogicalKeyboardKey.keyD,
       LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight,
     };
