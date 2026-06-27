@@ -2047,21 +2047,23 @@ Positioned(
                              } // 👈 하이패스 게이트 종료
                            }
               if (equippedRod == null) {
-      // 진짜 빈손(낚시대도 없음) → 스타터 기본 장비 지급
+      // 🎣 빈손이면 먼저 '보유한 최고 장비' 자동 장착 (조용히)
+      _runAutoEquip(silent: true);
+      // 그래도 비어있는 슬롯(장비를 다 팔았을 때)만 임시 기본 장비로 채움
       setState(() {
         equippedRod ??= widget.isSea
-            ? {'name': '오션 스타터', 'category': 'SEA', 'icon': 'assets/items/rod_sea_cf250.png'} // 👈 items 로 변경!
-            : {'name': '베이직 민물대', 'category': 'FW', 'icon': 'assets/items/rod_fw_cf20.png'}; // 👈 items 로 변경!
+            ? {'name': '오션 스타터', 'category': 'SEA', 'icon': 'assets/items/rod_sea_cf250.png'}
+            : {'name': '베이직 민물대', 'category': 'FW', 'icon': 'assets/items/rod_fw_cf20.png'};
 
-        equippedFloat ??= {'name': '기본 찌', 'icon': 'assets/items/float_fw_normal.png'}; // 👈 items 로 변경!
+        equippedFloat ??= {'name': '기본 찌', 'icon': 'assets/items/float_fw_normal.png'};
 
-        equippedBait ??= {'name': '지렁이 (기본)', 'icon': 'assets/items/bait_fw_worm.png'}; // 👈 items 로 변경!
+        equippedBait ??= {'name': '지렁이 (기본)', 'icon': 'assets/items/bait_fw_worm.png'};
 
-        if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'icon': 'assets/items/reel_sea_cf2000.png'}; // 👈 오타(imagos) 수정 및 items 로 변경!
+        if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'icon': 'assets/items/reel_sea_cf2000.png'};
 
         isRodEquipped = true;
       });
-      _showNotificationPopup('✨ 기본 장비 장착 완료!', '빈손이시군요!\n창고에 있던 기본 장비를 쥐여드렸습니다.', const Color(0xFFD4AF37));
+      _showNotificationPopup('🎣 장비 자동 세팅', '보유한 최고 장비로 세팅했어요!\n(없는 장비는 임시 기본으로 채웠어요)', const Color(0xFFD4AF37));
     } else if (equippedBait == null) {
       // 🪱 낚시대는 있는데 미끼만 없음 → 가짜 미끼 지급 X, 캐스팅 차단
       _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
@@ -2491,13 +2493,13 @@ Positioned(
   }
 
   // ⚡ [자동 장착] 현재 맵에 맞는 최고 효율 장비로 자동 세팅 (출조 셋팅 패널에서 호출)
-  void _runAutoEquip() {
+  void _runAutoEquip({bool silent = false}) {
     // 🛡️ [아레나 검문소] 대회 중에는 자동 장착 금지!
     if (widget.roomId != null) {
-      _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+      if (!silent) _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
       return;
     }
-    audioManager.playSfx("sfx_click.mp3");
+    if (!silent) audioManager.playSfx("sfx_click.mp3");
     setState(() {
       List<dynamic> validItems = _latestInventory.where((item) {
         String cat = item['category'] ?? '';
@@ -2558,7 +2560,7 @@ Positioned(
       }
     });
 
-    _showNotificationPopup('⚡ 세팅 완료!', '현재 맵에 맞는 최고 효율 장비로\n완벽하게 세팅되었습니다. (대편성: $selectedRodCount대)', const Color(0xFFD4AF37));
+    if (!silent) _showNotificationPopup('⚡ 세팅 완료!', '현재 맵에 맞는 최고 효율 장비로\n완벽하게 세팅되었습니다. (대편성: $selectedRodCount대)', const Color(0xFFD4AF37));
   }
 
   void _showNotificationPopup(String title, String content, Color color, {VoidCallback? onConfirm}) {
