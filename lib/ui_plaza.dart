@@ -235,15 +235,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (_questDone) {
       return '$greeting\n'
           '🎉 오늘 일일 퀘스트 완료!\n'
-          '🎣 ${mission['loc']}\n'
           '🐟 ${mission['fish']} ${mission['count']}마리 달성\n'
           '💰 보상 500P 수령 완료! 내일도 도전해요!';
     }
-    // 🧩 개인별 일일 퀘스트: 오늘 안에 완료하면 누구나 보상 (선착순/이벤트시간 없음)
+    // 🧩 개인별 일일 퀘스트: 어느 낚시터든 해당 고기만 잡으면 OK (장소 무관)
     return '$greeting\n'
         '🏆 오늘의 일일 퀘스트!\n'
-        '🎣 ${mission['loc']}\n'
         '🐟 ${mission['fish']} ${mission['count']}마리 잡기\n'
+        '🎣 어느 낚시터든 OK!\n'
         '✅ 오늘 안에 완료하면 500P 지급!';
   }
 

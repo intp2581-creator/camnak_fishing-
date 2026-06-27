@@ -120,8 +120,8 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
   // 🧩 개인별 일일 퀘스트: 오늘 안에 완료하면 누구나 보상 (선착순/이벤트시간 없음)
   return "$greeting\n"
          "🏆 오늘의 일일 퀘스트!\n"
-         "🎣 ${mission['loc']}\n"
          "🐟 ${mission['fish']} ${mission['count']}마리 잡기\n"
+         "🎣 어느 낚시터든 OK!\n"
          "✅ 오늘 안에 완료하면 500P 지급!";
 }
   

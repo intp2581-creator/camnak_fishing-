@@ -2706,7 +2706,7 @@ void _showTodayMissionInfo() {
           const SizedBox(height: 10),
           const Text('📢 오늘의 미션!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Text('${mission['loc']}에서\n${mission['fish']} ${mission['count']}마리를 잡으세요!\n\n완료 시 🏆 ${mission['prize']}P 지급!',
+          Text('${mission['fish']} ${mission['count']}마리를 잡으세요!\n(어느 낚시터든 OK)\n\n완료 시 🏆 ${mission['prize']}P 지급!',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6)),
         ],
@@ -2776,7 +2776,7 @@ void _showTodayMissionInfo() {
     final mission = missionPool[dailyRandom.nextInt(missionPool.length)];
 
     // 🚨 [핵심!] 지금 있는 낚시터가 미션 장소가 아니거나, 고기 이름이 다르면 가차 없이 탈락!
-    if (widget.locationName != mission['loc'] || fishName != mission['fish']) return;
+    if (fishName != mission['fish']) return; // 📋 #장소무관: 어디서든 해당 고기만 잡으면 인정
 
     // 🧩 [개인별 일일 퀘스트] 선착순/이벤트시간/전역 핫문서 제거 → 누구나 오늘 안에 완료하면 개인 보상.
     //    진행도·보상은 모두 '내 문서'에만 기록 → 동시접속 폭주에도 경합/핫스팟 없음.
