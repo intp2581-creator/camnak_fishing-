@@ -3077,7 +3077,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         if (diff.inHours < 24) {
           final remainH = 24 - diff.inHours;
           final remainM = (60 - (diff.inMinutes % 60)) % 60;
-          _toast('길드 탈퇴 후 24시간이 지나야 다시 가입할 수 있어요.\n(약 $remainH시간 $remainM분 남음)');
+          _infoPopup('가입 제한', '길드 탈퇴 후 24시간이 지나야\n다시 가입할 수 있어요.\n\n(약 $remainH시간 $remainM분 남음)');
           return;
         }
       }
@@ -3106,9 +3106,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           'guildName': gname,
         });
       });
-      _toast('"$gname" 길드에 가입했어요!');
+      _infoPopup('가입 완료', '"$gname" 길드에 가입했어요! 🎉');
     } catch (e) {
-      _toast(e.toString());
+      _infoPopup('가입 불가', e.toString());
     }
   }
 
@@ -3182,6 +3182,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             side: const BorderSide(color: _kGold, width: 1.2)),
         elevation: 8,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // 모달(길드창 등) 위에서도 잘 보이는 안내 팝업 — 토스트가 모달 뒤로 가려지는 문제 대응
+  void _infoPopup(String title, String msg) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: _kGold, width: 1.2)),
+        title: Text(title, style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: Text(msg, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(c),
+              child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
       ),
     );
   }
