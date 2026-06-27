@@ -3167,12 +3167,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _toast(String msg) {
     if (!mounted) return;
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(msg),
-        backgroundColor: const Color(0xFF333333),
+        content: Text(msg,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.4)),
+        backgroundColor: const Color(0xF21A1A1A),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
+        // 채팅창·하단 잘림 피해서 화면 중앙 하단쯤에 잘 보이게 띄움
+        margin: const EdgeInsets.only(bottom: 160, left: 60, right: 60),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: const BorderSide(color: _kGold, width: 1.2)),
+        elevation: 8,
+        duration: const Duration(seconds: 3),
       ),
     );
   }
