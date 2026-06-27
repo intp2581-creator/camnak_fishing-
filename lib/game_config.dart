@@ -33,7 +33,7 @@ bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 // 🆙 만렙 100레벨! 총 경험치(0~130만)는 그대로, 기존 30레벨 곡선을 100칸으로 잘게 보간.
 //    레벨업이 더 자주 일어나 성취감↑ (만렙 경험치/획득량/밸런스 불변)
 // =========================================================================
-const int globalMaxLevel = 140;
+const int globalMaxLevel = 150;
 
 // 기존 30레벨 누적 경험치(곡선 원본). 이 곡선 모양을 그대로 100칸으로 보간한다.
 const List<int> _oldExpTable30 = [
@@ -91,9 +91,11 @@ int calcLevelFromExp(int exp) {
 }
 
 // 🏅 칭호: 레벨 breakpoint 기준 (실제 칭호는 승급 퀘스트 통과로 결정 — 이건 참고용).
-//    하수15 → 중수30 → 고수50 → 프로70 → 마스터140(만렙). 레전드·낚시의 신은 추후 캡 상향 후.
+//    하수15 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드130 → 낚시의 신150(만렙)
 String calcRankFromLevel(int level) {
-  if (level >= 140) return '마스터';
+  if (level >= 150) return '낚시의 신';
+  if (level >= 130) return '레전드';
+  if (level >= 100) return '마스터';
   if (level >= 70) return '프로';
   if (level >= 50) return '고수';
   if (level >= 30) return '중수';
@@ -113,7 +115,8 @@ const List<Map<String, dynamic>> promotionTiers = [
   {'rank': '중수', 'level': 30, 'need': 5, 'reward': 3000},
   {'rank': '고수', 'level': 50, 'need': 10, 'reward': 10000},
   {'rank': '프로', 'level': 70, 'need': 15, 'reward': 30000},
-  {'rank': '마스터', 'level': 140, 'need': 20, 'reward': 100000}, // 만렙(1.3M)이 마스터. 레전드/신은 추후 캡 상향 후
+  {'rank': '마스터', 'level': 100, 'need': 20, 'reward': 100000},
+  // 레전드(130)·낚시의 신(150) 승급 퀘스트는 발표 때 추가
 ];
 
 // 현재 칭호(promoRank) 기준 '다음 승급' 정보 (없으면 null = 더 승급 없음/미구현)
