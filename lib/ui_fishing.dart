@@ -2498,7 +2498,7 @@ Positioned(
         if (name.contains('스킨') || name.contains('조사') || name.contains('마스터')) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
         else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
-        else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴')) {
+        else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴') && !name.contains('아이스박스') && !name.contains('쿨러') && !name.contains('보냉')) {
           bool isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
           if (widget.isSea) { if (isSeaRod) { if (bestRod == null || getSeaRodTier(name) > getSeaRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
           else { if (!isSeaRod) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
@@ -2583,7 +2583,7 @@ Positioned(
                   if (cleanName.contains('찌')) equippedFloat = null; 
                   else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) equippedSkin = null; 
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = null; 
-                  else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = null; isRodEquipped = false; } 
+                  else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = null; isRodEquipped = false; } 
                   else if (cleanName.contains('선글라스')) equippedSunglasses = null;
                   else if (cleanName.contains('휘장')) equippedBadge = null;
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = null;
@@ -2593,7 +2593,7 @@ Positioned(
                   if (cleanName.contains('찌')) { equippedFloat = item; } 
                   else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) { equippedSkin = item; } 
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) { equippedReel = item; } 
-                  else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = item; isRodEquipped = true; } 
+                  else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; } 
                   else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
                   else if (cleanName.contains('휘장')) { equippedBadge = item; }
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) { equippedCooler = item; }
@@ -2620,7 +2620,7 @@ Positioned(
       if (cleanName.contains('찌')) equippedFloat = item;
       else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) equippedSkin = item;
       else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = item;
-      else if (cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) { equippedRod = item; isRodEquipped = true; }
+      else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; }
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
       else if (cleanName.contains('휘장')) equippedBadge = item;
       else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = item;
