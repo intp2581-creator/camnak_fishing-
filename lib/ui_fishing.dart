@@ -2586,6 +2586,7 @@ Positioned(
     if (equippedSunglasses?['name'] == iName) isEquipped = true;
     if (equippedBadge?['name'] == iName) isEquipped = true;
     if (equippedReel?['name'] == iName) isEquipped = true;
+    if (equippedCooler?['name'] == iName) isEquipped = true;
 
     showDialog(
       context: context,
