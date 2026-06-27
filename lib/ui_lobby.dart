@@ -1385,7 +1385,7 @@ class _StoreScreenState extends State<StoreScreen> {
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
     final p = _storePriceOf(name);
-    if (p != null && p <= 0) return 0; // 🚫 무료 지급품(0P)은 판매가 0 — 0P 구매 후 되팔이 악용 차단
+    // 무료 지급품(0P)도 인벤 정리용으로 팔 수 있게 (구매는 막아서 되팔이 악용 방지)
     final unit = (p != null && p > 0) ? (p * 0.5).floor() : 100;
     return unit < 10 ? 10 : unit;
   }
@@ -1519,9 +1519,8 @@ class _StoreScreenState extends State<StoreScreen> {
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
     final isBeginner = itemName.contains('초보');
-    final isFree = price <= 0; // 🚫 무료 지급품(0P) — 판매 불가 (되팔이 악용 차단)
-    final isTop = !isBeginner && !isFree && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
-    final sellable = !isBeginner && !isFree && !isTop;
+    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
+    final sellable = !isBeginner && !isTop;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
@@ -1663,7 +1662,9 @@ class _StoreScreenState extends State<StoreScreen> {
               padding: const EdgeInsets.all(15.0),
               child: Builder(
                 builder: (context) {
-                  if (isSkin && itemName.contains('초보')) return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('기본 지급', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade900, foregroundColor: Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: null, child: const Text('보유 중', style: TextStyle(fontWeight: FontWeight.bold)))]);
+                  // 🚫 무료 지급품(0P)은 구매 불가 — 캐릭터 생성 시 지급되는 기본 장비 (되팔이 악용 방지)
+                  final isFreeStarter = (item['price'] is num) && (item['price'] as num) <= 0;
+                  if (isFreeStarter || (isSkin && itemName.contains('초보'))) return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('기본 지급', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade900, foregroundColor: Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: null, child: const Text('구매 불가', style: TextStyle(fontWeight: FontWeight.bold)))]);
                   bool isMallOnly = isSkin || itemName.contains('1시간 이용권');
                   if (isMallOnly) {
                     return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('9,999,999 P', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.w900))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800, foregroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.redAccent.withOpacity(0.5)))), onPressed: () { audioManager.playSfx("sfx_click.mp3"); _showNotificationPopup('🚧 오픈 베타 테스트 안내', '현재 OBT 기간으로 해당 상품은\n임시 구매 제한 상태입니다.\n\n(테스트 종료 후 데이터 초기화 방침에 따라\n정식 오픈 이후부터 획득이 가능합니다.)', Colors.amberAccent); }, child: const Text('[OBT] 구매 불가', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)))]);
