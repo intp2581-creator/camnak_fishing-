@@ -1685,7 +1685,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                 bool isBait = itemCategory.contains('BAIT') || itemCategory.contains('미끼') || itemType.contains('BAIT') || itemType.contains('미끼') || ['지렁이', '글루텐', '옥수수'].contains(itemName);
                                 int price = item['price'];
                                 if (isBait) { showDialog(context: context, builder: (context) => AlertDialog(backgroundColor: Colors.grey.shade900, title: const Text('🛒 미끼 구매', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 구매로 $price P가 차감됩니다.\n구매하시겠습니까?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(context); _buyItem(item); }, child: const Text('확인', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))])); } else {
-                                  bool isAlreadyOwned = widget.currentInventory.any((myItem) => myItem['name'] == itemName);
+                                  bool isAlreadyOwned = myInventory.any((myItem) => myItem['name'] == itemName);
                                   if (isAlreadyOwned) { _showNotificationPopup('🛑 구매 불가!', '이미 보유 중인 장비입니다!\n인벤토리를 확인해주세요.', Colors.orangeAccent); return; } _buyItem(item);
                                 }
                               },
@@ -1740,13 +1740,16 @@ class _StoreScreenState extends State<StoreScreen> {
         'inventory': inventory
       });
       
-      setState(() { myDisplayGold -= (item['price'] as int); });
-      
+      setState(() {
+        myDisplayGold -= (item['price'] as int);
+        myInventory = List.from(inventory); // 🔄 구매 즉시 내 인벤 갱신(판매탭/중복체크 반영)
+      });
+
       if (!mounted) return;
-      
+
       // 🛒 결제 성공 시 럭셔리 팝업 발사!
       _showNotificationPopup(
-        '🎉 결제 완료', 
+        '🎉 결제 완료',
         '${item['name']}\n성공적으로 구매하셨습니다!\n인벤토리에서 장착해 보세요.', 
         const Color(0xFFD4AF37)
       );
