@@ -84,6 +84,30 @@ String calcRankFromLevel(int level) {
   return '초보';
 }
 
+// 🎖️ [승급 퀘스트] 6대장(민물3+바다3)을 잡아서 승급 → 칭호 변경 + 보상 + 스킨 구매 자격
+const List<String> daejangFish = ['붕어', '잉어', '가물치', '참돔', '감성돔', '문어'];
+
+// 칭호 순서 (index로 다음 등급 판단)
+const List<String> rankOrder = ['초보', '하수', '중수', '고수', '프로', '마스터', '레전드', '낚시의 신'];
+
+// 승급 티어: 해당 레벨 도달 + 6대장 각 need마리(누적) → 승급 가능 + reward 지급
+const List<Map<String, dynamic>> promotionTiers = [
+  {'rank': '하수', 'level': 15, 'need': 3, 'reward': 1000},
+  {'rank': '중수', 'level': 30, 'need': 5, 'reward': 3000},
+  {'rank': '고수', 'level': 50, 'need': 10, 'reward': 10000},
+  {'rank': '프로', 'level': 70, 'need': 15, 'reward': 30000},
+  {'rank': '마스터', 'level': 100, 'need': 20, 'reward': 100000},
+];
+
+// 현재 칭호(promoRank) 기준 '다음 승급' 정보 (없으면 null = 더 승급 없음/미구현)
+Map<String, dynamic>? nextPromotion(String currentRank) {
+  final idx = rankOrder.indexOf(currentRank);
+  for (final t in promotionTiers) {
+    if (rankOrder.indexOf(t['rank'] as String) == idx + 1) return t;
+  }
+  return null;
+}
+
 
 // =========================================================================
 // 🐟 [물고기 도감 및 확률/보상 데이터]

@@ -999,6 +999,12 @@ Widget _buildChatTab(int index, String title) {
               } else {
                 await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
               }
+              // 🎖️ #13 6대장 누적 카운트 (승급 퀘스트용)
+              if (daejangFish.contains(fish['name'])) {
+                await docRef.set({
+                  'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
+                }, SetOptions(merge: true));
+              }
               // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
               if (_guildId.isNotEmpty) {
                 final guildRef = FirebaseFirestore.instance.collection('guilds').doc(_guildId);
@@ -1461,9 +1467,8 @@ Positioned(
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
                   }
 
-    // 🆙 100레벨 개편: 경험치 테이블/칭호 공용 함수 사용 (game_config)
+    // 🆙 경험치→레벨. 칭호(realRank)는 저장된 승급 결과(rank 필드)를 그대로 사용 — #13 승급퀘스트 개편
     int realLevel = calcLevelFromExp(realExp);
-    realRank = calcRankFromLevel(realLevel);
     int prevLevelExp = globalExpTable[realLevel];
     int nextLevelExp = realLevel < globalMaxLevel ? globalExpTable[realLevel + 1] : globalExpTable[globalMaxLevel];
 
@@ -1472,12 +1477,9 @@ Positioned(
       if (_currentLevel == 0) { 
         _currentLevel = realLevel; // 처음 입장 시 팝업 띄우지 말고 조용히 현재 레벨만 기억!
       } else if (realLevel > _currentLevel) {
-        final oldRank = calcRankFromLevel(_currentLevel); // #13 승급 감지용
         _currentLevel = realLevel; // 찐으로 고기 잡아서 렙업했을 때만 팝업 발사!
         Future.delayed(const Duration(milliseconds: 600), () { if (mounted) _showLevelUpPopup(realLevel); });
-        // 🎖️ #13: 칭호가 바뀌면(승급) 축하 팝업 + 보상 지급
-        final newRank = calcRankFromLevel(realLevel);
-        if (newRank != oldRank) _grantPromotion(newRank);
+        // (승급은 레벨업 자동이 아니라 광장 아라의 '승급 퀘스트'로만 — #13 개편)
         // 🛡️ #1: 레벨업 즉시 길드원 목록의 내 레벨 갱신
         if (_guildId.isNotEmpty) {
           final u = FirebaseAuth.instance.currentUser;
@@ -2625,59 +2627,6 @@ Positioned(
       else equippedBait = item;
     });
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));
-  }
-
-  // 🎖️ #13 승급(랭크업) 보상 — 칭호 도달 시 보상 지급 + 축하 팝업
-  static const Map<String, int> _promotionRewards = {
-    '하수': 1000, '중수': 3000, '고수': 10000, '프로': 30000,
-    '마스터': 100000, '레전드': 300000, '낚시의 신': 1000000,
-  };
-  void _grantPromotion(String rank) async {
-    final reward = _promotionRewards[rank] ?? 0;
-    if (reward <= 0) return;
-    final u = FirebaseAuth.instance.currentUser;
-    if (u != null) {
-      await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
-          {'gold': FieldValue.increment(reward)}, SetOptions(merge: true));
-    }
-    // 레벨업 팝업이 먼저 뜨므로 약간 뒤에 승급 팝업
-    Future.delayed(const Duration(milliseconds: 1700), () {
-      if (mounted) _showPromotionPopup(rank, reward);
-    });
-  }
-
-  void _showPromotionPopup(String rank, int reward) {
-    audioManager.playSfx("sfx_landing_success.mp3");
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.black.withOpacity(0.95),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: const BorderSide(color: Color(0xFFD4AF37), width: 3)),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('🎖️ 승급! 🎖️', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 30, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 12),
-          Text('$rank 조사 달성!', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-            decoration: BoxDecoration(color: const Color(0xFFD4AF37).withOpacity(0.15), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFD4AF37))),
-            child: Text('승급 보상 +$reward P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.w900)),
-          ),
-          const SizedBox(height: 10),
-          Text('이제 쇼핑몰에서 [$rank 조사] 스킨을 구매할 수 있어요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
-        ]),
-        actions: [
-          Center(child: ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-          )),
-        ],
-      ),
-    );
   }
 
   void _showLevelUpPopup(int newLevel) {

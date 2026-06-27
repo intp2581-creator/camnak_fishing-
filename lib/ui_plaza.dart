@@ -178,6 +178,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _showQuest = false;
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
+  String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
+  Map<String, int> _daejangCatch = {}; // #13 6대장 누적 카운트
   final List<Map<String, dynamic>> _missionPool = [
     {'loc': '예산 예당지', 'fish': '붕어', 'count': 3},
     {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3},
@@ -386,12 +388,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final mp = d['mission_progress'];
       final questDone = mp is Map && mp['date'] == today && mp['rewarded'] == true;
+      // 🎖️ #13 승급: 저장된 칭호 + 6대장 누적
+      final newRank = (d['rank'] ?? '초보').toString();
+      final dc = <String, int>{};
+      if (d['daejangCatch'] is Map) {
+        (d['daejangCatch'] as Map).forEach((k, v) {
+          dc[k.toString()] = (v is num) ? v.toInt() : 0;
+        });
+      }
       setState(() {
         _gold = newGold;
         currentPoints = newGold;
         currentExp = newExp;
         _level = newLevel;
         _questDone = questDone;
+        _rank = newRank;
+        _daejangCatch = dc;
         _inventory = (d['inventory'] ?? []) as List<dynamic>;
         if (guildChanged) {
           _guildId = gid;
@@ -1831,6 +1843,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     text: _getBriefingText(),
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () => setState(() => _showQuest = false),
+                    action: Row(mainAxisSize: MainAxisSize.min, children: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: _kGold, foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
+                        onPressed: () {
+                          setState(() => _showQuest = false);
+                          _openPromotion();
+                        },
+                        child: const Text('🎖️ 승급 퀘스트', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: () => setState(() => _showQuest = false),
+                        child: const Text('닫기', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                    ]),
                   ),
                 ),
 
@@ -2102,7 +2131,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           Row(children: [
             Text('Lv.$_level', style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.w900)),
             const SizedBox(width: 8),
-            Text(calcRankFromLevel(_level),
+            Text(_rank,
                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
             const Spacer(),
             if (_guildName.isNotEmpty)
@@ -3209,6 +3238,116 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ],
       ),
     );
+  }
+
+  // 🎖️ #13 승급 퀘스트 패널 (아라 → 승급 퀘스트)
+  void _openPromotion() {
+    final tier = nextPromotion(_rank);
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        if (tier == null) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1A1A1A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
+            title: const Text('🎖️ 승급 퀘스트', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold)),
+            content: Text('$_rank 조사님은 현재 최고 단계예요!\n(레전드·낚시의 신은 준비 중)', style: const TextStyle(color: Colors.white70, height: 1.5)),
+            actions: [Center(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black), onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold))))],
+          );
+        }
+        final need = tier['need'] as int;
+        final reqLevel = tier['level'] as int;
+        final reward = tier['reward'] as int;
+        final targetRank = tier['rank'] as String;
+        final levelOk = _level >= reqLevel;
+        bool fishAllOk = true;
+        final rows = <Widget>[];
+        for (final f in daejangFish) {
+          final c = _daejangCatch[f] ?? 0;
+          final ok = c >= need;
+          if (!ok) fishAllOk = false;
+          rows.add(Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(children: [
+              Icon(ok ? Icons.check_circle : Icons.radio_button_unchecked, color: ok ? const Color(0xFF7FFFB0) : Colors.white30, size: 16),
+              const SizedBox(width: 8),
+              Text(f, style: const TextStyle(color: Colors.white, fontSize: 14)),
+              const Spacer(),
+              Text('${c.clamp(0, need)} / $need', style: TextStyle(color: ok ? const Color(0xFF7FFFB0) : Colors.white54, fontSize: 14, fontWeight: FontWeight.bold)),
+            ]),
+          ));
+        }
+        final canClaim = levelOk && fishAllOk;
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
+          title: Text('🎖️ 승급 → $targetRank 조사', style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.w900)),
+          content: SizedBox(
+            width: 320,
+            child: SingleChildScrollView(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Icon(levelOk ? Icons.check_circle : Icons.radio_button_unchecked, color: levelOk ? const Color(0xFF7FFFB0) : Colors.white30, size: 16),
+                  const SizedBox(width: 8),
+                  const Text('필요 레벨', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  const Spacer(),
+                  Text('Lv.$reqLevel (현재 $_level)', style: TextStyle(color: levelOk ? const Color(0xFF7FFFB0) : Colors.white54, fontSize: 14, fontWeight: FontWeight.bold)),
+                ]),
+                const Divider(color: Colors.white12, height: 18),
+                Text('6대장 각 $need마리 잡기 (누적)', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                ...rows,
+                const Divider(color: Colors.white12, height: 18),
+                Text('🎁 보상: +$reward P\n👕 [$targetRank 조사] 스킨 구매 자격', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold, height: 1.5)),
+              ]),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('닫기', style: TextStyle(color: Colors.grey))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: canClaim ? _kGold : Colors.grey.shade800, foregroundColor: canClaim ? Colors.black : Colors.white38),
+              onPressed: canClaim ? () { Navigator.pop(ctx); _claimPromotion(tier); } : null,
+              child: Text(canClaim ? '승급하기 🎉' : '조건 미달', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _claimPromotion(Map<String, dynamic> tier) async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    final targetRank = tier['rank'].toString();
+    final reward = tier['reward'] as int;
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
+          {'rank': targetRank, 'gold': FieldValue.increment(reward)}, SetOptions(merge: true));
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (c) => AlertDialog(
+          backgroundColor: Colors.black.withOpacity(0.95),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: _kGold, width: 3)),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🎖️ 승급! 🎖️', style: TextStyle(color: _kGold, fontSize: 28, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            Text('$targetRank 조사 달성!', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(color: _kGold.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: _kGold)),
+              child: Text('보상 +$reward P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 10),
+            Text('이제 쇼핑몰에서 [$targetRank 조사] 스킨을\n구매할 수 있어요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
+          ]),
+          actions: [Center(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black), onPressed: () => Navigator.pop(c), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold))))],
+        ),
+      );
+    } catch (e) {
+      _toast('승급 처리 실패: $e');
+    }
   }
 
   Widget _topHud() {
