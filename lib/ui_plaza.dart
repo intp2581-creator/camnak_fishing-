@@ -930,20 +930,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // ---- 진입 액션들 (기존 화면 재활용) ----
-  void _goFishing() {
-    final loc = widget.spot;
-    globalIsSeaMode = widget.isSea;
+  // loc/sea를 주면 그 낚시터로 바로 출조, 없으면 현재 광장 spot
+  void _goFishing({Map<String, dynamic>? loc, bool? sea}) {
+    final spot = loc ?? widget.spot;
+    final isSea = sea ?? widget.isSea;
+    globalIsSeaMode = isSea;
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => FishingScreen(
           nickname: widget.nickname,
-          locationName: loc['name'],
+          locationName: spot['name'],
           winCondition: '마릿수',
-          title: loc['name'],
-          bgImagePath: loc['image'],
+          title: spot['name'],
+          bgImagePath: spot['image'],
           characterImagePath: 'assets/images/character.png',
-          isSea: widget.isSea,
+          isSea: isSea,
           isFirstTime: widget.isFirstTime,
         ),
       ),
@@ -1103,25 +1105,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               ),
                             ),
                             trailing: isHere
-                                ? const Text('현재 위치',
+                                ? const Text('🎣 출조',
                                     style: TextStyle(color: _kGold, fontWeight: FontWeight.bold))
                                 : const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
-                            onTap: isHere
-                                ? null
-                                : () {
-                                    Navigator.pop(ctx);
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => PlazaScreen(
-                                          nickname: widget.nickname,
-                                          level: _level,
-                                          spot: s,
-                                          isSea: isMainSea,
-                                        ),
-                                      ),
-                                    );
-                                  },
+                            // 🎣 리스트에서 낚시터 클릭 = 그 낚시터로 바로 출조 (광장 거치지 않음)
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _goFishing(loc: s, sea: isMainSea);
+                            },
                           ),
                         );
                       },
