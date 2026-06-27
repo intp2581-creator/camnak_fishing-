@@ -3,8 +3,10 @@
     "plaza": {
       "$room": {
         ".read": "auth != null",
-        "$uid": {
-          ".write": "auth != null && auth.uid === $uid"
+        "$channel": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
         }
       }
     },
