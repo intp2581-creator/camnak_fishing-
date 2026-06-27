@@ -120,6 +120,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
   final TextEditingController _chatCtrl = TextEditingController();
+  final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분)
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
@@ -269,8 +270,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // ⌨️ PC 키보드 이동 (WASD + 화살표). 채팅 입력 중엔 무시.
   final Set<LogicalKeyboardKey> _pressedKeys = {};
   bool _onHwKey(KeyEvent e) {
-    // 채팅 등 텍스트 입력 중이면 이동 안 함(타이핑 우선)
-    if (FocusManager.instance.primaryFocus?.context?.widget is EditableText) return false;
+    // 채팅/다이얼로그 등 텍스트 입력 중이면 이동 안 함(타이핑 우선)
+    if (_chatFocus.hasFocus) return false;
+    // 다이얼로그 등 다른 텍스트필드 입력 중이면 이동 안 함
+    final pf = FocusManager.instance.primaryFocus;
+    bool editing = pf?.context?.widget is EditableText;
+    pf?.context?.visitAncestorElements((el) {
+      if (el.widget is EditableText) { editing = true; return false; }
+      return true;
+    });
+    if (editing) return false;
     final moveKeys = <LogicalKeyboardKey>{
       LogicalKeyboardKey.keyW, LogicalKeyboardKey.keyA, LogicalKeyboardKey.keyS, LogicalKeyboardKey.keyD,
       LogicalKeyboardKey.arrowUp, LogicalKeyboardKey.arrowDown, LogicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowRight,
@@ -364,6 +373,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _leagueSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
+    _chatFocus.dispose();
     _bubbleTimer?.cancel();
     _heartbeatTimer?.cancel();
     super.dispose();
@@ -1576,6 +1586,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   height: 34,
                   child: TextField(
                     controller: _chatCtrl,
+                    focusNode: _chatFocus,
                     style: const TextStyle(color: Colors.white, fontSize: 13),
                     decoration: InputDecoration(
                       hintText: (_chatTab == 1 && _whisperTarget != null)
