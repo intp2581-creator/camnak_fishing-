@@ -55,17 +55,23 @@ List<int> _buildExpTable() {
   }
   // 2) 레벨당 증가폭(delta)을 '비감소'로 보정 → 중간에 필요경험치 줄어드는 굴곡 제거
   final delta = List<double>.filled(M + 1, 0);
-  for (int n = 2; n <= M; n++) delta[n] = raw[n] - raw[n - 1];
+  for (int n = 2; n <= M; n++) {
+    delta[n] = raw[n] - raw[n - 1];
+  }
   for (int n = 3; n <= M; n++) {
     if (delta[n] < delta[n - 1]) delta[n] = delta[n - 1];
   }
   // 3) 보정된 delta로 재누적
   final cum = List<double>.filled(M + 1, 0);
-  for (int n = 2; n <= M; n++) cum[n] = cum[n - 1] + delta[n];
+  for (int n = 2; n <= M; n++) {
+    cum[n] = cum[n - 1] + delta[n];
+  }
   // 4) 만렙이 정확히 1,300,000이 되도록 정규화 + 100단위 반올림
   final scale = (cum[M] > 0) ? 1300000 / cum[M] : 1.0;
   final table = List<int>.filled(M + 1, 0);
-  for (int n = 1; n <= M; n++) table[n] = (cum[n] * scale / 100).round() * 100;
+  for (int n = 1; n <= M; n++) {
+    table[n] = (cum[n] * scale / 100).round() * 100;
+  }
   for (int n = 2; n <= M; n++) {
     if (table[n] <= table[n - 1]) table[n] = table[n - 1] + 100;
   }
