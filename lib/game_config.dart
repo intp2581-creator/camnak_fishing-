@@ -33,7 +33,7 @@ bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 // 🆙 만렙 100레벨! 총 경험치(0~130만)는 그대로, 기존 30레벨 곡선을 100칸으로 잘게 보간.
 //    레벨업이 더 자주 일어나 성취감↑ (만렙 경험치/획득량/밸런스 불변)
 // =========================================================================
-const int globalMaxLevel = 150;
+const int globalMaxLevel = 100;
 
 // 기존 30레벨 누적 경험치(곡선 원본). 이 곡선 모양을 그대로 100칸으로 보간한다.
 const List<int> _oldExpTable30 = [
@@ -75,7 +75,13 @@ List<int> _buildExpTable() {
   for (int n = 2; n <= M; n++) {
     if (table[n] <= table[n - 1]) table[n] = table[n - 1] + 100;
   }
-  table[M] = 1300000;
+  // 5) 레벨당 증가폭(delta)도 '비감소' — 100단위 반올림으로 생기는 ±100 흔들림까지 제거.
+  //    → 필요경험치가 중간에 줄어드는 일이 전혀 없음. (만렙 ≈ 1,300,800, 약 130만)
+  for (int n = 3; n <= M; n++) {
+    final pd = table[n - 1] - table[n - 2];
+    final td = table[n] - table[n - 1];
+    if (td < pd) table[n] = table[n - 1] + pd;
+  }
   return table;
 }
 
