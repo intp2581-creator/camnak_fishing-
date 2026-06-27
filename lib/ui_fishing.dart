@@ -2336,7 +2336,7 @@ Positioned(
           myGold = userData['gold'] ?? 0; 
 
           int exp = userData['exp'] ?? 0;
-          if (exp >= 1300000) myLevel = 30; else if (exp >= 1200000) myLevel = 29; else if (exp >= 1100000) myLevel = 28; else if (exp >= 1000000) myLevel = 27; else if (exp >= 900000) myLevel = 26; else if (exp >= 800000) myLevel = 25; else if (exp >= 700000) myLevel = 24; else if (exp >= 650000) myLevel = 23; else if (exp >= 600000) myLevel = 22; else if (exp >= 550000) myLevel = 21; else if (exp >= 500000) myLevel = 20; else if (exp >= 430000) myLevel = 19; else if (exp >= 390000) myLevel = 18; else if (exp >= 350000) myLevel = 17; else if (exp >= 310000) myLevel = 16; else if (exp >= 270000) myLevel = 15; else if (exp >= 240000) myLevel = 14; else if (exp >= 210000) myLevel = 13; else if (exp >= 190000) myLevel = 12; else if (exp >= 160000) myLevel = 11; else if (exp >= 130000) myLevel = 10; else if (exp >= 110000) myLevel = 9; else if (exp >= 90000) myLevel = 8; else if (exp >= 70000) myLevel = 7; else if (exp >= 50000) myLevel = 6; else if (exp >= 30000) myLevel = 5; else if (exp >= 20000) myLevel = 4; else if (exp >= 10000) myLevel = 3; else if (exp >= 5000) myLevel = 2; else myLevel = 1;
+          myLevel = calcLevelFromExp(exp); // 🆙 공용 100레벨 계산 (옛 30레벨 하드코딩 제거)
         }
         
         bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼'); }
