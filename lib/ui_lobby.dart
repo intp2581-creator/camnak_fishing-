@@ -1385,6 +1385,7 @@ class _StoreScreenState extends State<StoreScreen> {
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
     final p = _storePriceOf(name);
+    if (p != null && p <= 0) return 0; // 🚫 무료 지급품(0P)은 판매가 0 — 0P 구매 후 되팔이 악용 차단
     final unit = (p != null && p > 0) ? (p * 0.5).floor() : 100;
     return unit < 10 ? 10 : unit;
   }
@@ -1518,8 +1519,9 @@ class _StoreScreenState extends State<StoreScreen> {
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
     final isBeginner = itemName.contains('초보');
-    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
-    final sellable = !isBeginner && !isTop;
+    final isFree = price <= 0; // 🚫 무료 지급품(0P) — 판매 불가 (되팔이 악용 차단)
+    final isTop = !isBeginner && !isFree && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
+    final sellable = !isBeginner && !isFree && !isTop;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
