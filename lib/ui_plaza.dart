@@ -252,6 +252,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String? _myBubble;
   DateTime? _myBubbleUntil;
   Timer? _bubbleTimer;
+  Timer? _heartbeatTimer; // 💓 presence/접속상태 주기적 재기록(자가복구)
 
   @override
   void initState() {
@@ -316,6 +317,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _myRef?.remove();
     _chatCtrl.dispose();
     _bubbleTimer?.cancel();
+    _heartbeatTimer?.cancel();
     super.dispose();
   }
 
@@ -521,6 +523,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 말풍선 만료 처리용 1초 타이머
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() {});
+    });
+    // 💓 하트비트: 닉/이미지/접속상태를 12초마다 재기록 → 닉 누락("조사")·미표시·접속불 깜빡임 자가복구
+    _heartbeatTimer ??= Timer.periodic(const Duration(seconds: 12), (_) {
+      if (!mounted) return;
+      _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
+      guildGoOnline(); // 접속 초록불 재확인
     });
     // 🧩 채널 단위 구독(onValue). 채널당 정원 50이라 페이로드는 항상 한정(샤딩 효과).
     //    ※ child 이벤트 방식은 멀티 표시 이슈가 있어 검증된 onValue로 복구.
