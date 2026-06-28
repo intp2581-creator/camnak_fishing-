@@ -2322,7 +2322,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               return true;
             }
 
-            final items = _inventory.map((e) => e as Map<String, dynamic>).where(match).toList()
+            final items = _inventory.map((e) => e as Map<String, dynamic>).where(match).where((it) {
+              // 🦐 민물새우는 채집한 양이 있을 때만 미끼로 표시 (0개면 새우 채집망만 보임)
+              if ((it['name'] ?? '') == '민물새우' && ((it['quantity'] ?? 0) as num) <= 0) return false;
+              return true;
+            }).toList()
               ..sort((a, b) => typeRank(a).compareTo(typeRank(b)));
 
             Widget tabBtn(String t) {
