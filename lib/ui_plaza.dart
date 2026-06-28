@@ -2322,9 +2322,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               return true;
             }
 
+            // 🦐 민물새우 보유 여부 → 있으면 미끼만, 없으면 채집망(도구)만 표시
+            final hasShrimp = _inventory.any((i) => ((i['name'] ?? '').toString()) == '민물새우' && ((i['quantity'] ?? 0) as num) > 0);
             final items = _inventory.map((e) => e as Map<String, dynamic>).where(match).where((it) {
-              // 🦐 민물새우는 채집한 양이 있을 때만 미끼로 표시 (0개면 새우 채집망만 보임)
-              if ((it['name'] ?? '') == '민물새우' && ((it['quantity'] ?? 0) as num) <= 0) return false;
+              final nm = (it['name'] ?? '').toString();
+              // 🦐 새우 있으면 민물새우(미끼) 표시·채집망 숨김 / 새우 없으면 채집망만 표시
+              if (nm == '민물새우' && !hasShrimp) return false;
+              if (nm == '새우 채집망' && hasShrimp) return false;
               return true;
             }).toList()
               ..sort((a, b) => typeRank(a).compareTo(typeRank(b)));

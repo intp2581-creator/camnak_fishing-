@@ -2409,11 +2409,14 @@ Positioned(
         _latestInventory = inventory; // ⚡ 자동 장착용으로 최신 인벤토리 기억
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setInvState) {
+            // 🦐 민물새우 보유 여부 → 있으면 미끼만, 없으면 채집망(도구)만 표시
+            bool hasShrimp = inventory.any((i) => (i['name']?.toString() ?? '') == '민물새우' && ((i['quantity'] ?? 0) as num) > 0);
             List<dynamic> filteredItems = inventory.where((item) {
               String cat = item['category'] ?? '';
               bool isSkin = item['name'].toString().contains('조사') || item['name'].toString().contains('마스터') || item['name'].toString().contains('프로') || item['name'].toString().contains('세트');
-              // 🦐 민물새우는 채집한 양이 있을 때만 미끼로 표시 (0개면 새우 채집망만 보임)
-              if (item['name'].toString() == '민물새우' && ((item['quantity'] ?? 0) as num) <= 0) return false;
+              // 🦐 새우 있으면 민물새우(미끼) 표시·채집망 숨김 / 새우 없으면 채집망만 표시
+              if (item['name'].toString() == '민물새우' && !hasShrimp) return false;
+              if (item['name'].toString() == '새우 채집망' && hasShrimp) return false;
               if (_currentFilter == 'ALL') return true;
               if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
