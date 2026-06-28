@@ -336,6 +336,7 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedCooler; // 🧊 아이스박스(발밑 슬롯, 민물·바다 공용)
   bool _trapDeployed = false; // 🦐 새우 채집망 던져둔 상태
   Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
+  Timer? _guildHeartbeat;     // 💓 길드 접속 유지(낚시 중)
 
   // 📡 실시간 핫타임 중계 감시용 변수
  
@@ -422,6 +423,7 @@ Widget _buildChatTab(int index, String title) {
     // 🛡️ 길드 버프 불러오기 (능력치 보너스)
     _loadGuildBuff();
     guildGoOnline(); // 🟢 전역 접속표시
+    _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(); }); // 💓 낚시 중에도 접속 유지
 
     // 🚀 [추가] 튜토리얼 중인 쌩초보 유저면 윤슬님 출근시키기!
     if (widget.isFirstTime) {
@@ -568,6 +570,7 @@ Widget _buildChatTab(int index, String title) {
     _rodController.dispose();
     _castController.dispose();
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
+    _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.

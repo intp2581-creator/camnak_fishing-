@@ -1,5 +1,6 @@
 // ignore_for_file: deprecated_member_use
 // 🛡️ [길드 공용] 접속상태(presence) + 길드 정보 다이얼로그 (광장/낚시터 공용, 읽기 전용)
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,24 +25,70 @@ void guildGoOnline() {
 }
 
 // 길드원 접속 점(초록=접속/회색=비접속)
-Widget guildOnlineDot(String memberUid, {double size = 9}) {
-  return StreamBuilder<DatabaseEvent>(
-    stream: _statusDb().ref('status/$memberUid/online').onValue,
-    builder: (c, snap) {
-      final online = snap.data?.snapshot.value == true;
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: online ? const Color(0xFF4CD964) : Colors.grey.shade600,
-          boxShadow: online
-              ? [BoxShadow(color: const Color(0xFF4CD964).withOpacity(0.6), blurRadius: 5)]
-              : null,
-        ),
-      );
-    },
-  );
+// 🛡️ 유령접속 방지: online 불리언이 아니라 '마지막 하트비트(t) 신선도'로 판정.
+// 탭 강제종료 등으로 onDisconnect가 안 먹어도 40초 지나면 자동 회색.
+const int _onlineFreshMs = 40000; // 하트비트 12초 → 40초 넘으면 오프라인 처리
+
+Widget guildOnlineDot(String memberUid, {double size = 9}) =>
+    _GuildOnlineDot(uid: memberUid, size: size);
+
+class _GuildOnlineDot extends StatefulWidget {
+  final String uid;
+  final double size;
+  const _GuildOnlineDot({required this.uid, this.size = 9});
+  @override
+  State<_GuildOnlineDot> createState() => _GuildOnlineDotState();
+}
+
+class _GuildOnlineDotState extends State<_GuildOnlineDot> {
+  StreamSubscription<DatabaseEvent>? _sub;
+  Timer? _ticker;
+  bool _isOn = false;
+  int _t = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = _statusDb().ref('status/${widget.uid}').onValue.listen((e) {
+      final v = e.snapshot.value;
+      if (v is Map) {
+        _isOn = v['online'] == true;
+        _t = (v['t'] is int) ? v['t'] as int : 0;
+      } else {
+        _isOn = false;
+        _t = 0;
+      }
+      if (mounted) setState(() {});
+    });
+    // RTDB 이벤트가 안 와도(상대가 그냥 끊긴 경우) 신선도 재판정하도록 주기 갱신
+    _ticker = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final online = _isOn &&
+        (DateTime.now().millisecondsSinceEpoch - _t) < _onlineFreshMs;
+    return Container(
+      width: widget.size,
+      height: widget.size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: online ? const Color(0xFF4CD964) : Colors.grey.shade600,
+        boxShadow: online
+            ? [BoxShadow(color: const Color(0xFF4CD964).withOpacity(0.6), blurRadius: 5)]
+            : null,
+      ),
+    );
+  }
 }
 
 // 📋 길드 정보 보기 (읽기 전용) — 가입/탈퇴는 광장 길드 포탈에서만
