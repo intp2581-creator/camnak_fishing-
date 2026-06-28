@@ -1260,7 +1260,7 @@ Widget _buildChatTab(int index, String title) {
       if (idx >= 0) {
         inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 2;
       } else {
-        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 민물새우 미끼'});
+        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼 (집어력 25, 베스·메기·가물치 등 육식·대물에 강함)'});
       }
       await ref.update({'inventory': inv});
     } catch (e) { debugPrint('🦐 새우 적립 실패: $e'); }
