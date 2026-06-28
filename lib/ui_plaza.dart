@@ -178,6 +178,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
   bool _showQuest = false;
+  bool _showReward = false; // 🎁 오늘 첫 접속 보상 아라 팝업 표시
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
@@ -417,10 +418,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       }
     } catch (_) {}
     if (mounted) setState(() => _loading = false);
-    // 🎁 첫 접속 보상 안내 + 일일 퀘스트 자동 안내
+    // 🎁 첫 접속 보상 안내 — 아라 매니저가 팝업으로 안내
     if (_gotDailyReward) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _toast('🎁 오늘 첫 접속 보상 500P 지급!');
+        if (mounted) setState(() => _showReward = true);
       });
     }
     _initPresence();
@@ -1889,6 +1890,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         style: const TextStyle(
                             color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                       ),
+                    ),
+                  ),
+                ),
+
+              // 🎁 오늘 첫 접속 보상 안내 오버레이 (아라)
+              if (_showReward)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: '${widget.nickname} 조사님, 어서오세요! 😊\n오늘도 캠피싱을 찾아주셔서 감사해요.\n\n🎁 오늘 첫 접속 보상으로 500P를 드렸어요!\n매일 접속하면 매일 받을 수 있으니 잊지 마세요~',
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () => setState(() => _showReward = false),
+                    action: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: _kGold, foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                          textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                      onPressed: () => setState(() => _showReward = false),
+                      child: const Text('500P 받기 🎁'),
                     ),
                   ),
                 ),
