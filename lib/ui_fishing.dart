@@ -2579,10 +2579,11 @@ Positioned(
       }).toList();
 
       equippedRod = null; equippedFloat = null; equippedBait = null;
-      equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null;
+      equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null; equippedCooler = null;
 
-      Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel;
+      Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel; Map<String, dynamic>? bestCooler;
       int maxBaitQty = -1;
+      int getCoolerTier(String name) { if (name.contains('대형')) return 3; if (name.contains('중형')) return 2; if (name.contains('소형')) return 1; return 1; }
 
       int getSkinTier(String name) { if (name.contains('마스터')) return 5; if (name.contains('프로') || name.contains('고수')) return 4; if (name.contains('중수')) return 3; if (name.contains('하수') || name.contains('초보')) return 2; return 1; }
       int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
@@ -2594,6 +2595,7 @@ Positioned(
         String name = item['name'].toString();
         if (name.contains('스킨') || name.contains('조사') || name.contains('마스터')) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
+        else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) { if (bestCooler == null || getCoolerTier(name) > getCoolerTier(bestCooler!['name'].toString())) { bestCooler = item; } }
         else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
         else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴') && !name.contains('아이스박스') && !name.contains('쿨러') && !name.contains('보냉')) {
           bool isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
@@ -2612,6 +2614,7 @@ Positioned(
       equippedRod = bestRod;
       equippedReel = bestReel;
       equippedFloat = bestFloat;
+      equippedCooler = bestCooler; // 🧊 아이스박스 자동 장착
       isRodEquipped = equippedRod != null;
 
       if (widget.isSea) {
