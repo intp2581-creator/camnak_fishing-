@@ -278,6 +278,7 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '소형 아이스박스', 'price': 20000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
   {'name': '중형 아이스박스', 'price': 40000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
   {'name': '대형 아이스박스', 'price': 80000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
+  {'name': '새우 채집망', 'price': 5000, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
   {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'},
   {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},

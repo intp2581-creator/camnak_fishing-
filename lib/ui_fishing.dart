@@ -334,6 +334,8 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedBadge;
   Map<String, dynamic>? equippedReel;
   Map<String, dynamic>? equippedCooler; // 🧊 아이스박스(발밑 슬롯, 민물·바다 공용)
+  bool _trapDeployed = false; // 🦐 새우 채집망 던져둔 상태
+  Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
 
   // 📡 실시간 핫타임 중계 감시용 변수
  
@@ -565,6 +567,7 @@ Widget _buildChatTab(int index, String title) {
     _clearAllBiteTimers();
     _rodController.dispose();
     _castController.dispose();
+    _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
@@ -1219,6 +1222,47 @@ Widget _buildChatTab(int index, String title) {
     } catch (e) { print("미끼 소모 중 에러: $e"); }
   }
 
+  // 🦐 새우 채집망 보유 여부
+  bool _hasShrimpTrap() {
+    return _latestInventory.any((it) => (it['name'] ?? '').toString() == '새우 채집망');
+  }
+
+  // 🦐 채집망 던지기/건지기 토글
+  void _toggleShrimpTrap() {
+    if (!_hasShrimpTrap()) return;
+    audioManager.playSfx("sfx_click.mp3");
+    if (_trapDeployed) {
+      // 건지기
+      _trapTimer?.cancel();
+      _trapTimer = null;
+      setState(() => _trapDeployed = false);
+      _showNotificationPopup('🦐 채집망 회수', '새우 채집망을 건졌어요.\n모은 민물새우는 가방에 있어요!', const Color(0xFFD4AF37));
+    } else {
+      // 던지기 → 1분마다 민물새우 +2
+      setState(() => _trapDeployed = true);
+      _trapTimer = Timer.periodic(const Duration(minutes: 1), (_) => _collectShrimp());
+      _showNotificationPopup('🦐 채집망 던지기!', '민물에 채집망을 던졌어요.\n1분마다 민물새우가 모여요. (건지기로 종료)', const Color(0xFFD4AF37));
+    }
+  }
+
+  // 🦐 1분마다 민물새우 +2 적립
+  Future<void> _collectShrimp() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+      final idx = inv.indexWhere((i) => (i['name'] ?? '') == '민물새우');
+      if (idx >= 0) {
+        inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 2;
+      } else {
+        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 민물새우 미끼'});
+      }
+      await ref.update({'inventory': inv});
+    } catch (e) { debugPrint('🦐 새우 적립 실패: $e'); }
+  }
+
   // 👇 여기에 추가
 int _getLocationStars() {
   int stars = 1;
@@ -1484,6 +1528,7 @@ Positioned(
                     var userData = snapshot.data!.data() as Map<String, dynamic>;
                     realExp = userData['exp'] ?? 0; realGold = userData['gold'] ?? 0;
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
+                    _latestInventory = userData['inventory'] ?? []; // 🦐 채집망 보유 체크용 최신 인벤
                   }
 
     // 🆙 경험치→레벨. 칭호(realRank)는 저장된 승급 결과(rank 필드)를 그대로 사용 — #13 승급퀘스트 개편
@@ -1622,6 +1667,26 @@ Positioned(
                 icon: Icons.groups,
                 onPressed: () => showGuildInfoDialog(context),
               ),
+              // 🦐 새우 채집망 던지기/건지기 (보유 시에만 표시)
+              if (_hasShrimpTrap()) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _toggleShrimpTrap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _trapDeployed ? const Color(0xCC1B5E20) : Colors.black87,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFD4AF37), width: 1),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Text('🦐', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(_trapDeployed ? '건지기' : '채집망', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                ),
+              ],
               const SizedBox(width: 20), // 황금 버튼들과 닉네임 바 사이의 넉넉한 간격!
 
               // 👇 (기존의 1429번 줄 Container 시작 부분이 이 아래로 오면 됩니다!)
@@ -2339,7 +2404,7 @@ Positioned(
           myLevel = calcLevelFromExp(exp); // 🆙 공용 100레벨 계산 (옛 30레벨 하드코딩 제거)
         }
         
-        bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼'); }
+        bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼') || name.contains('민물새우'); }
 
         _latestInventory = inventory; // ⚡ 자동 장착용으로 최신 인벤토리 기억
         return StatefulBuilder(
@@ -2364,7 +2429,7 @@ Positioned(
                         if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'ROD';
                         if (n.contains('릴') || c == 'REEL') return 'REEL';
                         if (n.contains('찌') || c == 'FLOAT') return 'FLOAT';
-                        if (n.contains('지렁이') || n.contains('글루텐') || n.contains('옥수수') || n.contains('미끼') || n.contains('에기')) return 'BAIT';
+                        if (n.contains('지렁이') || n.contains('글루텐') || n.contains('옥수수') || n.contains('미끼') || n.contains('에기') || n.contains('민물새우')) return 'BAIT';
                         if (n.contains('스킨') || n.contains('조사')) return 'SKIN';
                         return 'ETC';
                       }
