@@ -249,6 +249,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         '✅ 오늘 안에 완료하면 500P 지급!';
   }
 
+  // 🎁 첫 접속 통합 인사: 인사 + 500P 보상 + 오늘의 미션 한 번에
+  String _getWelcomeText() {
+    final mission = _getTodayMission();
+    return '${widget.nickname} 조사님, 어서오세요! 😊\n'
+        '오늘도 캠피싱을 찾아주셔서 감사해요.\n\n'
+        '🎁 오늘 첫 접속 보상 500P 지급 완료!\n\n'
+        '🏆 오늘의 일일 퀘스트\n'
+        '🐟 ${mission['fish']} ${mission['count']}마리 잡기 (어디든 OK!)\n'
+        '✅ 오늘 안에 완료하면 500P 추가 지급!\n\n'
+        '(미션을 잊으셨다면 저(아라)를 눌러주세요~)';
+  }
+
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
   final Map<String, String> _bubbleMsg = {};
   final Map<String, DateTime> _bubbleUntil = {};
@@ -1898,7 +1910,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showReward)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${widget.nickname} 조사님, 어서오세요! 😊\n오늘도 캠피싱을 찾아주셔서 감사해요.\n\n🎁 오늘 첫 접속 보상으로 500P를 드렸어요!\n매일 접속하면 매일 받을 수 있으니 잊지 마세요~',
+                    text: _getWelcomeText(),
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () => setState(() => _showReward = false),
                     action: ElevatedButton(
@@ -1907,7 +1919,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                           textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
                       onPressed: () => setState(() => _showReward = false),
-                      child: const Text('500P 받기 🎁'),
+                      child: const Text('낚시하러 가기 🎣'),
                     ),
                   ),
                 ),
