@@ -467,9 +467,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
-      // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비). 이미 있으면 안 건드림.
+      // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비)
       if (widget.startTutorial && !data.containsKey('tutStep')) {
         await doc.reference.set({'tutStep': 0, 'tutCleared': false}, SetOptions(merge: true));
+        _tutStep = 0; _tutCleared = false;
+      } else if (data.containsKey('tutStep')) {
+        // 일회성 get으로 튜토리얼 상태 확정 읽기 (실시간 스트림보다 신뢰)
+        _tutStep = (data['tutStep'] as num?)?.toInt() ?? 99;
+        _tutCleared = data['tutCleared'] == true;
       }
       _gold = (data['gold'] ?? 0) is int ? (data['gold'] ?? 0) as int : 0;
       _inventory = (data['inventory'] ?? []) as List<dynamic>;
@@ -543,9 +548,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _questDone = questDone;
         _rank = newRank;
         _daejangCatch = dc;
-        // 🎓 튜토리얼 상태 (필드 없으면 기존 유저 → 99=미대상)
-        _tutStep = d.containsKey('tutStep') ? ((d['tutStep'] as num?)?.toInt() ?? 99) : 99;
-        _tutCleared = d['tutCleared'] == true;
+        // 🎓 튜토리얼 상태 — tutStep이 스냅샷에 있을 때만 갱신(빈/캐시 스냅샷이 99로 덮어쓰는 것 방지)
+        if (d.containsKey('tutStep')) {
+          _tutStep = (d['tutStep'] as num?)?.toInt() ?? _tutStep;
+          _tutCleared = d['tutCleared'] == true;
+        }
         _inventory = (d['inventory'] ?? []) as List<dynamic>;
         if (guildChanged) {
           _guildId = gid;
@@ -2162,7 +2169,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Text('아라',
                       style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트[t$_tutStep]'),
+                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
                       style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
                 ]),
               );
