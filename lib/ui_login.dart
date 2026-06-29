@@ -77,6 +77,7 @@ class _LoginPageState extends State<LoginPage> {
           'nickname': nickname, 'fishingType': _selectedFishingType, 'level': 1, 'rank': '초보', 'gold': 1000,
           'inventory': getInitialStarterPack(), 'playTimeRemaining': initialPlayTime,
           'lastPlayDate': DateTime.now().toIso8601String().substring(0, 10), 'createdAt': FieldValue.serverTimestamp(),
+          'tutStep': 0, // 🎓 튜토리얼 시작 가능(신규 표식)
         });
 
         if (mounted) {
@@ -345,7 +346,8 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       'level': 1,
       'gold': 0, 
       'createdAt': FieldValue.serverTimestamp(),
-      'inventory': getInitialStarterPack(), 
+      'inventory': getInitialStarterPack(),
+      'tutStep': 0, // 🎓 튜토리얼 퀘스트 시작 가능(신규 표식). 기존 유저는 이 필드가 없어 튜토리얼 미노출
     });
 
     if (mounted) {

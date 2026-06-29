@@ -165,6 +165,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   };
 
   void _openNpcIntro(String img, String key, String label, VoidCallback onEnter) {
+    // 🎓 튜토리얼: 현재 퀘스트의 타겟 NPC면 미션 설명 팝업으로 가로채기
+    final q = _tutQuestNow;
+    if (q != null && !_tutCleared && q['npc'] == key) {
+      setState(() { _tutMissionEnter = onEnter; _showTutMission = true; });
+      return;
+    }
     final list = _npcGreetings[key] ?? ['안녕하세요!'];
     setState(() {
       _npcIntro = {
@@ -176,9 +182,65 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
   }
 
+  // ───────────────────────── 🎓 튜토리얼 퀘스트 ─────────────────────────
+  // 현재 진행 중 퀘스트(1~5 → 인덱스 0~4). 없으면 null
+  Map<String, String>? get _tutQuestNow =>
+      (_tutStep >= 1 && _tutStep <= _tutQuests.length) ? _tutQuests[_tutStep - 1] : null;
+
+  Future<void> _setTut(Map<String, dynamic> data) async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    await FirebaseFirestore.instance.collection('users').doc(u.uid).set(data, SetOptions(merge: true));
+  }
+
+  // 튜토리얼 시작 (인트로 '시작' 버튼)
+  void _startTutorial() => _setTut({'tutStep': 1, 'tutCleared': false});
+
+  // 아라 클릭 시: 튜토리얼 우선 처리(완료/미대상이면 일반 일일퀘스트)
+  void _onAraTap() {
+    if (_tutStep == 0) { setState(() => _showTutIntro = true); return; }
+    if (_tutQuestNow != null) {
+      if (_tutCleared) { setState(() => _showTutReward = true); }
+      else { _toast('${_tutQuestNow!['name']} 을(를) 만나러 가보세요!'); }
+      return;
+    }
+    setState(() => _showQuest = true); // 튜토리얼 끝 → 일반 일일퀘스트
+  }
+
+  // 타겟 NPC 미션 완료 처리 (랭킹/길드/아레나는 '열면 완료')
+  void _clearTutMission(String npcKey) {
+    if (_tutQuestNow?['npc'] == npcKey && !_tutCleared) _setTut({'tutCleared': true});
+  }
+
+  // 아라에서 보상 받기 → 다음 퀘스트
+  Future<void> _claimTutReward() async {
+    await _setTut({
+      'exp': FieldValue.increment(_tutExp),
+      'gold': FieldValue.increment(_tutPts),
+      'tutStep': _tutStep + 1,
+      'tutCleared': false,
+    });
+  }
+
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전
   bool _showQuest = false;
   bool _showReward = false; // 🎁 오늘 첫 접속 보상 아라 팝업 표시
+  // 🎓 튜토리얼 퀘스트 (신규 유저) — tutStep: 0=시작전, 1~5=진행중, 99=완료/미대상
+  int _tutStep = 99;
+  bool _tutCleared = false;   // 현재 퀘스트의 NPC 미션 완료(아라 가서 보상받기 대기)
+  bool _tutIntroShown = false; // 접속 시 인트로 1회만
+  bool _showTutIntro = false;   // 시작 안내(아라)
+  bool _showTutMission = false; // 타겟 NPC 미션 설명
+  bool _showTutReward = false;  // 아라 보상 받기
+  VoidCallback? _tutMissionEnter; // 미션 팝업 버튼이 열 기능
+  static const List<Map<String, String>> _tutQuests = [
+    {'npc': 'rank',    'name': '가람', 'title': '랭킹 보는 법', 'desc': '경쟁 조사님들의 순위를 볼 수 있어요!\n순위표를 한 번 열어볼까요?', 'done': '순위표 잘 보셨죠? 😊\n아라에게 가서 보상을 받으세요!'},
+    {'npc': 'guild',   'name': '두레', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요!\n아라에게 가서 보상을 받으세요!'},
+    {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요!\n아라에게 가서 보상을 받으세요!'},
+    {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝!\n아라에게 가서 보상을 받으세요!'},
+    {'npc': 'shop',    'name': '보배', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비예요!\n아라에게 가서 마지막 보상을 받으세요!'},
+  ];
+  static const int _tutExp = 200, _tutPts = 400; // 퀘스트당 보상
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
@@ -473,6 +535,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _questDone = questDone;
         _rank = newRank;
         _daejangCatch = dc;
+        // 🎓 튜토리얼 상태 (필드 없으면 기존 유저 → 99=미대상)
+        _tutStep = d.containsKey('tutStep') ? ((d['tutStep'] as num?)?.toInt() ?? 99) : 99;
+        _tutCleared = d['tutCleared'] == true;
         _inventory = (d['inventory'] ?? []) as List<dynamic>;
         if (guildChanged) {
           _guildId = gid;
@@ -1906,6 +1971,67 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   ),
                 ),
 
+              // 🎓 튜토리얼 — 시작 안내 (아라)
+              if (_showTutIntro)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: '${widget.nickname} 조사님, 환영해요! 🎣\n저는 안내 매니저 아라예요.\n\n캠피싱 첫걸음 튜토리얼을 준비했어요!\n각 NPC를 만나 미션을 완료하면\n경험치와 포인트를 듬뿍 드려요.\n지금 시작할까요?',
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () {},
+                    action: Row(mainAxisSize: MainAxisSize.min, children: [
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                        onPressed: () { setState(() => _showTutIntro = false); _startTutorial(); },
+                        child: const Text('튜토리얼 시작 🚀'),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(onPressed: () => setState(() => _showTutIntro = false), child: const Text('나중에', style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold))),
+                    ]),
+                  ),
+                ),
+
+              // 🎓 튜토리얼 — 타겟 NPC 미션 설명
+              if (_showTutMission && _tutQuestNow != null)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: '[${_tutQuestNow!['title']}]\n\n${_tutQuestNow!['desc']}',
+                    imagePath: 'assets/images/npc_${_tutQuestNow!['npc']}.png',
+                    onTap: () {},
+                    action: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                      onPressed: () {
+                        final q = _tutQuestNow;
+                        setState(() => _showTutMission = false);
+                        _tutMissionEnter?.call(); // 기능 열기(랭킹/길드/아레나/상점/낚시터)
+                        // 랭킹·길드·아레나는 '열면 완료'. 낚시터(첫 고기)·상점(구매)은 별도 처리.
+                        if (q != null && (q['npc'] == 'rank' || q['npc'] == 'guild' || q['npc'] == 'arena')) {
+                          _clearTutMission(q['npc']!);
+                        }
+                      },
+                      child: const Text('확인하러 가기 👉'),
+                    ),
+                  ),
+                ),
+
+              // 🎓 튜토리얼 — 아라 보상 받기
+              if (_showTutReward && _tutQuestNow != null)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: '${_tutQuestNow!['done']}\n\n🎁 보상: 경험치 $_tutExp · 포인트 $_tutPts',
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () {},
+                    action: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                      onPressed: () {
+                        setState(() => _showTutReward = false);
+                        _claimTutReward();
+                        _toast('🎁 경험치 +$_tutExp · 포인트 +$_tutPts!');
+                      },
+                      child: const Text('보상 받기 🎁'),
+                    ),
+                  ),
+                ),
+
               // 🎁 오늘 첫 접속 보상 안내 오버레이 (아라)
               if (_showReward)
                 Positioned.fill(
@@ -1918,7 +2044,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           backgroundColor: _kGold, foregroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                           textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                      onPressed: () => setState(() => _showReward = false),
+                      onPressed: () {
+                        setState(() => _showReward = false);
+                        // 🎓 신규 유저면 환영 닫고 튜토리얼 시작 안내로
+                        if (_tutStep == 0 && !_tutIntroShown) { _tutIntroShown = true; setState(() => _showTutIntro = true); }
+                      },
                       child: const Text('낚시하러 가기 🎣'),
                     ),
                   ),
@@ -2007,25 +2137,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 32, // 이름+역할 2줄 높이 보정
       child: GestureDetector(
-        onTap: () => setState(() => _showQuest = true),
+        onTap: _onAraTap,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _questDone ? const Color(0xFF7FFFB0) : _kGold),
-                boxShadow: [BoxShadow(color: (_questDone ? const Color(0xFF7FFFB0) : _kGold).withOpacity(0.5), blurRadius: 8)],
-              ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('아라',
-                    style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                Text(_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트',
-                    style: TextStyle(color: _questDone ? const Color(0xFF7FFFB0) : Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-              ]),
-            ),
+            Builder(builder: (_) {
+              final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 표시 조건
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
+                  boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
+                ),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Text('아라',
+                      style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
+                      style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
+                ]),
+              );
+            }),
             const SizedBox(height: 2),
             SizedBox(
               width: figW,
@@ -2046,6 +2179,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       String img, String fallback, String name, String label, VoidCallback onTap, {double scale = 1.0}) {
     final figH = sizeH * 0.21 * scale;
     final figW = figH * 0.6;
+    final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 32, // cy=발 위치, 이름+역할 2줄 높이 보정
@@ -2059,11 +2193,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.65),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _kGold),
-                boxShadow: [BoxShadow(color: _kGold.withOpacity(0.4), blurRadius: 7)],
+                border: Border.all(color: isTutTarget ? Colors.orangeAccent : _kGold, width: isTutTarget ? 2 : 1),
+                boxShadow: [BoxShadow(color: (isTutTarget ? Colors.orangeAccent : _kGold).withOpacity(isTutTarget ? 0.8 : 0.4), blurRadius: isTutTarget ? 10 : 7)],
               ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(name,
+                Text(isTutTarget ? '❗ $name' : name,
                     style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
                 Text(label,
                     style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
