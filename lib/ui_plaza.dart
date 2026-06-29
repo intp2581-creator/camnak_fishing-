@@ -244,6 +244,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'tutStep': next,
       'tutCleared': false,
     });
+    if (next > _tutQuests.length && mounted) {
+      _toast('🎉 튜토리얼 완료! 이제 자유롭게 즐겨보세요 🎣');
+    }
   }
 
   // 📋 일일 퀘스트 (아라 매니저) — 로비에서 광장으로 이전

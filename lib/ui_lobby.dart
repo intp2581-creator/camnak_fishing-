@@ -1736,10 +1736,16 @@ class _StoreScreenState extends State<StoreScreen> {
       }
       
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'gold': FieldValue.increment(-item['price']), 
+        'gold': FieldValue.increment(-item['price']),
         'inventory': inventory
       });
-      
+
+      // 🎓 튜토리얼 '장비 장만'(보배, tutStep 5) — 아이템 구매하면 미션 완료 기록
+      if (((userDoc.data()?['tutStep']) as num?)?.toInt() == 5) {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid)
+            .set({'tutCleared': true}, SetOptions(merge: true));
+      }
+
       setState(() {
         myDisplayGold -= (item['price'] as int);
         myInventory = List.from(inventory); // 🔄 구매 즉시 내 인벤 갱신(판매탭/중복체크 반영)
