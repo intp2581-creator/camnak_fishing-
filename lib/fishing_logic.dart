@@ -195,17 +195,16 @@ for (var fish in availableFishes) {
        selectedFish ??= availableFishes.first;
 
     // 🎛️ 난이도(별점)에 따른 최소/최대 사이즈 및 보상 배율 설정
-    double minFactor = 0.0; double sizeCap = 1.0; 
-    double expMult = 1.0; double ptsMult = 1.0;
+    double minFactor = 0.0; double sizeCap = 1.0;
 
     // 📏 minFactor/sizeCap = '최대어(baseMax) 대비' 비율. (★1 하한은 종 최소어)
     switch (currentStars) {
-      case 1: minFactor = 0.0; sizeCap = 0.3; expMult = 2.0; ptsMult = 1.0; break; // 최소어 ~ 최대어 30%
-      case 2: minFactor = 0.2; sizeCap = 0.4; expMult = 2.2; ptsMult = 1.2; break; // 20% ~ 40%
-      case 3: minFactor = 0.3; sizeCap = 0.6; expMult = 2.4; ptsMult = 1.4; break; // 30% ~ 60%
-      case 4: minFactor = 0.4; sizeCap = 0.8; expMult = 2.6; ptsMult = 1.6; break; // 40% ~ 80%
+      case 1: minFactor = 0.0; sizeCap = 0.3; break; // 최소어 ~ 최대어 30%
+      case 2: minFactor = 0.2; sizeCap = 0.4; break; // 20% ~ 40%
+      case 3: minFactor = 0.3; sizeCap = 0.6; break; // 30% ~ 60%
+      case 4: minFactor = 0.4; sizeCap = 0.8; break; // 40% ~ 80%
       case 5:
-      default: minFactor = 0.5; sizeCap = 1.0; expMult = 2.8; ptsMult = 1.8; break; // 50% ~ 최대어
+      default: minFactor = 0.5; sizeCap = 1.0; break; // 50% ~ 최대어
     }
 
     double baseMin = double.tryParse(selectedFish['min'].toString()) ?? 10.0;
@@ -225,11 +224,15 @@ for (var fish in availableFishes) {
 
     size = double.parse(size.toStringAsFixed(1));
 
-    // 💰 보상 계산
-    double fishBaseExpMult = selectedFish['expMult'] ?? 1.0;
-    int exp = (size * expMult * fishBaseExpMult).round();
-    int pts = (size * ptsMult).round();
+    // 💰 보상 계산 — 절대 사이즈 비례 폐지(지렁이+큰고기 메타 완화)
+    //    보상 = 기본 10 + 사이즈 구간(10cm당 +1) + 별점(난이도 ★1~5)
+    int sizeBand = (size / 10).floor();   // 10~19.9→1, 20~29.9→2, 30~39.9→3 ...
+    int starBonus = currentStars;          // ★1→1 ... ★5→5
+    int baseReward = 10 + sizeBand + starBonus;
+    int exp = baseReward;
+    int pts = baseReward;
 
+    // 👑 6대장은 +20% (살짝 더 가치 있게)
     List<String> bossFishes = ['붕어', '잉어', '가물치', '참돔', '감성돔', '문어'];
     if (bossFishes.contains(selectedFish['name'])) {
       exp = (exp * 1.2).round();
