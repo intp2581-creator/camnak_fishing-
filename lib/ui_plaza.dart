@@ -28,6 +28,7 @@ class PlazaScreen extends StatefulWidget {
   final Map<String, dynamic> spot; // {name, target, stars, image}
   final bool isSea;
   final bool isFirstTime;
+  final bool startTutorial; // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 강제 시작
 
   const PlazaScreen({
     super.key,
@@ -36,6 +37,7 @@ class PlazaScreen extends StatefulWidget {
     required this.spot,
     this.isSea = false,
     this.isFirstTime = false,
+    this.startTutorial = false,
   });
 
   // 🚪 기본 진입 광장(예산 예당지)
@@ -43,6 +45,7 @@ class PlazaScreen extends StatefulWidget {
     required String nickname,
     required int level,
     bool isFirstTime = false,
+    bool startTutorial = false,
   }) {
     final spot = locations['저수지']![0]; // 예산 예당지
     return PlazaScreen(
@@ -51,6 +54,7 @@ class PlazaScreen extends StatefulWidget {
       spot: spot,
       isSea: false,
       isFirstTime: isFirstTime,
+      startTutorial: startTutorial,
     );
   }
 
@@ -463,6 +467,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
+      // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비). 이미 있으면 안 건드림.
+      if (widget.startTutorial && !data.containsKey('tutStep')) {
+        await doc.reference.set({'tutStep': 0, 'tutCleared': false}, SetOptions(merge: true));
+      }
       _gold = (data['gold'] ?? 0) is int ? (data['gold'] ?? 0) as int : 0;
       _inventory = (data['inventory'] ?? []) as List<dynamic>;
       final exp = (data['exp'] ?? 0) is int ? (data['exp'] ?? 0) as int : 0;
@@ -2154,7 +2162,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
                   const Text('아라',
                       style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
+                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트[t$_tutStep]'),
                       style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
                 ]),
               );

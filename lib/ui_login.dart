@@ -356,6 +356,7 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
         nickname: _nickController.text.trim(),
         level: 1,
         isFirstTime: false, // 윤슬 튜토리얼 제거 → 낚시 화면 튜토리얼도 안 뜸
+        startTutorial: true, // 🎓 신규 계정 → 광장 튜토리얼 퀘스트 시작
       )));
     }
   }
