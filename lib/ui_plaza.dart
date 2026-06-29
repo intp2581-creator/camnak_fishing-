@@ -214,6 +214,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     setState(() => _showQuest = true); // 튜토리얼 끝 → 일반 일일퀘스트
   }
 
+  // 🎓 NPC 이름 박스 위에 띄우는 빨간 느낌표
+  Widget _tutBang() => const Padding(
+        padding: EdgeInsets.only(bottom: 1),
+        child: Text('❗',
+            style: TextStyle(
+              color: Color(0xFFFF3B30),
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              shadows: [Shadow(color: Colors.black, blurRadius: 4), Shadow(color: Colors.black, blurRadius: 4)],
+            )),
+      );
+
   // 타겟 NPC 미션 완료 처리 (랭킹/길드/아레나는 '열면 완료') — 로컬 즉시 반영 + 저장
   void _clearTutMission(String npcKey) {
     if (_tutQuestNow?['npc'] == npcKey && !_tutCleared) {
@@ -2021,12 +2033,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                       onPressed: () {
                         final q = _tutQuestNow;
+                        final enter = _tutMissionEnter;
                         setState(() => _showTutMission = false);
-                        _tutMissionEnter?.call(); // 기능 열기(랭킹/길드/아레나/상점/낚시터)
-                        // 랭킹·길드·아레나는 '열면 완료'. 낚시터(첫 고기)·상점(구매)은 별도 처리.
+                        // 랭킹·길드·아레나는 '열면 완료' → 먼저 완료 처리 후 화면 열기(누락 방지).
+                        //   낚시터(첫 고기)·상점(구매)은 별도 처리(해당 화면에서).
                         if (q != null && (q['npc'] == 'rank' || q['npc'] == 'guild' || q['npc'] == 'arena')) {
                           _clearTutMission(q['npc']!);
                         }
+                        enter?.call(); // 기능 열기(랭킹/길드/아레나/상점/낚시터)
                       },
                       child: const Text('확인하러 가기 👉'),
                     ),
@@ -2163,21 +2177,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           children: [
             Builder(builder: (_) {
               final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 표시 조건
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
-                  boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
+              return Column(mainAxisSize: MainAxisSize.min, children: [
+                if (araTut) _tutBang(), // 박스 위 빨간 느낌표
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
+                    boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
+                  ),
+                  child: Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('아라',
+                        style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                    Text(araTut ? '튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
+                        style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
+                  ]),
                 ),
-                child: Column(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('아라',
-                      style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                  Text(araTut ? '❗ 튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
-                      style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
-                ]),
-              );
+              ]);
             }),
             const SizedBox(height: 2),
             SizedBox(
@@ -2208,6 +2225,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isTutTarget) _tutBang(), // 🎓 박스 위 빨간 느낌표
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -2217,7 +2235,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 boxShadow: [BoxShadow(color: (isTutTarget ? Colors.orangeAccent : _kGold).withOpacity(isTutTarget ? 0.8 : 0.4), blurRadius: isTutTarget ? 10 : 7)],
               ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(isTutTarget ? '❗ $name' : name,
+                Text(name,
                     style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
                 Text(label,
                     style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
