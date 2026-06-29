@@ -197,8 +197,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     await FirebaseFirestore.instance.collection('users').doc(u.uid).set(data, SetOptions(merge: true));
   }
 
-  // 튜토리얼 시작 (인트로 '시작' 버튼)
-  void _startTutorial() => _setTut({'tutStep': 1, 'tutCleared': false});
+  // 튜토리얼 시작 (인트로 '시작' 버튼) — 로컬 즉시 반영 + 저장
+  void _startTutorial() {
+    setState(() { _tutStep = 1; _tutCleared = false; });
+    _setTut({'tutStep': 1, 'tutCleared': false});
+  }
 
   // 아라 클릭 시: 튜토리얼 우선 처리(완료/미대상이면 일반 일일퀘스트)
   void _onAraTap() {
@@ -211,17 +214,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     setState(() => _showQuest = true); // 튜토리얼 끝 → 일반 일일퀘스트
   }
 
-  // 타겟 NPC 미션 완료 처리 (랭킹/길드/아레나는 '열면 완료')
+  // 타겟 NPC 미션 완료 처리 (랭킹/길드/아레나는 '열면 완료') — 로컬 즉시 반영 + 저장
   void _clearTutMission(String npcKey) {
-    if (_tutQuestNow?['npc'] == npcKey && !_tutCleared) _setTut({'tutCleared': true});
+    if (_tutQuestNow?['npc'] == npcKey && !_tutCleared) {
+      setState(() => _tutCleared = true);
+      _setTut({'tutCleared': true});
+    }
   }
 
-  // 아라에서 보상 받기 → 다음 퀘스트
+  // 아라에서 보상 받기 → 다음 퀘스트 — 로컬 즉시 반영 + 저장
   Future<void> _claimTutReward() async {
+    final next = _tutStep + 1;
+    setState(() { _tutStep = next; _tutCleared = false; });
     await _setTut({
       'exp': FieldValue.increment(_tutExp),
       'gold': FieldValue.increment(_tutPts),
-      'tutStep': _tutStep + 1,
+      'tutStep': next,
       'tutCleared': false,
     });
   }
@@ -548,11 +556,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _questDone = questDone;
         _rank = newRank;
         _daejangCatch = dc;
-        // 🎓 튜토리얼 상태 — tutStep이 스냅샷에 있을 때만 갱신(빈/캐시 스냅샷이 99로 덮어쓰는 것 방지)
-        if (d.containsKey('tutStep')) {
-          _tutStep = (d['tutStep'] as num?)?.toInt() ?? _tutStep;
-          _tutCleared = d['tutCleared'] == true;
-        }
+        // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).
+        //    초기값은 _loadUser 일회성 get, 이후 변경은 로컬 낙관적 업데이트로만.
         _inventory = (d['inventory'] ?? []) as List<dynamic>;
         if (guildChanged) {
           _guildId = gid;
