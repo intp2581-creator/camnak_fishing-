@@ -262,7 +262,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   VoidCallback? _tutMissionEnter; // 미션 팝업 버튼이 열 기능
   static const List<Map<String, String>> _tutQuests = [
     {'npc': 'rank',    'name': '가람', 'title': '랭킹 보는 법', 'desc': '경쟁 조사님들의 순위를 볼 수 있어요!\n순위표를 한 번 열어볼까요?', 'done': '순위표 잘 보셨죠? 😊'},
-    {'npc': 'guild',   'name': '두레', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
+    {'npc': 'guild',   'name': '윤슬', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
     {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요! 🎣'},
     {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝! ⚔️'},
     {'npc': 'shop',    'name': '보배', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비를 장만했네요! 🎁'},
@@ -1920,7 +1920,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             () => _openNpcIntro('npc_rank.png', 'rank', '순위 보기', _openRanking),
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
-                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '두레', '🛡️ 길드',
+                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
                             () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
                             scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
@@ -2237,8 +2237,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final figH = sizeH * 0.21 * scale;
     final figW = figH * 0.6;
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
-    // 🛡️ 두레: Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
-    final bool isJoinQuest = name == '두레' && _level >= 3 && _guildId.isEmpty;
+    // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
+    final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
     final bool bang = isTutTarget || isJoinQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
@@ -3355,11 +3355,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return;
     }
     if (_level < 10) {
-      _infoPopup('아직 일러요! 🐣', '길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
+      _yunseulSay('길드를 직접 만들려고요? 멋져요! 😊\n하지만 길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
       return;
     }
     if (_gold < 10000) {
-      _infoPopup('포인트 부족 💰', '길드 생성에는 10,000 P가 필요해요.\n\n(현재 $_gold P)');
+      _yunseulSay('길드 생성에는 10,000 P가 필요해요. 💰\n포인트를 좀 더 모아서 와주세요!\n\n(현재 $_gold P)');
       return;
     }
     final fs = FirebaseFirestore.instance;
@@ -3405,7 +3405,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _joinGuild(String uid, String gid, String gname) async {
     // 🎓 길드 가입은 Lv.3부터 (저렙은 '좀 더 커서 오세요')
     if (_level < 3) {
-      _infoPopup('아직 일러요! 🐣', '길드 가입은 Lv.3부터 가능해요.\n조금 더 크고 두레를 다시 찾아주세요!\n\n(현재 Lv.$_level)');
+      _yunseulSay('아직 일러요, 조사님! 🐣\n길드 가입은 Lv.3부터 가능해요.\n조금 더 크고 저를 다시 찾아주세요!\n\n(현재 Lv.$_level)');
       return;
     }
     final fs = FirebaseFirestore.instance;
@@ -3549,6 +3549,27 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // 🛡️ 윤슬(길드 NPC)이 말하는 캐릭터 팝업 (길드 가입/생성 제한 안내 등)
+  void _yunseulSay(String msg) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => NpcTutorialOverlay(
+        text: msg,
+        imagePath: 'assets/images/npc_guild.png',
+        onTap: () => Navigator.pop(c),
+        action: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: _kGold, foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+          onPressed: () => Navigator.pop(c),
+          child: const Text('알겠어요 👍'),
+        ),
       ),
     );
   }
