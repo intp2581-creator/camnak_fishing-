@@ -3522,22 +3522,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                GestureDetector(
-                  onTap: _openStatusWindow, // 캐릭터 누르면 상태창
-                  child: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: _kGold, width: 1.5),
-                      image: DecorationImage(
-                          image: AssetImage(_charImage),
-                          fit: BoxFit.cover,
-                          alignment: const Alignment(0, -0.7)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
+                // (캐릭터 원형 제거 — 폰에서 잘 안 보여 '내정보' 버튼으로 일원화)
                 Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
