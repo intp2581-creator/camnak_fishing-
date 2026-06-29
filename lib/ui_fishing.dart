@@ -3149,7 +3149,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     // 🎯 [#14] 절대 크기 위주 + 종별 상대크기 보조 → 큰 고기가 항상 더 힘셈(현실 반영)
     //    (예: 45cm 메기 > 11.8cm 블루길). 트로피(종별 만대)는 상대크기로 가산.
     double sizeRatio = size / maxSize;        // 종별 상대(트로피)
-    double absFactor = size / 120.0;          // 절대 크기 (120cm ≈ 1.0)
+    // 🐟 큰 고기 힘 압축: 60cm까지는 사이즈대로, 그 위로는 절반만 힘에 반영.
+    //    (120~200cm 어종이 과도하게 세지는 걸 방지 — 붕어 55cm 등 중소형은 영향 없음)
+    const double capCm = 60.0, overRate = 0.5;
+    double effSize = size <= capCm ? size : capCm + (size - capCm) * overRate;
+    double absFactor = effSize / 120.0;       // 절대 크기 (압축 적용)
     double resistancePower = absFactor * 0.7 + math.pow(sizeRatio, 2.0).toDouble() * 0.3;
     
     // safeStats 먼저
