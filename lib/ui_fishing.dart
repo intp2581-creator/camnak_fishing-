@@ -3157,10 +3157,9 @@ double safeStats = (widget.playerTotalStats.isNaN ||
                     widget.playerTotalStats.isInfinite) 
                     ? 1000.0 : widget.playerTotalStats.toDouble();
 
-// 물고기 고유 저항력 (내 제압력과 무관!)
-// ⚖️ 밸런스: 제압력 투자 보상 ↑ — 중간 큰 어종이 저렙 낚시터에서 너무 잘 터지던 문제 완화
-double starMultiplier = 1.0 + (widget.locationStars - 1) * 0.3; // ★ 기울기 0.4→0.3 (고렙은 여전히 어렵게)
-double fishBasePower = math.pow(resistancePower, 2.0).toDouble() * 4000.0 * starMultiplier; // 5000→4000
+// 물고기 고유 저항력 = 사이즈(종)로만 결정. 낚시터 ★·내 제압력과 무관!
+// 같은 사이즈면 어디서 잡든 같은 힘. ★는 '어떤 사이즈가 나오냐'만 정함(큰 고기 = 자연히 힘셈).
+double fishBasePower = math.pow(resistancePower, 2.0).toDouble() * 4000.0;
 
 double powerDiff = fishBasePower - safeStats;
 
