@@ -2442,10 +2442,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         ),
                       ),
                       const Divider(color: Colors.white12, height: 1),
-                      SizedBox(
-                        height: 210,
-                        child: SingleChildScrollView(child: _statusStats()),
-                      ),
+                      // 능력치는 자연 높이로(스크롤 X) → 힘/컨트롤/감도 한 번에 보임. 캐릭터가 위 남는 공간 차지.
+                      _statusStats(),
                     ]),
                   ),
                   const VerticalDivider(color: Colors.white12, width: 1),
