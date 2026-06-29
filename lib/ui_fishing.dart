@@ -337,6 +337,7 @@ Widget _buildChatTab(int index, String title) {
   bool _trapDeployed = false; // 🦐 새우 채집망 던져둔 상태
   Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
   Timer? _guildHeartbeat;     // 💓 길드 접속 유지(낚시 중)
+  String _myRank = '초보';      // 🎖️ 현재 칭호(승급 자격 레벨 판정용)
 
   // 📡 실시간 핫타임 중계 감시용 변수
  
@@ -1006,10 +1007,15 @@ Widget _buildChatTab(int index, String title) {
                 await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
               }
               // 🎖️ #13 6대장 누적 카운트 (승급 퀘스트용)
+              //    ⛔ 다음 승급 자격 레벨에 도달한 뒤부터만 카운트 (저렙에서 미리 쌓이는 것 방지)
               if (daejangFish.contains(fish['name'])) {
-                await docRef.set({
-                  'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
-                }, SetOptions(merge: true));
+                final nextTier = nextPromotion(_myRank);
+                final reqLv = (nextTier?['level'] as int?) ?? 99999; // 최고 칭호면 카운트 안 함
+                if (_currentLevel >= reqLv) {
+                  await docRef.set({
+                    'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
+                  }, SetOptions(merge: true));
+                }
               }
               // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
               if (_guildId.isNotEmpty) {
@@ -1548,6 +1554,7 @@ Positioned(
                     var userData = snapshot.data!.data() as Map<String, dynamic>;
                     realExp = userData['exp'] ?? 0; realGold = userData['gold'] ?? 0;
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
+                    _myRank = realRank; // 🎖️ 승급 자격 레벨 판정용 캐시
                     _latestInventory = userData['inventory'] ?? []; // 🦐 채집망 보유 체크용 최신 인벤
                   }
 
