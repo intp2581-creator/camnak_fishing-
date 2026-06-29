@@ -2493,6 +2493,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 🗂️ (보관) 인벤토리 단독 보기 — 현재 '내정보' 버튼이 상태창+인벤 합본을 열어서 미사용. 추후 재사용 대비 유지.
+  // ignore: unused_element
   void _openInventory() {
     String tab = '전체';
     showDialog(
@@ -3578,7 +3580,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   ],
                 ),
                 const SizedBox(width: 10),
-                _iconBtn(Icons.backpack, '가방', _openInventory),
+                _iconBtn(Icons.person, '내정보', _openStatusWindow), // 🎒→👤 상태창+인벤 합본 진입
               ],
             ),
           ),
