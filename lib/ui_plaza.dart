@@ -2223,16 +2223,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             const SizedBox(width: 8),
             Text(_rank,
                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
-            if (_guildName.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                    _isChampionGuild ? '👑〈$_guildName〉Lv.$gLevel' : '〈$_guildName〉Lv.$gLevel',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 13, fontWeight: FontWeight.bold)),
-              ),
-            ],
             const Spacer(),
             // 💪 총 제압력 — 상단으로 올려 한눈에
             Container(
@@ -2249,8 +2239,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
           ]),
           const SizedBox(height: 4),
-          Text('경험치 $currentExp · 포인트 $_gold',
-              style: const TextStyle(color: Colors.white54, fontSize: 11)),
+          Row(children: [
+            Flexible(
+              child: Text('경험치 $currentExp · 포인트 $_gold',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            ),
+            const SizedBox(width: 10),
+            if (_guildName.isNotEmpty)
+              Text(_isChampionGuild ? '👑〈$_guildName〉Lv.$gLevel' : '〈$_guildName〉Lv.$gLevel',
+                  style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
           const Divider(color: Colors.white12, height: 18),
           const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
