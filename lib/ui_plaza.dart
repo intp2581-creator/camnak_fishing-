@@ -1799,23 +1799,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
-                            widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png', '🏆 랭킹',
+                            widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png', '가람', '🏆 랭킹',
                             () => _openNpcIntro('npc_rank.png', 'rank', '순위 보기', _openRanking),
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
-                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '🛡️ 길드',
+                            widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '두레', '🛡️ 길드',
                             () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
                             scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.585 : 0.599,
-                            widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png', '🌀 낚시터',
+                            widget.isSea ? 0.598 : 0.593, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
                             () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.846,
-                            widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png', '⚔️ 아레나',
+                            widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
                             () => _openNpcIntro('npc_arena.png', 'arena', '대회 입장', _openArena),
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
-                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '🏪 상점',
+                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '보배', '🏪 상점',
                             () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
@@ -2005,7 +2005,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     const cy = 0.837; // 발 위치 (민물·바다 동일 구도)
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 26, // 라벨 높이만큼 위로 보정
+      top: cy * worldH - figH - 32, // 이름+역할 2줄 높이 보정
       child: GestureDetector(
         onTap: () => setState(() => _showQuest = true),
         child: Column(
@@ -2019,8 +2019,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 border: Border.all(color: _questDone ? const Color(0xFF7FFFB0) : _kGold),
                 boxShadow: [BoxShadow(color: (_questDone ? const Color(0xFF7FFFB0) : _kGold).withOpacity(0.5), blurRadius: 8)],
               ),
-              child: Text(_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트',
-                  style: TextStyle(color: _questDone ? const Color(0xFF7FFFB0) : _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text('아라',
+                    style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                Text(_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트',
+                    style: TextStyle(color: _questDone ? const Color(0xFF7FFFB0) : Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+              ]),
             ),
             const SizedBox(height: 2),
             SizedBox(
@@ -2039,12 +2043,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🧍 시설 NPC (포털/시설 앞에 한 명씩 세움). img 없으면 fallback 이미지로.
   Widget _standNpc(double worldW, double worldH, double sizeH, double cx, double cy,
-      String img, String fallback, String label, VoidCallback onTap, {double scale = 1.0}) {
+      String img, String fallback, String name, String label, VoidCallback onTap, {double scale = 1.0}) {
     final figH = sizeH * 0.21 * scale;
     final figW = figH * 0.6;
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 26, // cy=발 위치, 라벨 높이 보정
+      top: cy * worldH - figH - 32, // cy=발 위치, 이름+역할 2줄 높이 보정
       child: GestureDetector(
         onTap: onTap,
         child: Column(
@@ -2058,8 +2062,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 border: Border.all(color: _kGold),
                 boxShadow: [BoxShadow(color: _kGold.withOpacity(0.4), blurRadius: 7)],
               ),
-              child: Text(label,
-                  style: const TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(name,
+                    style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                Text(label,
+                    style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+              ]),
             ),
             const SizedBox(height: 2),
             SizedBox(
