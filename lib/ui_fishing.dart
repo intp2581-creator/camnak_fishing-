@@ -1233,6 +1233,7 @@ Widget _buildChatTab(int index, String title) {
   // 🦐 채집망 던지기/건지기 토글
   void _toggleShrimpTrap() {
     if (!_hasShrimpTrap()) return;
+    if (widget.isSea) { _showNotificationPopup('🦐 민물 전용', '새우 채집망은 민물에서만 사용할 수 있어요.', Colors.orangeAccent); return; } // 바다 차단
     audioManager.playSfx("sfx_click.mp3");
     if (_trapDeployed) {
       // 건지기
@@ -1670,8 +1671,8 @@ Positioned(
                 icon: Icons.groups,
                 onPressed: () => showGuildInfoDialog(context),
               ),
-              // 🦐 새우 채집망 던지기/건지기 (보유 시에만 표시)
-              if (_hasShrimpTrap()) ...[
+              // 🦐 새우 채집망 던지기/건지기 (민물 전용 · 보유 시에만 표시)
+              if (_hasShrimpTrap() && !widget.isSea) ...[
                 const SizedBox(width: 8),
                 GestureDetector(
                   onTap: _toggleShrimpTrap,
