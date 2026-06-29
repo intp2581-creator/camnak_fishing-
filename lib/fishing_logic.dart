@@ -229,7 +229,7 @@ for (var fish in availableFishes) {
     //  포인트: 큰 고기=큰 돈(자연스러움) = 사이즈 × 2
     int sizeBand = (size / 5).floor();    // 5cm당 +1 (사이즈 비중 ↑)
     int starBonus = currentStars;          // ★1→1 ... ★5→5
-    int exp = 20 + sizeBand + starBonus;
+    int exp = 25 + sizeBand + starBonus;   // 기본 25 (초반 페이스 회복)
     int pts = (size * 2).round();
 
     // 👑 6대장은 +20% (살짝 더 가치 있게)
