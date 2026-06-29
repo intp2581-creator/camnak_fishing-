@@ -2161,8 +2161,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     errorBuilder: (a, b, c) => Icon(fallback, color: _kGold, size: 20)))
             : Icon(fallback, color: Colors.white30, size: 22),
       ),
-      const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 3),
+      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w800)),
     ]);
   }
 
@@ -2224,13 +2224,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             Text(_rank,
                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
             const Spacer(),
+            // 💪 총 제압력 — 상단으로 올려 한눈에
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF22301F),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFF7FFFB0).withOpacity(0.5))),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Text('총 제압력 ', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                Text('${totP + totC + totS}',
+                    style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 19, fontWeight: FontWeight.w900)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 4),
+          Row(children: [
+            Text('경험치 $currentExp · 포인트 $_gold',
+                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            const Spacer(),
             if (_guildName.isNotEmpty)
               Text(_isChampionGuild ? '👑〈$_guildName〉Lv.$gLevel' : '〈$_guildName〉Lv.$gLevel',
                   style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
-          const SizedBox(height: 2),
-          Text('경험치 $currentExp · 포인트 $_gold',
-              style: const TextStyle(color: Colors.white54, fontSize: 11)),
           const Divider(color: Colors.white12, height: 18),
           const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
@@ -2238,18 +2254,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB),
           _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB),
           _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB),
-          const Divider(color: Colors.white12, height: 18),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-                color: const Color(0xFF22301F), borderRadius: BorderRadius.circular(10)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text('총 제압력', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
-              Text('${totP + totC + totS}',
-                  style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 20, fontWeight: FontWeight.w900)),
-            ]),
-          ),
         ]),
       );
     }
