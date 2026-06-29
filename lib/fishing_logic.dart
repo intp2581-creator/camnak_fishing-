@@ -198,27 +198,27 @@ for (var fish in availableFishes) {
     double minFactor = 0.0; double sizeCap = 1.0; 
     double expMult = 1.0; double ptsMult = 1.0;
 
+    // 📏 minFactor/sizeCap = '최대어(baseMax) 대비' 비율. (★1 하한은 종 최소어)
     switch (currentStars) {
-      case 1: minFactor = 0.0; sizeCap = 0.2; expMult = 2.0; ptsMult = 1.0; break;
-      case 2: minFactor = 0.1; sizeCap = 0.4; expMult = 2.2; ptsMult = 1.2; break;
-      case 3: minFactor = 0.2; sizeCap = 0.6; expMult = 2.4; ptsMult = 1.4; break;
-      case 4: minFactor = 0.3; sizeCap = 0.8; expMult = 2.6; ptsMult = 1.6; break;
+      case 1: minFactor = 0.0; sizeCap = 0.3; expMult = 2.0; ptsMult = 1.0; break; // 최소어 ~ 최대어 30%
+      case 2: minFactor = 0.2; sizeCap = 0.4; expMult = 2.2; ptsMult = 1.2; break; // 20% ~ 40%
+      case 3: minFactor = 0.3; sizeCap = 0.6; expMult = 2.4; ptsMult = 1.4; break; // 30% ~ 60%
+      case 4: minFactor = 0.4; sizeCap = 0.8; expMult = 2.6; ptsMult = 1.6; break; // 40% ~ 80%
       case 5:
-      default: minFactor = 0.4; sizeCap = 1.0; expMult = 2.8; ptsMult = 1.8; break;
+      default: minFactor = 0.5; sizeCap = 1.0; expMult = 2.8; ptsMult = 1.8; break; // 50% ~ 최대어
     }
 
     double baseMin = double.tryParse(selectedFish['min'].toString()) ?? 10.0;
     double baseMax = double.tryParse(selectedFish['max'].toString()) ?? 50.0;
-    double range = baseMax - baseMin;
 
     double randValue = math.Random().nextDouble();
     double bellCurveRandom = (math.Random().nextInt(100) < 14) // #5 대물(극단 사이즈) 확률 살짝↑
     ? randValue
     : (randValue + math.Random().nextDouble() + math.Random().nextDouble()) / 3;
 if (isHotSpot) bellCurveRandom = math.pow(bellCurveRandom, 0.7).toDouble();
-    double effectiveMin = baseMin + (range * minFactor);
-    double effectiveMax = baseMin + (range * sizeCap);
-if (effectiveMax < effectiveMin) effectiveMax = effectiveMin + (range * 0.1);
+    // 📏 사이즈 구간 = 최대어(baseMax) 대비 비율. 단, 종 최소어(baseMin)보다 작아지진 않음.
+    double effectiveMin = math.max(baseMin, baseMax * minFactor);
+    double effectiveMax = math.max(effectiveMin, baseMax * sizeCap);
 
     double size = effectiveMin + (bellCurveRandom * (effectiveMax - effectiveMin));
 
