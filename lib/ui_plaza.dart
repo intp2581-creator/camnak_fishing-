@@ -2237,6 +2237,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final figH = sizeH * 0.21 * scale;
     final figW = figH * 0.6;
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
+    // 🛡️ 두레: Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
+    final bool isJoinQuest = name == '두레' && _level >= 3 && _guildId.isEmpty;
+    final bool bang = isTutTarget || isJoinQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 32, // cy=발 위치, 이름+역할 2줄 높이 보정
@@ -2245,14 +2248,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (isTutTarget) _tutBang(), // 🎓 박스 위 빨간 느낌표
+            if (bang) _tutBang(), // 박스 위 빨간 느낌표
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: Colors.black.withOpacity(0.65),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isTutTarget ? Colors.orangeAccent : _kGold, width: isTutTarget ? 2 : 1),
-                boxShadow: [BoxShadow(color: (isTutTarget ? Colors.orangeAccent : _kGold).withOpacity(isTutTarget ? 0.8 : 0.4), blurRadius: isTutTarget ? 10 : 7)],
+                border: Border.all(color: bang ? Colors.orangeAccent : _kGold, width: bang ? 2 : 1),
+                boxShadow: [BoxShadow(color: (bang ? Colors.orangeAccent : _kGold).withOpacity(bang ? 0.8 : 0.4), blurRadius: bang ? 10 : 7)],
               ),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Text(name,
@@ -3400,6 +3403,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Future<void> _joinGuild(String uid, String gid, String gname) async {
+    // 🎓 길드 가입은 Lv.3부터 (저렙은 '좀 더 커서 오세요')
+    if (_level < 3) {
+      _infoPopup('아직 일러요! 🐣', '길드 가입은 Lv.3부터 가능해요.\n조금 더 크고 두레를 다시 찾아주세요!\n\n(현재 Lv.$_level)');
+      return;
+    }
     final fs = FirebaseFirestore.instance;
     final guildRef = fs.collection('guilds').doc(gid);
     // #9 탈퇴 후 24시간 재가입 제한
