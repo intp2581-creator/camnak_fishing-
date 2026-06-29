@@ -2137,14 +2137,14 @@ Positioned(
       // 그래도 비어있는 슬롯(장비를 다 팔았을 때)만 임시 기본 장비로 채움
       setState(() {
         equippedRod ??= widget.isSea
-            ? {'name': '오션 스타터', 'category': 'SEA', 'icon': 'assets/items/rod_sea_cf250.png'}
-            : {'name': '베이직 민물대', 'category': 'FW', 'icon': 'assets/items/rod_fw_cf20.png'};
+            ? {'name': '오션 스타터', 'category': 'SEA', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/rod_sea_cf250.png'}
+            : {'name': '베이직 민물대', 'category': 'FW', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/rod_fw_cf20.png'};
 
-        equippedFloat ??= {'name': '기본 찌', 'icon': 'assets/items/float_fw_normal.png'};
+        equippedFloat ??= {'name': '기본 찌', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/float_fw_normal.png'};
 
         equippedBait ??= {'name': '지렁이 (기본)', 'icon': 'assets/items/bait_fw_worm.png'};
 
-        if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'icon': 'assets/items/reel_sea_cf2000.png'};
+        if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/reel_sea_cf2000.png'};
 
         isRodEquipped = true;
       });
