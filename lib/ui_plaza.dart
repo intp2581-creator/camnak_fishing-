@@ -258,11 +258,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _showTutReward = false;  // 아라 보상 받기
   VoidCallback? _tutMissionEnter; // 미션 팝업 버튼이 열 기능
   static const List<Map<String, String>> _tutQuests = [
-    {'npc': 'rank',    'name': '가람', 'title': '랭킹 보는 법', 'desc': '경쟁 조사님들의 순위를 볼 수 있어요!\n순위표를 한 번 열어볼까요?', 'done': '순위표 잘 보셨죠? 😊\n아라에게 가서 보상을 받으세요!'},
-    {'npc': 'guild',   'name': '두레', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요!\n아라에게 가서 보상을 받으세요!'},
-    {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요!\n아라에게 가서 보상을 받으세요!'},
-    {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝!\n아라에게 가서 보상을 받으세요!'},
-    {'npc': 'shop',    'name': '보배', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비예요!\n아라에게 가서 마지막 보상을 받으세요!'},
+    {'npc': 'rank',    'name': '가람', 'title': '랭킹 보는 법', 'desc': '경쟁 조사님들의 순위를 볼 수 있어요!\n순위표를 한 번 열어볼까요?', 'done': '순위표 잘 보셨죠? 😊'},
+    {'npc': 'guild',   'name': '두레', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
+    {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요! 🎣'},
+    {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝! ⚔️'},
+    {'npc': 'shop',    'name': '보배', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비를 장만했네요! 🎁'},
   ];
   static const int _tutExp = 200, _tutPts = 400; // 퀘스트당 보상
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
@@ -1117,8 +1117,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ),
       ),
     ).then((_) {
-      if (mounted) _playPlazaBgm(); // 🎵 낚시터에서 돌아오면 광장 BGM 재개
+      if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 광장 BGM + 🎓 튜토리얼 상태 재읽기(나루 첫고기 완료 반영)
     });
+  }
+
+  // 🎓 낚시/외부 화면에서 돌아왔을 때 튜토리얼 상태 일회성 재읽기
+  Future<void> _refreshTutFromDb() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    try {
+      final d = (await FirebaseFirestore.instance.collection('users').doc(u.uid).get()).data() ?? {};
+      if (d.containsKey('tutStep') && mounted) {
+        setState(() {
+          _tutStep = (d['tutStep'] as num?)?.toInt() ?? _tutStep;
+          _tutCleared = d['tutCleared'] == true;
+        });
+      }
+    } catch (_) {}
   }
 
   void _openStore() {
@@ -1131,7 +1146,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           currentInventory: _inventory,
         ),
       ),
-    );
+    ).then((_) {
+      if (mounted) _refreshTutFromDb(); // 🎓 상점에서 돌아오면 튜토리얼 상태 재읽기(보배 구매 완료 대비)
+    });
   }
 
   void _openArena() {

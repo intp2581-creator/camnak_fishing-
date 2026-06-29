@@ -342,6 +342,8 @@ Widget _buildChatTab(int index, String title) {
   Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
   Timer? _guildHeartbeat;     // 💓 길드 접속 유지(낚시 중)
   String _myRank = '초보';      // 🎖️ 현재 칭호(승급 자격 레벨 판정용)
+  int _myTutStep = 99;          // 🎓 튜토리얼 단계(3=첫고기 퀘스트)
+  bool _tutFishDone = false;    // 🎓 이번 세션 튜토리얼 첫고기 완료 기록함
 
   // 📡 실시간 핫타임 중계 감시용 변수
  
@@ -1017,6 +1019,11 @@ Widget _buildChatTab(int index, String title) {
               } else {
                 await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
               }
+              // 🎓 튜토리얼 '첫 출조'(나루, tutStep 3) — 첫 고기 잡으면 미션 완료 기록
+              if (_myTutStep == 3 && !_tutFishDone) {
+                _tutFishDone = true;
+                await docRef.set({'tutCleared': true}, SetOptions(merge: true));
+              }
               // 🎖️ #13 6대장 누적 카운트 (승급 퀘스트용)
               //    ⛔ 다음 승급 자격 레벨에 도달한 뒤부터만 카운트 (저렙에서 미리 쌓이는 것 방지)
               if (daejangFish.contains(fish['name'])) {
@@ -1566,6 +1573,7 @@ Positioned(
                     realExp = userData['exp'] ?? 0; realGold = userData['gold'] ?? 0;
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
                     _myRank = realRank; // 🎖️ 승급 자격 레벨 판정용 캐시
+                    _myTutStep = (userData['tutStep'] as num?)?.toInt() ?? 99; // 🎓 튜토리얼 단계 캐시
                     _latestInventory = userData['inventory'] ?? []; // 🦐 채집망 보유 체크용 최신 인벤
                   }
 
