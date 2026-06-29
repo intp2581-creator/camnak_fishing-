@@ -211,34 +211,19 @@ for (var fish in availableFishes) {
     double baseMin = double.tryParse(selectedFish['min'].toString()) ?? 10.0;
     double baseMax = double.tryParse(selectedFish['max'].toString()) ?? 50.0;
 
-    double randValue = math.Random().nextDouble();
-    double bellCurveRandom = (math.Random().nextInt(100) < 14) // #5 대물(극단 사이즈) 확률 살짝↑
-    ? randValue
-    : (randValue + math.Random().nextDouble() + math.Random().nextDouble()) / 3;
-if (isHotSpot) bellCurveRandom = math.pow(bellCurveRandom, 0.7).toDouble();
     // 📏 사이즈 구간 = 최대어(baseMax) 대비 비율. 단, 종 최소어(baseMin)보다 작아지진 않음.
     double effectiveMin = math.max(baseMin, baseMax * minFactor);
     double effectiveMax = math.max(effectiveMin, baseMax * sizeCap);
 
-    double size = effectiveMin + (bellCurveRandom * (effectiveMax - effectiveMin));
+    // 🎣 [출현 사이즈 분포] 삼각(텐트) 분포 — 중간이 가장 흔하고, 최소어·최대어로 갈수록 드묾.
+    //    skew>1 → 최대어(상단)를 최소어보다 더 희귀하게(트로피). 숫자만 바꾸면 분포 조정 가능.
+    double tri = (math.Random().nextDouble() + math.Random().nextDouble()) / 2.0; // 0.5에서 피크인 대칭 삼각
+    double skew = 1.25;                       // 상단(최대어) 희귀도 (1.0=대칭, 클수록 대물 더 드묾)
+    if (isHotSpot) skew = 0.75;               // 핫스팟(오늘의 명당)은 반대로 대물 잘 나오게
+    double t = math.pow(tri, skew).toDouble();
+    double size = effectiveMin + t * (effectiveMax - effectiveMin);
 
-// 🎣 [별점별 상위 구간 확률 급감]
-    double effectiveRange = effectiveMax - effectiveMin;
-    double sizeRatioInRange = (size - effectiveMin) / effectiveRange; // 0.0 ~ 1.0
-
-// 상위 10% 구간 진입 시 확률 급감
-if (sizeRatioInRange > 0.9) {
-    double overRatio = (sizeRatioInRange - 0.9) / 0.1; // 0.0 ~ 1.0
-  // 지수적으로 재추첨 확률 증가 (최상위는 99% 재추첨)
-    double rerollChance = math.pow(overRatio, 1.5).toDouble() * 0.92; // #5 대물 억제 살짝 완화
-  if (math.Random().nextDouble() < rerollChance) {
-    // 재추첨 → 해당 범위의 70~90% 구간으로 이동
-    double safeRandom = 0.70 + math.Random().nextDouble() * 0.20;
-    size = effectiveMin + (safeRandom * effectiveRange);
-  }
-}
-
-size = double.parse(size.toStringAsFixed(1));
+    size = double.parse(size.toStringAsFixed(1));
 
     // 💰 보상 계산
     double fishBaseExpMult = selectedFish['expMult'] ?? 1.0;
