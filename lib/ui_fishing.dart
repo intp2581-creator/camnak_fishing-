@@ -1181,6 +1181,22 @@ Widget _buildChatTab(int index, String title) {
     setState(() { tension -= totalPull; });
   }
 
+  // 🍞 미끼 알림은 전투 중에도 안전하게 — 모달(다이얼로그) 금지, 비차단 스낵바 사용
+  //    (전투 오버레이도 다이얼로그라, 위에 모달을 또 띄우면 Navigator.pop이 꼬여 전투가 멈춤)
+  void _baitToast(String msg, Color color) {
+    if (!mounted) return;
+    final m = ScaffoldMessenger.maybeOf(context);
+    if (m == null) return;
+    m.hideCurrentSnackBar();
+    m.showSnackBar(SnackBar(
+      content: Text(msg, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
+      backgroundColor: color,
+      duration: const Duration(seconds: 2),
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.only(bottom: 120, left: 60, right: 60),
+    ));
+  }
+
   Future<void> _useBaitOne() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || equippedBait == null) return;
@@ -1212,9 +1228,9 @@ Widget _buildChatTab(int index, String title) {
               }
               setState(() { equippedBait = nextBait; });
               if (nextBait != null) {
-                _showNotificationPopup('🔁 미끼 자동 교체', '$targetBaitName 소진!\n[${nextBait['name']}](으)로 자동 교체했어요.', const Color(0xFFD4AF37));
+                _baitToast('🔁 $targetBaitName 소진 → ${nextBait['name']}(으)로 자동 교체', const Color(0xFFD4AF37));
               } else {
-                _showNotificationPopup('🛑 미끼 소진!', '준비한 미끼를 모두 사용했습니다.\n가방에서 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+                _baitToast('🛑 미끼 소진! 가방에서 장착하거나 상점에서 구매하세요', Colors.orangeAccent);
               }
             }
             break;
