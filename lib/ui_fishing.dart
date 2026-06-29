@@ -3166,7 +3166,7 @@ double powerDiff = fishBasePower - safeStats;
 
 if (powerDiff > 500) fishCurrentMove = 0.015 + (powerDiff / 30000);
 else if (powerDiff > 0) fishCurrentMove = 0.002 + (powerDiff / 20000);
-else fishCurrentMove = math.max(0.001, -powerDiff / 150000); // 내가 강하면 아주 쉽게!
+else fishCurrentMove = math.max(0.001, 0.002 + powerDiff / 60000); // 🐛FIX: 내가 강할수록 느려짐(쉬움). 기존 -powerDiff는 역전 버그(압도할수록 더 빨라짐)
 
   } catch (e) {
     fishCurrentMove = 0.005;
