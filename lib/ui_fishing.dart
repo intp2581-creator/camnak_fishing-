@@ -227,13 +227,17 @@ final List<String> _garamMessages = [
               var userData = snapshot.data!.data() as Map<String, dynamic>? ?? {};
               List<dynamic> inventory = userData['inventory'] ?? [];
               
-              // 💡 미끼(Bait) 타입이나 카테고리인 것만 쏙 골라냄!
-              var baitList = inventory.where((item) => 
-                (item['type'] ?? '').toString().toUpperCase() == 'BAIT' || 
-                (item['category'] ?? '').toString().toUpperCase() == 'BAIT'
-              ).toList();
+              // 💡 미끼(Bait)만 + 현재 낚시터(민물/바다)에 맞는 것만 표시
+              final wantCat = widget.isSea ? 'SEA' : 'FW';
+              var baitList = inventory.where((item) {
+                final isB = (item['type'] ?? '').toString().toUpperCase() == 'BAIT' ||
+                            (item['category'] ?? '').toString().toUpperCase() == 'BAIT';
+                if (!isB) return false;
+                final c = (item['category'] ?? '').toString().toUpperCase();
+                return c == wantCat || c == 'COMMON'; // 위치 카테고리 일치만 (에기 등 타지역 미끼 숨김)
+              }).toList();
 
-              if (baitList.isEmpty) return const Center(child: Text('사용 가능한 미끼가 없습니다.', style: TextStyle(color: Colors.white)));
+              if (baitList.isEmpty) return Center(child: Text('${widget.isSea ? '바다' : '민물'} 미끼가 없습니다.\n상점에서 구매하세요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)));
 
               return ListView.builder(
                 itemCount: baitList.length,
@@ -453,6 +457,13 @@ Widget _buildChatTab(int index, String title) {
     equippedSunglasses = globalEquippedSunglasses;
     equippedBadge = globalEquippedBadge;
     equippedCooler = globalEquippedCooler; // 🧊 공용(모드 무관)
+
+    // 🛡️ 위치와 안 맞는 미끼는 자동 해제 (바다↔민물 이동 시 에기 등 잔류 방지)
+    final bcat = (equippedBait?['category'] ?? '').toString().toUpperCase();
+    if (equippedBait != null && bcat != (widget.isSea ? 'SEA' : 'FW') && bcat != 'COMMON') {
+      equippedBait = null;
+      globalEquippedBait = null;
+    }
 
     isRodEquipped = equippedRod != null;
 
