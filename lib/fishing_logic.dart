@@ -225,12 +225,12 @@ for (var fish in availableFishes) {
     size = double.parse(size.toStringAsFixed(1));
 
     // 💰 보상 계산 — 절대 사이즈 비례 폐지(지렁이+큰고기 메타 완화)
-    //    보상 = 기본 10 + 사이즈 구간(10cm당 +1) + 별점(난이도 ★1~5)
+    //    보상 = 기본 + 사이즈 구간(10cm당 +1) + 별점(난이도 ★1~5)
+    //    경험치 기본 20 / 포인트 기본 10 (레벨업 페이스 위해 경험치 기본만 높임)
     int sizeBand = (size / 10).floor();   // 10~19.9→1, 20~29.9→2, 30~39.9→3 ...
     int starBonus = currentStars;          // ★1→1 ... ★5→5
-    int baseReward = 10 + sizeBand + starBonus;
-    int exp = baseReward;
-    int pts = baseReward;
+    int exp = 20 + sizeBand + starBonus;
+    int pts = 10 + sizeBand + starBonus;
 
     // 👑 6대장은 +20% (살짝 더 가치 있게)
     List<String> bossFishes = ['붕어', '잉어', '가물치', '참돔', '감성돔', '문어'];
