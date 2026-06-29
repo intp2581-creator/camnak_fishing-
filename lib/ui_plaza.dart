@@ -342,12 +342,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _getWelcomeText() {
     final mission = _getTodayMission();
     return '${widget.nickname} 조사님, 어서오세요! 😊\n'
-        '오늘도 캠피싱을 찾아주셔서 감사해요.\n\n'
-        '🎁 오늘 첫 접속 보상 500P 지급 완료!\n\n'
+        '🎁 오늘 접속 보상 500P 지급 완료!\n\n'
         '🏆 오늘의 일일 퀘스트\n'
-        '🐟 ${mission['fish']} ${mission['count']}마리 잡기 (어디든 OK!)\n'
-        '✅ 오늘 안에 완료하면 500P 추가 지급!\n\n'
-        '(미션을 잊으셨다면 저(아라)를 눌러주세요~)';
+        '🐟 ${mission['fish']} ${mission['count']}마리 잡으세요\n'
+        '✅ 완료하시면 500P 드려요!\n\n'
+        '(미션을 잊으셨다면 저에게 오세요~)';
   }
 
   // 💬 말풍선 (전체 채팅을 캐릭터 머리 위에 잠깐 표시)
@@ -2027,7 +2026,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showTutIntro)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${widget.nickname} 조사님, 환영해요! 🎣\n저는 안내 매니저 아라예요.\n\n캠피싱 첫걸음 튜토리얼을 준비했어요!\n각 NPC를 만나 미션을 완료하면\n경험치와 포인트를 듬뿍 드려요.\n지금 시작할까요?',
+                    text: '${widget.nickname} 조사님, 환영해요! 🎣\n저는 캠피싱 매니저 아라예요.\n\n첫걸음 튜토리얼을 준비했어요!\n각 NPC를 만나 미션을 완료하면\n경험치와 포인트를 드려요.\n지금 시작할까요?',
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () {},
                     action: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -3355,7 +3354,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return;
     }
     if (_level < 10) {
-      _yunseulSay('길드를 직접 만들려고요? 멋져요! 😊\n하지만 길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
+      _yunseulSay('길드를 만드시게요? 멋져요! 😊\n길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
       return;
     }
     if (_gold < 10000) {
@@ -3405,7 +3404,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _joinGuild(String uid, String gid, String gname) async {
     // 🎓 길드 가입은 Lv.3부터 (저렙은 '좀 더 커서 오세요')
     if (_level < 3) {
-      _yunseulSay('아직 일러요, 조사님! 🐣\n길드 가입은 Lv.3부터 가능해요.\n조금 더 크고 저를 다시 찾아주세요!\n\n(현재 Lv.$_level)');
+      _yunseulSay('아직 일러요, 조사님! 🐣\n길드 가입은 Lv.3부터 가능해요.\n조금 더 키워서 다시 와주세요!\n\n(현재 Lv.$_level)');
       return;
     }
     final fs = FirebaseFirestore.instance;
