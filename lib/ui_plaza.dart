@@ -3355,11 +3355,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return;
     }
     if (_level < 10) {
-      _toast('Lv.10부터 길드를 만들 수 있어요. (현재 Lv.$_level)');
+      _infoPopup('아직 일러요! 🐣', '길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
       return;
     }
     if (_gold < 10000) {
-      _toast('포인트가 부족해요. (10,000 P 필요)');
+      _infoPopup('포인트 부족 💰', '길드 생성에는 10,000 P가 필요해요.\n\n(현재 $_gold P)');
       return;
     }
     final fs = FirebaseFirestore.instance;
