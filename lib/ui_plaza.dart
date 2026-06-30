@@ -270,7 +270,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     {'npc': 'guild',   'name': '윤슬', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
     {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요! 🎣'},
     {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝! ⚔️'},
-    {'npc': 'shop',    'name': '보배', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비를 장만했네요! 🎁'},
+    {'npc': 'shop',    'name': '서윤', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비를 장만했네요! 🎁'},
   ];
   static const int _tutExp = 200, _tutPts = 400; // 퀘스트당 보상
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
@@ -1918,7 +1918,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             () => _openNpcIntro('npc_arena.png', 'arena', '대회 입장', _openArena),
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
-                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '보배', '🏪 상점',
+                            widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
                             () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
@@ -2226,7 +2226,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
     // 🛍️ 보배: 지정 어종 3마리 모았고 아직 정산 안 했으면 ❗(정산하러 와)
-    final bool isBobaeQuest = name == '보배' && _tutQuestNow == null && !_bobaeDone && _bobaeCount >= bobaeCount;
+    final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone && _bobaeCount >= bobaeCount;
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
@@ -3599,7 +3599,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (c) => NpcTutorialOverlay(
-        text: '🛍️ 보배의 오늘 의뢰예요!\n\n$guide',
+        text: '🛍️ 서윤의 오늘 의뢰예요!\n\n$guide',
         imagePath: 'assets/images/npc_shop.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [

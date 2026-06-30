@@ -2952,14 +2952,14 @@ void _showTodayMissionInfo() {
           inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 1;
           newCount = inv[idx]['quantity'];
         } else {
-          inv.add({'name': fishName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '낚시로 잡은 $fishName 🐟 (보배에게 판매 가능)'});
+          inv.add({'name': fishName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '낚시로 잡은 $fishName 🐟 (서윤에게 판매 가능)'});
           newCount = 1;
         }
         tx.set(userRef, {'inventory': inv}, SetOptions(merge: true));
       });
       // 보배 일일 지정 어종을 딱 3마리 채우면 안내
       if (mounted && fishName == getTodayBobaeFish()['fish'] && newCount == bobaeCount) {
-        _showNotificationPopup('🐟 보배 의뢰 달성!', '$fishName $bobaeCount마리를 모았어요!\n광장의 보배에게 가서 정산받으세요!', const Color(0xFFD4AF37));
+        _showNotificationPopup('🐟 서윤 의뢰 달성!', '$fishName $bobaeCount마리를 모았어요!\n광장의 서윤에게 가서 정산받으세요!', const Color(0xFFD4AF37));
       }
     } catch (e) {
       print('물고기 보관 에러: $e');
