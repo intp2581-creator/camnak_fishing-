@@ -1481,7 +1481,8 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildSellList() {
-    final sellable = myInventory.map((e) => e as Map<String, dynamic>).toList();
+    // 🐟 보배 의뢰용 물고기(FISH)는 판매 목록에서 제외 (보배에게 정산하는 용도)
+    final sellable = myInventory.map((e) => e as Map<String, dynamic>).where((i) => (i['type'] ?? '') != 'FISH').toList();
     if (sellable.isEmpty) {
       return const Center(
           child: Text('가방이 비어 있어요.', style: TextStyle(color: Colors.white54, fontSize: 16)));

@@ -175,9 +175,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       setState(() { _tutMissionEnter = onEnter; _showTutMission = true; });
       return;
     }
-    // 🛍️ 보배(상점): 오늘 보배 일일 미완료면 의뢰 안내 팝업
-    if (key == 'shop' && !_bobaeDone) {
-      _showBobaeQuest(onEnter);
+    // 🛍️ 보배(상점): 보배 일일 정산/안내 우선 처리
+    if (key == 'shop') {
+      _onBobaeTap(onEnter);
       return;
     }
     final list = _npcGreetings[key] ?? ['안녕하세요!'];
@@ -280,8 +280,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _fwDone = false; // 📋 오늘 민물 일일 완료
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
   int _fwProg = 0, _seaProg = 0; // 진행도(표시용)
-  bool _bobaeDone = false; // 🛍️ 오늘 보배 일일 완료
-  int _bobaeProg = 0;      // 보배 진행도
+  bool _bobaeDone = false; // 🛍️ 오늘 보배 정산 완료
+  // 현재 가방에 든 오늘 지정 어종 마릿수 (인벤에서 계산)
+  int get _bobaeCount {
+    final fish = getTodayBobaeFish()['fish'];
+    final it = _inventory.cast<Map<String, dynamic>>().where((i) => i['name'] == fish && (i['type'] ?? '') == 'FISH');
+    return it.isEmpty ? 0 : ((it.first['quantity'] is num) ? (it.first['quantity'] as num).toInt() : 0);
+  }
 
   String _greeting() {
     final h = DateTime.now().hour;
@@ -526,13 +531,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         seaProg = (mp['sea'] is num) ? (mp['sea'] as num).toInt() : 0;
       }
       final questDone = fwDone && seaDone;
-      // 🛍️ 보배 일일 진행/완료
+      // 🛍️ 보배 일일 — 오늘 정산 완료 여부
       final bp = d['bobae_progress'];
-      bool bobaeDone = false; int bobaeProg = 0;
-      if (bp is Map && bp['date'] == today) {
-        bobaeDone = bp['done'] == true;
-        bobaeProg = (bp['count'] is num) ? (bp['count'] as num).toInt() : 0;
-      }
+      final bobaeDone = bp is Map && bp['date'] == today && bp['claimed'] == true;
       // 🎖️ #13 승급: 저장된 칭호 + 6대장 누적
       final newRank = (d['rank'] ?? '초보').toString();
       final dc = <String, int>{};
@@ -548,7 +549,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _level = newLevel;
         _questDone = questDone;
         _fwDone = fwDone; _seaDone = seaDone; _fwProg = fwProg; _seaProg = seaProg;
-        _bobaeDone = bobaeDone; _bobaeProg = bobaeProg;
+        _bobaeDone = bobaeDone;
         _rank = newRank;
         _daejangCatch = dc;
         // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).
@@ -1110,12 +1111,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (u == null) return;
     try {
       final d = (await FirebaseFirestore.instance.collection('users').doc(u.uid).get()).data() ?? {};
-      if (d.containsKey('tutStep') && mounted) {
-        setState(() {
+      if (!mounted) return;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final bp = d['bobae_progress'];
+      setState(() {
+        if (d.containsKey('tutStep')) {
           _tutStep = (d['tutStep'] as num?)?.toInt() ?? _tutStep;
           _tutCleared = d['tutCleared'] == true;
-        });
-      }
+        }
+        _inventory = (d['inventory'] ?? _inventory) as List<dynamic>; // 🐟 보배 ❗용 마릿수 갱신
+        _bobaeDone = bp is Map && bp['date'] == today && bp['claimed'] == true;
+      });
     } catch (_) {}
   }
 
@@ -2219,8 +2225,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
-    // 🛍️ 보배: 튜토리얼 끝났고 오늘 보배 일일 미완료면 퀘스트 느낌표
-    final bool isBobaeQuest = name == '보배' && _tutQuestNow == null && !_bobaeDone;
+    // 🛍️ 보배: 지정 어종 3마리 모았고 아직 정산 안 했으면 ❗(정산하러 와)
+    final bool isBobaeQuest = name == '보배' && _tutQuestNow == null && !_bobaeDone && _bobaeCount >= bobaeCount;
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
@@ -2308,7 +2314,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                           color: Colors.black87, borderRadius: BorderRadius.circular(6)),
-                      child: Text('$qty개',
+                      child: Text('$qty${(item['type'] ?? '') == 'FISH' ? '마리' : '개'}',
                           style: const TextStyle(
                               color: _kGold, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),
@@ -3560,14 +3566,37 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 🛍️ 보배 일일 의뢰 안내 팝업 (상점 가기 포함)
-  void _showBobaeQuest(VoidCallback enterStore) {
+  // 🛍️ 보배 클릭 — 3마리 모았으면 정산, 아니면 의뢰 안내 (+ 상점 가기)
+  void _onBobaeTap(VoidCallback enterStore) {
     if (!mounted) return;
     final b = getTodayBobaeFish();
+    final fish = b['fish'].toString();
+    final cnt = _bobaeCount;
+    // 정산 가능: 3마리 이상 + 오늘 미정산
+    if (!_bobaeDone && cnt >= bobaeCount) {
+      showDialog(
+        context: context,
+        builder: (c) => NpcTutorialOverlay(
+          text: '🛍️ 오~ $fish $bobaeCount마리 다 잡아오셨네요!\n바로 정산해드릴게요. 👍\n\n💰 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp\n($fish $bobaeCount마리는 제가 가져갈게요)',
+          imagePath: 'assets/images/npc_shop.png',
+          onTap: () {},
+          action: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            onPressed: () { Navigator.pop(c); _claimBobae(fish); },
+            child: const Text('정산 받기 🎁'),
+          ),
+        ),
+      );
+      return;
+    }
+    // 안내 (진행도 + 상점 가기)
+    final guide = _bobaeDone
+        ? '오늘 의뢰는 이미 정산했어요! 내일 또 부탁해요 😊'
+        : '오늘은 [$fish] $bobaeCount마리를 잡아다 주세요.\n(현재 $cnt/$bobaeCount 마리)\n\n💰 정산하면 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp';
     showDialog(
       context: context,
       builder: (c) => NpcTutorialOverlay(
-        text: '🛍️ 보배의 오늘 의뢰예요!\n\n오늘은 [${b['fish']}] ${b['count']}마리를 잡아다 주세요.\n(현재 $_bobaeProg/${b['count']} 수집)\n\n🐟 잡은 ${b['fish']}은(는) 가방에 보관해드려요!\n💰 마리당 ${bobaePtsPerFish}P · 완료 시 경험치 $bobaeExp',
+        text: '🛍️ 보배의 오늘 의뢰예요!\n\n$guide',
         imagePath: 'assets/images/npc_shop.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -3581,6 +3610,35 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ]),
       ),
     );
+  }
+
+  // 🛍️ 보배 정산 — 보상 지급 + 지정 어종 3마리 가방에서 차감 + 완료 기록
+  Future<void> _claimBobae(String fish) async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
+    try {
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final data = (await tx.get(ref)).data() ?? {};
+        final bp = data['bobae_progress'];
+        if (bp is Map && bp['date'] == today && bp['claimed'] == true) return; // 중복 정산 방지
+        final inv = List<dynamic>.from(data['inventory'] ?? []);
+        final idx = inv.indexWhere((i) => i['name'] == fish && (i['type'] ?? '') == 'FISH');
+        if (idx < 0 || ((inv[idx]['quantity'] ?? 0) as num) < bobaeCount) return; // 3마리 미만이면 정산 X
+        final q = (inv[idx]['quantity'] as num).toInt() - bobaeCount;
+        if (q <= 0) { inv.removeAt(idx); } else { inv[idx]['quantity'] = q; }
+        tx.set(ref, {
+          'gold': FieldValue.increment(bobaePtsPerFish * bobaeCount),
+          'exp': FieldValue.increment(bobaeExp),
+          'inventory': inv,
+          'bobae_progress': {'date': today, 'claimed': true},
+        }, SetOptions(merge: true));
+      });
+      if (mounted) _toast('🎁 정산 완료! 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp');
+    } catch (e) {
+      debugPrint('보배 정산 에러: $e');
+    }
   }
 
   // 🎖️ #13 승급 퀘스트 패널 (아라 → 승급 퀘스트)
