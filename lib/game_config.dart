@@ -39,6 +39,18 @@ Map<String, dynamic> getTodayBobaeFish() {
   return {'fish': bobaeFishPool[math.Random(seed).nextInt(bobaeFishPool.length)], 'count': bobaeCount};
 }
 
+// 🐟 어종별 판매가(마리당) — 잡은 고기를 보배에게 팔 때 (보너스 수입)
+//    소형 30 · 중형 50 · 대형 100 · 프리미엄 200. (숫자만 바꿔 밸런스 조정)
+int fishSellPrice(String name) {
+  const premium = ['문어', '참치'];
+  const large = ['메기', '갈치', '잉어', '가물치', '광어', '참돔'];
+  const small = ['블루길', '살치', '주꾸미'];
+  if (premium.contains(name)) return 200;
+  if (large.contains(name)) return 100;
+  if (small.contains(name)) return 30;
+  return 50; // 중형(붕어/떡붕어/베스/강준치/고등어/우럭/감성돔/벵에돔/갑오징어/자라 등)
+}
+
 // 어종 이름 → 이미지 경로 (수집품 아이콘용)
 //  ⚠️ 풀의 'img'는 폴더가 assets/images/로 잘못돼 있어서, 실제 위치(assets/fish_fw|fish_sea/)로 보정.
 String fishImageByName(String name) {

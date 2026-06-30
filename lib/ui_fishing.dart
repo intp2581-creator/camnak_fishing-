@@ -1080,7 +1080,7 @@ Widget _buildChatTab(int index, String title) {
           HapticFeedback.heavyImpact(); 
           audioManager.playSfx("sfx_landing_success.mp3"); 
           _checkDailyMission(fish['name'].toString());
-          _checkBobaeMission(fish['name'].toString()); // 🛍️ 보배 지정어 트로피 수집
+          _storeCaughtFish(fish['name'].toString()); // 🐟 잡은 고기 가방에 보관(보배 판매·일일정산용)
           if (widget.isFirstTime && !_isTutorialDone && fish['name'] == '붕어') {
             _showTutorialSuccessReward(fish);
           } else {
@@ -2933,42 +2933,34 @@ void _showTodayMissionInfo() {
     }
   }
 
-  // 🛍️ 보배 일일 — 지정 어종을 잡으면 '마리'로 가방에 모음(보상X). 3마리 모아 보배에게 정산.
-  Future<void> _checkBobaeMission(String fishName) async {
+  // 🐟 잡은 고기를 가방에 '마리'로 보관 (어종별 누적). 보배에게 팔거나 일일 정산에 사용.
+  Future<void> _storeCaughtFish(String fishName) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final bobae = getTodayBobaeFish();
-    if (fishName != bobae['fish']) return; // 오늘 지정 어종 아니면 무시
-    final today = DateTime.now().toIso8601String().substring(0, 10);
     final fishImg = fishImageByName(fishName);
+    if (fishImg.isEmpty) return; // 이미지 없는 어종은 스킵(안전)
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     try {
       int newCount = 0;
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final data = (await tx.get(userRef)).data() ?? {};
-        final bp = data['bobae_progress'];
-        // 오늘 이미 정산 완료면 더 안 모음
-        if (bp is Map && bp['date'] == today && bp['claimed'] == true) return;
-        // 🐟 물고기를 가방에 1마리 추가
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final idx = inv.indexWhere((i) => i['name'] == fishName && (i['type'] ?? '') == 'FISH');
         if (idx >= 0) {
           inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 1;
           newCount = inv[idx]['quantity'];
         } else {
-          inv.add({'name': fishName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '보배 의뢰용 $fishName 🐟'});
+          inv.add({'name': fishName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '낚시로 잡은 $fishName 🐟 (보배에게 판매 가능)'});
           newCount = 1;
         }
-        tx.set(userRef, {
-          'inventory': inv,
-          'bobae_progress': {'date': today, 'claimed': false},
-        }, SetOptions(merge: true));
+        tx.set(userRef, {'inventory': inv}, SetOptions(merge: true));
       });
-      if (newCount == bobaeCount && mounted) {
+      // 보배 일일 지정 어종을 딱 3마리 채우면 안내
+      if (mounted && fishName == getTodayBobaeFish()['fish'] && newCount == bobaeCount) {
         _showNotificationPopup('🐟 보배 의뢰 달성!', '$fishName $bobaeCount마리를 모았어요!\n광장의 보배에게 가서 정산받으세요!', const Color(0xFFD4AF37));
       }
     } catch (e) {
-      print('보배 미션 에러: $e');
+      print('물고기 보관 에러: $e');
     }
   }
 

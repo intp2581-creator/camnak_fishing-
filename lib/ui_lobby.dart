@@ -1383,6 +1383,7 @@ class _StoreScreenState extends State<StoreScreen> {
   int _sellPrice(Map<String, dynamic> item) {
     final name = (item['name'] ?? '').toString();
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
+    if ((item['type'] ?? '') == 'FISH') return fishSellPrice(name) * qty; // 🐟 잡은 고기: 어종별 마리당 가격 × 수량
     if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
     final p = _storePriceOf(name);
     // 무료 지급품(0P)도 인벤 정리용으로 팔 수 있게 (구매는 막아서 되팔이 악용 방지)
@@ -1481,8 +1482,7 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildSellList() {
-    // 🐟 보배 의뢰용 물고기(FISH)는 판매 목록에서 제외 (보배에게 정산하는 용도)
-    final sellable = myInventory.map((e) => e as Map<String, dynamic>).where((i) => (i['type'] ?? '') != 'FISH').toList();
+    final sellable = myInventory.map((e) => e as Map<String, dynamic>).toList();
     if (sellable.isEmpty) {
       return const Center(
           child: Text('가방이 비어 있어요.', style: TextStyle(color: Colors.white54, fontSize: 16)));
@@ -1514,8 +1514,14 @@ class _StoreScreenState extends State<StoreScreen> {
   Widget _buildSellItem(Map<String, dynamic> item) {
     String itemName = item['name'].toString();
     String imgPath = item['icon']?.toString() ?? '';
-    if (imgPath.contains('../')) imgPath = imgPath.replaceAll('../', 'assets/');
-    if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
+    // 🐟 물고기 이미지는 어떤 폴더로 저장됐든 실제 위치로 보정
+    final iconFile = imgPath.split('/').last;
+    if (iconFile.startsWith('fish_fw')) { imgPath = 'assets/fish_fw/$iconFile'; }
+    else if (iconFile.startsWith('fish_sea')) { imgPath = 'assets/fish_sea/$iconFile'; }
+    else {
+      if (imgPath.contains('../')) imgPath = imgPath.replaceAll('../', 'assets/');
+      if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
+    }
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
