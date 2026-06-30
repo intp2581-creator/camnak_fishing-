@@ -40,15 +40,18 @@ Map<String, dynamic> getTodayBobaeFish() {
 }
 
 // 🐟 어종별 판매가(마리당) — 잡은 고기를 보배에게 팔 때 (보너스 수입)
-//    소형 30 · 중형 50 · 대형 100 · 프리미엄 200. (숫자만 바꿔 밸런스 조정)
+//    민물: 블루길/베스/살치 30 · 메기/강준치/떡붕어 50 · 붕어/잉어/가물치 100 · 자라 200
+//    바다: 주꾸미/고등어/광어 30 · 갑오징어/갈치/우럭/벵에돔 50 · 감성돔/문어/참돔 100 · 참치 200
 int fishSellPrice(String name) {
-  const premium = ['문어', '참치'];
-  const large = ['메기', '갈치', '잉어', '가물치', '광어', '참돔'];
-  const small = ['블루길', '살치', '주꾸미'];
-  if (premium.contains(name)) return 200;
-  if (large.contains(name)) return 100;
-  if (small.contains(name)) return 30;
-  return 50; // 중형(붕어/떡붕어/베스/강준치/고등어/우럭/감성돔/벵에돔/갑오징어/자라 등)
+  const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어'];
+  const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔'];
+  const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔'];
+  const p200 = ['자라', '참치'];
+  if (p200.contains(name)) return 200;
+  if (p100.contains(name)) return 100;
+  if (p30.contains(name)) return 30;
+  if (p50.contains(name)) return 50;
+  return 50; // 미분류 기본
 }
 
 // 어종 이름 → 이미지 경로 (수집품 아이콘용)
