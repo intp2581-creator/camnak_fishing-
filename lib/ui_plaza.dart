@@ -270,7 +270,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     {'npc': 'guild',   'name': '윤슬', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
     {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요! 🎣'},
     {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝! ⚔️'},
-    {'npc': 'shop',    'name': '서윤', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '멋진 장비를 장만했네요! 🎁'},
+    {'npc': 'shop',    'name': '서윤', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '아이템을 구매 하셨네요! 🎁'},
   ];
   static const int _tutExp = 200, _tutPts = 400; // 퀘스트당 보상
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
@@ -299,7 +299,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final sea = getTodaySeaMission();
     final g = _greeting();
     if (_fwDone && _seaDone) {
-      return '$g\n🎉 오늘 일일 퀘스트 2개 모두 완료!\n수고하셨어요, 내일도 도전해요!';
+      return '$g\n🎉 일일 퀘스트 2개 모두 완료!\n수고하셨어요, 내일도 도전해요!';
     }
     if (!_fwDone) {
       return '$g\n🏞️ [민물] 오늘의 일일 퀘스트\n🐟 ${fw['fish']} ${fw['count']}마리 잡기 ($_fwProg/${fw['count']})\n✅ 완료하면 ${dailyMissionPrize}P!\n\n(완료하면 바다 퀘스트가 열려요)';
@@ -310,11 +310,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🎁 첫 접속 통합 인사: 인사 + 500P 보상 + 오늘의 미션(민물) 한 번에
   String _getWelcomeText() {
     final fw = getTodayFwMission();
-    return '${widget.nickname} 조사님, 어서오세요! 😊\n'
-        '🎁 오늘 접속 보상 500P 지급 완료!\n\n'
+    return '${widget.nickname} 님, 어서오세요! 😊\n'
+        '🎁 접속 보상 500P 지급 완료!\n\n'
         '🏞️ 오늘의 민물 일일 퀘스트\n'
         '🐟 ${fw['fish']} ${fw['count']}마리 잡으세요\n'
-        '✅ 완료하면 500P! (이어서 바다 퀘스트도 열려요)\n\n'
+        '✅ 민물 완료후 바다 퀘스트 열려요)\n\n'
         '(미션을 잊으셨다면 저에게 오세요~)';
   }
 
@@ -2013,7 +2013,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showTutIntro)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${widget.nickname} 조사님, 환영해요! 🎣\n저는 캠피싱 매니저 아라예요.\n\n첫걸음 튜토리얼을 준비했어요!\n각 NPC를 만나 미션을 완료하면\n경험치와 포인트를 드려요.\n지금 시작할까요?',
+                    text: '${widget.nickname} 조사님, 환영해요! 🎣\n저는 캠피싱 매니저 아라예요.\n\n첫걸음 튜토리얼을 준비했어요!\n느낌표❗를 따라 NPC를 만나 보세요\n지금 시작할까요?',
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () {},
                     action: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -2225,7 +2225,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
-    // 🛍️ 보배: 지정 어종 3마리 모았고 아직 정산 안 했으면 ❗(정산하러 와)
+    // 🛍️ 서윤: 지정 어종 3마리 모았고 아직 정산 안 했으면 ❗(정산하러 와)
     final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone && _bobaeCount >= bobaeCount;
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
