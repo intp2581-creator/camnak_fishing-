@@ -206,6 +206,22 @@ final List<String> _garamMessages = [
     });
   }
 
+// 🎒 전체 인벤토리 팝업 (낚시 중 장비/미끼/스킨 보기·장착)
+  void _showFullInventoryDialog() {
+    audioManager.playSfx("sfx_click.mp3");
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        child: SizedBox(
+          width: 760, height: 560,
+          child: buildInventoryPanel(context),
+        ),
+      ),
+    );
+  }
+
 // 🎒 미끼 교체용 인벤토리 팝업
   void _showFishingInventoryPopup() {
     final user = FirebaseAuth.instance.currentUser;
@@ -1535,29 +1551,37 @@ void _recast() {  // 기존 코드
             if (isFloatInWater) Positioned(bottom: 40, right: 40, child: _buildMainActionButton()), // 👈 메인 버튼 중복 렌더링 방지
           ],
 
-          // 🎒 [신규 추가] 낚시 중 미끼 교체 가방 버튼
+          // 🎒 [신규] 낚시 중 미끼교체 + 인벤토리 버튼 (세로 배치)
 Positioned(
-  top: 120, // 💡 기존 채팅창이나 상단바를 피해서 적절한 위치입니다!
+  top: 120, // 💡 상단바·채팅창 피한 위치
   right: 65,
-  child: GestureDetector(
-    onTap: () {
-      audioManager.playSfx("sfx_click.mp3");
-      _showFishingInventoryPopup(); // 가방 팝업 호출!
-    },
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black54, 
-        borderRadius: BorderRadius.circular(10), 
-        border: Border.all(color: Colors.amber, width: 2) // 골드 테두리
+  child: Column(children: [
+    GestureDetector(
+      onTap: () { audioManager.playSfx("sfx_click.mp3"); _showFishingInventoryPopup(); },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber, width: 2)),
+        child: const Column(children: [
+          Icon(Icons.bug_report, color: Colors.amber, size: 28),
+          SizedBox(height: 4),
+          Text('미끼교체', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ]),
       ),
-      child: const Column(children: [
-        Icon(Icons.backpack, color: Colors.amber, size: 28),
-        SizedBox(height: 4),
-        Text('미끼교체', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold))
-      ]),
     ),
-  ),
+    const SizedBox(height: 10),
+    GestureDetector(
+      onTap: _showFullInventoryDialog,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber, width: 2)),
+        child: const Column(children: [
+          Icon(Icons.backpack, color: Colors.amber, size: 28),
+          SizedBox(height: 4),
+          Text('인벤토리', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    ),
+  ]),
 ),
           
           Positioned(
