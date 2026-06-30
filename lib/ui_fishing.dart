@@ -1080,6 +1080,7 @@ Widget _buildChatTab(int index, String title) {
           HapticFeedback.heavyImpact(); 
           audioManager.playSfx("sfx_landing_success.mp3"); 
           _checkDailyMission(fish['name'].toString());
+          _checkBobaeMission(fish['name'].toString()); // 🛍️ 보배 지정어 트로피 수집
           if (widget.isFirstTime && !_isTutorialDone && fish['name'] == '붕어') {
             _showTutorialSuccessReward(fish);
           } else {
@@ -2925,6 +2926,54 @@ void _showTodayMissionInfo() {
       }
     } catch (e) {
       print("미션 트랜잭션 에러: $e");
+    }
+  }
+
+  // 🛍️ 보배 일일 — 지정 어종 3마리 → 마리당 200P + 완료 시 경험치 200 + 트로피 수집
+  Future<void> _checkBobaeMission(String fishName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final bobae = getTodayBobaeFish();
+    if (fishName != bobae['fish']) return; // 오늘 지정 어종 아니면 무시
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final need = bobaeCount;
+    final fishImg = fishImageByName(fishName);
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    try {
+      bool justDone = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final data = (await tx.get(userRef)).data() ?? {};
+        final bp = data['bobae_progress'];
+        int count = 0; bool done = false;
+        if (bp is Map && bp['date'] == today) {
+          count = (bp['count'] is num) ? (bp['count'] as num).toInt() : 0;
+          done = bp['done'] == true;
+        }
+        if (done) return; // 오늘 완료
+        count += 1;
+        final nowDone = count >= need;
+        // 🏆 트로피 아이템 인벤 추가(수집)
+        final inv = List<dynamic>.from(data['inventory'] ?? []);
+        final trophyName = '$fishName 트로피';
+        final idx = inv.indexWhere((i) => i['name'] == trophyName);
+        if (idx >= 0) {
+          inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 1;
+        } else {
+          inv.add({'name': trophyName, 'category': 'TROPHY', 'type': 'TROPHY', 'icon': fishImg, 'quantity': 1, 'desc': '보배 일일퀘스트로 모은 $fishName 트로피 🏆'});
+        }
+        tx.set(userRef, {
+          'gold': FieldValue.increment(bobaePtsPerFish),     // 마리당 포인트
+          if (nowDone) 'exp': FieldValue.increment(bobaeExp), // 완료 시 경험치
+          'inventory': inv,
+          'bobae_progress': {'date': today, 'fish': fishName, 'count': count, 'done': nowDone},
+        }, SetOptions(merge: true));
+        if (nowDone) justDone = true;
+      });
+      if (justDone && mounted) {
+        _showNotificationPopup('🏆 보배 일일 완료!', '$fishName $need마리 수집 완료!\n경험치 +$bobaeExp · 포인트 +${bobaePtsPerFish * need}\n트로피가 인벤에 보관됐어요!', const Color(0xFFD4AF37));
+      }
+    } catch (e) {
+      print('보배 미션 에러: $e');
     }
   }
 

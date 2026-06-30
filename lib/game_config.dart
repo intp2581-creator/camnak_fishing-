@@ -25,6 +25,29 @@ Map<String, dynamic> getTodaySeaMission() {
 }
 
 // =========================================================================
+// 🛍️ [보배 일일 퀘스트] 지정 어종 3마리 → 트로피(물고기 이미지) 수집 + 보상
+// =========================================================================
+const List<String> bobaeFishPool = [...dailyFwFish, ...dailySeaFish];
+const int bobaeCount = 3;          // 목표 마릿수
+const int bobaeExp = 200;          // 완료 보상 경험치
+const int bobaePtsPerFish = 200;   // 마리당 포인트
+
+// 오늘의 보배 지정 어종 (민물+바다 통합, 다른 시드)
+Map<String, dynamic> getTodayBobaeFish() {
+  final n = DateTime.now();
+  final seed = n.year * 10000 + n.month * 100 + n.day + 31337;
+  return {'fish': bobaeFishPool[math.Random(seed).nextInt(bobaeFishPool.length)], 'count': bobaeCount};
+}
+
+// 어종 이름 → 이미지 경로 (트로피 아이콘용)
+String fishImageByName(String name) {
+  for (final f in [...fwFishPool, ...seaFishPool]) {
+    if (f['name'] == name) return (f['img'] ?? '').toString();
+  }
+  return '';
+}
+
+// =========================================================================
 // 🌍 [캠피싱 중앙 통제소 전역 변수] 
 // 앱 전체에서 공통으로 기억해야 하는 정보들입니다.
 // =========================================================================

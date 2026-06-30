@@ -175,6 +175,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       setState(() { _tutMissionEnter = onEnter; _showTutMission = true; });
       return;
     }
+    // 🛍️ 보배(상점): 오늘 보배 일일 미완료면 의뢰 안내 팝업
+    if (key == 'shop' && !_bobaeDone) {
+      _showBobaeQuest(onEnter);
+      return;
+    }
     final list = _npcGreetings[key] ?? ['안녕하세요!'];
     setState(() {
       _npcIntro = {
@@ -275,6 +280,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _fwDone = false; // 📋 오늘 민물 일일 완료
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
   int _fwProg = 0, _seaProg = 0; // 진행도(표시용)
+  bool _bobaeDone = false; // 🛍️ 오늘 보배 일일 완료
+  int _bobaeProg = 0;      // 보배 진행도
 
   String _greeting() {
     final h = DateTime.now().hour;
@@ -519,6 +526,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         seaProg = (mp['sea'] is num) ? (mp['sea'] as num).toInt() : 0;
       }
       final questDone = fwDone && seaDone;
+      // 🛍️ 보배 일일 진행/완료
+      final bp = d['bobae_progress'];
+      bool bobaeDone = false; int bobaeProg = 0;
+      if (bp is Map && bp['date'] == today) {
+        bobaeDone = bp['done'] == true;
+        bobaeProg = (bp['count'] is num) ? (bp['count'] as num).toInt() : 0;
+      }
       // 🎖️ #13 승급: 저장된 칭호 + 6대장 누적
       final newRank = (d['rank'] ?? '초보').toString();
       final dc = <String, int>{};
@@ -534,6 +548,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _level = newLevel;
         _questDone = questDone;
         _fwDone = fwDone; _seaDone = seaDone; _fwProg = fwProg; _seaProg = seaProg;
+        _bobaeDone = bobaeDone; _bobaeProg = bobaeProg;
         _rank = newRank;
         _daejangCatch = dc;
         // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).
@@ -2204,7 +2219,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
-    final bool bang = isTutTarget || isJoinQuest;
+    // 🛍️ 보배: 튜토리얼 끝났고 오늘 보배 일일 미완료면 퀘스트 느낌표
+    final bool isBobaeQuest = name == '보배' && _tutQuestNow == null && !_bobaeDone;
+    final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 32, // cy=발 위치, 이름+역할 2줄 높이 보정
@@ -3535,6 +3552,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           onPressed: () => Navigator.pop(c),
           child: const Text('알겠어요 👍'),
         ),
+      ),
+    );
+  }
+
+  // 🛍️ 보배 일일 의뢰 안내 팝업 (상점 가기 포함)
+  void _showBobaeQuest(VoidCallback enterStore) {
+    if (!mounted) return;
+    final b = getTodayBobaeFish();
+    showDialog(
+      context: context,
+      builder: (c) => NpcTutorialOverlay(
+        text: '🛍️ 보배의 오늘 의뢰예요!\n\n오늘은 [${b['fish']}] ${b['count']}마리를 잡아다 주세요.\n(현재 $_bobaeProg/${b['count']} 수집)\n\n🏆 잡은 ${b['fish']} 트로피를 가방에 보관해드려요!\n💰 마리당 ${bobaePtsPerFish}P · 완료 시 경험치 $bobaeExp',
+        imagePath: 'assets/images/npc_shop.png',
+        onTap: () => Navigator.pop(c),
+        action: Row(mainAxisSize: MainAxisSize.min, children: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            onPressed: () { Navigator.pop(c); enterStore(); },
+            child: const Text('상점 가기 🛒'),
+          ),
+          const SizedBox(width: 12),
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('닫기', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold))),
+        ]),
       ),
     );
   }
