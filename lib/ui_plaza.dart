@@ -3563,7 +3563,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (c) => NpcTutorialOverlay(
-        text: '🛍️ 보배의 오늘 의뢰예요!\n\n오늘은 [${b['fish']}] ${b['count']}마리를 잡아다 주세요.\n(현재 $_bobaeProg/${b['count']} 수집)\n\n🏆 잡은 ${b['fish']} 트로피를 가방에 보관해드려요!\n💰 마리당 ${bobaePtsPerFish}P · 완료 시 경험치 $bobaeExp',
+        text: '🛍️ 보배의 오늘 의뢰예요!\n\n오늘은 [${b['fish']}] ${b['count']}마리를 잡아다 주세요.\n(현재 $_bobaeProg/${b['count']} 수집)\n\n🐟 잡은 ${b['fish']}은(는) 가방에 보관해드려요!\n💰 마리당 ${bobaePtsPerFish}P · 완료 시 경험치 $bobaeExp',
         imagePath: 'assets/images/npc_shop.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [

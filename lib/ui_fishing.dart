@@ -2952,14 +2952,14 @@ void _showTodayMissionInfo() {
         if (done) return; // 오늘 완료
         count += 1;
         final nowDone = count >= need;
-        // 🏆 트로피 아이템 인벤 추가(수집)
+        // 🐟 물고기 수집 아이템 인벤 추가 (실제 물고기 이미지)
         final inv = List<dynamic>.from(data['inventory'] ?? []);
-        final trophyName = '$fishName 트로피';
-        final idx = inv.indexWhere((i) => i['name'] == trophyName);
+        final collectName = fishName; // 그냥 물고기 이름
+        final idx = inv.indexWhere((i) => i['name'] == collectName && (i['type'] ?? '') == 'FISH');
         if (idx >= 0) {
           inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 1;
         } else {
-          inv.add({'name': trophyName, 'category': 'TROPHY', 'type': 'TROPHY', 'icon': fishImg, 'quantity': 1, 'desc': '보배 일일퀘스트로 모은 $fishName 트로피 🏆'});
+          inv.add({'name': collectName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '보배 일일퀘스트로 잡은 $fishName 🐟'});
         }
         tx.set(userRef, {
           'gold': FieldValue.increment(bobaePtsPerFish),     // 마리당 포인트
@@ -2970,7 +2970,7 @@ void _showTodayMissionInfo() {
         if (nowDone) justDone = true;
       });
       if (justDone && mounted) {
-        _showNotificationPopup('🏆 보배 일일 완료!', '$fishName $need마리 수집 완료!\n경험치 +$bobaeExp · 포인트 +${bobaePtsPerFish * need}\n트로피가 인벤에 보관됐어요!', const Color(0xFFD4AF37));
+        _showNotificationPopup('🏆 보배 일일 완료!', '$fishName $need마리 수집 완료!\n경험치 +$bobaeExp · 포인트 +${bobaePtsPerFish * need}\n잡은 $fishName이(가) 가방에 보관됐어요! 🐟', const Color(0xFFD4AF37));
       }
     } catch (e) {
       print('보배 미션 에러: $e');
