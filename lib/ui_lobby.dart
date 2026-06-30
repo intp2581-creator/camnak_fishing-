@@ -1551,6 +1551,8 @@ class _StoreScreenState extends State<StoreScreen> {
                   child: const Text('⭐ 보유 최상급 — 판매 잠금',
                       style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold)),
                 )
+              else if ((item['type'] ?? '') == 'FISH')
+                Text('보유 수량: $qty마리  (마리당 ${fishSellPrice(itemName)}P)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
               else if (bait)
                 Text('보유 수량: x$qty개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold)),
             ]),
