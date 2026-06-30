@@ -1401,6 +1401,10 @@ void _recast() {  // 기존 코드
   String? _getIconImagePath(Map<String, dynamic>? item) {
     if (item == null || item['icon'] == null) return 'assets/items/rod_fw_basic_icon.png';
     String iconName = item['icon'].toString();
+    // 🐟 물고기 수집 이미지: 어떤 폴더로 저장됐든 실제 위치로 보정
+    final file = iconName.split('/').last;
+    if (file.startsWith('fish_fw')) return 'assets/fish_fw/$file';
+    if (file.startsWith('fish_sea')) return 'assets/fish_sea/$file';
     if (iconName.contains('assets/')) return iconName.replaceAll('../', 'assets/');
     if (iconName.contains('.jpg') || iconName.contains('skin_')) return 'assets/images/$iconName';
     return 'assets/items/$iconName';

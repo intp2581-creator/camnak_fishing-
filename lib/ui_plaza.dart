@@ -2267,6 +2267,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🎒 인벤토리 (읽기 전용 보기)
   String _itemIconPath(String icon) {
     if (icon.isEmpty) return 'assets/items/rod_fw_cf20.png';
+    // 🐟 물고기 수집 이미지: 어떤 폴더로 저장됐든 실제 위치로 보정
+    final file = icon.split('/').last;
+    if (file.startsWith('fish_fw')) return 'assets/fish_fw/$file';
+    if (file.startsWith('fish_sea')) return 'assets/fish_sea/$file';
     if (icon.startsWith('../images/')) return 'assets/${icon.substring(3)}';
     if (icon.startsWith('assets/')) return icon;
     return 'assets/items/$icon';
