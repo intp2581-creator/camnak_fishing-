@@ -39,10 +39,16 @@ Map<String, dynamic> getTodayBobaeFish() {
   return {'fish': bobaeFishPool[math.Random(seed).nextInt(bobaeFishPool.length)], 'count': bobaeCount};
 }
 
-// 어종 이름 → 이미지 경로 (트로피 아이콘용)
+// 어종 이름 → 이미지 경로 (수집품 아이콘용)
+//  ⚠️ 풀의 'img'는 폴더가 assets/images/로 잘못돼 있어서, 실제 위치(assets/fish_fw|fish_sea/)로 보정.
 String fishImageByName(String name) {
   for (final f in [...fwFishPool, ...seaFishPool]) {
-    if (f['name'] == name) return (f['img'] ?? '').toString();
+    if (f['name'] == name) {
+      final file = (f['img'] ?? '').toString().split('/').last; // 예: fish_sea_01_black_porgy.png
+      if (file.isEmpty) return '';
+      final folder = file.startsWith('fish_sea') ? 'fish_sea' : 'fish_fw';
+      return 'assets/$folder/$file';
+    }
   }
   return '';
 }

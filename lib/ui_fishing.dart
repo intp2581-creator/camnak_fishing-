@@ -2578,9 +2578,9 @@ Positioned(
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center, 
                                   children: [ 
-                                    _getIconImagePath(itemToShow) != null 
-                                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset(_getIconImagePath(itemToShow)!, width: 75, height: 75, fit: BoxFit.contain)) 
-                                      : const Icon(Icons.inventory_2, color: Colors.white54, size: 40), 
+                                    _getIconImagePath(itemToShow) != null
+                                      ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset(_getIconImagePath(itemToShow)!, width: 75, height: 75, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.inventory_2, color: Colors.white30, size: 40)))
+                                      : const Icon(Icons.inventory_2, color: Colors.white54, size: 40),
                                     const SizedBox(height: 6), 
                                     FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4.0), child: Text(itemToShow['name'], style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold), textAlign: TextAlign.center))) 
                                   ]
