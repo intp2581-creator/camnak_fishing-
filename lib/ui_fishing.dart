@@ -2590,7 +2590,7 @@ Positioned(
                                   ]
                                 ), 
                                 if (isCurrentlyEquipped) const Positioned(top: 4, right: 4, child: Icon(Icons.check_circle, color: Color(0xFFD4AF37), size: 18)),
-                                if (itemToShow['quantity'] != null && itemToShow['type'] == 'BAIT')
+                                if (itemToShow['quantity'] != null && (itemToShow['type'] == 'BAIT' || itemToShow['type'] == 'FISH'))
                                   Positioned(bottom: 4, right: 4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white54, width: 0.5)), child: Text('${itemToShow['quantity']}개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 10, fontWeight: FontWeight.bold))))
                               ])
                             )
