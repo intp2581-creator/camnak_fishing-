@@ -1554,21 +1554,8 @@ void _recast() {  // 기존 코드
           // 🎒 [신규] 낚시 중 미끼교체 + 인벤토리 버튼 (세로 배치)
 Positioned(
   top: 120, // 💡 상단바·채팅창 피한 위치
-  right: 65,
-  child: Column(children: [
-    GestureDetector(
-      onTap: () { audioManager.playSfx("sfx_click.mp3"); _showFishingInventoryPopup(); },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber, width: 2)),
-        child: const Column(children: [
-          Icon(Icons.bug_report, color: Colors.amber, size: 28),
-          SizedBox(height: 4),
-          Text('미끼교체', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-        ]),
-      ),
-    ),
-    const SizedBox(height: 10),
+  right: 55,
+  child: Row(mainAxisSize: MainAxisSize.min, children: [
     GestureDetector(
       onTap: _showFullInventoryDialog,
       child: Container(
@@ -1578,6 +1565,19 @@ Positioned(
           Icon(Icons.backpack, color: Colors.amber, size: 28),
           SizedBox(height: 4),
           Text('인벤토리', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        ]),
+      ),
+    ),
+    const SizedBox(width: 10),
+    GestureDetector(
+      onTap: () { audioManager.playSfx("sfx_click.mp3"); _showFishingInventoryPopup(); },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.amber, width: 2)),
+        child: const Column(children: [
+          Icon(Icons.bug_report, color: Colors.amber, size: 28),
+          SizedBox(height: 4),
+          Text('미끼교체', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
         ]),
       ),
     ),
