@@ -272,80 +272,37 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
   Map<String, int> _daejangCatch = {}; // #13 6대장 누적 카운트
-  final List<Map<String, dynamic>> _missionPool = [
-    {'loc': '예산 예당지', 'fish': '붕어', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '블루길', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '살치', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '베스', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '잉어', 'count': 3},
-    {'loc': '예산 예당지', 'fish': '메기', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '붕어', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '떡붕어', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '베스', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '잉어', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '메기', 'count': 3},
-    {'loc': '예산 신양수로', 'fish': '가물치', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '고등어', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '우럭', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '갈치', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '참돔', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '광어', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '감성돔', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '갑오징어', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '주꾸미', 'count': 3},
-    {'loc': '통영 척포 갯바위', 'fish': '문어', 'count': 3},
-    {'loc': '거제 선상', 'fish': '고등어', 'count': 3},
-    {'loc': '거제 선상', 'fish': '우럭', 'count': 3},
-    {'loc': '거제 선상', 'fish': '갈치', 'count': 3},
-    {'loc': '거제 선상', 'fish': '참돔', 'count': 3},
-    {'loc': '거제 선상', 'fish': '광어', 'count': 3},
-    {'loc': '거제 선상', 'fish': '감성돔', 'count': 3},
-    {'loc': '거제 선상', 'fish': '갑오징어', 'count': 3},
-    {'loc': '거제 선상', 'fish': '주꾸미', 'count': 3},
-    {'loc': '거제 선상', 'fish': '문어', 'count': 3},
-  ];
+  bool _fwDone = false; // 📋 오늘 민물 일일 완료
+  bool _seaDone = false; // 📋 오늘 바다 일일 완료
+  int _fwProg = 0, _seaProg = 0; // 진행도(표시용)
 
-  Map<String, dynamic> _getTodayMission() {
-    final now = DateTime.now();
-    final seed = now.year * 10000 + now.month * 100 + now.day;
-    return _missionPool[math.Random(seed).nextInt(_missionPool.length)];
+  String _greeting() {
+    final h = DateTime.now().hour;
+    return h >= 5 && h < 12 ? '좋은 아침이에요! ☀️' : h >= 12 && h < 18 ? '안녕하세요! ☕' : '밤낚시 오셨군요! 🌙';
   }
 
+  // 📋 일일 퀘스트 브리핑 — 민물 먼저, 완료하면 바다
   String _getBriefingText() {
-    final mission = _getTodayMission();
-    final currentHour = DateTime.now().hour;
-    String greeting = '안녕하세요! 😊';
-    if (currentHour >= 5 && currentHour < 12) {
-      greeting = '좋은 아침이에요! ☀️';
-    } else if (currentHour >= 12 && currentHour < 18) {
-      greeting = '안녕하세요! ☕';
-    } else {
-      greeting = '밤낚시 오셨군요! 🌙';
+    final fw = getTodayFwMission();
+    final sea = getTodaySeaMission();
+    final g = _greeting();
+    if (_fwDone && _seaDone) {
+      return '$g\n🎉 오늘 일일 퀘스트 2개 모두 완료!\n수고하셨어요, 내일도 도전해요!';
     }
-    // #11 오늘 미션 완료했으면 완료 메시지
-    if (_questDone) {
-      return '$greeting\n'
-          '🎉 오늘 일일 퀘스트 완료!\n'
-          '🐟 ${mission['fish']} ${mission['count']}마리 달성\n'
-          '💰 보상 500P 수령 완료! 내일도 도전해요!';
+    if (!_fwDone) {
+      return '$g\n🏞️ [민물] 오늘의 일일 퀘스트\n🐟 ${fw['fish']} ${fw['count']}마리 잡기 ($_fwProg/${fw['count']})\n✅ 완료하면 ${dailyMissionPrize}P!\n\n(완료하면 바다 퀘스트가 열려요)';
     }
-    // 🧩 개인별 일일 퀘스트: 어느 낚시터든 해당 고기만 잡으면 OK (장소 무관)
-    return '$greeting\n'
-        '🏆 오늘의 일일 퀘스트!\n'
-        '🐟 ${mission['fish']} ${mission['count']}마리 잡기\n'
-        '🎣 어느 낚시터든 OK!\n'
-        '✅ 오늘 안에 완료하면 500P 지급!';
+    return '$g\n🌊 [바다] 일일 퀘스트\n🐟 ${sea['fish']} ${sea['count']}마리 잡기 ($_seaProg/${sea['count']})\n✅ 완료하면 ${dailyMissionPrize}P!';
   }
 
-  // 🎁 첫 접속 통합 인사: 인사 + 500P 보상 + 오늘의 미션 한 번에
+  // 🎁 첫 접속 통합 인사: 인사 + 500P 보상 + 오늘의 미션(민물) 한 번에
   String _getWelcomeText() {
-    final mission = _getTodayMission();
+    final fw = getTodayFwMission();
     return '${widget.nickname} 조사님, 어서오세요! 😊\n'
         '🎁 오늘 접속 보상 500P 지급 완료!\n\n'
-        '🏆 오늘의 일일 퀘스트\n'
-        '🐟 ${mission['fish']} ${mission['count']}마리 잡으세요\n'
-        '✅ 완료하시면 500P 드려요!\n\n'
+        '🏞️ 오늘의 민물 일일 퀘스트\n'
+        '🐟 ${fw['fish']} ${fw['count']}마리 잡으세요\n'
+        '✅ 완료하면 500P! (이어서 바다 퀘스트도 열려요)\n\n'
         '(미션을 잊으셨다면 저에게 오세요~)';
   }
 
@@ -552,8 +509,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final guildChanged = gid != _guildId || gname != _guildName;
       // #11 오늘 일일 퀘스트 완료 여부
       final today = DateTime.now().toIso8601String().substring(0, 10);
+      // 📋 일일 2분리 진행/완료 읽기
       final mp = d['mission_progress'];
-      final questDone = mp is Map && mp['date'] == today && mp['rewarded'] == true;
+      bool fwDone = false, seaDone = false; int fwProg = 0, seaProg = 0;
+      if (mp is Map && mp['date'] == today) {
+        fwDone = mp['fwDone'] == true;
+        seaDone = mp['seaDone'] == true;
+        fwProg = (mp['fw'] is num) ? (mp['fw'] as num).toInt() : 0;
+        seaProg = (mp['sea'] is num) ? (mp['sea'] as num).toInt() : 0;
+      }
+      final questDone = fwDone && seaDone;
       // 🎖️ #13 승급: 저장된 칭호 + 6대장 누적
       final newRank = (d['rank'] ?? '초보').toString();
       final dc = <String, int>{};
@@ -568,6 +533,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         currentExp = newExp;
         _level = newLevel;
         _questDone = questDone;
+        _fwDone = fwDone; _seaDone = seaDone; _fwProg = fwProg; _seaProg = seaProg;
         _rank = newRank;
         _daejangCatch = dc;
         // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).

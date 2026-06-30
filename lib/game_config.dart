@@ -1,5 +1,28 @@
 // ignore_for_file: non_constant_identifier_names
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+
+// =========================================================================
+// 📋 [일일 퀘스트] 민물/바다 2분리 — 민물 완료 후 바다 진행. 각 보상 500P.
+// =========================================================================
+const List<String> dailyFwFish = ['붕어', '떡붕어', '블루길', '살치', '베스', '강준치', '잉어', '메기', '가물치'];
+const List<String> dailySeaFish = ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔'];
+const int dailyMissionCount = 3;   // 각 미션 목표 마릿수
+const int dailyMissionPrize = 500; // 각 미션 보상 포인트
+
+// 오늘의 민물 일일 미션 (날짜 시드 → 전 유저 동일)
+Map<String, dynamic> getTodayFwMission() {
+  final n = DateTime.now();
+  final seed = n.year * 10000 + n.month * 100 + n.day;
+  return {'fish': dailyFwFish[math.Random(seed).nextInt(dailyFwFish.length)], 'count': dailyMissionCount, 'cat': 'FW'};
+}
+
+// 오늘의 바다 일일 미션 (다른 시드)
+Map<String, dynamic> getTodaySeaMission() {
+  final n = DateTime.now();
+  final seed = n.year * 10000 + n.month * 100 + n.day + 7777;
+  return {'fish': dailySeaFish[math.Random(seed).nextInt(dailySeaFish.length)], 'count': dailyMissionCount, 'cat': 'SEA'};
+}
 
 // =========================================================================
 // 🌍 [캠피싱 중앙 통제소 전역 변수] 

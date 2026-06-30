@@ -2847,95 +2847,57 @@ void _showTodayMissionInfo() {
   // 🏆 오늘의 선착순 미션 심판 로직 (KREFT 매니저 아라의 임무!)
   // ==========================================================
   Future<void> _checkDailyMission(String fishName) async {
-    // 1. 사장님표 1성 낚시터 생태계 100% 반영!
-    final List<Map<String, dynamic>> missionPool = [
-      // 🏞️ [민물 1성] 예산 예당지 (7종) - 로비 missionPool과 동일하게 유지!
-      {'loc': '예산 예당지', 'fish': '붕어', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '떡붕어', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '블루길', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '살치', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '베스', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '잉어', 'count': 3, 'prize': 500},
-      {'loc': '예산 예당지', 'fish': '메기', 'count': 3, 'prize': 500},
-
-      // 🏞️ [민물 1성] 예산 신양수로 (6종) - 로비 missionPool과 동일하게 유지!
-      {'loc': '예산 신양수로', 'fish': '붕어', 'count': 3, 'prize': 500},
-      {'loc': '예산 신양수로', 'fish': '떡붕어', 'count': 3, 'prize': 500},
-      {'loc': '예산 신양수로', 'fish': '베스', 'count': 3, 'prize': 500},
-      {'loc': '예산 신양수로', 'fish': '잉어', 'count': 3, 'prize': 500},
-      {'loc': '예산 신양수로', 'fish': '메기', 'count': 3, 'prize': 500},
-      {'loc': '예산 신양수로', 'fish': '가물치', 'count': 3, 'prize': 500},
-
-      // 🌊 [바다 1성] 통영 척포 갯바위 (9종)
-      {'loc': '통영 척포 갯바위', 'fish': '고등어', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '우럭', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '갈치', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '참돔', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '광어', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '감성돔', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '갑오징어', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '주꾸미', 'count': 3, 'prize': 500},
-      {'loc': '통영 척포 갯바위', 'fish': '문어', 'count': 3, 'prize': 500},
-
-      // 🌊 [바다 1성] 거제 선상 (9종)
-      {'loc': '거제 선상', 'fish': '고등어', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '우럭', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '갈치', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '참돔', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '광어', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '감성돔', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '갑오징어', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '주꾸미', 'count': 3, 'prize': 500},
-      {'loc': '거제 선상', 'fish': '문어', 'count': 3, 'prize': 500},
-    ];
-
-    // 🎯 [핵심] 모든 유저가 "동일한 랜덤 미션"을 받도록 날짜 시드(Seed) 동기화!
-    DateTime now = DateTime.now();
-    int dailySeed = now.year * 10000 + now.month * 100 + now.day; // 예: 20260519
-    var dailyRandom = math.Random(dailySeed); 
-    
-    // 매일 밤 12시 땡! 치면 완전히 새로운 1성 미션 1개가 랜덤으로 출제됩니다!
-    final mission = missionPool[dailyRandom.nextInt(missionPool.length)];
-
-    // 🚨 [핵심!] 지금 있는 낚시터가 미션 장소가 아니거나, 고기 이름이 다르면 가차 없이 탈락!
-    if (fishName != mission['fish']) return; // 📋 #장소무관: 어디서든 해당 고기만 잡으면 인정
-
-    // 🧩 [개인별 일일 퀘스트] 선착순/이벤트시간/전역 핫문서 제거 → 누구나 오늘 안에 완료하면 개인 보상.
-    //    진행도·보상은 모두 '내 문서'에만 기록 → 동시접속 폭주에도 경합/핫스팟 없음.
+    // 📋 일일 2분리: 민물 미션 먼저 완료 → 바다 미션 진행. 각 보상 dailyMissionPrize.
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final today = DateTime.now().toIso8601String().substring(0, 10);
+    final fw = getTodayFwMission();
+    final sea = getTodaySeaMission();
+    final isFwTarget = fishName == fw['fish'];
+    final isSeaTarget = fishName == sea['fish'];
+    if (!isFwTarget && !isSeaTarget) return; // 오늘 미션 어종이 아니면 무시
+    final need = dailyMissionCount;
+    final prize = dailyMissionPrize;
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    final need = (mission['count'] is num) ? (mission['count'] as num).toInt() : 3;
-    final prize = (mission['prize'] is num) ? (mission['prize'] as num).toInt() : 500;
 
     try {
-      bool justCompleted = false;
-      await FirebaseFirestore.instance.runTransaction((transaction) async {
-        final userDoc = await transaction.get(userRef);
-        int count = 0;
-        bool rewarded = false;
-        if (userDoc.exists && userDoc.data() != null) {
-          final uData = userDoc.data() as Map<String, dynamic>;
-          final mp = uData['mission_progress'];
-          if (mp is Map && mp['date'] == today) {
-            count = (mp['count'] is num) ? (mp['count'] as num).toInt() : 0;
-            rewarded = mp['rewarded'] == true;
-          }
+      Map<String, dynamic>? completed; // 방금 완료한 미션(팝업용)
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final data = (await tx.get(userRef)).data() ?? {};
+        final mp = data['mission_progress'];
+        int fwCount = 0, seaCount = 0; bool fwDone = false, seaDone = false;
+        if (mp is Map && mp['date'] == today) {
+          fwCount = (mp['fw'] is num) ? (mp['fw'] as num).toInt() : 0;
+          seaCount = (mp['sea'] is num) ? (mp['sea'] as num).toInt() : 0;
+          fwDone = mp['fwDone'] == true;
+          seaDone = mp['seaDone'] == true;
         }
-        if (rewarded) return; // 오늘 이미 완료·보상 받음
-
-        count += 1;
-        final done = count >= need;
-        transaction.set(userRef, {
-          if (done) 'gold': FieldValue.increment(prize), // 🏆 완료 즉시 개인 보상(크래시 안전)
-          'mission_progress': {'date': today, 'count': count, 'rewarded': done},
-        }, SetOptions(merge: true));
-        if (done) justCompleted = true;
+        // 1) 민물 미션 먼저
+        if (isFwTarget && !fwDone) {
+          fwCount += 1;
+          final done = fwCount >= need;
+          tx.set(userRef, {
+            if (done) 'gold': FieldValue.increment(prize),
+            'mission_progress': {'date': today, 'fw': fwCount, 'fwDone': done, 'sea': seaCount, 'seaDone': seaDone},
+          }, SetOptions(merge: true));
+          if (done) completed = {'fish': fw['fish'], 'count': need, 'cat': '민물', 'prize': prize};
+          return;
+        }
+        // 2) 민물 완료 후 바다 미션
+        if (isSeaTarget && fwDone && !seaDone) {
+          seaCount += 1;
+          final done = seaCount >= need;
+          tx.set(userRef, {
+            if (done) 'gold': FieldValue.increment(prize),
+            'mission_progress': {'date': today, 'fw': fwCount, 'fwDone': fwDone, 'sea': seaCount, 'seaDone': done},
+          }, SetOptions(merge: true));
+          if (done) completed = {'fish': sea['fish'], 'count': need, 'cat': '바다', 'prize': prize};
+          return;
+        }
       });
 
-      if (justCompleted && mounted) {
-        _showMissionWinnerPopup(mission); // 완료 축하 팝업 (보상은 이미 지급됨)
+      if (completed != null && mounted) {
+        _showMissionWinnerPopup(completed!); // 완료 축하 팝업 (보상은 이미 지급됨)
       }
     } catch (e) {
       print("미션 트랜잭션 에러: $e");
