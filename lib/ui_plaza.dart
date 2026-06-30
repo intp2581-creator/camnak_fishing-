@@ -2549,6 +2549,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER';
                 case '미끼':
                   return t == 'BAIT';
+                case '물고기':
+                  return t == 'FISH';
                 case '스킨':
                   return t == 'SKIN' || c == 'SKIN';
               }
@@ -2659,6 +2661,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         tabBtn('민물'),
                         tabBtn('바다'),
                         tabBtn('미끼'),
+                        tabBtn('물고기'),
                         tabBtn('스킨'),
                       ]),
                       const Divider(color: Colors.white12, height: 1),

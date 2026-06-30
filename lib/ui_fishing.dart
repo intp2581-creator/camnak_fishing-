@@ -2492,11 +2492,13 @@ Positioned(
               // 🦐 새우 있으면 민물새우(미끼) 표시·채집망 숨김 / 새우 없으면 채집망만 표시
               if (item['name'].toString() == '민물새우' && !hasShrimp) return false;
               if (item['name'].toString() == '새우 채집망' && hasShrimp) return false;
+              final isFish = (item['type'] ?? '') == 'FISH';
               if (_currentFilter == 'ALL') return true;
-              if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
-              if (_currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
+              if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
+              if (_currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SKIN' && isSkin) return true;
+              if (_currentFilter == 'FISH' && isFish) return true;
               return false;
             }).toList();
 
@@ -2533,8 +2535,8 @@ Positioned(
                   
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: ['ALL', 'FW', 'SEA', 'BAIT', 'SKIN'].map((filter) {
-                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : '스킨';
+                    children: ['ALL', 'FW', 'SEA', 'BAIT', 'FISH', 'SKIN'].map((filter) {
+                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : filter == 'FISH' ? '물고기' : '스킨';
                       bool isSelected = _currentFilter == filter; // 💡 바뀐 변수명 적용
                       return Expanded(
                         child: GestureDetector(

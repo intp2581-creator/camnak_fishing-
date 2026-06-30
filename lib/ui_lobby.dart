@@ -1353,6 +1353,7 @@ class StoreScreen extends StatefulWidget {
 class _StoreScreenState extends State<StoreScreen> {
   late int myDisplayGold;
   late List<dynamic> myInventory; // 판매 탭에서 쓰는 내 인벤토리(상태로 관리)
+  String _sellTab = '장비'; // 💰 판매 탭 안의 서브탭: 장비 / 물고기
   String currentTab = 'ROD';
 
   @override
@@ -1482,33 +1483,106 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   Widget _buildSellList() {
-    final sellable = myInventory.map((e) => e as Map<String, dynamic>).toList();
-    if (sellable.isEmpty) {
-      return const Center(
-          child: Text('가방이 비어 있어요.', style: TextStyle(color: Colors.white54, fontSize: 16)));
+    final all = myInventory.map((e) => e as Map<String, dynamic>).toList();
+    final gear = all.where((i) => (i['type'] ?? '') != 'FISH').toList();
+    final fishes = all.where((i) => (i['type'] ?? '') == 'FISH').toList();
+    final showFish = _sellTab == '물고기';
+    final list = showFish ? fishes : gear;
+    final fishTotal = fishes.fold<int>(0, (s, i) => s + _sellPrice(i)); // 물고기 일괄판매 총액
+
+    Widget subTab(String label, int count) {
+      final active = _sellTab == label;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _sellTab = label),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: active ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('$label ($count)',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: active ? Colors.black : Colors.white70, fontSize: 15, fontWeight: FontWeight.w900)),
+          ),
+        ),
+      );
     }
+
     return Column(children: [
-      Container(
-        width: double.infinity,
-        margin: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-            color: const Color(0xFF1A1A1A),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.white12)),
-        child: const Text('💡 필요 없는 장비를 팔아 포인트로 바꿀 수 있어요. (판매가 = 정가의 50%)',
-            style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
+      // 서브탭: 장비 / 물고기
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+        child: Row(children: [subTab('장비', gear.length), subTab('물고기', fishes.length)]),
+      ),
+      // 안내 + (물고기 탭) 일괄판매 버튼
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+        child: showFish
+            ? Row(children: [
+                const Expanded(child: Text('🐟 잡은 고기를 팔아 포인트로! (마리당 가격)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold))),
+                if (fishes.isNotEmpty)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+                    onPressed: () => _confirmSellAllFish(fishes, fishTotal),
+                    child: Text('전부 팔기 (+$fishTotal P)', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                  ),
+              ])
+            : const Text('💡 필요 없는 장비를 팔아 포인트로! (판매가 = 정가의 50%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
       ),
       Expanded(
-        child: GridView.builder(
-          padding: const EdgeInsets.all(20),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 1, mainAxisSpacing: 14, crossAxisSpacing: 14, mainAxisExtent: 110),
-          itemCount: sellable.length,
-          itemBuilder: (context, index) => _buildSellItem(sellable[index]),
-        ),
+        child: list.isEmpty
+            ? Center(child: Text(showFish ? '잡은 물고기가 없어요.\n낚시하러 가볼까요?' : '판매할 장비가 없어요.', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 16)))
+            : GridView.builder(
+                padding: const EdgeInsets.all(20),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 1, mainAxisSpacing: 14, crossAxisSpacing: 14, mainAxisExtent: 110),
+                itemCount: list.length,
+                itemBuilder: (context, index) => _buildSellItem(list[index]),
+              ),
       ),
     ]);
+  }
+
+  // 🐟 물고기 일괄판매 (모든 어종)
+  void _confirmSellAllFish(List<Map<String, dynamic>> fishes, int total) {
+    audioManager.playSfx("sfx_click.mp3");
+    final totalCount = fishes.fold<int>(0, (s, i) => s + ((i['quantity'] is num) ? (i['quantity'] as num).toInt() : 1));
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        title: const Text('🐟 물고기 전부 팔기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        content: Text('가방의 물고기 $totalCount마리를 모두 팔고\n$total P를 받습니다.\n판매하시겠습니까?', style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () { Navigator.pop(ctx); _sellAllFish(total); }, child: const Text('전부 판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+  }
+
+  void _sellAllFish(int total) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
+      inventory.removeWhere((i) => (i['type'] ?? '') == 'FISH'); // 모든 물고기 제거
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        'gold': FieldValue.increment(total),
+        'inventory': inventory,
+      });
+      if (!mounted) return;
+      setState(() {
+        myInventory.removeWhere((i) => (i['type'] ?? '') == 'FISH');
+        myDisplayGold += total;
+      });
+      _showNotificationPopup('🎉 일괄 판매 완료', '물고기를 모두 팔고\n$total P를 받았습니다!', const Color(0xFF7FFFB0));
+    } catch (e) {
+      debugPrint('일괄판매 에러: $e');
+    }
   }
 
   Widget _buildSellItem(Map<String, dynamic> item) {
