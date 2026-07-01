@@ -213,10 +213,15 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       // 💰 [국세청 출동] 상금에서 10% 수수료 징수 계산!
       int taxAmount = (prize * 0.1).toInt();
       int finalPrize = prize - taxAmount;
+      final todayKst = DateTime.now().toIso8601String().substring(0, 10);
 
       await FirebaseFirestore.instance.runTransaction((tx) async {
         // 1. 우승자 지갑(users)에는 세금을 뗀 '최종 금액(finalPrize)'만 꽂아줍니다!
-        tx.update(FirebaseFirestore.instance.collection('users').doc(winner.id), {'gold': FieldValue.increment(finalPrize)});
+        //    + 🥊 한별 아레나 일일 퀘스트: 오늘 승리 기록(광장에서 보상 정산)
+        tx.update(FirebaseFirestore.instance.collection('users').doc(winner.id), {
+          'gold': FieldValue.increment(finalPrize),
+          'hanbyeol_won_date': todayKst,
+        });
         
         // 2. 대회 기록(arenas)에는 '원래 총상금(prize)'을 적어둬야 아까 만든 영수증 팝업이 세금 명세서를 예쁘게 그립니다.
         tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize});

@@ -283,6 +283,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
   int _fwProg = 0, _seaProg = 0; // 진행도(표시용)
   bool _bobaeDone = false; // 🛍️ 오늘 보배 정산 완료
+  // 🥊 한별 아레나 일일 퀘스트: 오늘 승리 1회 → 보상. 2회 도전 다 지면 종료.
+  bool _hanbyeolWon = false;     // 오늘 아레나 승리 기록
+  bool _hanbyeolClaimed = false; // 오늘 한별 보상 수령
+  int _arenaCount = 0;           // 오늘 아레나 입장 횟수(0~2)
+  static const int hanbyeolExp = 200;
+  static const int hanbyeolPts = 400;
+  void _applyHanbyeol(Map<String, dynamic> d, String today) {
+    _hanbyeolWon = d['hanbyeol_won_date'] == today;
+    _hanbyeolClaimed = d['hanbyeol_reward_date'] == today;
+    final ac = (d['arenaCount'] is num) ? (d['arenaCount'] as num).toInt() : 0;
+    _arenaCount = (d['lastArenaDate'] == today) ? ac : 0;
+  }
   // 현재 가방에 든 오늘 지정 어종 마릿수 (인벤에서 계산)
   int get _bobaeCount {
     final fish = getTodayBobaeFish()['fish'];
@@ -554,6 +566,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _questDone = questDone;
         _fwDone = fwDone; _seaDone = seaDone; _fwProg = fwProg; _seaProg = seaProg;
         _bobaeDone = bobaeDone;
+        _applyHanbyeol(d, today); // 🥊 한별 아레나 일일 상태(실시간)
         _rank = newRank;
         _daejangCatch = dc;
         // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).
@@ -1125,6 +1138,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         }
         _inventory = (d['inventory'] ?? _inventory) as List<dynamic>; // 🐟 보배 ❗용 마릿수 갱신
         _bobaeDone = bp is Map && bp['date'] == today && bp['claimed'] == true;
+        _applyHanbyeol(d, today); // 🥊 한별 아레나 일일 상태
       });
     } catch (_) {}
   }
@@ -1147,7 +1161,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _openArena() {
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ArenaScreen()))
         .then((_) {
-      if (mounted) _playPlazaBgm(); // 🎵 아레나(낚시 BGM) 다녀오면 광장 BGM 재개
+      if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 BGM 재개 + 🥊 한별 승리 상태 갱신
     });
   }
 
@@ -1919,7 +1933,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.846,
                             widget.isSea ? 0.657 : 0.648, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
-                            () => _openNpcIntro('npc_arena.png', 'arena', '대회 입장', _openArena),
+                            _onHanbyeolTap,
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.809,
                             widget.isSea ? 0.945 : 0.945, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
@@ -2242,7 +2256,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
     // 🛍️ 서윤: 오늘 지정어 배달 일일이 아직 안 끝났으면 접속 시 ❗ (완료하면 사라짐)
     final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone;
-    final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
+    // 🥊 한별: 오늘 아레나 일일 미완료면 ❗ (승리해서 보상받을 게 있거나, 아직 도전 기회 남음)
+    final bool isHanbyeolQuest = name == '한별' && _tutQuestNow == null && !_hanbyeolClaimed && (_hanbyeolWon || _arenaCount < 2);
+    final bool bang = isTutTarget || isJoinQuest || isBobaeQuest || isHanbyeolQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH - 58, // cy=발 위치, 이름+역할+❗슬롯 높이 보정(❗ 유무와 무관하게 발 위치 고정)
@@ -3923,6 +3939,87 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       if (mounted) _toast('🎁 정산 완료! 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp');
     } catch (e) {
       debugPrint('보배 정산 에러: $e');
+    }
+  }
+
+  // 🥊 한별(아레나 일일) 탭
+  void _onHanbyeolTap() {
+    // 튜토리얼 중이면 기존 인트로(입장 시 튜토 완료 처리)
+    if (_tutQuestNow != null) {
+      _openNpcIntro('npc_arena.png', 'arena', '대회 입장', _openArena);
+      return;
+    }
+    // 오늘 승리 + 보상 미수령 → 보상 정산 팝업
+    if (_hanbyeolWon && !_hanbyeolClaimed) { _showHanbyeolClaim(); return; }
+    // 일일 안내
+    String guide;
+    if (_hanbyeolClaimed) {
+      guide = '오늘 아레나 보상은 이미 받으셨어요!\n내일 또 도전해요 😊';
+    } else if (_arenaCount >= 2) {
+      guide = '오늘 도전(2회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+    } else {
+      guide = '오늘의 아레나 미션!\n대회에서 우승하면 보상을 드려요.\n(오늘 도전 $_arenaCount/2)\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+    }
+    showDialog(
+      context: context,
+      builder: (c) => NpcTutorialOverlay(
+        text: '⚔️ 한별의 아레나 대회예요!\n\n$guide',
+        imagePath: 'assets/images/npc_arena.png',
+        onTap: () => Navigator.pop(c),
+        action: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (!_hanbyeolClaimed && _arenaCount < 2) ...[
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+              onPressed: () { Navigator.pop(c); _openArena(); },
+              child: const Text('대회 입장 ⚔️'),
+            ),
+            const SizedBox(width: 12),
+          ],
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('닫기', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold))),
+        ]),
+      ),
+    );
+  }
+
+  void _showHanbyeolClaim() {
+    showDialog(
+      context: context,
+      builder: (c) => NpcTutorialOverlay(
+        text: '⚔️ 우승 축하해요!! 🏆\n오늘 아레나에서 이기셨네요.\n약속한 보상을 드릴게요!\n\n🎁 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts',
+        imagePath: 'assets/images/npc_arena.png',
+        onTap: () {},
+        action: ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          onPressed: () { Navigator.pop(c); _claimHanbyeol(); },
+          child: const Text('보상 받기 🎁'),
+        ),
+      ),
+    );
+  }
+
+  // 🥊 한별 보상 정산 — 오늘 승리했고 미수령이면 경험치/포인트 지급
+  Future<void> _claimHanbyeol() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
+    try {
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final data = (await tx.get(ref)).data() ?? {};
+        if (data['hanbyeol_reward_date'] == today) return; // 중복 방지
+        if (data['hanbyeol_won_date'] != today) return;    // 오늘 승리 안 함
+        tx.set(ref, {
+          'gold': FieldValue.increment(hanbyeolPts),
+          'exp': FieldValue.increment(hanbyeolExp),
+          'hanbyeol_reward_date': today,
+        }, SetOptions(merge: true));
+      });
+      if (mounted) {
+        setState(() { _hanbyeolClaimed = true; }); // 낙관적 ❗ 제거
+        _toast('🎁 아레나 보상! 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts');
+      }
+    } catch (e) {
+      debugPrint('한별 정산 에러: $e');
     }
   }
 
