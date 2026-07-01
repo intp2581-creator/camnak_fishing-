@@ -174,7 +174,7 @@ class _WeatherOverlayState extends State<WeatherOverlay>
         flake: flake,
         x: _rnd.nextDouble(),
         y: _rnd.nextDouble(),
-        len: flake ? (2 + _rnd.nextDouble() * 3) : (9 + _rnd.nextDouble() * 12),
+        len: flake ? (4 + _rnd.nextDouble() * 4) : (9 + _rnd.nextDouble() * 12),
         speed: flake
             ? (0.05 + _rnd.nextDouble() * 0.08)
             : (0.35 + _rnd.nextDouble() * 0.25),
@@ -227,7 +227,10 @@ class _WeatherPainter extends CustomPainter {
       Offset.zero & size,
       Paint()..color = Colors.black.withOpacity(darken),
     );
-    final flakePaint = Paint()..color = Colors.white.withOpacity(0.9);
+    final flakePaint = Paint()
+      ..color = Colors.white.withOpacity(0.9)
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
     final linePaint = Paint()
       ..color = const Color(0x77CFE8FF)
       ..strokeWidth = 1.0
@@ -237,7 +240,9 @@ class _WeatherPainter extends CustomPainter {
       final double px = ((d.x + prog * d.drift) % 1.0) * size.width;
       final double py = prog * size.height;
       if (d.flake) {
-        canvas.drawCircle(Offset(px, py), d.len, flakePaint);
+        // ❄️ 6방향 눈 결정 모양(천천히 회전)
+        final double rot = time * 0.5 + d.x * 6.28;
+        _drawFlake(canvas, Offset(px, py), d.len, rot, flakePaint);
       } else {
         // 대각선 빗줄기
         canvas.drawLine(
@@ -245,6 +250,25 @@ class _WeatherPainter extends CustomPainter {
           Offset(px - d.len * 0.25, py + d.len),
           linePaint,
         );
+      }
+    }
+  }
+
+  // 눈 결정: 중심에서 6개 가지 + 각 가지에 작은 곁가지
+  void _drawFlake(Canvas c, Offset o, double r, double rot, Paint p) {
+    for (int i = 0; i < 6; i++) {
+      final double a = rot + i * (math.pi / 3);
+      final double ex = o.dx + math.cos(a) * r;
+      final double ey = o.dy + math.sin(a) * r;
+      c.drawLine(o, Offset(ex, ey), p);
+      // 곁가지(가지의 60% 지점에서 양쪽으로)
+      final double bx = o.dx + math.cos(a) * r * 0.6;
+      final double by = o.dy + math.sin(a) * r * 0.6;
+      final double bl = r * 0.38;
+      for (final int s in const [1, -1]) {
+        final double a2 = a + s * (math.pi / 6);
+        c.drawLine(Offset(bx, by),
+            Offset(bx + math.cos(a2) * bl, by + math.sin(a2) * bl), p);
       }
     }
   }
