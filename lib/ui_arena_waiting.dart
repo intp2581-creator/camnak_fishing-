@@ -65,6 +65,26 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     });
   }
 
+  // ⚔️ 대회 시작 가드 — 2명 이상 모여야 시작 가능(혼자 시작 방지)
+  Future<void> _tryStartMatch() async {
+    final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
+    final ps = await arenaRef.collection('participants').get();
+    if (ps.docs.length < 2) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          title: const Text('시작 불가', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          content: const Text('대회는 2명 이상 모여야 시작할 수 있어요.\n다른 조사님이 입장하길 기다려주세요! 🎣', style: TextStyle(color: Colors.white, height: 1.5)),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))],
+        ),
+      );
+      return;
+    }
+    await arenaRef.update({'status': 'playing'});
+  }
+
   // ⚔️ 참가자 부족(혼자) → 무효 안내 + 참가비 환불됨
   void _showVoidDialog() {
     if (_popupShown) return;
@@ -517,7 +537,7 @@ Container(
                       }
                       
                       return isHost 
-                        ? ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: kreftGold), onPressed: () => FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).update({'status': 'playing'}), child: const Text('대회 시작 (START)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)))
+                        ? ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: kreftGold), onPressed: _tryStartMatch, child: const Text('대회 시작 (START)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)))
                         : StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
                             builder: (context, pSnap) {
