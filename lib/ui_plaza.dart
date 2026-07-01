@@ -19,6 +19,7 @@ import 'ui_arena.dart'; // ArenaScreen
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
 import 'ui_guild.dart'; // 길드 접속표시(presence) + 접속 점
+import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -333,6 +334,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _level = widget.level;
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     _loadUser();
+    WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     _playPlazaBgm(); // 🎵 광장 배경음악 (옛 로비 BGM)
     HardwareKeyboard.instance.addHandler(_onHwKey); // ⌨️ PC 키보드(WASD/화살표) 이동
   }
@@ -2159,6 +2161,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     ),
                   ),
                 ),
+
+              // 🌧️ 실시간 날씨 오버레이(비/눈) + 지역·날씨 뱃지
+              const Positioned.fill(
+                child: IgnorePointer(child: WeatherOverlay()),
+              ),
+              const Positioned(
+                top: 8, left: 0, right: 0,
+                child: IgnorePointer(child: Center(child: WeatherBadge())),
+              ),
             ],
           );
         },

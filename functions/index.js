@@ -256,3 +256,121 @@ exports.imwebWebhook = functions.https.onRequest(async (req, res) => {
     return res.status(500).send("Server Error");
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// 🌧️ [날씨 연동] 위경도 → 기상청 초단기실황 → 강수형태(PTY) 반환
+//   functions/.env 에 아래 두 줄 추가하세요:
+//     KMA_SERVICE_KEY=기상청_일반인증키(Decoding)   ← 반드시 "디코딩(일반)" 키
+//     KAKAO_REST_KEY=카카오_REST_API_키             ← 지역명 표시용(없어도 동작)
+// ═══════════════════════════════════════════════════════════════
+const KMA_KEY = process.env.KMA_SERVICE_KEY || "";
+const KAKAO_KEY = process.env.KAKAO_REST_KEY || "";
+
+// 위경도(WGS84) → 기상청 격자 nx,ny (기상청 공식 LCC DFS 변환)
+function dfsXyConv(lat, lon) {
+  const RE = 6371.00877, GRID = 5.0, SLAT1 = 30.0, SLAT2 = 60.0;
+  const OLON = 126.0, OLAT = 38.0, XO = 43, YO = 136;
+  const DEGRAD = Math.PI / 180.0;
+  const re = RE / GRID;
+  const slat1 = SLAT1 * DEGRAD, slat2 = SLAT2 * DEGRAD;
+  const olon = OLON * DEGRAD, olat = OLAT * DEGRAD;
+  let sn = Math.tan(Math.PI * 0.25 + slat2 * 0.5) / Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sn = Math.log(Math.cos(slat1) / Math.cos(slat2)) / Math.log(sn);
+  let sf = Math.tan(Math.PI * 0.25 + slat1 * 0.5);
+  sf = (Math.pow(sf, sn) * Math.cos(slat1)) / sn;
+  let ro = Math.tan(Math.PI * 0.25 + olat * 0.5);
+  ro = (re * sf) / Math.pow(ro, sn);
+  let ra = Math.tan(Math.PI * 0.25 + lat * DEGRAD * 0.5);
+  ra = (re * sf) / Math.pow(ra, sn);
+  let theta = lon * DEGRAD - olon;
+  if (theta > Math.PI) theta -= 2.0 * Math.PI;
+  if (theta < -Math.PI) theta += 2.0 * Math.PI;
+  theta *= sn;
+  const nx = Math.floor(ra * Math.sin(theta) + XO + 0.5);
+  const ny = Math.floor(ro - ra * Math.cos(theta) + YO + 0.5);
+  return { nx, ny };
+}
+
+// 초단기실황 기준시각 (매시 40분 이후 제공 → 여유롭게 45분 컷, 못 미치면 한 시간 전)
+function getKmaBase() {
+  const kst = new Date(Date.now() + 9 * 3600 * 1000);
+  let hour = kst.getUTCHours();
+  const min = kst.getUTCMinutes();
+  if (min < 45) hour -= 1;
+  if (hour < 0) {
+    kst.setUTCDate(kst.getUTCDate() - 1);
+    hour = 23;
+  }
+  const y = kst.getUTCFullYear();
+  const m = String(kst.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(kst.getUTCDate()).padStart(2, "0");
+  return { baseDate: `${y}${m}${d}`, baseTime: String(hour).padStart(2, "0") + "00" };
+}
+
+exports.getWeather = functions.https.onRequest(async (req, res) => {
+  // CORS (게임 웹에서 직접 호출)
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  try {
+    let lat = parseFloat(req.query.lat);
+    let lon = parseFloat(req.query.lon);
+    // 위치 못 받으면 서울시청 기본값
+    if (isNaN(lat) || isNaN(lon)) { lat = 37.5665; lon = 126.9780; }
+
+    if (!KMA_KEY) {
+      return res.json({ pty: 0, temp: null, region: "", error: "KMA_SERVICE_KEY 미설정" });
+    }
+
+    const { nx, ny } = dfsXyConv(lat, lon);
+    const { baseDate, baseTime } = getKmaBase();
+
+    const params = new URLSearchParams({
+      serviceKey: KMA_KEY, // .env 에는 Decoding(일반) 인증키를 넣으세요
+      numOfRows: "60",
+      pageNo: "1",
+      dataType: "JSON",
+      base_date: baseDate,
+      base_time: baseTime,
+      nx: String(nx),
+      ny: String(ny),
+    });
+    const url = "https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?" + params.toString();
+
+    let pty = 0, temp = null, rain = null;
+    try {
+      const r = await fetch(url);
+      const j = await r.json();
+      const items = (j && j.response && j.response.body && j.response.body.items && j.response.body.items.item) || [];
+      for (const it of items) {
+        if (it.category === "PTY") pty = parseInt(it.obsrValue, 10);
+        else if (it.category === "T1H") temp = it.obsrValue;
+        else if (it.category === "RN1") rain = it.obsrValue;
+      }
+    } catch (e) {
+      console.error("[날씨] 기상청 호출 실패:", e);
+    }
+
+    // 지역명 (카카오 역지오코딩, 키 있을 때만)
+    let region = "";
+    if (KAKAO_KEY) {
+      try {
+        const kurl = `https://dapi.kakao.com/v2/local/geo/coord2regioncode.json?x=${lon}&y=${lat}`;
+        const kr = await fetch(kurl, { headers: { Authorization: "KakaoAK " + KAKAO_KEY } });
+        const kj = await kr.json();
+        const docs = kj.documents || [];
+        const doc = docs.find((d) => d.region_type === "H") || docs[0];
+        if (doc) region = `${doc.region_1depth_name} ${doc.region_2depth_name}`.trim();
+      } catch (e) {
+        console.error("[날씨] 카카오 호출 실패:", e);
+      }
+    }
+
+    return res.json({ pty, temp, rain, region, nx, ny, baseDate, baseTime });
+  } catch (error) {
+    console.error("[날씨] 서버 에러:", error);
+    return res.json({ pty: 0, temp: null, region: "", error: "server" });
+  }
+});

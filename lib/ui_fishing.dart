@@ -15,6 +15,7 @@ import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
+import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 
 
 // 🎣 [메인 낚시터 화면]
@@ -438,6 +439,7 @@ Widget _buildChatTab(int index, String title) {
   @override
   void initState() {
   super.initState();
+    WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     _lastGaramTime = DateTime.now().add(const Duration(minutes: 10));
 
     // 🚀 [추가] 낚시터 입장 시 윤슬이 출입증 검사!
@@ -1484,6 +1486,8 @@ void _recast() {  // 기존 코드
           Positioned.fill(child: Transform.scale(scaleX: widget.isSea ? -1 : 1, child: Image.asset(widget.bgImagePath, fit: BoxFit.cover, errorBuilder: (c, e, s) => Container(color: Colors.grey.shade900, child: const Center(child: Icon(Icons.broken_image, color: Colors.white24, size: 100)))))), 
           Positioned.fill(child: Container(color: const Color(0x3A000000))),
           NatureAmbientEffects(isSea: widget.isSea),
+          // 🌧️ 실시간 날씨 오버레이(비/눈) — 실제 그 지역에 비 오면 게임에도 비
+          Positioned.fill(child: IgnorePointer(child: WeatherOverlay(isSea: widget.isSea))),
           if (isCasting) _buildCastingScene(),
           if (isSettingUp)
             Positioned(
