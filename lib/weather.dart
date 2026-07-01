@@ -160,12 +160,12 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   void _rebuildDrops() {
     _drops.clear();
     if (_w.isClear) return;
-    final int count = _w.isSnow ? 90 : (widget.isSea ? 190 : 150);
+    final int count = _w.isSnow ? 80 : (widget.isSea ? 95 : 75);
     for (int i = 0; i < count; i++) {
       _drops.add(_Drop(
         x: _rnd.nextDouble(),
         y: _rnd.nextDouble(),
-        len: _w.isSnow ? (2 + _rnd.nextDouble() * 3) : (12 + _rnd.nextDouble() * 18),
+        len: _w.isSnow ? (2 + _rnd.nextDouble() * 3) : (9 + _rnd.nextDouble() * 12),
         speed: _w.isSnow
             ? (0.05 + _rnd.nextDouble() * 0.08)
             : (0.35 + _rnd.nextDouble() * 0.25),
@@ -213,11 +213,11 @@ class _WeatherPainter extends CustomPainter {
     // 흐린 하늘 느낌으로 살짝 어둡게
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = Colors.black.withOpacity(snow ? 0.05 : 0.12),
+      Paint()..color = Colors.black.withOpacity(snow ? 0.05 : 0.07),
     );
     final paint = Paint()
-      ..color = snow ? Colors.white.withOpacity(0.9) : const Color(0xCCBFE3FF)
-      ..strokeWidth = snow ? 0 : 1.4
+      ..color = snow ? Colors.white.withOpacity(0.9) : const Color(0x77CFE8FF)
+      ..strokeWidth = snow ? 0 : 1.0
       ..strokeCap = StrokeCap.round;
     for (final d in drops) {
       final double prog = (d.y + time * d.speed) % 1.0;
