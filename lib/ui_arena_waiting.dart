@@ -19,6 +19,7 @@ class ArenaWaitingRoomScreen extends StatefulWidget {
 
 class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   final TextEditingController _chatController = TextEditingController();
+  bool _leftRoom = false; // 방 나가기 정리 중복 방지
   String myNickname = '무명조사';
   bool _isSettling = false;
   bool _hasTransitioned = false;
@@ -28,6 +29,50 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   void initState() {
     super.initState();
     _setupLobby();
+  }
+
+  @override
+  void dispose() {
+    _leaveRoom(); // 🏠 화면 나갈 때 방 정리(방장이면 삭제/위임) — fire-and-forget
+    _chatController.dispose();
+    super.dispose();
+  }
+
+  // 🏠 대기실에서 나갈 때: 내 참가 삭제 + (방장이면) 방 삭제 또는 남은 사람에게 위임
+  Future<void> _leaveRoom() async {
+    if (_leftRoom) return;
+    _leftRoom = true;
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
+    try {
+      final snap = await arenaRef.get();
+      if (!snap.exists) return; // 이미 삭제된 방
+      final status = (snap.data()?['status'] ?? 'waiting').toString();
+      if (status != 'waiting') return; // 진행/종료 중이면 정산·기록 보존
+      final amHost = (snap.data()?['hostId'] ?? '') == uid;
+      await arenaRef.collection('participants').doc(uid).delete();
+      final remain = await arenaRef.collection('participants').get();
+      if (amHost) {
+        if (remain.docs.isEmpty) {
+          await arenaRef.delete(); // 방장 혼자였음 → 방 폭파
+        } else {
+          // 👑 남은 첫 참가자에게 방장 위임
+          final next = remain.docs.first;
+          await arenaRef.update({'hostId': next.id, 'currentPlayers': remain.docs.length});
+          await arenaRef.collection('participants').doc(next.id)
+              .set({'isHost': true, 'isReady': true}, SetOptions(merge: true));
+          await arenaRef.collection('messages').add({
+            'text': '👑 방장이 나가 [${next.data()['nickname'] ?? '조사'}]님이 새 방장이 되었습니다.',
+            'sender': '시스템', 'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      } else {
+        await arenaRef.update({'currentPlayers': remain.docs.length});
+      }
+    } catch (e) {
+      debugPrint('아레나 나가기 정리 에러: $e');
+    }
   }
 
   void _setupLobby() async {
@@ -46,6 +91,12 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       'isHost': widget.roomData['hostId'] == user.uid,
       'score': 0,
     }, SetOptions(merge: true));
+
+    // 실제 참가자 수로 모집 인원 동기화(로비 표시용)
+    try {
+      final cnt = (await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').get()).docs.length;
+      await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).update({'currentPlayers': cnt});
+    } catch (_) {}
 
     FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).snapshots().listen((snapshot) {
       if (!mounted) return;
@@ -303,7 +354,6 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
 
   @override
   Widget build(BuildContext context) {
-    bool isHost = widget.roomData['hostId'] == FirebaseAuth.instance.currentUser?.uid;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
@@ -517,12 +567,14 @@ Container(
                     stream: FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).snapshots(),
                     builder: (context, snap) {
                       String status = snap.data?['status'] ?? 'waiting';
+                      // 👑 실시간 방장 판정(위임되면 새 방장에게 START 버튼이 감)
+                      final bool liveIsHost = snap.data?['hostId'] == FirebaseAuth.instance.currentUser?.uid;
                       if (status == 'finished') {
                         return ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800),
                           onPressed: () async {
                             // 🧨 [핵심 수술] 방장(Host)이 방을 나갈 때 파이어베이스에서 방을 완전히 폭파(삭제)합니다!
-                            if (isHost) {
+                            if (liveIsHost) {
                               try {
                                 await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).delete();
                               } catch (e) {
@@ -536,7 +588,7 @@ Container(
                         );
                       }
                       
-                      return isHost 
+                      return liveIsHost
                         ? ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: kreftGold), onPressed: _tryStartMatch, child: const Text('대회 시작 (START)', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18)))
                         : StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
