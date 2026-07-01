@@ -17,9 +17,10 @@ class WeatherInfo {
   final String region; // "서울특별시 강남구"
   const WeatherInfo({this.pty = 0, this.temp, this.region = ''});
 
-  bool get isRain => pty == 1 || pty == 2 || pty == 4 || pty == 5 || pty == 6;
-  bool get isSnow => pty == 3 || pty == 7;
-  bool get isClear => !isRain && !isSnow;
+  bool get isRain => pty == 1 || pty == 4 || pty == 5; // 순수 비
+  bool get isSleet => pty == 2 || pty == 6; // 진눈깨비(비+눈)
+  bool get isSnow => pty == 3 || pty == 7; // 눈
+  bool get isClear => !isRain && !isSleet && !isSnow;
 
   String get label {
     switch (pty) {
@@ -41,6 +42,7 @@ class WeatherInfo {
 
   String get emoji {
     if (isSnow) return '❄️';
+    if (isSleet) return '🌨️';
     if (isRain) return '🌧️';
     return '☀️';
   }
@@ -160,16 +162,23 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   void _rebuildDrops() {
     _drops.clear();
     if (_w.isClear) return;
-    final int count = _w.isSnow ? 80 : (widget.isSea ? 95 : 75);
+    final bool snow = _w.isSnow;
+    final bool sleet = _w.isSleet;
+    final int count =
+        snow ? 80 : (sleet ? 90 : (widget.isSea ? 95 : 75));
     for (int i = 0; i < count; i++) {
+      // 눈이면 전부 눈송이, 진눈깨비면 40%만 눈송이(나머지 빗줄기), 비면 전부 빗줄기
+      final bool flake =
+          snow ? true : (sleet ? _rnd.nextDouble() < 0.4 : false);
       _drops.add(_Drop(
+        flake: flake,
         x: _rnd.nextDouble(),
         y: _rnd.nextDouble(),
-        len: _w.isSnow ? (2 + _rnd.nextDouble() * 3) : (9 + _rnd.nextDouble() * 12),
-        speed: _w.isSnow
+        len: flake ? (2 + _rnd.nextDouble() * 3) : (9 + _rnd.nextDouble() * 12),
+        speed: flake
             ? (0.05 + _rnd.nextDouble() * 0.08)
             : (0.35 + _rnd.nextDouble() * 0.25),
-        drift: _w.isSnow ? (_rnd.nextDouble() - 0.5) * 0.25 : 0.10,
+        drift: flake ? (_rnd.nextDouble() - 0.5) * 0.25 : 0.10,
       ));
     }
   }
@@ -184,16 +193,19 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   @override
   Widget build(BuildContext context) {
     if (_w.isClear) return const SizedBox.shrink();
+    final double darken = _w.isSnow ? 0.05 : 0.07;
     return CustomPaint(
-      painter: _WeatherPainter(_drops, _time, _w.isSnow),
+      painter: _WeatherPainter(_drops, _time, darken),
       size: Size.infinite,
     );
   }
 }
 
 class _Drop {
+  final bool flake; // true=눈송이, false=빗줄기
   double x, y, len, speed, drift;
   _Drop({
+    required this.flake,
     required this.x,
     required this.y,
     required this.len,
@@ -205,32 +217,33 @@ class _Drop {
 class _WeatherPainter extends CustomPainter {
   final List<_Drop> drops;
   final double time; // 경과 초
-  final bool snow;
-  _WeatherPainter(this.drops, this.time, this.snow);
+  final double darken;
+  _WeatherPainter(this.drops, this.time, this.darken);
 
   @override
   void paint(Canvas canvas, Size size) {
     // 흐린 하늘 느낌으로 살짝 어둡게
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = Colors.black.withOpacity(snow ? 0.05 : 0.07),
+      Paint()..color = Colors.black.withOpacity(darken),
     );
-    final paint = Paint()
-      ..color = snow ? Colors.white.withOpacity(0.9) : const Color(0x77CFE8FF)
-      ..strokeWidth = snow ? 0 : 1.0
+    final flakePaint = Paint()..color = Colors.white.withOpacity(0.9);
+    final linePaint = Paint()
+      ..color = const Color(0x77CFE8FF)
+      ..strokeWidth = 1.0
       ..strokeCap = StrokeCap.round;
     for (final d in drops) {
       final double prog = (d.y + time * d.speed) % 1.0;
       final double px = ((d.x + prog * d.drift) % 1.0) * size.width;
       final double py = prog * size.height;
-      if (snow) {
-        canvas.drawCircle(Offset(px, py), d.len, paint);
+      if (d.flake) {
+        canvas.drawCircle(Offset(px, py), d.len, flakePaint);
       } else {
         // 대각선 빗줄기
         canvas.drawLine(
           Offset(px, py),
           Offset(px - d.len * 0.25, py + d.len),
-          paint,
+          linePaint,
         );
       }
     }
