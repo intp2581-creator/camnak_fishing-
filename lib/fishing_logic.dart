@@ -230,7 +230,7 @@ for (var fish in availableFishes) {
     //  경험치: 메타 완화용 완만 공식 = 기본 20 + 사이즈구간(5cm당 +1) + 별점(★1~5)
     //  포인트: 큰 고기=큰 돈(자연스러움) = 사이즈 × 2
     int sizeBand = (size / 5).floor();    // 5cm당 +1 (사이즈 비중 ↑)
-    int starBonus = currentStars;          // ★1→1 ... ★5→5
+    int starBonus = 6 - currentStars;      // 🔄 거꾸로: ★1→+5(저렙터 성장 지원) ... ★5→+1(대물 사이즈경험치로 보상)
     int exp = 25 + sizeBand + starBonus;   // 기본 25 (초반 페이스 회복)
     int pts = (size * 2).round();
 
