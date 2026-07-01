@@ -1380,7 +1380,7 @@ class _StoreScreenState extends State<StoreScreen> {
         ['지렁이', '글루텐', '옥수수', '크릴', '갯지렁이', '루어'].contains((item['name'] ?? '').toString());
   }
 
-  // 판매가: 정가의 50%(없으면 기본 100P). 미끼는 개당 5P × 수량(묶음 전체).
+  // 판매가: 정가의 30%(없으면 기본 100P). 미끼는 개당 5P × 수량(묶음 전체).
   int _sellPrice(Map<String, dynamic> item) {
     final name = (item['name'] ?? '').toString();
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
@@ -1388,7 +1388,7 @@ class _StoreScreenState extends State<StoreScreen> {
     if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
     final p = _storePriceOf(name);
     // 무료 지급품(0P)도 인벤 정리용으로 팔 수 있게 (구매는 막아서 되팔이 악용 방지)
-    final unit = (p != null && p > 0) ? (p * 0.5).floor() : 100;
+    final unit = (p != null && p > 0) ? (p * 0.3).floor() : 100;
     return unit < 10 ? 10 : unit;
   }
 
@@ -1529,7 +1529,7 @@ class _StoreScreenState extends State<StoreScreen> {
                     child: Text('전부 팔기 (+$fishTotal P)', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                   ),
               ])
-            : const Text('💡 필요 없는 장비를 팔아 포인트로! (판매가 = 정가의 50%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
+            : const Text('💡 필요 없는 장비를 팔아 포인트로! (판매가 = 정가의 30%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
       ),
       Expanded(
         child: list.isEmpty
