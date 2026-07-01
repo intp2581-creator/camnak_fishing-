@@ -63,6 +63,19 @@ class WeatherService {
 
   /// 30분 이내면 캐시 사용(중복 호출 방지). force=true 면 강제 갱신.
   Future<void> refresh({bool force = false}) async {
+    // 🧪 운영자 미리보기: 주소 뒤에 ?wx=rain / ?wx=snow / ?wx=clear 붙이면 강제 적용
+    //   (실제 날씨와 무관하게 비/눈 연출 확인용. 키 없이도 동작)
+    final wx = Uri.base.queryParameters['wx'];
+    if (wx != null && wx.isNotEmpty) {
+      int p = 0;
+      if (wx == 'rain') p = 1;
+      else if (wx == 'snow') p = 3;
+      else if (wx == 'sleet') p = 2;
+      notifier.value = WeatherInfo(pty: p, temp: null, region: '미리보기($wx)');
+      _lastFetch = DateTime.now();
+      return;
+    }
+
     if (_fetching) return;
     if (!force &&
         _lastFetch != null &&
