@@ -13,6 +13,57 @@ class ArenaScreen extends StatefulWidget {
 }
 
 class _ArenaScreenState extends State<ArenaScreen> {
+  // 🎟️ 아레나 입장 판정: 무료 2회 + (입장권으로 하루 1회 추가)
+  //   반환 null=입장 불가(팝업 표시됨) / {}=무료 입장 / {inventory,arenaTicketDate}=입장권 사용
+  Future<Map<String, dynamic>?> _resolveArenaEntry(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
+    if (arenaCount < 2) return {}; // 무료 입장
+    final String ticketDate = (userData['arenaTicketDate'] ?? '').toString();
+    final bool usedTicketToday = ticketDate == today;
+    final inv = List<dynamic>.from(userData['inventory'] ?? []);
+    final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
+    final int qty = ti >= 0 ? ((inv[ti]['quantity'] ?? 0) as num).toInt() : 0;
+
+    if (arenaCount >= 3 || usedTicketToday) {
+      _arenaInfo(ctx, '입장 제한', '오늘 대회 참가(무료 2회 + 입장권 1회)를\n모두 사용하셨어요.\n내일 다시 도전해주세요! 🎣');
+      return null;
+    }
+    if (qty <= 0) {
+      _arenaInfo(ctx, '무료 입장 소진', '오늘 무료 입장 2회를 모두 쓰셨어요.\n\n상점에서 "아레나 입장권"을 구매하면\n하루 1회 더 참가할 수 있어요! 🎟️');
+      return null;
+    }
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
+        content: Text('오늘 무료 2회를 다 쓰셨어요.\n입장권 1장을 써서 한 번 더 참가할까요?\n(하루 1장 사용 · 보유 $qty장)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), onPressed: () => Navigator.pop(c, true), child: const Text('입장권 사용')),
+        ],
+      ),
+    );
+    if (ok != true) return null;
+    if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
+    return {'inventory': inv, 'arenaTicketDate': today};
+  }
+
+  void _arenaInfo(BuildContext ctx, String title, String msg) {
+    showDialog(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.redAccent, width: 1.2)),
+        title: Text(title, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 22)),
+        content: Text(msg, style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        actions: [Center(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), onPressed: () => Navigator.pop(c), child: const Text('확인')))],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -147,11 +198,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                             if (lastArenaDate != today) arenaCount = 0;
 
-                            if (arenaCount >= 2) {
-                              if (!context.mounted) return;
-                              showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('입장 제한', style: TextStyle(color: Colors.redAccent)), content: const Text('하루 2번의 대회 참가를 모두 소진하셨습니다.', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
-                              return;
-                            }
+                            final ticketExtra = await _resolveArenaEntry(context, userData, today, arenaCount);
+                            if (ticketExtra == null) return; // 입장 불가(무료소진·입장권없음/이미사용 → 팝업 표시됨)
                             if (myGold < requiredFee) {
                               if (!context.mounted) return;
                               showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('잔액 부족 😅', style: TextStyle(color: Colors.redAccent)), content: Text('참가비가 부족합니다.\n(보유: $myGold P)', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
@@ -168,6 +216,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                               'remainingTime': myTime - 600,
                               'lastArenaDate': today,
                               'arenaCount': arenaCount + 1,
+                              ...ticketExtra, // 입장권 사용 시 inventory/arenaTicketDate 반영
                             });
                             remainingTimeNotifier.value -= 600; 
 
@@ -481,11 +530,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                     if (lastArenaDate != today) arenaCount = 0;
 
-                    if (arenaCount >= 2) {
-                      if (!context.mounted) return;
-                      showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('개설 제한', style: TextStyle(color: Colors.redAccent)), content: const Text('하루 2번의 대회 참가를 모두 소진하셨습니다.', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
-                      return;
-                    }
+                    final ticketExtra = await _resolveArenaEntry(context, userData, today, arenaCount);
+                    if (ticketExtra == null) return; // 입장 불가(팝업 표시됨)
 
                     if (myGold < entryFee) {
                       if (!context.mounted) return;
@@ -504,6 +550,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       'remainingTime': myTime - 600,
                       'lastArenaDate': today,
                       'arenaCount': arenaCount + 1,
+                      ...ticketExtra, // 입장권 사용 시 inventory/arenaTicketDate 반영
                     });
                     remainingTimeNotifier.value -= 600;
 
