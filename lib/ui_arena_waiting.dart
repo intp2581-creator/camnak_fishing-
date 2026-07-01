@@ -20,6 +20,7 @@ class ArenaWaitingRoomScreen extends StatefulWidget {
 class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   final TextEditingController _chatController = TextEditingController();
   bool _leftRoom = false; // 방 나가기 정리 중복 방지
+  String _status = 'waiting'; // 현재 대회 상태(뒤로가기 확인용)
   String myNickname = '무명조사';
   bool _isSettling = false;
   bool _hasTransitioned = false;
@@ -102,6 +103,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       if (!mounted) return;
       if (snapshot.exists) {
         String status = snapshot.data()?['status'] ?? 'waiting';
+        _status = status;
         if (status == 'playing' && !_hasTransitioned) _goToFishing();
         if (status == 'finished' && !_popupShown) {
           if (snapshot.data()?['voided'] == true) {
@@ -114,6 +116,24 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         }
       }
     });
+  }
+
+  // 🔙 뒤로가기 확인 — 대기 중이면 "정말 나갈래?" 팝업(입장 1회 소진 안내)
+  Future<bool> _confirmLeave() async {
+    if (_status != 'waiting') return true; // 진행/종료 중이면 그냥 나감
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('대기실 나가기', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+        content: const Text('대기실에서 나가시겠어요?\n입장 1회는 이미 사용되어 복구되지 않아요.\n(방장이면 방이 삭제되거나 다른 참가자에게 넘어가요)', style: TextStyle(color: Colors.white, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('머무르기', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: () => Navigator.pop(ctx, true), child: const Text('나가기')),
+        ],
+      ),
+    );
+    return ok ?? false;
   }
 
   // ⚔️ 대회 시작 가드 — 2명 이상 모여야 시작 가능(혼자 시작 방지)
@@ -355,7 +375,9 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   @override
   Widget build(BuildContext context) {
 
-    return Scaffold(
+    return WillPopScope(
+      onWillPop: _confirmLeave,
+      child: Scaffold(
       backgroundColor: const Color(0xFF0F0F0F),
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -605,6 +627,6 @@ Container(
           ),
         ],
       ),
-    );
+    ));
   }
 }
