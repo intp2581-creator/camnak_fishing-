@@ -53,12 +53,37 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         String status = snapshot.data()?['status'] ?? 'waiting';
         if (status == 'playing' && !_hasTransitioned) _goToFishing();
         if (status == 'finished' && !_popupShown) {
-          String winner = snapshot.data()?['winnerNick'] ?? '누군가';
-          int prize = snapshot.data()?['totalPrize'] ?? 0;
-          _showSettlementDialog(winner, prize);
+          if (snapshot.data()?['voided'] == true) {
+            _showVoidDialog(); // ⚔️ 참가자 부족(혼자) → 무효
+          } else {
+            String winner = snapshot.data()?['winnerNick'] ?? '누군가';
+            int prize = snapshot.data()?['totalPrize'] ?? 0;
+            _showSettlementDialog(winner, prize);
+          }
         }
       }
     });
+  }
+
+  // ⚔️ 참가자 부족(혼자) → 무효 안내 + 참가비 환불됨
+  void _showVoidDialog() {
+    if (_popupShown) return;
+    setState(() => _popupShown = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        title: const Text('대회 무효 ⚠️', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+        content: const Text('참가자가 부족해 대회가 무효 처리되었어요.\n혼자서는 우승/보상이 없어요.\n참가비는 환불됩니다. 🙏', style: TextStyle(color: Colors.white, height: 1.5)),
+        actions: [
+          TextButton(
+            onPressed: () { Navigator.pop(ctx); if (mounted) Navigator.pop(context); },
+            child: const Text('나가기', style: TextStyle(color: Colors.amber)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showSettlementDialog(String winner, int prize) async {
@@ -207,6 +232,22 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
       final participantsSnap = await arenaRef.collection('participants').orderBy('score', descending: true).get();
       if (participantsSnap.docs.isEmpty) return;
+
+      // ⚔️ 참가자가 2명 미만(혼자)이면 대회 무효 — 우승/보상/한별승리 없음 + 참가비 환불
+      if (participantsSnap.docs.length < 2) {
+        final feeRaw = widget.roomData['entryFee'];
+        final fee = (feeRaw is num) ? feeRaw.toInt() : 0;
+        final soloId = participantsSnap.docs.first.id;
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          tx.update(arenaRef, {'status': 'finished', 'voided': true, 'winnerNick': '', 'totalPrize': 0});
+          if (fee > 0) {
+            tx.update(FirebaseFirestore.instance.collection('users').doc(soloId), {'gold': FieldValue.increment(fee)});
+          }
+        });
+        await arenaRef.collection('messages').add({'text': '⚠️ 참가자가 부족해 대회가 무효 처리되었습니다. (참가비 환불)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        return;
+      }
+
       final winner = participantsSnap.docs.first;
       int prize = (widget.roomData['entryFee'] ?? 1000) * participantsSnap.docs.length;
       

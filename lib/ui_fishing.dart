@@ -1073,8 +1073,11 @@ Widget _buildChatTab(int index, String title) {
           // 성공 후 후속 처리
           HapticFeedback.heavyImpact(); 
           audioManager.playSfx("sfx_landing_success.mp3"); 
-          _checkDailyMission(fish['name'].toString());
-          _storeCaughtFish(fish['name'].toString()); // 🐟 잡은 고기 가방에 보관(보배 판매·일일정산용)
+          // ⚔️ 아레나 모드에선 일일미션/인벤 저장 안 함(대회 점수만 반영). 일반 낚시터에서만.
+          if (widget.roomId == null) {
+            _checkDailyMission(fish['name'].toString());
+            _storeCaughtFish(fish['name'].toString()); // 🐟 잡은 고기 가방에 보관(보배 판매·일일정산용)
+          }
           if (widget.isFirstTime && !_isTutorialDone && fish['name'] == '붕어') {
             _showTutorialSuccessReward(fish);
           } else {
