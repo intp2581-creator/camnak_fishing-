@@ -3954,7 +3954,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 일일 안내
     String guide;
     if (_hanbyeolClaimed) {
-      guide = '오늘 아레나 보상은 이미 받으셨어요!\n내일 또 도전해요 😊';
+      guide = '오늘 아레나 일일 보상은 받으셨어요!\n대회는 계속 참가할 수 있어요 😊';
     } else if (_arenaCount >= 2) {
       guide = '오늘 도전(2회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
     } else {
@@ -3967,14 +3967,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         imagePath: 'assets/images/npc_arena.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (!_hanbyeolClaimed && _arenaCount < 2) ...[
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-              onPressed: () { Navigator.pop(c); _openArena(); },
-              child: const Text('대회 입장 ⚔️'),
-            ),
-            const SizedBox(width: 12),
-          ],
+          // 대회 입장은 일일 보상과 무관하게 항상 가능(입장 제한은 아레나 안에서 처리)
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            onPressed: () { Navigator.pop(c); _openArena(); },
+            child: const Text('대회 입장 ⚔️'),
+          ),
+          const SizedBox(width: 12),
           TextButton(onPressed: () => Navigator.pop(c), child: const Text('닫기', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold))),
         ]),
       ),
