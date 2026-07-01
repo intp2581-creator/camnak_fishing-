@@ -2186,7 +2186,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     const cy = 0.837; // 발 위치 (민물·바다 동일 구도)
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 32, // 이름+역할 2줄 높이 보정
+      top: cy * worldH - figH - 58, // 이름+역할+❗슬롯 높이 보정(❗ 유무와 무관하게 발 위치 고정)
       child: GestureDetector(
         onTap: _onAraTap,
         child: Column(
@@ -2197,7 +2197,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 📋 일일 미션 미완료면 접속 시 ❗ (튜토리얼 끝난 뒤), 완료하면 사라짐
               final araBang = araTut || (_tutStep == 99 && !_questDone);
               return Column(mainAxisSize: MainAxisSize.min, children: [
-                if (araBang) _tutBang(), // 박스 위 빨간 느낌표
+                SizedBox(height: 26, child: araBang ? Center(child: _tutBang()) : null), // ❗ 자리 항상 확보
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -2243,13 +2243,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 32, // cy=발 위치, 이름+역할 2줄 높이 보정
+      top: cy * worldH - figH - 58, // cy=발 위치, 이름+역할+❗슬롯 높이 보정(❗ 유무와 무관하게 발 위치 고정)
       child: GestureDetector(
         onTap: onTap,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (bang) _tutBang(), // 박스 위 빨간 느낌표
+            SizedBox(height: 26, child: bang ? Center(child: _tutBang()) : null), // ❗ 자리 항상 확보(캐릭터 세로위치 고정)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
