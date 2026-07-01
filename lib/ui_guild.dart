@@ -91,6 +91,75 @@ class _GuildOnlineDotState extends State<_GuildOnlineDot> {
   }
 }
 
+// ⏱️ 길드원 마지막 접속(종료) 시간 텍스트. 접속 중이면 '접속 중', 아니면 't'(마지막 하트비트/종료) 기준 상대시간.
+Widget guildLastSeen(String memberUid, {double fontSize = 11}) =>
+    _GuildLastSeen(uid: memberUid, fontSize: fontSize);
+
+class _GuildLastSeen extends StatefulWidget {
+  final String uid;
+  final double fontSize;
+  const _GuildLastSeen({required this.uid, this.fontSize = 11});
+  @override
+  State<_GuildLastSeen> createState() => _GuildLastSeenState();
+}
+
+class _GuildLastSeenState extends State<_GuildLastSeen> {
+  StreamSubscription<DatabaseEvent>? _sub;
+  Timer? _ticker;
+  bool _isOn = false;
+  int _t = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = _statusDb().ref('status/${widget.uid}').onValue.listen((e) {
+      final v = e.snapshot.value;
+      if (v is Map) {
+        _isOn = v['online'] == true;
+        _t = (v['t'] is int) ? v['t'] as int : 0;
+      } else {
+        _isOn = false;
+        _t = 0;
+      }
+      if (mounted) setState(() {});
+    });
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  String _ago(int ms) {
+    if (ms <= 0) return '기록 없음';
+    final d = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(ms));
+    if (d.inMinutes < 1) return '방금 전';
+    if (d.inMinutes < 60) return '${d.inMinutes}분 전';
+    if (d.inHours < 24) return '${d.inHours}시간 전';
+    if (d.inDays < 30) return '${d.inDays}일 전';
+    return '오래 전';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final online = _isOn && (now - _t) < _onlineFreshMs;
+    return Text(
+      online ? '접속 중' : _ago(_t),
+      style: TextStyle(
+        color: online ? const Color(0xFF4CD964) : Colors.white38,
+        fontSize: widget.fontSize,
+        fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
 // 📋 길드 정보 보기 (읽기 전용) — 가입/탈퇴는 광장 길드 포탈에서만
 void showGuildInfoDialog(BuildContext context) {
   final user = FirebaseAuth.instance.currentUser;

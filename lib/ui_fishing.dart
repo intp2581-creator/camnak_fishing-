@@ -1071,6 +1071,14 @@ Widget _buildChatTab(int index, String title) {
                       'weeklyScore': ws,
                       'weekKey': curWeek,
                     });
+                    // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화
+                    final myUid = FirebaseAuth.instance.currentUser?.uid;
+                    if (myUid != null) {
+                      tx.set(
+                          guildRef.collection('members').doc(myUid),
+                          {'contribution': FieldValue.increment(FishingLogic.guildExpPerCatch), 'level': _currentLevel},
+                          SetOptions(merge: true));
+                    }
                   });
                 } catch (e) {
                   debugPrint('🛡️ 길드 점수 누적 실패: $e');

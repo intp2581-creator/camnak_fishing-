@@ -3011,7 +3011,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             minimumSize: const Size(0, 0),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                         onPressed: full ? null : () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
-                        child: Text(full ? '만원' : '가입', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(full ? '만원' : '가입신청', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ]),
                   );
@@ -3054,8 +3054,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         final isMaster = (g['masterUid'] ?? '') == uid;
         final guildExp = (g['guildExp'] is num) ? (g['guildExp'] as num).toInt() : 0;
         final gLevel = FishingLogic.guildLevelFromExp(guildExp);
-        return StatefulBuilder(
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('guilds').doc(gid).collection('members').doc(uid).snapshots(),
+          builder: (mctx, mySnap) {
+          final myRole = ((mySnap.data?.data() as Map<String, dynamic>?)?['role'] ?? 'member').toString();
+          final canManage = isMaster || myRole == 'vice';
+          return StatefulBuilder(
           builder: (ctx2, setTab) {
+            if (!canManage && _guildTab == 3) _guildTab = 0;
             return Column(
               children: [
                 _guildDialogHeader(g['name']?.toString() ?? '길드',
@@ -3089,17 +3096,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   _guildTabBtn('길드원', 0, setTab),
                   _guildTabBtn('혜택', 1, setTab),
                   _guildTabBtn('설정', 2, setTab),
+                  if (canManage) _guildApplyTabBtn(gid, 3, setTab),
                 ]),
                 const Divider(color: Colors.white12, height: 1),
                 Expanded(
                   child: _guildTab == 1
                       ? _guildPerksTab(gLevel, guildExp)
                       : _guildTab == 2
-                          ? _guildSettingsTab(ctx, uid, gid, isMaster)
-                          : _guildMembersTab(gid),
+                          ? _guildSettingsTab(ctx, uid, gid, isMaster, canManage)
+                          : _guildTab == 3
+                              ? _guildApplicationsTab(gid)
+                              : _guildMembersTab(gid, uid, isMaster),
                 ),
               ],
             );
+          },
+        );
           },
         );
       },
@@ -3128,7 +3140,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _guildMembersTab(String gid) {
+  Widget _guildMembersTab(String gid, String myUid, bool isMaster) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('guilds')
@@ -3139,42 +3151,87 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         if (!msnap.hasData) {
           return const Center(child: CircularProgressIndicator(color: _kGold));
         }
+        int rank(String? r) => r == 'master' ? 0 : (r == 'vice' ? 1 : 2);
         final members = msnap.data!.docs
             .map((d) => d.data() as Map<String, dynamic>)
             .toList()
           ..sort((a, b) {
-            final ra = (a['role'] == 'master') ? 0 : 1;
-            final rb = (b['role'] == 'master') ? 0 : 1;
+            final ra = rank(a['role'] as String?), rb = rank(b['role'] as String?);
             if (ra != rb) return ra - rb;
-            return ((b['level'] ?? 0) as int).compareTo((a['level'] ?? 0) as int);
+            return ((b['contribution'] ?? 0) as num).compareTo((a['contribution'] ?? 0) as num);
           });
+        final viceCount = members.where((m) => m['role'] == 'vice').length;
         return ListView.builder(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           itemCount: members.length,
           itemBuilder: (c, i) {
             final m = members[i];
-            final mMaster = m['role'] == 'master';
+            final role = (m['role'] ?? 'member').toString();
+            final mUid = (m['uid'] ?? '').toString();
+            final contrib = (m['contribution'] is num) ? (m['contribution'] as num).toInt() : 0;
+            final isMasterRow = role == 'master';
+            final isViceRow = role == 'vice';
+            final roleColor = isMasterRow ? _kGold : (isViceRow ? const Color(0xFF9FC7FF) : Colors.white38);
+            final roleLabel = isMasterRow ? '길드장' : (isViceRow ? '부길드장' : '길드원');
+            // 길드장만 액션(위임/부길드장 임명), 대상이 길드장 본인/자기 자신이면 제외
+            final canAct = isMaster && !isMasterRow && mUid != myUid;
             return Container(
               margin: const EdgeInsets.symmetric(vertical: 3),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                   color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(8)),
-              child: Row(children: [
-                guildOnlineDot((m['uid'] ?? '').toString()),
-                const SizedBox(width: 8),
-                Icon(mMaster ? Icons.military_tech : Icons.person,
-                    color: mMaster ? _kGold : Colors.white38, size: 18),
-                const SizedBox(width: 8),
-                Text(m['nickname']?.toString() ?? '',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 6),
-                Text('Lv.${m['level'] ?? 1}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                const Spacer(),
-                if (mMaster)
-                  const Text('길드장',
-                      style: TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  guildOnlineDot(mUid),
+                  const SizedBox(width: 8),
+                  Icon(isMasterRow ? Icons.military_tech : (isViceRow ? Icons.shield : Icons.person),
+                      color: roleColor, size: 18),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(m['nickname']?.toString() ?? '',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                  ),
+                  const SizedBox(width: 6),
+                  Text('Lv.${m['level'] ?? 1}', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: roleColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text(roleLabel, style: TextStyle(color: roleColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                  const Spacer(),
+                  if (canAct)
+                    SizedBox(
+                      width: 28, height: 28,
+                      child: PopupMenuButton<String>(
+                        padding: EdgeInsets.zero,
+                        icon: const Icon(Icons.more_vert, color: Colors.white54, size: 18),
+                        color: const Color(0xFF2A2A2A),
+                        onSelected: (v) {
+                          if (v == 'vice') _toggleVice(gid, m, viceCount);
+                          else if (v == 'master') _transferMaster(gid, myUid, m);
+                        },
+                        itemBuilder: (_) => [
+                          PopupMenuItem(value: 'vice', child: Text(isViceRow ? '부길드장 해제' : '부길드장 임명',
+                              style: const TextStyle(color: Colors.white, fontSize: 13))),
+                          const PopupMenuItem(value: 'master', child: Text('길드장 위임',
+                              style: TextStyle(color: _kGold, fontSize: 13))),
+                        ],
+                      ),
+                    ),
+                ]),
+                const SizedBox(height: 4),
+                Row(children: [
+                  const SizedBox(width: 26),
+                  const Icon(Icons.emoji_events, color: Color(0xFF7FBFFF), size: 13),
+                  const SizedBox(width: 3),
+                  Text('기여 $contrib', style: const TextStyle(color: Color(0xFF9FC7FF), fontSize: 11, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.schedule, color: Colors.white24, size: 12),
+                  const SizedBox(width: 3),
+                  guildLastSeen(mUid),
+                ]),
               ]),
             );
           },
@@ -3289,16 +3346,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _guildSettingsTab(BuildContext ctx, String uid, String gid, bool isMaster) {
+  Widget _guildSettingsTab(BuildContext ctx, String uid, String gid, bool isMaster, bool canManage) {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (canManage) ...[
+            // ⚔️ 길드전 (예약) — 길드장/부길드장 권한 자리
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white38,
+                  side: const BorderSide(color: Colors.white24),
+                  padding: const EdgeInsets.symmetric(vertical: 12)),
+              icon: const Icon(Icons.sports_kabaddi, size: 18),
+              label: const Text('길드전 신청 (준비 중)', style: TextStyle(fontWeight: FontWeight.bold)),
+              onPressed: () => _infoPopup('길드전', '길드전(길드 대 길드 대전)은 곧 열릴 예정이에요! ⚔️\n길드장·부길드장이 신청할 수 있게 됩니다.'),
+            ),
+            const SizedBox(height: 16),
+          ],
           Text(
               isMaster
-                  ? '길드장은 길드를 해체할 수 있어요.\n해체하면 모든 길드원이 나가게 됩니다.'
-                  : '길드를 탈퇴할 수 있어요.\n언제든 다시 가입할 수 있습니다.',
+                  ? '길드장은 길드원이 모두 나가 혼자 남았을 때만 해체할 수 있어요.\n길드를 넘기려면 길드원 목록에서 "길드장 위임"을 이용하세요.'
+                  : '길드를 탈퇴할 수 있어요.\n언제든 다시 가입 신청할 수 있습니다.',
               style: const TextStyle(color: Colors.white54, fontSize: 13, height: 1.5)),
           const SizedBox(height: 20),
           OutlinedButton.icon(
@@ -3312,6 +3382,96 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             onPressed: () => _leaveGuild(ctx, uid, gid, isMaster),
           ),
         ],
+      ),
+    );
+  }
+
+  // 📨 가입신청 탭 (길드장/부길드장만) — 승인/거절
+  Widget _guildApplicationsTab(String gid) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('guilds').doc(gid).collection('applications').snapshots(),
+      builder: (c, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator(color: _kGold));
+        }
+        final apps = snap.data!.docs.map((d) => d.data() as Map<String, dynamic>).toList();
+        if (apps.isEmpty) {
+          return const Center(
+              child: Text('대기 중인 가입 신청이 없어요.',
+                  style: TextStyle(color: Colors.white38, fontSize: 13)));
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          itemCount: apps.length,
+          itemBuilder: (c, i) {
+            final a = apps[i];
+            final aUid = (a['uid'] ?? '').toString();
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 3),
+              padding: const EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
+              decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(8)),
+              child: Row(children: [
+                const Icon(Icons.person_add, color: Color(0xFF9FC7FF), size: 18),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(a['nickname']?.toString() ?? '',
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                ),
+                const SizedBox(width: 6),
+                Text('Lv.${a['level'] ?? 1}', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                const Spacer(),
+                IconButton(
+                    icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
+                    iconSize: 26, tooltip: '승인',
+                    onPressed: () => _approveApplication(gid, a)),
+                IconButton(
+                    icon: const Icon(Icons.cancel, color: Colors.redAccent),
+                    iconSize: 24, tooltip: '거절',
+                    onPressed: () => _rejectApplication(gid, aUid)),
+              ]),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 가입신청 탭 버튼 (대기 건수 빨간 뱃지)
+  Widget _guildApplyTabBtn(String gid, int index, void Function(void Function()) setTab) {
+    return Expanded(
+      child: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('guilds').doc(gid).collection('applications').snapshots(),
+        builder: (c, s) {
+          final n = s.data?.docs.length ?? 0;
+          final active = _guildTab == index;
+          return GestureDetector(
+            onTap: () => setTab(() => _guildTab = index),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(bottom: BorderSide(color: active ? _kGold : Colors.transparent, width: 3)),
+              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('가입신청',
+                    style: TextStyle(
+                        color: active ? _kGold : Colors.white54,
+                        fontSize: 14, fontWeight: active ? FontWeight.w900 : FontWeight.bold)),
+                if (n > 0) ...[
+                  const SizedBox(width: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(color: Colors.redAccent, borderRadius: BorderRadius.circular(8)),
+                    child: Text('$n', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ]),
+            ),
+          );
+        },
       ),
     );
   }
@@ -3433,36 +3593,145 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       }
     } catch (_) {}
     try {
+      final gsnap = await guildRef.get();
+      if (!gsnap.exists) { _infoPopup('신청 불가', '길드가 사라졌어요.'); return; }
+      final data = gsnap.data() ?? {};
+      final mc = (data['memberCount'] is num) ? (data['memberCount'] as num).toInt() : 0;
+      final gExp = (data['guildExp'] is num) ? (data['guildExp'] as num).toInt() : 0;
+      final cap = FishingLogic.guildMaxMembers(FishingLogic.guildLevelFromExp(gExp));
+      if (mc >= cap) {
+        _infoPopup('신청 불가', '길드 인원이 가득 찼어요. (최대 $cap명)\n길드 레벨을 올리면 정원이 늘어나요.');
+        return;
+      }
+      final appRef = guildRef.collection('applications').doc(uid);
+      final appSnap = await appRef.get();
+      if (appSnap.exists) {
+        _infoPopup('신청 완료됨', '이미 가입 신청을 넣었어요. ⏳\n길드장/부길드장의 승인을 기다려주세요.');
+        return;
+      }
+      await appRef.set({
+        'uid': uid,
+        'nickname': widget.nickname,
+        'level': _level,
+        'appliedAt': FieldValue.serverTimestamp(),
+      });
+      _infoPopup('가입 신청 완료', '"$gname" 길드에 가입 신청했어요! ⏳\n길드장·부길드장이 승인하면 가입됩니다.');
+    } catch (e) {
+      _infoPopup('신청 불가', e.toString());
+    }
+  }
+
+  // ✅ 가입 신청 승인 (길드장/부길드장) — 정원 체크 후 멤버 추가 + 신청 삭제
+  Future<void> _approveApplication(String gid, Map<String, dynamic> app) async {
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    final appUid = (app['uid'] ?? '').toString();
+    if (appUid.isEmpty) return;
+    try {
       await fs.runTransaction((tx) async {
         final gsnap = await tx.get(guildRef);
         if (!gsnap.exists) throw '길드가 사라졌어요.';
-        final data = gsnap.data() ?? {};
-        final mc = (data['memberCount'] is num) ? (data['memberCount'] as num).toInt() : 0;
-        final gExp = (data['guildExp'] is num) ? (data['guildExp'] as num).toInt() : 0;
+        final d = gsnap.data() ?? {};
+        final mc = (d['memberCount'] is num) ? (d['memberCount'] as num).toInt() : 0;
+        final gExp = (d['guildExp'] is num) ? (d['guildExp'] as num).toInt() : 0;
         final cap = FishingLogic.guildMaxMembers(FishingLogic.guildLevelFromExp(gExp));
-        if (mc >= cap) {
-          throw '길드 인원이 가득 찼어요. (최대 $cap명)\n길드 레벨을 올리면 정원이 늘어나요.';
-        }
-        tx.set(guildRef.collection('members').doc(uid), {
-          'uid': uid,
-          'nickname': widget.nickname,
+        if (mc >= cap) throw '길드 인원이 가득 찼어요. (최대 $cap명)';
+        tx.set(guildRef.collection('members').doc(appUid), {
+          'uid': appUid,
+          'nickname': app['nickname'] ?? '',
           'role': 'member',
-          'level': _level,
+          'level': app['level'] ?? 1,
+          'contribution': 0,
           'joinedAt': FieldValue.serverTimestamp(),
         });
         tx.update(guildRef, {'memberCount': FieldValue.increment(1)});
-        tx.update(fs.collection('users').doc(uid), {
+        tx.update(fs.collection('users').doc(appUid), {
           'guildId': gid,
-          'guildName': gname,
+          'guildName': gsnap.data()?['name'] ?? '',
         });
+        tx.delete(guildRef.collection('applications').doc(appUid));
       });
-      _infoPopup('가입 완료', '"$gname" 길드에 가입했어요! 🎉');
+      _toast('${app['nickname']} 님의 가입을 승인했어요. 🎉');
     } catch (e) {
-      _infoPopup('가입 불가', e.toString());
+      _infoPopup('승인 불가', e.toString());
+    }
+  }
+
+  // ❌ 가입 신청 거절
+  Future<void> _rejectApplication(String gid, String appUid) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('guilds').doc(gid)
+          .collection('applications').doc(appUid).delete();
+      _toast('신청을 거절했어요.');
+    } catch (_) {}
+  }
+
+  // 🥈 부길드장 임명/해제 (길드장만, 최대 3명)
+  Future<void> _toggleVice(String gid, Map<String, dynamic> m, int viceCount) async {
+    final mUid = (m['uid'] ?? '').toString();
+    if (mUid.isEmpty) return;
+    final isVice = m['role'] == 'vice';
+    if (!isVice && viceCount >= 3) {
+      _infoPopup('임명 불가', '부길드장은 최대 3명까지만 둘 수 있어요.');
+      return;
+    }
+    try {
+      await FirebaseFirestore.instance
+          .collection('guilds').doc(gid)
+          .collection('members').doc(mUid)
+          .update({'role': isVice ? 'member' : 'vice'});
+      _toast(isVice ? '${m['nickname']} 님을 길드원으로 되돌렸어요.' : '${m['nickname']} 님을 부길드장으로 임명했어요. 🥈');
+    } catch (_) {}
+  }
+
+  // 👑 길드장 위임 (길드장만) — 대상 멤버가 길드장이 되고 본인은 길드원으로
+  Future<void> _transferMaster(String gid, String myUid, Map<String, dynamic> m) async {
+    final targetUid = (m['uid'] ?? '').toString();
+    if (targetUid.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text('길드장 위임', style: TextStyle(color: Colors.white)),
+        content: Text('${m['nickname']} 님에게 길드장을 넘길까요?\n위임하면 나는 길드원이 됩니다.',
+            style: const TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(c, true), child: const Text('위임')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    try {
+      final batch = fs.batch();
+      batch.update(guildRef.collection('members').doc(targetUid), {'role': 'master'});
+      batch.update(guildRef.collection('members').doc(myUid), {'role': 'member'});
+      batch.update(guildRef, {'masterUid': targetUid, 'master': m['nickname'] ?? ''});
+      await batch.commit();
+      _toast('${m['nickname']} 님에게 길드장을 위임했어요. 👑');
+    } catch (e) {
+      _infoPopup('위임 실패', e.toString());
     }
   }
 
   Future<void> _leaveGuild(BuildContext ctx, String uid, String gid, bool isMaster) async {
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    // 🚫 길드장은 길드원이 남아 있으면 해체 불가 (위임하거나 모두 나가야 함)
+    if (isMaster) {
+      final gs = await guildRef.get();
+      final mc = (gs.data()?['memberCount'] is num) ? (gs.data()!['memberCount'] as num).toInt() : 0;
+      if (mc > 1) {
+        _infoPopup('해체 불가',
+            '길드원이 남아 있으면 해체할 수 없어요.\n\n• 다른 길드원에게 길드장을 위임하거나\n• 길드원이 모두 나가 혼자 남았을 때\n해체할 수 있어요.\n\n(현재 $mc명)');
+        return;
+      }
+    }
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -3487,8 +3756,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       ),
     );
     if (ok != true) return;
-    final fs = FirebaseFirestore.instance;
-    final guildRef = fs.collection('guilds').doc(gid);
     if (isMaster) {
       // 모든 멤버 정보 정리 + 길드 삭제
       final members = await guildRef.collection('members').get();
