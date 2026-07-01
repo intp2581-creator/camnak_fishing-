@@ -125,11 +125,22 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text('대기실 나가기', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-        content: const Text('대기실에서 나가시겠어요?\n입장 1회는 이미 사용되어 복구되지 않아요.\n(방장이면 방이 삭제되거나 다른 참가자에게 넘어가요)', style: TextStyle(color: Colors.white, height: 1.5)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.amber, width: 1.2)),
+        contentPadding: const EdgeInsets.fromLTRB(28, 22, 28, 10),
+        title: const Text('대기실 나가기', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 24)),
+        content: const Text('대기실에서 나가시겠어요?\n입장 1회는 이미 사용되어\n복구되지 않아요.\n\n(방장이면 방이 삭제되거나\n다른 참가자에게 넘어가요)', style: TextStyle(color: Colors.white, height: 1.6, fontSize: 18)),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('머무르기', style: TextStyle(color: Colors.white54))),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent), onPressed: () => Navigator.pop(ctx, true), child: const Text('나가기')),
+          TextButton(
+            style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14)),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('머무르기', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('나가기'),
+          ),
         ],
       ),
     );
