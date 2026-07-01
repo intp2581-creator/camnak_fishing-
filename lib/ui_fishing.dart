@@ -1496,6 +1496,8 @@ void _recast() {  // 기존 코드
           NatureAmbientEffects(isSea: widget.isSea),
           // 🌧️ 실시간 날씨 오버레이(비/눈) — 실제 그 지역에 비 오면 게임에도 비
           Positioned.fill(child: IgnorePointer(child: WeatherOverlay(isSea: widget.isSea))),
+          // 🌦️ 날씨 뱃지(지역·기온) — 상단 중앙(타이머 아래)
+          const Positioned(top: 120, left: 0, right: 0, child: IgnorePointer(child: Center(child: WeatherBadge()))),
           if (isCasting) _buildCastingScene(),
           if (isSettingUp)
             Positioned(
