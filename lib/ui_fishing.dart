@@ -370,8 +370,10 @@ Widget _buildChatTab(int index, String title) {
   Timer? fightTimer;
   int fightTicks = 0;
 // --- [✨ 신규 다대편성 & 3초 입질 시스템 변수들] ---
-  Map<int, Timer> waitTimers = {};      // 각 찌별 '입질 대기' 타이머
-  Map<int, Timer> escapeTimers = {};    // 각 찌별 '3초 도망' 카운트다운 타이머
+  Map<int, Timer> waitTimers = {};      // (레거시) 각 찌별 '입질 대기' 타이머
+  Map<int, Timer> escapeTimers = {};    // (레거시) 각 찌별 '3초 도망' 카운트다운 타이머
+  Timer? _biteTimer;                    // 🎣 단일 흐름: 다음 입질까지의 타이머(대수 무관, 바다와 동일 간격)
+  Timer? _escapeTimer;                  // 🎣 단일 흐름: 올라온 찌가 내려가기까지(못 채면 놓침)
   Set<int> bitingRods = {};             // 현재 찌가 쭈욱! 올라와 있는 낚싯대 번호들
   Timer? gameTimer;
   int? fightingRodIndex; // 🎣 현재 물고기랑 사투(당기기) 중인 낚싯대 번호!
@@ -845,69 +847,51 @@ Widget _buildChatTab(int index, String title) {
     });
   }
 
-  // 1️⃣ 캐스팅 직후 모든 찌의 타이머를 각각 돌리는 함수!
+  // 1️⃣ 캐스팅 직후 '다음 입질' 예약 시작 (단일 흐름)
   void _startBiteTimer() {
     _clearAllBiteTimers(); // 혹시 도는 거 있으면 싹 청소
-    
-    // 💡 화면에 펼쳐진 낚싯대 개수(selectedRodCount)만큼 타이머를 돌립니다!
-    int currentRodCount = selectedRodCount; 
-
-    for (int i = 0; i < currentRodCount; i++) {
-      _setSingleRodTimer(i);
-    }
+    _scheduleNextBite();
   }
 
-  // 2️⃣ 찌 하나하나가 각자 5~20초 기다리고, 입질하는 핵심 로직! (다대편성 황금 밸런스 패치 완료!)
-  void _setSingleRodTimer(int rodIndex) {
-    waitTimers[rodIndex]?.cancel();
-    escapeTimers[rodIndex]?.cancel();
+  // 2️⃣ [단일 흐름 핵심] 입질 하나가 끝나면 바다와 같은 간격(10~20초) 뒤에
+  //    펼쳐진 찌 중 '랜덤 하나'가 올라온다. → 낚시대 대수와 무관하게 입질 속도 동일(민물=바다 밸런스)
+  void _scheduleNextBite() {
+    _biteTimer?.cancel();
+    _escapeTimer?.cancel();
+    if (!mounted || !isFloatInWater) return;
 
-    // 🚨 현재 당기기 사투 중인 낚싯대면 걔는 타이머 정지!
-    if (fightingRodIndex == rodIndex) return;
+    // 🎣 대수 무관, 바다와 동일한 입질 간격
+    const int minWait = 10;
+    const int maxWait = 20;
+    final int waitTime = minWait + math.Random().nextInt(maxWait - minWait + 1);
 
-    // 💡 [핵심 패치 1] 장비(대편성 갯수)에 따른 입질 쿨타임 자동 계산!
-    int minWait = 10;
-    int maxWait = 20;
-
-    if (selectedRodCount >= 14) { minWait = 5; maxWait = 10; }      // 👑 마스터 (14대)
-    else if (selectedRodCount >= 10) { minWait = 6; maxWait = 12; } // 🏆 프로 (10대)
-    else if (selectedRodCount >= 8) { minWait = 7; maxWait = 14; }  // 💎 고수 (8대)
-    else if (selectedRodCount >= 6) { minWait = 8; maxWait = 16; }  // 🥇 중수 (6대)
-    else if (selectedRodCount >= 4) { minWait = 9; maxWait = 18; }  // 🥈 하수 (4대)
-    else { minWait = 10; maxWait = 20; }                            // 🥉 초보 (2대)
-
-    // 계산된 최소~최대 시간 사이에서 랜덤으로 쿨타임 뽑기!
-    int waitTime = minWait + math.Random().nextInt(maxWait - minWait + 1);
-
-    waitTimers[rodIndex] = Timer(Duration(seconds: waitTime), () {
-      if (!mounted || !isFloatInWater) return; 
-      if (fightingRodIndex == rodIndex) return; // 방어 코드
-
-      // 🚨 [핵심 패치 2] 동시 입질 절대 불가! (오직 1개만 올라옴)
-      // 이미 다른 찌가 올라와 있다면, 얘는 이번 턴을 포기하고 다음 쿨타임으로 스르륵 넘어감!
-      if (bitingRods.isNotEmpty) {
-        _setSingleRodTimer(rodIndex);
+    _biteTimer = Timer(Duration(seconds: waitTime), () {
+      if (!mounted || !isFloatInWater) return;
+      // 사투 중이거나 이미 찌가 올라와 있으면 이번 턴 스킵하고 다시 예약
+      if (isFighting || fightingRodIndex != null || bitingRods.isNotEmpty) {
+        _scheduleNextBite();
         return;
       }
 
+      // 펼쳐진 낚싯대 중 랜덤으로 하나 선택해서 입질!
+      final int rods = selectedRodCount < 1 ? 1 : selectedRodCount;
+      final int rodIndex = math.Random().nextInt(rods);
       setState(() { bitingRods.add(rodIndex); });
       HapticFeedback.lightImpact();
 
-      // 🚨 [핵심 패치 3] 찌가 올라가서 정점을 찍고 3초 대기! (올라가는 시간 포함 약 4.5초)
-      escapeTimers[rodIndex] = Timer(const Duration(milliseconds: 4500), () {
+      // 찌가 올라가 정점 찍고 약 4.5초 대기 → 못 채면 놓치고 다음 입질 예약
+      _escapeTimer = Timer(const Duration(milliseconds: 4500), () {
         if (!mounted) return;
         setState(() { bitingRods.remove(rodIndex); });
-        
-        // 찌가 완전히 내려가는 그 순간! 다시 자신의 쿨타임을 리셋하고 기다림!
-        if (isFloatInWater) {
-          _setSingleRodTimer(rodIndex);
-        }
+        if (isFloatInWater) _scheduleNextBite();
       });
     });
   }
 
   // 3️⃣ 챔질 성공하거나 화면 나갈 때 타이머 싹 꺼주는 청소기
   void _clearAllBiteTimers() {
+    _biteTimer?.cancel();
+    _escapeTimer?.cancel();
     for (var timer in waitTimers.values) { timer.cancel(); }
     for (var timer in escapeTimers.values) { timer.cancel(); }
     waitTimers.clear();
@@ -928,9 +912,9 @@ Widget _buildChatTab(int index, String title) {
           fightingRodIndex = targetRod; // 당기기 전담 낚싯대로 지정!
           bitingRods.remove(targetRod); // 입질 목록에서 뺌 (찌 내려감)
         });
-        // 낚인 놈 타이머만 개별적으로 꺼줌
-        waitTimers[targetRod]?.cancel();
-        escapeTimers[targetRod]?.cancel();
+        // 입질 흐름 타이머 정지 (전투 끝나면 _scheduleNextBite로 재개)
+        _biteTimer?.cancel();
+        _escapeTimer?.cancel();
         HapticFeedback.heavyImpact();
         audioManager.playSfx("sfx_hit.mp3");
 
@@ -3134,11 +3118,10 @@ void _showTodayMissionInfo() {
                     isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; // 안전장치 유지
                   });
                   
-                  // 🎯 사투를 벌였던 그 낚싯대 인덱스만 타이머 재가동
+                  // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
                   if (fightingRodIndex != null) {
-                    int finishedRod = fightingRodIndex!;
-                    fightingRodIndex = null; 
-                    _setSingleRodTimer(finishedRod); 
+                    fightingRodIndex = null;
+                    _scheduleNextBite();
                   }
                 }
               });
