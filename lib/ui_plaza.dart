@@ -2193,9 +2193,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           mainAxisSize: MainAxisSize.min,
           children: [
             Builder(builder: (_) {
-              final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 표시 조건
+              final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
+              // 📋 일일 미션 미완료면 접속 시 ❗ (튜토리얼 끝난 뒤), 완료하면 사라짐
+              final araBang = araTut || (_tutStep == 99 && !_questDone);
               return Column(mainAxisSize: MainAxisSize.min, children: [
-                if (araTut) _tutBang(), // 박스 위 빨간 느낌표
+                if (araBang) _tutBang(), // 박스 위 빨간 느낌표
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -2236,8 +2238,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
     final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
-    // 🛍️ 서윤: 지정 어종 3마리 모았고 아직 정산 안 했으면 ❗(정산하러 와)
-    final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone && _bobaeCount >= bobaeCount;
+    // 🛍️ 서윤: 오늘 지정어 배달 일일이 아직 안 끝났으면 접속 시 ❗ (완료하면 사라짐)
+    final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone;
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
