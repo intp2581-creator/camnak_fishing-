@@ -4383,7 +4383,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   Text('Lv.$reqLevel (현재 $_level)', style: TextStyle(color: levelOk ? const Color(0xFF7FFFB0) : Colors.white54, fontSize: 14, fontWeight: FontWeight.bold)),
                 ]),
                 const Divider(color: Colors.white12, height: 18),
-                Text('6대장 각 $need마리 잡기 (누적)', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
+                Text('6대장 각 $need마리 잡기 (승급 후 새로 시작)', style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
                 ...rows,
                 const Divider(color: Colors.white12, height: 18),
@@ -4411,7 +4411,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final reward = tier['reward'] as int;
     try {
       await FirebaseFirestore.instance.collection('users').doc(u.uid).set(
-          {'rank': targetRank, 'gold': FieldValue.increment(reward)}, SetOptions(merge: true));
+          {'rank': targetRank, 'gold': FieldValue.increment(reward), 'daejangCatch': FieldValue.delete()}, SetOptions(merge: true));
+      if (mounted) setState(() { _rank = targetRank; _daejangCatch = {}; }); // 🎖️ 승급 후 다음 등급 퀘스트는 0부터 새로 시작
       if (!mounted) return;
       showDialog(
         context: context,
