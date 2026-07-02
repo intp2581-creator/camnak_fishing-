@@ -4192,8 +4192,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
       final d = (await ref.get()).data() ?? {};
       if (d['rankNoticeSeen'] == true) return; // 이미 봄
-      if (((d['tutStep'] as num?)?.toInt() ?? 0) != 99) return; // 튜토리얼 중엔 안 띄움
-      await Future.delayed(const Duration(seconds: 2)); // 입장 연출 끝나고
+      if (((d['tutStep'] as num?)?.toInt() ?? 0) != 99) return; // 튜토리얼 중엔 안 띄움(끝난 다음 접속에)
+      // 📋 팝업 순서 정리: 접속보상(아라)·튜토리얼·NPC 안내가 모두 닫힐 때까지 대기 → 그 다음 차례로 등장
+      await Future.delayed(const Duration(seconds: 3)); // 접속보상 팝업이 먼저 뜰 시간
+      for (int i = 0; i < 120; i++) { // 최대 60초 대기(안 닫으면 이번 접속은 패스)
+        if (!mounted) return;
+        final busy = _showReward || _showTutIntro || _showTutMission || _showTutReward || _npcIntro != null;
+        if (!busy) break;
+        if (i == 119) return; // 계속 열려있으면 다음 접속에 다시 시도(도장 안 찍음)
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (!mounted) return;
+      await Future.delayed(const Duration(milliseconds: 800)); // 한 박자 쉬고
       if (!mounted) return;
       _showRankGuide();
       await ref.set({'rankNoticeSeen': true}, SetOptions(merge: true));
