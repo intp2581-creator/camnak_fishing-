@@ -207,14 +207,14 @@ const Map<String, String> spotTypeByName = {
 //   나머지 어종은 1.0(변화 없음). 특정 낚시터가 아니라 '종류' 기준으로 통일.
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
-  // 🏞️ 저수지형(정수역 토종): 붕어·떡붕어·잉어·가물치·메기
-  '저수지': {'붕어': _spotBoost, '떡붕어': _spotBoost, '잉어': _spotBoost, '가물치': _spotBoost, '메기': _spotBoost},
-  // 🌊 수로형(유수역·외래·잡어): 베스·블루길·강준치·살치·자라
-  '수로': {'베스': _spotBoost, '블루길': _spotBoost, '강준치': _spotBoost, '살치': _spotBoost, '자라': _spotBoost},
-  // 🪨 갯바위형(돔류·록피시·문어): 감성돔·벵에돔·참돔·우럭·문어
-  '갯바위': {'감성돔': _spotBoost, '벵에돔': _spotBoost, '참돔': _spotBoost, '우럭': _spotBoost, '문어': _spotBoost},
-  // 🚢 선상형(회유·바닥·두족·대양): 갈치·고등어·광어·주꾸미·갑오징어·참치
-  '선상': {'갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '갑오징어': _spotBoost, '참치': _spotBoost},
+  // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost},
+  // 🌊 수로형 (대장: 가물치): 가물치·베스·블루길·강준치·자라
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '블루길': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost},
+  // 🪨 갯바위형 (대장: 감성돔·문어): 감성돔·문어·벵에돔·우럭·갑오징어
+  '갯바위': {'감성돔': _spotBoost, '문어': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost},
+  // 🚢 선상형 (대장: 참돔): 참돔·갈치·고등어·광어·주꾸미·참치
+  '선상': {'참돔': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '참치': _spotBoost},
 };
 double spotFishMult(String locationName, String fishName) {
   final type = spotTypeByName[locationName];
