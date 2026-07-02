@@ -214,7 +214,7 @@ String arenaRankBandLabel(String hostRank) {
 
 // 승급 티어: 해당 레벨 도달 + 6대장 각 need마리(누적) → 승급 가능 + reward 지급
 const List<Map<String, dynamic>> promotionTiers = [
-  {'rank': '하수', 'level': 15, 'need': 5, 'reward': 5000},
+  {'rank': '하수', 'level': 10, 'need': 5, 'reward': 5000},
   {'rank': '중수', 'level': 30, 'need': 10, 'reward': 10000},
   {'rank': '고수', 'level': 50, 'need': 15, 'reward': 50000},
   {'rank': '프로', 'level': 70, 'need': 20, 'reward': 100000},
