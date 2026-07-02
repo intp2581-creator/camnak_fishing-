@@ -987,10 +987,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               child: Transform(
                 alignment: Alignment.bottomCenter,
                 transform: Matrix4.rotationY(face ? 0 : math.pi),
-                child: Image.asset(d['img'] as String,
+                // 🚶 내 캐릭터와 동일하게 '정지 스프라이트(정면)'로 표시(낚시 포즈 풀이미지 대신).
+                //    스킨 등 스프라이트 없으면 원본 이미지로 폴백.
+                child: Image.asset(
+                    (d['img'] as String).replaceAll('.png', '_down0.png'),
                     fit: BoxFit.contain,
                     alignment: Alignment.bottomCenter,
-                    errorBuilder: (a, b, c) => const SizedBox.shrink()),
+                    errorBuilder: (a, b, c) => Image.asset(d['img'] as String,
+                        fit: BoxFit.contain,
+                        alignment: Alignment.bottomCenter,
+                        errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
               ),
             ),
             Positioned(
