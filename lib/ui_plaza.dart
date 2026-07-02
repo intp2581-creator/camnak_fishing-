@@ -1006,7 +1006,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             Positioned(
-              bottom: rH * 0.50,
+              bottom: rH * 0.62, // 머리 위(내 캐릭터와 동일)
               left: -150,
               right: -150,
               child: Center(
