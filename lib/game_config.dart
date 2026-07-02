@@ -201,7 +201,7 @@ const List<Map<String, dynamic>> promotionTiers = [
   {'rank': '중수', 'level': 30, 'need': 10, 'reward': 10000},
   {'rank': '고수', 'level': 50, 'need': 15, 'reward': 50000},
   {'rank': '프로', 'level': 70, 'need': 20, 'reward': 100000},
-  {'rank': '마스터', 'level': 100, 'need': 30, 'reward': 2000000},
+  {'rank': '마스터', 'level': 100, 'need': 30, 'reward': 200000},
   // 레전드(130)·낚시의 신(150) 승급 퀘스트는 발표 때 추가
 ];
 
