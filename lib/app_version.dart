@@ -26,7 +26,16 @@ Future<void> checkAppUpdate(BuildContext context) async {
     final resp = await html.HttpRequest.getString(url);
     final data = json.decode(resp) as Map<String, dynamic>;
     final serverBuild = (data['build'] ?? '').toString();
-    if (serverBuild.isEmpty || serverBuild == kBuildId) return; // 최신이면 조용히 끝
+    if (serverBuild.isEmpty || serverBuild == kBuildId) {
+      // 최신이면 조용히 끝 + 이전에 남긴 새로고침 흔적 정리
+      try { html.window.localStorage.remove('reloadedFor'); } catch (_) {}
+      return;
+    }
+    // 🔁 [루프 방지] 이미 이 서버버전으로 새로고침을 시도했는데도 여전히 옛 버전이면
+    //    (CDN/서비스워커 지연) → 팝업 다시 안 띄움. SW가 다음 방문에 알아서 갱신함.
+    try {
+      if (html.window.localStorage['reloadedFor'] == serverBuild) return;
+    } catch (_) {}
     if (!context.mounted) return;
     await showDialog(
       context: context,
@@ -48,7 +57,7 @@ Future<void> checkAppUpdate(BuildContext context) async {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-            onPressed: () => forceReloadLatest(),
+            onPressed: () => forceReloadLatest(serverBuild),
             child: const Text('새로고침', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
@@ -59,16 +68,17 @@ Future<void> checkAppUpdate(BuildContext context) async {
   }
 }
 
-/// 서비스워커를 강제 해제한 뒤 새로고침 → 캐시된 옛 버전이 아니라 '진짜 최신'을 받게 함.
-Future<void> forceReloadLatest() async {
+/// 서비스워커+캐시를 지운 뒤 새로고침 → 캐시된 옛 버전이 아니라 '진짜 최신'을 받게 함.
+/// 새로고침해도 여전히 옛 버전이면(전파 지연) 루프 방지를 위해 시도한 버전을 기록해둔다.
+Future<void> forceReloadLatest(String serverBuild) async {
+  try { html.window.localStorage['reloadedFor'] = serverBuild; } catch (_) {}
+  // 서비스워커 해제
   try {
     final sw = html.window.navigator.serviceWorker;
     if (sw != null) {
       final regs = await sw.getRegistrations();
       for (final r in regs) {
-        try {
-          await r.unregister();
-        } catch (_) {}
+        try { await r.unregister(); } catch (_) {}
       }
     }
   } catch (_) {}
