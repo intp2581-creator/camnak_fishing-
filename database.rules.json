@@ -15,6 +15,12 @@
       "$uid": {
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+    "login_session": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
     }
   }
 }
