@@ -142,6 +142,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🎖️ 가람 주간 개인 종합 랭킹 (top10 = 1주일 PCS 보너스 + 머리 위 순위마크)
   StreamSubscription<DocumentSnapshot>? _garamSub;
   int _myGaramRank = 0; // 0=순위 없음, 1~10=이번 주 랭커
+  // 🔒 중복 로그인 방지
+  StreamSubscription<DatabaseEvent>? _sessionSub;
+  bool _dupKicked = false;
 
   // 🧍 시설 NPC 인사말 오버레이 (클릭 → 전체화면 인사 → 입장하기)
   Map<String, dynamic>? _npcIntro; // {img, msg, label, onEnter}
@@ -353,6 +356,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     WidgetsBinding.instance.addPostFrameCallback((_) => checkAppUpdate(context)); // 🔖 새 버전 알림
     _maybeShowRankNotice(); // 🔰 초반: 랭킹 시스템 안내 1회
+    // 🔒 중복 로그인 방지: 내 세션 등록 + 다른 기기 접속 감시
+    registerLoginSession();
+    _sessionSub = watchLoginSession(_onDuplicateLogin);
     _playPlazaBgm(); // 🎵 광장 배경음악 (옛 로비 BGM)
     HardwareKeyboard.instance.addHandler(_onHwKey); // ⌨️ PC 키보드(WASD/화살표) 이동
   }
@@ -462,6 +468,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _userSub?.cancel();
     _leagueSub?.cancel();
     _garamSub?.cancel();
+    _sessionSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
     _chatFocus.dispose();
@@ -4141,6 +4148,37 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (e) {
       debugPrint('보배 정산 에러: $e');
     }
+  }
+
+  // 🔒 다른 기기(창)에서 같은 계정 접속 감지 → 이 화면 차단 (이중 보상 방지)
+  void _onDuplicateLogin() {
+    if (_dupKicked || !mounted) return;
+    _dupKicked = true;
+    try { FirebaseAuth.instance.signOut(); } catch (_) {} // 이후 서버 쓰기 차단
+    showDialog(
+      context: context,
+      useRootNavigator: true, // 낚시터·상점 등 어떤 화면 위에도 덮이게
+      barrierDismissible: false,
+      builder: (c) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.redAccent, width: 1.4)),
+          title: const Text('⚠️ 중복 접속 감지', style: TextStyle(color: Colors.redAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+          content: const Text('다른 기기(창)에서 같은 계정으로 접속했어요.\n이 화면은 종료되었습니다.\n\n여기서 계속하려면 [다시 접속]을 눌러주세요.\n(그러면 다른 기기가 종료돼요)', style: TextStyle(color: Colors.white, fontSize: 17, height: 1.6)),
+          actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+          actions: [
+            Center(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                onPressed: () => html.window.location.reload(),
+                child: const Text('다시 접속'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   // 🏆 가람(랭킹) 탭 — 랭킹 시스템 설명 팝업

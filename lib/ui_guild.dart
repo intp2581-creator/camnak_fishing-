@@ -15,6 +15,29 @@ const String _dbUrl =
 FirebaseDatabase _statusDb() =>
     FirebaseDatabase.instanceFor(app: Firebase.app(), databaseURL: _dbUrl);
 
+// 🔒 [중복 로그인 방지] 페이지 로드마다 고유 세션ID 1개.
+//    새 기기(창)가 접속해 세션을 덮어쓰면, 기존 기기가 감지하고 스스로 차단 → 이중 보상 원천 봉쇄.
+final String appSessionId =
+    '${DateTime.now().millisecondsSinceEpoch}_${DateTime.now().microsecond}';
+
+// 내 세션 등록 (광장 진입 시 호출) — 마지막 로그인 기기가 주도권을 가짐
+void registerLoginSession() {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return;
+  _statusDb().ref('login_session/$uid').set({'s': appSessionId, 't': ServerValue.timestamp});
+}
+
+// 세션 감시 — 다른 기기가 세션을 덮어쓰면 onKicked 호출 (호출측에서 구독 해제 관리)
+StreamSubscription<DatabaseEvent> watchLoginSession(void Function() onKicked) {
+  final uid = FirebaseAuth.instance.currentUser?.uid ?? '_none_';
+  return _statusDb().ref('login_session/$uid').onValue.listen((e) {
+    final v = e.snapshot.value;
+    if (v is Map && v['s'] != null && v['s'].toString() != appSessionId) {
+      onKicked();
+    }
+  });
+}
+
 // 🟢 전역 접속표시: 앱 화면(광장/낚시터)에서 호출. 연결 끊기면 자동 offline.
 void guildGoOnline() {
   final uid = FirebaseAuth.instance.currentUser?.uid;
