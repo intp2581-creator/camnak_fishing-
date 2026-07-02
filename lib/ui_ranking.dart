@@ -169,7 +169,7 @@ class _RankingScreenState extends State<RankingScreen> {
                           ? '📅 주간 점수 누적 · 매월 1일 확정'
                           : '🗓️ 월간 점수 누적 · 매년 1월 1일 확정',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.amberAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(color: Colors.amberAccent, fontSize: 18, fontWeight: FontWeight.bold)),
             ),
           ],
           const Divider(color: Colors.cyanAccent, height: 30, thickness: 2),
