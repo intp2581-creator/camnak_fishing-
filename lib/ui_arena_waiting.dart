@@ -218,7 +218,11 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       );
       return;
     }
-    await arenaRef.update({'status': 'playing'});
+    // ⏱️ 경기 종료 시각 기록(10분) — 정산은 이 시각 이후에만(조기 이탈로 조기정산 방지)
+    await arenaRef.update({
+      'status': 'playing',
+      'playEndAt': DateTime.now().add(const Duration(seconds: 600)).millisecondsSinceEpoch,
+    });
   }
 
   // ⚔️ 참가자 부족(혼자) → 무효 안내 + 참가비 환불됨
@@ -370,30 +374,46 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           characterImagePath: 'assets/images/char_beginner.png',
           isSea: widget.roomData['type'] == '바다',
           roomId: widget.roomId,
+          targetFish: widget.roomData['targetFish']?.toString(), // ⚔️ 최대어 대상 어종
         ),
       ),
     );
-    // ... 이하 동일
-
-    if (mounted && widget.roomData['hostId'] == FirebaseAuth.instance.currentUser?.uid) {
-      _runAutomaticSettlement();
-    }
-    setState(() { _hasTransitioned = false; });
+    // 낚시에서 돌아옴 → 정산 시도(누구나. 단, 경기 시간 끝난 뒤에만 실제 정산됨)
+    // _hasTransitioned는 true로 유지 → 경기 도중 돌아온(이탈) 사람이 다시 낚시로 끌려가지 않음
+    if (mounted) _runAutomaticSettlement();
   }
 
   Future<void> _runAutomaticSettlement() async {
     if (_isSettling) return;
+    final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
+    // ⏱️ 경기 시간이 끝났을 때만 정산 (조기 이탈자가 트리거해도 시간 전이면 무시 → 남은 사람은 계속)
+    try {
+      final aSnap = await arenaRef.get();
+      if (!aSnap.exists) return;
+      if ((aSnap.data()?['status'] ?? '') != 'playing') return; // 이미 정산됨/종료됨
+      final playEndAt = (aSnap.data()?['playEndAt'] is num) ? (aSnap.data()!['playEndAt'] as num).toInt() : 0;
+      if (playEndAt > 0 && DateTime.now().millisecondsSinceEpoch < playEndAt - 1500) return; // 아직 경기 중
+    } catch (_) { return; }
     setState(() => _isSettling = true);
     try {
-      final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
-      final participantsSnap = await arenaRef.collection('participants').orderBy((widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score', descending: true).get();
-      if (participantsSnap.docs.isEmpty) return;
+      final orderField = (widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score';
+      final allSnap = await arenaRef.collection('participants').orderBy(orderField, descending: true).get();
+      if (allSnap.docs.isEmpty) return;
+      // ⚔️ 실격(도중 이탈) 제외
+      final valid = allSnap.docs.where((d) => (d.data() as Map)['forfeit'] != true).toList();
 
-      // ⚔️ 참가자가 2명 미만(혼자)이면 대회 무효 — 우승/보상/한별승리 없음 + 참가비 환불
-      if (participantsSnap.docs.length < 2) {
-        final feeRaw = widget.roomData['entryFee'];
-        final fee = (feeRaw is num) ? feeRaw.toInt() : 0;
-        final soloId = participantsSnap.docs.first.id;
+      final feeRaw = widget.roomData['entryFee'];
+      final fee = (feeRaw is num) ? feeRaw.toInt() : 0;
+
+      // 완주자(실격 아닌 사람)가 없으면 무효
+      if (valid.isEmpty) {
+        await arenaRef.update({'status': 'finished', 'voided': true, 'winnerNick': '', 'totalPrize': 0});
+        await arenaRef.collection('messages').add({'text': '⚠️ 완주한 참가자가 없어 대회가 무효 처리되었습니다.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        return;
+      }
+      // 처음부터 혼자였던 방(참가자 1명) → 무효 + 참가비 환불
+      if (allSnap.docs.length < 2) {
+        final soloId = allSnap.docs.first.id;
         await FirebaseFirestore.instance.runTransaction((tx) async {
           tx.update(arenaRef, {'status': 'finished', 'voided': true, 'winnerNick': '', 'totalPrize': 0});
           if (fee > 0) {
@@ -404,7 +424,8 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         return;
       }
 
-      final winner = participantsSnap.docs.first;
+      final winner = valid.first; // 완주자 중 1위(최대어=maxSize / 마릿수=score)
+      final participantsSnap = allSnap;
       int prize = (widget.roomData['entryFee'] ?? 1000) * participantsSnap.docs.length;
       
       // 💰 [국세청 출동] 상금에서 10% 수수료 징수 계산!

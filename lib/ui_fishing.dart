@@ -29,6 +29,7 @@ class FishingScreen extends StatefulWidget {
   final String characterImagePath;
   final bool isSea;
   final String? roomId;
+  final String? targetFish; // ⚔️ 아레나 최대어 모드 대상 어종(이 어종만 카운트)
   final bool isFirstTime; // 🚀 [추가] 튜토리얼 꼬리표 받기!
 
   const FishingScreen({
@@ -41,6 +42,7 @@ class FishingScreen extends StatefulWidget {
     required this.characterImagePath,
     required this.isSea,
     this.roomId,
+    this.targetFish,
     this.isFirstTime = false, // 🚀 [추가] 기본값은 false!
   });
 
@@ -388,6 +390,7 @@ Widget _buildChatTab(int index, String title) {
   int _guildLevel = 0;
   bool _isChampionGuild = false; // 지난주 길드 리그 1위 → 이번주 추가 버프
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
+  bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
 
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -596,6 +599,14 @@ Widget _buildChatTab(int index, String title) {
   
   @override
   void dispose() {
+    // ⚔️ 아레나 경기 도중(시간 종료 전) 이탈 → 실격 기록 (실수든 고의든 종료 전 이탈 = 실격)
+    if (widget.roomId != null && !_arenaEndedNaturally) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(uid)
+            .set({'forfeit': true}, SetOptions(merge: true)).catchError((Object _) {});
+      }
+    }
     // 🚨 [버그 해결] 아레나 모드가 아닐 때(일반 낚시터)만 내 진짜 장비를 저장합니다!
     // 아레나에서 나갈 때는 엑스칼리버(임시 장비)를 전역 변수에 덮어씌우지 않고 쿨하게 버립니다.
     if (widget.title == widget.locationName) {
@@ -753,8 +764,8 @@ Widget _buildChatTab(int index, String title) {
             arenaTimeLeft = realRemaining; // 통화하느라 멈췄던 시간만큼 알아서 훅 건너뜁니다!
           } else {
             arenaTimeLeft = 0; // 마이너스로 떨어지는 것 방지
+            _arenaEndedNaturally = true; // ⚔️ 정상 종료(완주) — 실격 아님
             // 🚨 10분 종료! 타이머들 싹 다 정지
-        // 🚨 10분 종료! 타이머들 싹 다 정지
         timer.cancel();
         _clearAllBiteTimers();
         fightTimer?.cancel();
@@ -999,20 +1010,27 @@ Widget _buildChatTab(int index, String title) {
               'createdAt': FieldValue.serverTimestamp()
             });
             
-            double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
-            var pRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(user.uid);
-            var pDoc = await pRef.get();
-            
-            double currentMaxSize = pDoc.exists && pDoc.data()!.containsKey('maxSize') ? (pDoc.data()!['maxSize'] ?? 0.0).toDouble() : 0.0;
-            double bestSize = caughtSize > currentMaxSize ? caughtSize : currentMaxSize;
-            
-            await pRef.set({
-              'nickname': widget.nickname, 
-              'score': FieldValue.increment(1), 
-              'maxSize': bestSize, 
-              'updatedAt': FieldValue.serverTimestamp()
-            }, SetOptions(merge: true));
-          } 
+            // ⚔️ 최대어 모드: 대상 어종만 카운트 (마릿수 모드는 모든 어종 카운트)
+            final bool countsForArena = widget.winCondition != '최대어'
+                || widget.targetFish == null
+                || widget.targetFish == '모든 어종'
+                || fish['name'].toString() == widget.targetFish;
+            if (countsForArena) {
+              double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
+              var pRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(user.uid);
+              var pDoc = await pRef.get();
+
+              double currentMaxSize = pDoc.exists && pDoc.data()!.containsKey('maxSize') ? (pDoc.data()!['maxSize'] ?? 0.0).toDouble() : 0.0;
+              double bestSize = caughtSize > currentMaxSize ? caughtSize : currentMaxSize;
+
+              await pRef.set({
+                'nickname': widget.nickname,
+                'score': FieldValue.increment(1),
+                'maxSize': bestSize,
+                'updatedAt': FieldValue.serverTimestamp()
+              }, SetOptions(merge: true));
+            }
+          }
           // 2. [일반 낚시터 모드] 기록 로직
           else {
             final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
