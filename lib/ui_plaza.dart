@@ -145,6 +145,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🔒 중복 로그인 방지
   StreamSubscription<DatabaseEvent>? _sessionSub;
   bool _dupKicked = false;
+  bool _levelSynced = false; // 🆙 첫 스냅샷 동기화 후에만 레벨업 팝업(초기 진입 오작동 방지)
 
   // 🧍 시설 NPC 인사말 오버레이 (클릭 → 전체화면 인사 → 입장하기)
   Map<String, dynamic>? _npcIntro; // {img, msg, label, onEnter}
@@ -546,6 +547,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final newExp = (d['exp'] ?? 0) is num ? (d['exp'] as num).toInt() : 0;
       final newLevel = calcLevelFromExp(newExp);
       final levelChanged = newLevel != _level;
+      final leveledUp = _levelSynced && newLevel > _level; // 🆙 광장에서 퀘스트 보상으로 레벨업
       final guildChanged = gid != _guildId || gname != _guildName;
       // #11 오늘 일일 퀘스트 완료 여부
       final today = DateTime.now().toIso8601String().substring(0, 10);
@@ -590,6 +592,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
         }
       });
+      _levelSynced = true;
+      // 🆙 광장에서 레벨업 시 축하 팝업 (퀘스트 보상 등)
+      if (leveledUp && mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showPlazaLevelUp(newLevel); });
+      }
       // 🛡️ #1: 레벨 바뀌면 길드원 목록의 내 레벨도 즉시 갱신
       if (levelChanged && _guildId.isNotEmpty) {
         FirebaseFirestore.instance
@@ -4148,6 +4155,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (e) {
       debugPrint('보배 정산 에러: $e');
     }
+  }
+
+  // 🆙 광장 레벨업 축하 팝업 (낚시 화면과 동일 스타일)
+  void _showPlazaLevelUp(int newLevel) {
+    if (!mounted) return;
+    audioManager.playSfx("sfx_landing_success.mp3");
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        backgroundColor: Colors.black.withOpacity(0.9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: _kGold, width: 3)),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.stars, color: Colors.yellowAccent, size: 70),
+          const SizedBox(height: 15),
+          const Text('LEVEL UP!!!', style: TextStyle(color: _kGold, fontSize: 40, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.white24, blurRadius: 10)])),
+          const SizedBox(height: 10),
+          Text('Lv.$newLevel 달성!', style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 20),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(10)), child: const Text('💪 힘·🎯컨트롤·📡감도 각 +1 상승! (제압력 +3)\n더 큰 대물에 도전하세요!', style: TextStyle(color: Colors.cyanAccent, fontSize: 15, height: 1.5), textAlign: TextAlign.center)),
+          const SizedBox(height: 20),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), onPressed: () => Navigator.pop(c), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+        ]),
+      ),
+    );
   }
 
   // 🔒 다른 기기(창)에서 같은 계정 접속 감지 → 이 화면 차단 (이중 보상 방지)
