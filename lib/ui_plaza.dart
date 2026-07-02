@@ -634,6 +634,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final snap = await stateRef.get();
       if ((snap.data()?['activeWeek'] ?? '') == cur) return; // 이미 이번 주 정산됨
+      // 📅 직전 주 점수를 월간(→연간) 랭킹에 누적하고 월/연이 바뀌었으면 마감 스냅샷 저장
+      final prevWeek = (snap.data()?['activeWeek'] ?? '').toString();
+      final prevList = snap.data()?['list'];
+      if (prevWeek.isNotEmpty && prevList is List && prevList.isNotEmpty) {
+        await _accumulateGaramPeriod(prevWeek, prevList);
+      }
       final Map<String, int> score = {};
       final Map<String, String> nick = {};
       void award(List<QueryDocumentSnapshot> docs) {
@@ -677,6 +683,102 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
     } catch (e) {
       debugPrint('🎖️ 가람 개인랭킹 정산 실패: $e');
+    }
+  }
+
+  // 📅 주간 점수 → 월간 누적, 월이 바뀌면 지난달 top10 마감(history_month_YYYY-MM) 후
+  //    그 달 점수를 연간에 누적, 연이 바뀌면 지난해 top10 마감(history_year_YYYY).
+  //    시상(쇼핑몰 보상 상품 구매자격 검증)은 이 history 문서를 기준으로 한다.
+  Future<void> _accumulateGaramPeriod(String weekKey, List prevList) async {
+    final fs = FirebaseFirestore.instance;
+    final monthKey = weekKey.substring(0, 7); // 'YYYY-MM' (그 주 월요일 기준)
+    final monthlyRef = fs.collection('garam_rank').doc('monthly');
+    final yearlyRef = fs.collection('garam_rank').doc('yearly');
+
+    List<Map<String, dynamic>> top10(Map scores) {
+      final entries = scores.entries.toList()
+        ..sort((a, b) => (((b.value['score'] ?? 0) as num)).compareTo(((a.value['score'] ?? 0) as num)));
+      return [
+        for (int i = 0; i < entries.length && i < 10; i++)
+          {
+            'uid': entries[i].key,
+            'rank': i + 1,
+            'nickname': (entries[i].value['nickname'] ?? '').toString(),
+            'score': ((entries[i].value['score'] ?? 0) as num).toInt(),
+          }
+      ];
+    }
+
+    try {
+      await fs.runTransaction((tx) async {
+        final mSnap = await tx.get(monthlyRef);
+        final ySnap = await tx.get(yearlyRef);
+        final mData = mSnap.data() ?? {};
+        final curMonthKey = (mData['monthKey'] ?? '').toString();
+        List<String> addedWeeks = List<String>.from(mData['addedWeeks'] ?? []);
+        if (addedWeeks.contains(weekKey)) return; // 이미 누적된 주 (중복 방지)
+        Map<String, dynamic> mScores = Map<String, dynamic>.from(mData['scores'] ?? {});
+
+        // 🔒 월이 바뀜 → 지난달 마감: top10 스냅샷 저장 + 그 달 점수를 연간에 합산
+        if (curMonthKey.isNotEmpty && curMonthKey != monthKey && mScores.isNotEmpty) {
+          tx.set(fs.collection('garam_rank').doc('history_month_$curMonthKey'), {
+            'monthKey': curMonthKey,
+            'list': top10(mScores),
+            'settledAt': FieldValue.serverTimestamp(),
+          });
+          // 연간 누적 (지난달이 속한 해 기준)
+          final lastMonthYear = curMonthKey.substring(0, 4);
+          final yData = ySnap.data() ?? {};
+          final curYearKey = (yData['yearKey'] ?? '').toString();
+          Map<String, dynamic> yScores = Map<String, dynamic>.from(yData['scores'] ?? {});
+          // 연이 바뀜 → 지난해 마감 스냅샷 저장 후 리셋
+          if (curYearKey.isNotEmpty && curYearKey != lastMonthYear && yScores.isNotEmpty) {
+            tx.set(fs.collection('garam_rank').doc('history_year_$curYearKey'), {
+              'yearKey': curYearKey,
+              'list': top10(yScores),
+              'settledAt': FieldValue.serverTimestamp(),
+            });
+            yScores = {};
+          }
+          mScores.forEach((uid, v) {
+            final prev = yScores[uid];
+            final prevScore = (prev is Map && prev['score'] is num) ? (prev['score'] as num).toInt() : 0;
+            yScores[uid] = {
+              'score': prevScore + (((v is Map ? v['score'] : 0) ?? 0) as num).toInt(),
+              'nickname': (v is Map ? (v['nickname'] ?? '') : '').toString(),
+            };
+          });
+          tx.set(yearlyRef, {
+            'yearKey': lastMonthYear,
+            'scores': yScores,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
+          mScores = {}; // 월간 리셋
+          addedWeeks = [];
+        }
+
+        // 이번 주 점수를 월간에 합산
+        for (final e in prevList) {
+          if (e is! Map) continue;
+          final uid = (e['uid'] ?? '').toString();
+          if (uid.isEmpty) continue;
+          final prev = mScores[uid];
+          final prevScore = (prev is Map && prev['score'] is num) ? (prev['score'] as num).toInt() : 0;
+          mScores[uid] = {
+            'score': prevScore + ((e['score'] ?? 0) as num).toInt(),
+            'nickname': (e['nickname'] ?? '').toString(),
+          };
+        }
+        addedWeeks.add(weekKey);
+        tx.set(monthlyRef, {
+          'monthKey': monthKey,
+          'addedWeeks': addedWeeks,
+          'scores': mScores,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      debugPrint('📅 가람 월간/연간 누적 실패: $e');
     }
   }
 

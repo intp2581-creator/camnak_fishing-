@@ -22,6 +22,7 @@ class _RankingScreenState extends State<RankingScreen> {
 
   String selectedTab = '레벨';
   String selectedFish = '붕어';
+  String garamPeriod = '주간'; // 🎖️ 종합랭킹 기간: 주간/월간/연간
 
   // 100레벨 공용 계산 사용 (game_config)
   int _calcLevelFromExp(int exp) => calcLevelFromExp(exp);
@@ -129,13 +130,48 @@ class _RankingScreenState extends State<RankingScreen> {
               child: const Text('⚔️ 이번 주 길드 리그 · 길드원이 잡은 마릿수 합산 · 월요일 00시 리셋',
                   style: TextStyle(color: Colors.amberAccent, fontSize: 15, fontWeight: FontWeight.bold)),
             ),
-          if (selectedTab == '종합')
+          if (selectedTab == '종합') ...[
+            // 기간 선택 토글 (주간/월간/연간)
+            Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: ['주간', '월간', '연간'].map((p) {
+                  final sel = garamPeriod == p;
+                  return GestureDetector(
+                    onTap: () {
+                      audioManager.playSfx("sfx_click.mp3");
+                      setState(() => garamPeriod = p);
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: sel ? const Color(0xFFD4AF37) : Colors.black,
+                        border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(p,
+                          style: TextStyle(
+                              color: sel ? Colors.black : const Color(0xFFD4AF37),
+                              fontWeight: FontWeight.bold, fontSize: 18)),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
             Container(
               margin: const EdgeInsets.only(bottom: 6),
-              child: const Text('🏆 주간 개인 종합랭킹 · 레벨+어종별 최대어 보드 합산(보드 1위=10점) · 매주 월요일 갱신 · top10은 1주일 능력치 보너스+순위마크',
+              child: Text(
+                  garamPeriod == '주간'
+                      ? '🏆 주간 종합랭킹 · 레벨+어종별 최대어 보드 합산(보드 1위=10점) · 매주 월요일 갱신 · top10은 1주일 능력치 보너스+순위마크'
+                      : garamPeriod == '월간'
+                          ? '📅 월간 종합랭킹 · 매주 주간점수가 누적 · 매월 1일 확정'
+                          : '🗓️ 연간 종합랭킹 · 매월 월간점수가 누적 · 매년 1월 1일 확정',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.amberAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+                  style: const TextStyle(color: Colors.amberAccent, fontSize: 14, fontWeight: FontWeight.bold)),
             ),
+          ],
           const Divider(color: Colors.cyanAccent, height: 30, thickness: 2),
           Expanded(
             child: selectedTab == '리그'
@@ -206,18 +242,53 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 
-  // 🏆 가람 주간 개인 종합랭킹 목록 (garam_rank/state 스냅샷)
+  // 🏆 가람 개인 종합랭킹 목록 (주간=state 스냅샷 / 월간·연간=누적 점수)
+  //    scores 맵({uid:{score,nickname}}) → 정렬된 top10 리스트로 변환
+  List<Map<String, dynamic>> _garamScoresToList(Map<String, dynamic> scores) {
+    final entries = scores.entries.toList()
+      ..sort((a, b) {
+        final sb = (b.value is Map && b.value['score'] is num) ? (b.value['score'] as num).toInt() : 0;
+        final sa = (a.value is Map && a.value['score'] is num) ? (a.value['score'] as num).toInt() : 0;
+        return sb.compareTo(sa);
+      });
+    return [
+      for (int i = 0; i < entries.length && i < 10; i++)
+        {
+          'uid': entries[i].key,
+          'rank': i + 1,
+          'nickname': (entries[i].value is Map ? (entries[i].value['nickname'] ?? '') : '').toString(),
+          'score': (entries[i].value is Map && entries[i].value['score'] is num) ? (entries[i].value['score'] as num).toInt() : 0,
+        }
+    ];
+  }
+
   Widget _buildGaramList() {
+    final docName = garamPeriod == '주간' ? 'state' : (garamPeriod == '월간' ? 'monthly' : 'yearly');
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('garam_rank').doc('state').snapshots(),
+      stream: FirebaseFirestore.instance.collection('garam_rank').doc(docName).snapshots(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
         }
         final data = snap.data?.data() as Map<String, dynamic>?;
-        final list = (data?['list'] is List) ? List<Map<String, dynamic>>.from((data!['list'] as List).map((e) => Map<String, dynamic>.from(e as Map))) : <Map<String, dynamic>>[];
+        List<Map<String, dynamic>> list;
+        if (garamPeriod == '주간') {
+          list = (data?['list'] is List)
+              ? List<Map<String, dynamic>>.from((data!['list'] as List).map((e) => Map<String, dynamic>.from(e as Map)))
+              : <Map<String, dynamic>>[];
+        } else {
+          list = _garamScoresToList(Map<String, dynamic>.from(data?['scores'] ?? {}));
+        }
         if (list.isEmpty) {
-          return const Center(child: Text('아직 종합랭킹 기록이 없습니다.\n낚시로 각 보드 top10에 들어보세요!', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)));
+          return Center(
+              child: Text(
+                  garamPeriod == '주간'
+                      ? '아직 종합랭킹 기록이 없습니다.\n낚시로 각 보드 top10에 들어보세요!'
+                      : garamPeriod == '월간'
+                          ? '이번 달 누적 기록이 아직 없습니다.\n(매주 월요일, 지난주 점수가 누적돼요)'
+                          : '올해 누적 기록이 아직 없습니다.\n(매월 1일, 지난달 점수가 누적돼요)',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54)));
         }
         final myUid = FirebaseAuth.instance.currentUser?.uid;
         return ListView.builder(
@@ -225,11 +296,11 @@ class _RankingScreenState extends State<RankingScreen> {
           itemBuilder: (context, i) {
             final e = list[i];
             final rank = (e['rank'] is num) ? (e['rank'] as num).toInt() : i + 1;
-            final bonus = garamRankBonus(rank);
+            final extra = garamPeriod == '주간' ? ' · 보너스 +${garamRankBonus(rank)}' : '';
             return _buildRankItem(
               rank,
               (e['nickname'] ?? '조사님').toString(),
-              '${e['score'] ?? 0}점 · 보너스 +$bonus',
+              '${e['score'] ?? 0}점$extra',
               e['uid'] == myUid,
               'assets/images/skin_beginner.jpg',
             );
@@ -239,20 +310,35 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 
-  // 🏆 내 종합랭킹 순위 (하단 고정)
+  // 🏆 내 종합랭킹 순위 (하단 고정, 주간/월간/연간 대응)
   Widget _buildMyGaramRank() {
     final myUid = FirebaseAuth.instance.currentUser?.uid;
+    final docName = garamPeriod == '주간' ? 'state' : (garamPeriod == '월간' ? 'monthly' : 'yearly');
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('garam_rank').doc('state').snapshots(),
+      stream: FirebaseFirestore.instance.collection('garam_rank').doc(docName).snapshots(),
       builder: (context, snap) {
         final data = snap.data?.data() as Map<String, dynamic>?;
-        final ranks = data?['ranks'];
         int myRank = 0, myScore = 0;
-        if (myUid != null && ranks is Map && ranks[myUid] is Map) {
-          myRank = ((ranks[myUid]['rank'] ?? 0) as num).toInt();
-          myScore = ((ranks[myUid]['score'] ?? 0) as num).toInt();
+        if (garamPeriod == '주간') {
+          final ranks = data?['ranks'];
+          if (myUid != null && ranks is Map && ranks[myUid] is Map) {
+            myRank = ((ranks[myUid]['rank'] ?? 0) as num).toInt();
+            myScore = ((ranks[myUid]['score'] ?? 0) as num).toInt();
+          }
+        } else {
+          final list = _garamScoresToList(Map<String, dynamic>.from(data?['scores'] ?? {}));
+          for (final e in list) {
+            if (e['uid'] == myUid) {
+              myRank = e['rank'] as int;
+              myScore = e['score'] as int;
+              break;
+            }
+          }
         }
         final bonus = garamRankBonus(myRank);
+        final right = myRank > 0
+            ? (garamPeriod == '주간' ? '$myScore점 · 능력치 각 +$bonus (1주일)' : '$myScore점 누적')
+            : (garamPeriod == '주간' ? '보드 top10에 들면 점수 획득!' : '주간 순위에 들면 점수가 누적돼요!');
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
@@ -262,13 +348,12 @@ class _RankingScreenState extends State<RankingScreen> {
           ),
           child: Row(
             children: [
-              const Text('내 종합순위', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+              Text('내 $garamPeriod순위', style: const TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
               const SizedBox(width: 14),
               Text(myRank > 0 ? '$myRank위' : '순위권 밖',
                   style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 22, fontWeight: FontWeight.w900)),
               const Spacer(),
-              Text(myRank > 0 ? '$myScore점 · 능력치 각 +$bonus (1주일)' : '보드 top10에 들면 점수 획득!',
-                  style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)),
+              Text(right, style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)),
             ],
           ),
         );
