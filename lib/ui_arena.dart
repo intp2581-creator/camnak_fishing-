@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ui_arena_waiting.dart';
+import 'game_config.dart'; // 등급대 입장 제한 헬퍼
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
@@ -166,7 +167,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            '[${data['type'] ?? '민물'}] ${data['winCondition'] ?? '마릿수전'} | 참가비: ${data['entryFee'] ?? 1000}P\n모집: ${data['currentPlayers'] ?? 1}/${data['maxPlayers'] ?? 5}명 | 시간: 10분 | 개설자: $hostName',
+                            '[${data['type'] ?? '민물'}] ${data['winCondition'] ?? '마릿수전'} | 참가비: ${data['entryFee'] ?? 1000}P | 🎖️${arenaRankBandLabel((data['hostRank'] ?? '초보').toString())} 등급대\n모집: ${data['currentPlayers'] ?? 1}/${data['maxPlayers'] ?? 5}명 | 시간: 10분 | 개설자: $hostName',
                             style: const TextStyle(color: Colors.grey, height: 1.4, fontSize: 13),
                           ),
                         ),
@@ -189,6 +190,14 @@ class _ArenaScreenState extends State<ArenaScreen> {
                             
                             if (!docSnap.exists) return;
                             var userData = docSnap.data()!;
+                            // ⚔️ 등급대 제한: 방장 등급 ±1단계만 입장 가능(실력 격차 완화)
+                            final hostRank = (data['hostRank'] ?? '초보').toString();
+                            final myRank = (userData['rank'] ?? '초보').toString();
+                            if (!canJoinArenaRank(hostRank, myRank)) {
+                              _arenaInfo(context, '입장 불가',
+                                  '이 대회는 [$hostRank] 등급대 방이에요.\n입장 가능 등급: ${arenaRankBandLabel(hostRank)} 조사\n(내 등급: $myRank)\n\n비슷한 실력끼리 겨루도록 제한하고 있어요!');
+                              return;
+                            }
                             int myGold = userData['gold'] ?? 0;
                             int myTime = userData['remainingTime'] ?? 3600;
                             String lastArenaDate = userData['lastArenaDate'] ?? '';
@@ -547,7 +556,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         'timeLimit': timeMin.toInt(),
                         'maxPlayers': maxPlayers.toInt(),
                         'entryFee': entryFee,
-                        'hostName': myName, 
+                        'hostName': myName,
+                        'hostRank': (userData['rank'] ?? '초보').toString(), // ⚔️ 방 등급대(입장 제한 기준)
                         'currentPlayers': 1,
                         'createdAt': FieldValue.serverTimestamp(),
                       });
