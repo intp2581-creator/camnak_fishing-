@@ -3444,12 +3444,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         onSelected: (v) {
                           if (v == 'vice') _toggleVice(gid, m, viceCount);
                           else if (v == 'master') _transferMaster(gid, myUid, m);
+                          else if (v == 'kick') _kickMember(gid, m);
                         },
                         itemBuilder: (_) => [
                           PopupMenuItem(value: 'vice', child: Text(isViceRow ? '부길드장 해제' : '부길드장 임명',
                               style: const TextStyle(color: Colors.white, fontSize: 13))),
                           const PopupMenuItem(value: 'master', child: Text('길드장 위임',
                               style: TextStyle(color: _kGold, fontSize: 13))),
+                          const PopupMenuItem(value: 'kick', child: Text('길드에서 추방',
+                              style: TextStyle(color: Colors.redAccent, fontSize: 13))),
                         ],
                       ),
                     ),
@@ -3916,6 +3919,44 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           .update({'role': isVice ? 'member' : 'vice'});
       _toast(isVice ? '${m['nickname']} 님을 길드원으로 되돌렸어요.' : '${m['nickname']} 님을 부길드장으로 임명했어요. 🥈');
     } catch (_) {}
+  }
+
+  // 🚫 길드원 추방 (길드장만) — 장기 미접자 등 정리용
+  Future<void> _kickMember(String gid, Map<String, dynamic> m) async {
+    final mUid = (m['uid'] ?? '').toString();
+    if (mUid.isEmpty) return;
+    final nick = (m['nickname'] ?? '조사').toString();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Colors.redAccent, width: 1.2)),
+        title: const Text('길드원 추방', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 20)),
+        content: Text('$nick 님을 길드에서 추방할까요?\n(추방돼도 나중에 다시 가입 신청은 가능해요)', style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white54, fontSize: 15, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12)),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('추방', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final fs = FirebaseFirestore.instance;
+    final guildRef = fs.collection('guilds').doc(gid);
+    try {
+      final batch = fs.batch();
+      batch.delete(guildRef.collection('members').doc(mUid));
+      batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
+      // 추방된 유저의 소속 해제 (다음 접속 시 반영). 추방은 24h 재가입 제한 없음.
+      batch.set(fs.collection('users').doc(mUid), {'guildId': '', 'guildName': ''}, SetOptions(merge: true));
+      await batch.commit();
+      _toast('$nick 님을 길드에서 추방했어요.');
+    } catch (e) {
+      _infoPopup('추방 실패', e.toString());
+    }
   }
 
   // 👑 길드장 위임 (길드장만) — 대상 멤버가 길드장이 되고 본인은 길드원으로
