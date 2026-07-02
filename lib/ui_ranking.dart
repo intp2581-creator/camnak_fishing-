@@ -164,10 +164,10 @@ class _RankingScreenState extends State<RankingScreen> {
               margin: const EdgeInsets.only(bottom: 6),
               child: Text(
                   garamPeriod == '주간'
-                      ? '🏆 주간 종합랭킹 · 레벨+어종별 최대어 보드 합산(보드 1위=10점) · 매주 월요일 갱신 · top10은 1주일 능력치 보너스+순위마크'
+                      ? '🏆 부문별 순위 점수 합산 · 매주 월요일 갱신 (자세한 건 가람에게!)'
                       : garamPeriod == '월간'
-                          ? '📅 월간 종합랭킹 · 매주 주간점수가 누적 · 매월 1일 확정'
-                          : '🗓️ 연간 종합랭킹 · 매월 월간점수가 누적 · 매년 1월 1일 확정',
+                          ? '📅 주간 점수 누적 · 매월 1일 확정'
+                          : '🗓️ 월간 점수 누적 · 매년 1월 1일 확정',
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Colors.amberAccent, fontSize: 14, fontWeight: FontWeight.bold)),
             ),

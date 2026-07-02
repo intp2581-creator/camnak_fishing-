@@ -4197,14 +4197,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       await Future.delayed(const Duration(seconds: 3)); // 접속보상 팝업이 먼저 뜰 시간
       for (int i = 0; i < 120; i++) { // 최대 60초 대기(안 닫으면 이번 접속은 패스)
         if (!mounted) return;
-        final busy = _showReward || _showTutIntro || _showTutMission || _showTutReward || _npcIntro != null;
+        final onTop = ModalRoute.of(context)?.isCurrent ?? true; // 낚시터 등 다른 화면 위엔 안 띄움
+        final busy = !onTop || _showReward || _showTutIntro || _showTutMission || _showTutReward || _npcIntro != null;
         if (!busy) break;
         if (i == 119) return; // 계속 열려있으면 다음 접속에 다시 시도(도장 안 찍음)
         await Future.delayed(const Duration(milliseconds: 500));
       }
       if (!mounted) return;
       await Future.delayed(const Duration(milliseconds: 800)); // 한 박자 쉬고
-      if (!mounted) return;
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) return;
       _showRankGuide();
       await ref.set({'rankNoticeSeen': true}, SetOptions(merge: true));
     } catch (_) {}
