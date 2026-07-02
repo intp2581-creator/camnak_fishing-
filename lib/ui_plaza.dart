@@ -922,6 +922,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
+            'dir': (v['dir'] ?? 'down').toString(), // 🚶 이동방향 스프라이트
             't': (v['t'] is num) ? (v['t'] as num).toInt() : 0, // 마지막 갱신 시각(고스트 필터용)
           };
           final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
@@ -956,6 +957,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'x': _charPos.dx,
       'y': _charPos.dy,
       'face': _facingRight,
+      'dir': _moveDir, // 🚶 이동방향(remote 스프라이트용)
       't': ServerValue.timestamp,
     }).catchError((Object e) {
       debugPrint('🌐 RTDB WRITE ERR: $e');
@@ -967,9 +969,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final dx = (d['x'] as double).clamp(0.02, 0.98);
     final dy = (d['y'] as double).clamp(0.0, 1.0);
     final pT = ((dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final rH = sizeH * (0.18 + pT * 0.16);
+    final rH = sizeH * (0.13 + pT * 0.115); // 🧍 내 캐릭터와 동일한 크기 곡선
     final rW = rH * 0.55;
     final face = d['face'] == true;
+    final dir = (d['dir'] ?? 'down').toString();
+    final baseImg = d['img'] as String;
+    final sprite = baseImg.replaceAll('.png', '_${dir}0.png'); // 방향별 정지 스프라이트
+    final flip = (dir == 'side' && !face); // 옆모습이고 왼쪽 보면 좌우반전
     return AnimatedPositioned(
       key: ValueKey('remote_$uid'),
       duration: const Duration(milliseconds: 650),
@@ -986,14 +992,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             Positioned.fill(
               child: Transform(
                 alignment: Alignment.bottomCenter,
-                transform: Matrix4.rotationY(face ? 0 : math.pi),
-                // 🚶 내 캐릭터와 동일하게 '정지 스프라이트(정면)'로 표시(낚시 포즈 풀이미지 대신).
+                transform: Matrix4.rotationY(flip ? math.pi : 0),
+                // 🚶 내 캐릭터와 동일하게 방향별 정지 스프라이트로 표시(낚시 포즈 풀이미지 대신).
                 //    스킨 등 스프라이트 없으면 원본 이미지로 폴백.
                 child: Image.asset(
-                    (d['img'] as String).replaceAll('.png', '_down0.png'),
+                    sprite,
                     fit: BoxFit.contain,
                     alignment: Alignment.bottomCenter,
-                    errorBuilder: (a, b, c) => Image.asset(d['img'] as String,
+                    errorBuilder: (a, b, c) => Image.asset(baseImg,
                         fit: BoxFit.contain,
                         alignment: Alignment.bottomCenter,
                         errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
@@ -1177,7 +1183,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _moveDuration = moveDur;
       _walking = true;
     });
-    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}).catchError((Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e')); // 실시간 위치 전송
+    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight, 'dir': _moveDir}).catchError((Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e')); // 실시간 위치 전송
     // 걷기 바운스 시작, 도착하면 멈춤
     final token = ++_moveToken;
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
@@ -1253,7 +1259,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _sendPos() {
-    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight}).catchError(
+    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight, 'dir': _moveDir}).catchError(
         (Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e'));
   }
 
