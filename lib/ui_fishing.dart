@@ -1047,6 +1047,20 @@ Widget _buildChatTab(int index, String title) {
                   await docRef.set({
                     'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
                   }, SetOptions(merge: true));
+                  // 🎉 방금 이 한 마리로 승급 조건(6대장 각 need마리)을 모두 채웠으면 안내 팝업
+                  final need = (nextTier?['need'] as int?) ?? 99999;
+                  final dcMap = (data['daejangCatch'] is Map)
+                      ? Map<String, dynamic>.from(data['daejangCatch'])
+                      : <String, dynamic>{};
+                  int cnt(String n) => (dcMap[n] is num) ? (dcMap[n] as num).toInt() : 0;
+                  final doneBefore = daejangFish.every((n) => cnt(n) >= need); // 잡기 전 이미 완료였나
+                  final doneAfter = daejangFish
+                      .every((n) => (cnt(n) + (n == fish['name'] ? 1 : 0)) >= need); // 이번 마리 포함
+                  if (!doneBefore && doneAfter) {
+                    _showNotificationPopup('🎖️ 승급 퀘스트 달성!',
+                        '6대장을 모두 잡았어요! 🎉\n광장의 아라에게 가서\n[${nextTier?['rank']}] 승급을 받으세요!',
+                        const Color(0xFFD4AF37));
+                  }
                 }
               }
               // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
