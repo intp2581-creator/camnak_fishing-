@@ -352,6 +352,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _loadUser();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     WidgetsBinding.instance.addPostFrameCallback((_) => checkAppUpdate(context)); // 🔖 새 버전 알림
+    _maybeShowRankNotice(); // 🔰 초반: 랭킹 시스템 안내 1회
     _playPlazaBgm(); // 🎵 광장 배경음악 (옛 로비 BGM)
     HardwareKeyboard.instance.addHandler(_onHwKey); // ⌨️ PC 키보드(WASD/화살표) 이동
   }
@@ -2119,7 +2120,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
                             widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png', '가람', '🏆 랭킹',
-                            () => _openNpcIntro('npc_rank.png', 'rank', '순위 보기', _openRanking),
+                            _onGaramTap,
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.396 : 0.407,
                             widget.isSea ? 0.551 : 0.550, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
@@ -4140,6 +4141,63 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (e) {
       debugPrint('보배 정산 에러: $e');
     }
+  }
+
+  // 🏆 가람(랭킹) 탭 — 랭킹 시스템 설명 팝업
+  void _onGaramTap() {
+    // 튜토리얼 중이면 기존 인트로(열면 튜토 완료 처리)
+    if (_tutQuestNow != null) {
+      _openNpcIntro('npc_rank.png', 'rank', '순위 보기', _openRanking);
+      return;
+    }
+    _showRankGuide();
+  }
+
+  // 🏆 랭킹 시스템 안내 팝업 (가람 대사) — 초반엔 접속 시 1회 자동 표시
+  void _showRankGuide() {
+    showDialog(
+      context: context,
+      builder: (c) => NpcTutorialOverlay(
+        text: '🏆 캠피싱 랭킹 대회, 제가 알려드릴게요!\n\n'
+            '① 레벨·어종별 최대어 순위 10위 안에 들면\n'
+            '부문마다 점수를 드려요 (1위 10점 ~ 10위 1점)\n\n'
+            '② 매주 월요일 주간랭킹 발표!\n'
+            'top10은 1주일간 능력치 보너스 + 랭킹마크 🥇\n\n'
+            '③ 점수는 주간 → 월간 → 연간으로 계속 누적!\n'
+            '꾸준한 조사님이 유리해요 😊\n\n'
+            '🎁 월간·연간 상위 랭커에게는\n'
+            'camnak.com 쇼핑몰 선물 이벤트도 준비 중!',
+        imagePath: 'assets/images/npc_rank.png',
+        onTap: () => Navigator.pop(c),
+        action: Row(mainAxisSize: MainAxisSize.min, children: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13), textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            onPressed: () { Navigator.pop(c); _openRanking(); },
+            child: const Text('랭킹 보기 🏆'),
+          ),
+          const SizedBox(width: 12),
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('닫기', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold))),
+        ]),
+      ),
+    );
+  }
+
+  // 🔰 초반 캠페인: 접속 시 랭킹 안내 1회 자동 표시 (계정당 1번, 기간 끝나면 false로 바꿔 배포)
+  static const bool _kRankNoticeCampaign = true;
+  Future<void> _maybeShowRankNotice() async {
+    if (!_kRankNoticeCampaign) return;
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
+      final d = (await ref.get()).data() ?? {};
+      if (d['rankNoticeSeen'] == true) return; // 이미 봄
+      if (((d['tutStep'] as num?)?.toInt() ?? 0) != 99) return; // 튜토리얼 중엔 안 띄움
+      await Future.delayed(const Duration(seconds: 2)); // 입장 연출 끝나고
+      if (!mounted) return;
+      _showRankGuide();
+      await ref.set({'rankNoticeSeen': true}, SetOptions(merge: true));
+    } catch (_) {}
   }
 
   // 🥊 한별(아레나 일일) 탭
