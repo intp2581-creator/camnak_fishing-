@@ -39,6 +39,18 @@ Map<String, dynamic> getTodayBobaeFish() {
   return {'fish': bobaeFishPool[math.Random(seed).nextInt(bobaeFishPool.length)], 'count': bobaeCount};
 }
 
+// 🎖️ 가람 주간 개인 종합 랭킹 (레벨 + 어종별 최대어 보드 합산, 매주 월요일 정산)
+//    각 보드 1위=10점 ... 10위=1점. 종합 top10이 1주일 동안 P/C/S 보너스 + 머리 위 순위마크.
+const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];
+const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치'];
+int garamRankBonus(int rank) {
+  if (rank == 1) return 10;
+  if (rank >= 2 && rank <= 4) return 8;
+  if (rank >= 5 && rank <= 7) return 5;
+  if (rank >= 8 && rank <= 10) return 2;
+  return 0;
+}
+
 // 🐟 어종별 판매가(마리당) — 잡은 고기를 보배에게 팔 때 (보너스 수입)
 //    민물: 블루길/베스/살치 10 · 메기/강준치/떡붕어 15 · 붕어/잉어/가물치 35 · 자라 70
 //    바다: 주꾸미/고등어/광어 10 · 갑오징어/갈치/우럭/벵에돔 15 · 감성돔/문어/참돔 35 · 참치 70

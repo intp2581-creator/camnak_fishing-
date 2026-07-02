@@ -139,6 +139,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _champGuildId = '';
   String _champWeek = '';
   StreamSubscription<DocumentSnapshot>? _leagueSub;
+  // 🎖️ 가람 주간 개인 종합 랭킹 (top10 = 1주일 PCS 보너스 + 머리 위 순위마크)
+  StreamSubscription<DocumentSnapshot>? _garamSub;
+  int _myGaramRank = 0; // 0=순위 없음, 1~10=이번 주 랭커
 
   // 🧍 시설 NPC 인사말 오버레이 (클릭 → 전체화면 인사 → 입장하기)
   Map<String, dynamic>? _npcIntro; // {img, msg, label, onEnter}
@@ -457,6 +460,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _presenceSubs.clear();
     _userSub?.cancel();
     _leagueSub?.cancel();
+    _garamSub?.cancel();
     _myRef?.remove();
     _chatCtrl.dispose();
     _chatFocus.dispose();
@@ -592,6 +596,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     // 🏆 주간 길드 리그: 주차 넘어갔으면 정산 + 챔피언 상태 구독
     _settleLeagueIfNeeded();
+    _settleGaramIfNeeded(); // 🎖️ 가람 개인 종합 랭킹 주간 정산
     _leagueSub = FirebaseFirestore.instance
         .collection('guild_league')
         .doc('state')
@@ -601,6 +606,78 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _champWeek = (doc.data()?['activeWeek'] ?? '').toString();
       _recomputeChampion();
     });
+    // 🎖️ 가람 개인랭킹 상태 구독 → 내 순위(마크·보너스) 실시간 반영
+    _garamSub = FirebaseFirestore.instance
+        .collection('garam_rank')
+        .doc('state')
+        .snapshots()
+        .listen((doc) {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final ranks = doc.data()?['ranks'];
+      int r = 0;
+      if (uid != null && ranks is Map && ranks[uid] is Map) {
+        r = ((ranks[uid]['rank'] ?? 0) as num).toInt();
+      }
+      if (r != _myGaramRank) {
+        if (mounted) setState(() => _myGaramRank = r);
+        _writeMe(); // 머리 위 순위마크 갱신
+      }
+    });
+  }
+
+  // 🎖️ 주차가 바뀌었으면 개인 종합 랭킹 스냅샷 정산 (서버 크론 없이 클라 지연 정산)
+  //    종합점수 = 레벨 보드 + 어종별 최대어 보드(민물·바다 전어종), 각 보드 1위=10점...10위=1점
+  Future<void> _settleGaramIfNeeded() async {
+    final fs = FirebaseFirestore.instance;
+    final cur = FishingLogic.weekKey(DateTime.now());
+    final stateRef = fs.collection('garam_rank').doc('state');
+    try {
+      final snap = await stateRef.get();
+      if ((snap.data()?['activeWeek'] ?? '') == cur) return; // 이미 이번 주 정산됨
+      final Map<String, int> score = {};
+      final Map<String, String> nick = {};
+      void award(List<QueryDocumentSnapshot> docs) {
+        for (int i = 0; i < docs.length && i < 10; i++) {
+          final d = docs[i].data() as Map<String, dynamic>;
+          score[docs[i].id] = (score[docs[i].id] ?? 0) + (10 - i);
+          final n = (d['nickname'] ?? '').toString();
+          if (n.isNotEmpty) nick[docs[i].id] = n;
+        }
+      }
+      // 레벨(경험치) 보드
+      final lv = await fs.collection('users').orderBy('exp', descending: true).limit(10).get();
+      award(lv.docs);
+      // 어종별 최대어 보드 (민물 + 바다 전어종)
+      for (final f in [...garamFwFish, ...garamSeaFish]) {
+        try {
+          final q = await fs.collection('users').orderBy('maxCatch.$f.size', descending: true).limit(10).get();
+          award(q.docs.where((d) {
+            final s = d.data()['maxCatch']?[f]?['size'] ?? 0;
+            return (s is num) && s > 0;
+          }).toList());
+        } catch (_) {}
+      }
+      final sorted = score.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+      final ranks = <String, dynamic>{};
+      final list = <Map<String, dynamic>>[];
+      for (int i = 0; i < sorted.length && i < 10; i++) {
+        final e = sorted[i];
+        ranks[e.key] = {'rank': i + 1, 'nickname': nick[e.key] ?? '', 'score': e.value};
+        list.add({'uid': e.key, 'rank': i + 1, 'nickname': nick[e.key] ?? '', 'score': e.value});
+      }
+      await fs.runTransaction((tx) async {
+        final s = await tx.get(stateRef);
+        if ((s.data()?['activeWeek'] ?? '') == cur) return; // 다른 클라가 먼저 정산함
+        tx.set(stateRef, {
+          'activeWeek': cur,
+          'ranks': ranks,
+          'list': list,
+          'settledAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      });
+    } catch (e) {
+      debugPrint('🎖️ 가람 개인랭킹 정산 실패: $e');
+    }
   }
 
   void _recomputeChampion() {
@@ -724,6 +801,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
             'champ': v['champ'] == true,
+            'garam': (v['garam'] is num) ? (v['garam'] as num).toInt() : 0, // 🎖️ 순위마크
             'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
             'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
             'face': v['face'] == true,
@@ -757,6 +835,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'img': _charImage,
       'guild': _guildName,
       'champ': _isChampionGuild,
+      'garam': _myGaramRank, // 🎖️ 주간 개인랭킹 순위마크(0=없음)
       'x': _charPos.dx,
       'y': _charPos.dy,
       'face': _facingRight,
@@ -803,7 +882,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               right: -150,
               child: Center(
                 child: _nameTag(d['nick'] as String, (d['guild'] ?? '') as String,
-                    champ: d['champ'] == true),
+                    champ: d['champ'] == true,
+                    garamRank: (d['garam'] ?? 0) as int),
               ),
             ),
             // 💬 다른 유저 말풍선
@@ -1412,11 +1492,26 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _chatCtrl.clear();
   }
 
-  // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑)
-  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false}) {
+  // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
+  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // 🎖️ 가람 주간 개인랭킹 순위마크 (top10, 1주일 유지)
+        if (garamRank >= 1 && garamRank <= 10)
+          Container(
+            margin: const EdgeInsets.only(bottom: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xCC4A3A00),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: _kGold, width: 1.0),
+            ),
+            child: Text(
+                garamRank == 1 ? '🥇 주간랭킹 1위' : (garamRank <= 3 ? (garamRank == 2 ? '🥈 주간랭킹 2위' : '🥉 주간랭킹 3위') : '🏆 주간랭킹 $garamRank위'),
+                maxLines: 1,
+                style: const TextStyle(color: _kGold, fontSize: 10, fontWeight: FontWeight.w900)),
+          ),
         if (guild.isNotEmpty)
           Container(
             margin: const EdgeInsets.only(bottom: 2),
@@ -1893,7 +1988,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       right: -150,
                                       child: Center(
                                         child: _nameTag(widget.nickname, _guildName,
-                                            isMe: true, champ: _isChampionGuild),
+                                            isMe: true, champ: _isChampionGuild,
+                                            garamRank: _myGaramRank),
                                       ),
                                     ),
                                     if (_myBubble != null &&
@@ -2392,8 +2488,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
-  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV) {
-    final total = 10 + equipV + levelV + guildV + champV;
+  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0]) {
+    final total = 10 + equipV + levelV + guildV + champV + rankV;
     Widget chip(String t, Color c) => Text(t,
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
     return Padding(
@@ -2416,6 +2512,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
             if (champV != 0) chip('👑 +$champV', _kGold),
+            if (rankV != 0) chip('🏆 +$rankV', const Color(0xFFFFE082)),
           ]),
         ),
       ]),
@@ -2440,7 +2537,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final lvB = (_level - 1) < 0 ? 0 : (_level - 1); // 🆙 레벨 보너스(각 +1/레벨) — 낚시 전투력과 동일
       final gB = FishingLogic.guildStatBonus(gLevel);
       final cB = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
-      final totP = 10 + eP + lvB + gB + cB, totC = 10 + eC + lvB + gB + cB, totS = 10 + eS + lvB + gB + cB;
+      final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
+      final totP = 10 + eP + lvB + gB + cB + rB, totC = 10 + eC + lvB + gB + cB + rB, totS = 10 + eS + lvB + gB + cB + rB;
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -2477,12 +2575,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
           const Divider(color: Colors.white12, height: 18),
-          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언)',
+          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언 + 주간랭킹)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB),
-          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB),
-          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB),
+          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB),
+          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB),
+          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB),
         ]),
       );
     }

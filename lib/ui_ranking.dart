@@ -75,6 +75,7 @@ class _RankingScreenState extends State<RankingScreen> {
               _buildTabButton('레벨'),
               _buildTabButton('민물'),
               _buildTabButton('바다'),
+              _buildTabButton('종합'),
               _buildTabButton('길드'),
               _buildTabButton('리그'),
             ],
@@ -128,10 +129,19 @@ class _RankingScreenState extends State<RankingScreen> {
               child: const Text('⚔️ 이번 주 길드 리그 · 길드원이 잡은 마릿수 합산 · 월요일 00시 리셋',
                   style: TextStyle(color: Colors.amberAccent, fontSize: 15, fontWeight: FontWeight.bold)),
             ),
+          if (selectedTab == '종합')
+            Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              child: const Text('🏆 주간 개인 종합랭킹 · 레벨+어종별 최대어 보드 합산(보드 1위=10점) · 매주 월요일 갱신 · top10은 1주일 능력치 보너스+순위마크',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.amberAccent, fontSize: 14, fontWeight: FontWeight.bold)),
+            ),
           const Divider(color: Colors.cyanAccent, height: 30, thickness: 2),
           Expanded(
             child: selectedTab == '리그'
                 ? _buildLeagueList()
+                : selectedTab == '종합'
+                    ? _buildGaramList()
                 : selectedTab == '길드' ? _buildGuildList() : StreamBuilder<QuerySnapshot>(
               stream: selectedTab == '레벨'
                   ? FirebaseFirestore.instance.collection('users').orderBy('exp', descending: true).limit(10).snapshots()
@@ -188,9 +198,81 @@ class _RankingScreenState extends State<RankingScreen> {
           const Divider(color: Colors.white24, height: 30, thickness: 2),
           selectedTab == '리그'
               ? _buildMyLeagueRank()
+              : selectedTab == '종합'
+                  ? _buildMyGaramRank()
               : selectedTab == '길드' ? _buildMyGuildRank() : _buildMyStaticRank(),
         ],
       ),
+    );
+  }
+
+  // 🏆 가람 주간 개인 종합랭킹 목록 (garam_rank/state 스냅샷)
+  Widget _buildGaramList() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('garam_rank').doc('state').snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
+        }
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final list = (data?['list'] is List) ? List<Map<String, dynamic>>.from((data!['list'] as List).map((e) => Map<String, dynamic>.from(e as Map))) : <Map<String, dynamic>>[];
+        if (list.isEmpty) {
+          return const Center(child: Text('아직 종합랭킹 기록이 없습니다.\n낚시로 각 보드 top10에 들어보세요!', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)));
+        }
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
+        return ListView.builder(
+          itemCount: list.length,
+          itemBuilder: (context, i) {
+            final e = list[i];
+            final rank = (e['rank'] is num) ? (e['rank'] as num).toInt() : i + 1;
+            final bonus = garamRankBonus(rank);
+            return _buildRankItem(
+              rank,
+              (e['nickname'] ?? '조사님').toString(),
+              '${e['score'] ?? 0}점 · 보너스 +$bonus',
+              e['uid'] == myUid,
+              'assets/images/skin_beginner.jpg',
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // 🏆 내 종합랭킹 순위 (하단 고정)
+  Widget _buildMyGaramRank() {
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('garam_rank').doc('state').snapshots(),
+      builder: (context, snap) {
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final ranks = data?['ranks'];
+        int myRank = 0, myScore = 0;
+        if (myUid != null && ranks is Map && ranks[myUid] is Map) {
+          myRank = ((ranks[myUid]['rank'] ?? 0) as num).toInt();
+          myScore = ((ranks[myUid]['score'] ?? 0) as num).toInt();
+        }
+        final bonus = garamRankBonus(myRank);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10221E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.cyanAccent.withOpacity(0.6)),
+          ),
+          child: Row(
+            children: [
+              const Text('내 종합순위', style: TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+              const SizedBox(width: 14),
+              Text(myRank > 0 ? '$myRank위' : '순위권 밖',
+                  style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 22, fontWeight: FontWeight.w900)),
+              const Spacer(),
+              Text(myRank > 0 ? '$myScore점 · 능력치 각 +$bonus (1주일)' : '보드 top10에 들면 점수 획득!',
+                  style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        );
+      },
     );
   }
 

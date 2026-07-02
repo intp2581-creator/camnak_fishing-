@@ -387,10 +387,21 @@ Widget _buildChatTab(int index, String title) {
   String _guildId = '';
   int _guildLevel = 0;
   bool _isChampionGuild = false; // 지난주 길드 리그 1위 → 이번주 추가 버프
+  int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
 
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    // 🎖️ 가람 주간 개인랭킹 보너스 (길드 여부와 무관)
+    try {
+      final gr = await FirebaseFirestore.instance.collection('garam_rank').doc('state').get();
+      final ranks = gr.data()?['ranks'];
+      int r = 0;
+      if (ranks is Map && ranks[user.uid] is Map) {
+        r = ((ranks[user.uid]['rank'] ?? 0) as num).toInt();
+      }
+      if (mounted) setState(() => _myGaramRank = r);
+    } catch (_) {}
     try {
       final udoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final gid = (udoc.data()?['guildId'] ?? '').toString();
@@ -427,6 +438,7 @@ Widget _buildChatTab(int index, String title) {
     );
     int b = FishingLogic.guildStatBonus(_guildLevel);
     if (_isChampionGuild) b += FishingLogic.guildChampionBonus;
+    b += garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
     if (b <= 0) return s;
     return {
       'strength': (s['strength'] ?? 0) + b,
