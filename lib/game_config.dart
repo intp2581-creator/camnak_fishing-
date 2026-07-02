@@ -197,11 +197,11 @@ const List<String> rankOrder = ['초보', '하수', '중수', '고수', '프로'
 
 // 승급 티어: 해당 레벨 도달 + 6대장 각 need마리(누적) → 승급 가능 + reward 지급
 const List<Map<String, dynamic>> promotionTiers = [
-  {'rank': '하수', 'level': 15, 'need': 3, 'reward': 1000},
-  {'rank': '중수', 'level': 30, 'need': 5, 'reward': 3000},
-  {'rank': '고수', 'level': 50, 'need': 10, 'reward': 10000},
-  {'rank': '프로', 'level': 70, 'need': 15, 'reward': 30000},
-  {'rank': '마스터', 'level': 100, 'need': 20, 'reward': 100000},
+  {'rank': '하수', 'level': 15, 'need': 5, 'reward': 5000},
+  {'rank': '중수', 'level': 30, 'need': 10, 'reward': 10000},
+  {'rank': '고수', 'level': 50, 'need': 15, 'reward': 50000},
+  {'rank': '프로', 'level': 70, 'need': 20, 'reward': 100000},
+  {'rank': '마스터', 'level': 100, 'need': 30, 'reward': 2000000},
   // 레전드(130)·낚시의 신(150) 승급 퀘스트는 발표 때 추가
 ];
 
