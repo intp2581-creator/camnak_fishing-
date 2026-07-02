@@ -165,7 +165,9 @@ for (var fish in availableFishes) {
     }
   });
   w = (w * baitBonus).round();
-  
+  // 🗺️ 낚시터 종류(저수지/수로/갯바위/선상)별 어종 가중치
+  w = (w * spotFishMult(locationName, fName)).round();
+
   totalWeight += w;
 }
 
@@ -187,7 +189,9 @@ for (var fish in availableFishes) {
     }
   });
   w = (w * baitBonus).round();
-  
+  // 🗺️ 낚시터 종류별 어종 가중치 (위와 동일하게!)
+  w = (w * spotFishMult(locationName, fName)).round();
+
   currentWeight += w;
   if (randomWeight < currentWeight) {
     selectedFish = fish;
