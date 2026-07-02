@@ -12,7 +12,7 @@ import 'dart:html' as html;
 import 'package:flutter/material.dart';
 
 /// ⚠️ 배포마다 올리는 빌드 식별자 (web/appver.json 과 같은 값으로 유지)
-const String kBuildId = '20260701-21';
+const String kBuildId = '20260701-22';
 
 bool _updateChecked = false;
 

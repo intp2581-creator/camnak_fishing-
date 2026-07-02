@@ -268,8 +268,8 @@ class _ArenaScreenState extends State<ArenaScreen> {
     final List<String> saltwaterLocations = ['통영 척포 갯바위', '신안 가거도', '완도 청산도', '여수 거문도', '제주 섶섬', '거제 선상', '오천항 선상', '대천 선상', '통영 선상', '완도 선상'];
 
     // 🌟 3. 대상 어종 리스트 (사장님 DB 'fwFishPool', 'seaFishPool' 완벽 반영!)
-    final List<String> freshwaterFish = ['모든 어종', '붕어', '떡붕어', '블루길', '살치', '베스', '강준치', '잉어', '자라', '메기', '가물치'];
-    final List<String> saltwaterFish = ['모든 어종', '고등어', '우럭', '갈치', '참돔', '벵에돔', '갑오징어', '주꾸미', '광어', '감성돔', '문어', '참치'];
+    final List<String> freshwaterFish = ['붕어', '떡붕어', '블루길', '살치', '베스', '강준치', '잉어', '자라', '메기', '가물치'];
+    final List<String> saltwaterFish = ['고등어', '우럭', '갈치', '참돔', '벵에돔', '갑오징어', '주꾸미', '광어', '감성돔', '문어', '참치'];
     
     // 초기 상태 세팅
     String selectedType = '민물';
@@ -383,7 +383,11 @@ class _ArenaScreenState extends State<ArenaScreen> {
                                   dropdownColor: Colors.grey.shade900,
                                   style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
                                   items: ['마릿수', '최대어'].map((String value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
-                                  onChanged: (String? newValue) => setState(() => winCondition = newValue!),
+                                  onChanged: (String? newValue) => setState(() {
+                                    winCondition = newValue!;
+                                    // 최대어로 바꾸면 현재 타입의 첫 어종으로 초기화(모든어종 없음 → 어종 선택 필수)
+                                    selectedTargetFish = selectedType == '민물' ? freshwaterFish[0] : saltwaterFish[0];
+                                  }),
                                 ),
                               ],
                             ),

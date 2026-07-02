@@ -3947,7 +3947,7 @@ class _CirclingSeagullState extends State<_CirclingSeagull> with SingleTickerPro
                   .collection('arenas')
                   .doc(roomId)
                   .collection('participants')
-                  .orderBy('score', descending: true) 
+                  .orderBy(winCondition == '최대어' ? 'maxSize' : 'score', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
@@ -3960,6 +3960,7 @@ class _CirclingSeagullState extends State<_CirclingSeagull> with SingleTickerPro
                               var data = docs[index].data() as Map<String, dynamic>;
                               String nickname = data['nickname'] ?? '무명조사';
                               num score = data['score'] ?? 0; // 👈 랭킹 점수 확실하게 꺼내기!
+                              num maxSize = data['maxSize'] ?? 0; // 🐟 최대어 모드용 최대 사이즈
 
                               Widget rankIcon;
                               if (index == 0) rankIcon = const Icon(Icons.emoji_events, color: Color(0xFFFFD700), size: 28);
@@ -4017,7 +4018,7 @@ class _CirclingSeagullState extends State<_CirclingSeagull> with SingleTickerPro
                                     ],
                                   ),
                                   trailing: Text(
-                                    winCondition == '최대어' ? '$score cm' : '$score 마리',
+                                    winCondition == '최대어' ? '$maxSize cm' : '$score 마리',
                                     style: const TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
                                 ),

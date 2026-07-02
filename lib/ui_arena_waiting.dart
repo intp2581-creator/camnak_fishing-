@@ -255,7 +255,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         .collection('arenas')
         .doc(widget.roomId)
         .collection('participants')
-        .orderBy('score', descending: true)
+        .orderBy((widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score', descending: true)
         .get();
 
     if (!mounted) return;
@@ -386,7 +386,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     setState(() => _isSettling = true);
     try {
       final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
-      final participantsSnap = await arenaRef.collection('participants').orderBy('score', descending: true).get();
+      final participantsSnap = await arenaRef.collection('participants').orderBy((widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score', descending: true).get();
       if (participantsSnap.docs.isEmpty) return;
 
       // ⚔️ 참가자가 2명 미만(혼자)이면 대회 무효 — 우승/보상/한별승리 없음 + 참가비 환불
