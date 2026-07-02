@@ -20,6 +20,7 @@ class ArenaWaitingRoomScreen extends StatefulWidget {
 class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   final TextEditingController _chatController = TextEditingController();
   bool _leftRoom = false; // 방 나가기 정리 중복 방지
+  bool _charged = false;  // 대회 시작 차감 1회만
   String _status = 'waiting'; // 현재 대회 상태(뒤로가기 확인용)
   String myNickname = '무명조사';
   bool _isSettling = false;
@@ -37,6 +38,41 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     _leaveRoom(); // 🏠 화면 나갈 때 방 정리(방장이면 삭제/위임) — fire-and-forget
     _chatController.dispose();
     super.dispose();
+  }
+
+  // 🪙 대회 시작 시점에 '나 자신' 차감 (시간 600초 · 참가비 · 입장횟수, 필요 시 입장권 1장)
+  Future<void> _chargeArenaEntry() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(uid);
+    try {
+      final data = (await ref.get()).data() ?? {};
+      final today = DateTime.now().toString().substring(0, 10);
+      final feeRaw = widget.roomData['entryFee'];
+      final int fee = (feeRaw is num) ? feeRaw.toInt() : 0;
+      final lastDate = (data['lastArenaDate'] ?? '').toString();
+      final int arenaCount = (lastDate == today) ? ((data['arenaCount'] ?? 0) as num).toInt() : 0;
+      final update = <String, dynamic>{
+        'gold': FieldValue.increment(-fee),
+        'remainingTime': FieldValue.increment(-600),
+        'lastArenaDate': today,
+        'arenaCount': arenaCount + 1,
+      };
+      // 무료 2회 초과분은 입장권 1장 사용
+      if (arenaCount >= 2) {
+        final inv = List<dynamic>.from(data['inventory'] ?? []);
+        final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
+        final int qty = ti >= 0 ? ((inv[ti]['quantity'] ?? 0) as num).toInt() : 0;
+        if (qty > 0) {
+          if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
+          update['inventory'] = inv;
+          update['arenaTicketDate'] = today;
+        }
+      }
+      await ref.update(update);
+    } catch (e) {
+      debugPrint('아레나 시작 차감 에러: $e');
+    }
   }
 
   // 🏠 대기실에서 나갈 때: 내 참가 삭제 + (방장이면) 방 삭제 또는 남은 사람에게 위임
@@ -104,7 +140,10 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       if (snapshot.exists) {
         String status = snapshot.data()?['status'] ?? 'waiting';
         _status = status;
-        if (status == 'playing' && !_hasTransitioned) _goToFishing();
+        if (status == 'playing' && !_hasTransitioned) {
+          if (!_charged) { _charged = true; _chargeArenaEntry(); } // 🪙 시작 시 각자 차감(시간·포인트·입장횟수)
+          _goToFishing();
+        }
         if (status == 'finished' && !_popupShown) {
           if (snapshot.data()?['voided'] == true) {
             _showVoidDialog(); // ⚔️ 참가자 부족(혼자) → 무효
@@ -159,6 +198,21 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           backgroundColor: const Color(0xFF2A2A2A),
           title: const Text('시작 불가', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
           content: const Text('대회는 2명 이상 모여야 시작할 수 있어요.\n다른 조사님이 입장하길 기다려주세요! 🎣', style: TextStyle(color: Colors.white, height: 1.5)),
+          actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))],
+        ),
+      );
+      return;
+    }
+    // ✅ 전원 준비 완료 확인(방장은 자동 준비)
+    final notReady = ps.docs.where((d) => (d.data()['isReady'] != true)).length;
+    if (notReady > 0) {
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF2A2A2A),
+          title: const Text('시작 불가', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          content: Text('아직 준비 안 된 참가자가 $notReady명 있어요.\n모두 "준비(READY)"를 눌러야 시작할 수 있어요! 🎣', style: const TextStyle(color: Colors.white, height: 1.5)),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))],
         ),
       );

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ui_arena_waiting.dart';
-import 'game_config.dart';
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
@@ -13,10 +12,10 @@ class ArenaScreen extends StatefulWidget {
 }
 
 class _ArenaScreenState extends State<ArenaScreen> {
-  // 🎟️ 아레나 입장 판정: 무료 2회 + (입장권으로 하루 1회 추가)
-  //   반환 null=입장 불가(팝업 표시됨) / {}=무료 입장 / {inventory,arenaTicketDate}=입장권 사용
-  Future<Map<String, dynamic>?> _resolveArenaEntry(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
-    if (arenaCount < 2) return {}; // 무료 입장
+  // 🎟️ 아레나 입장 '자격' 확인 (차감은 대회 시작 시 대기실에서!). 무료 2회 + 입장권 하루 1회
+  //   true=입장 가능(방 만들기/입장 OK) / false=불가(팝업 표시됨)
+  Future<bool> _canEnterArena(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
+    if (arenaCount < 2) return true; // 무료 입장 가능
     final String ticketDate = (userData['arenaTicketDate'] ?? '').toString();
     final bool usedTicketToday = ticketDate == today;
     final inv = List<dynamic>.from(userData['inventory'] ?? []);
@@ -25,29 +24,28 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
     if (arenaCount >= 3 || usedTicketToday) {
       _arenaInfo(ctx, '입장 제한', '오늘 대회 참가(무료 2회 + 입장권 1회)를\n모두 사용하셨어요.\n내일 다시 도전해주세요! 🎣');
-      return null;
+      return false;
     }
     if (qty <= 0) {
       _arenaInfo(ctx, '무료 입장 소진', '오늘 무료 입장 2회를 모두 쓰셨어요.\n\n상점에서 "아레나 입장권"을 구매하면\n하루 1회 더 참가할 수 있어요! 🎟️');
-      return null;
+      return false;
     }
+    // 입장권 보유 → 이 대회를 '시작'하면 입장권 1장이 사용됨 안내(시작 전엔 차감 X)
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (c) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
         title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
-        content: Text('오늘 무료 2회를 다 쓰셨어요.\n입장권 1장을 써서 한 번 더 참가할까요?\n(하루 1장 사용 · 보유 $qty장)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        content: Text('오늘 무료 2회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), onPressed: () => Navigator.pop(c, true), child: const Text('입장권 사용')),
+          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)), onPressed: () => Navigator.pop(c, true), child: const Text('계속')),
         ],
       ),
     );
-    if (ok != true) return null;
-    if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
-    return {'inventory': inv, 'arenaTicketDate': today};
+    return ok == true;
   }
 
   void _arenaInfo(BuildContext ctx, String title, String msg) {
@@ -198,8 +196,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                             if (lastArenaDate != today) arenaCount = 0;
 
-                            final ticketExtra = await _resolveArenaEntry(context, userData, today, arenaCount);
-                            if (ticketExtra == null) return; // 입장 불가(무료소진·입장권없음/이미사용 → 팝업 표시됨)
+                            if (!await _canEnterArena(context, userData, today, arenaCount)) return; // 자격 확인만(차감은 시작 시)
                             if (myGold < requiredFee) {
                               if (!context.mounted) return;
                               showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('잔액 부족 😅', style: TextStyle(color: Colors.redAccent)), content: Text('참가비가 부족합니다.\n(보유: $myGold P)', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
@@ -211,15 +208,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                               return;
                             }
 
-                            await docRef.update({
-                              'gold': myGold - requiredFee,
-                              'remainingTime': myTime - 600,
-                              'lastArenaDate': today,
-                              'arenaCount': arenaCount + 1,
-                              ...ticketExtra, // 입장권 사용 시 inventory/arenaTicketDate 반영
-                            });
-                            remainingTimeNotifier.value -= 600; 
-
+                            // ⚠️ 시간·포인트·입장횟수 차감은 '대회 시작' 시(대기실)로 미룸 — 방만 만들고 나가면 손해 없음
                             if (!context.mounted) return;
                             Navigator.push(context, MaterialPageRoute(builder: (context) => ArenaWaitingRoomScreen(roomData: data, roomId: docs[index].id)));
                           },
@@ -530,8 +519,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                     if (lastArenaDate != today) arenaCount = 0;
 
-                    final ticketExtra = await _resolveArenaEntry(context, userData, today, arenaCount);
-                    if (ticketExtra == null) return; // 입장 불가(팝업 표시됨)
+                    if (!await _canEnterArena(context, userData, today, arenaCount)) return; // 자격 확인만(차감은 시작 시)
 
                     if (myGold < entryFee) {
                       if (!context.mounted) return;
@@ -545,14 +533,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       return;
                     }
 
-                    await docRef.update({
-                      'gold': myGold - entryFee,
-                      'remainingTime': myTime - 600,
-                      'lastArenaDate': today,
-                      'arenaCount': arenaCount + 1,
-                      ...ticketExtra, // 입장권 사용 시 inventory/arenaTicketDate 반영
-                    });
-                    remainingTimeNotifier.value -= 600;
+                    // ⚠️ 시간·포인트·입장횟수 차감은 '대회 시작' 시(대기실)로 미룸 — 방만 만들고 나가면 손해 없음
 
                     try {
                       DocumentReference docRefRoom = await FirebaseFirestore.instance.collection('arenas').add({
