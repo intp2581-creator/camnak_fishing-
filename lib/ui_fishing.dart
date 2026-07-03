@@ -461,6 +461,8 @@ Widget _buildChatTab(int index, String title) {
       equippedBadge: equippedBadge,
       equippedCooler: equippedCooler,
     );
+    // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹 보너스도 미적용(전원 장비값만)
+    if (widget.title != widget.locationName) return s;
     int b = FishingLogic.guildStatBonus(_guildLevel);
     if (_isChampionGuild) b += FishingLogic.guildChampionBonus;
     b += garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
@@ -1712,7 +1714,8 @@ Positioned(
       }
     }
                   
-                  int levelEach = realLevel - 1; // 🆙 레벨업마다 힘·컨트롤·감도 각 +1 (제압력 +3)
+                  // 🏆 아레나는 완전 평준화 → 레벨 보너스 0으로 표시(실제 제압력과 일치)
+                  int levelEach = (widget.title != widget.locationName) ? 0 : realLevel - 1; // 🆙 레벨업마다 힘·컨트롤·감도 각 +1 (제압력 +3)
                   Map<String, int> currentStats = getMyTotalStats();
                   int equipP = (currentStats['strength'] ?? 0) + levelEach;
                   int equipC = (currentStats['control'] ?? 0) + levelEach;
