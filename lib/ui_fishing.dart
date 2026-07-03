@@ -3169,17 +3169,35 @@ void _showTodayMissionInfo() {
             const SizedBox(height: 15),
             Text('${caughtFish['name']}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
             Text('${caughtFish['size']} ${caughtFish['unit']}', style: const TextStyle(color: Colors.cyanAccent, fontSize: 38, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 10), 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text('+ ${caughtFish['exp']} EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
-                if ((caughtFish['pts'] ?? 0) > 0) ...[
-                  const SizedBox(width: 15),
-                  Text('+ ${caughtFish['pts']} Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.bold)),
-                ]
-              ],
-            ),
+            const SizedBox(height: 10),
+            // ⚔️ 아레나는 exp·포인트를 주지 않음(대회 상금이 보상) → 대회 기록만 표시
+            if (widget.roomId != null)
+              Builder(builder: (_) {
+                final bool isMax = widget.winCondition == '최대어';
+                final bool counts = !isMax
+                    || widget.targetFish == null
+                    || widget.targetFish == '모든 어종'
+                    || caughtFish['name'].toString() == widget.targetFish;
+                final String txt = !counts
+                    ? '🎣 이 어종은 최대어 기록 대상이 아니에요'
+                    : (isMax
+                        ? '🏆 최대어 기록! ${caughtFish['size']}${caughtFish['unit']}'
+                        : '🏆 대회 기록 반영! (마릿수 +1)');
+                return Text(txt,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold));
+              })
+            else
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('+ ${caughtFish['exp']} EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                  if ((caughtFish['pts'] ?? 0) > 0) ...[
+                    const SizedBox(width: 15),
+                    Text('+ ${caughtFish['pts']} Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                  ]
+                ],
+              ),
           ]
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
