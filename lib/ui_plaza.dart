@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, use_build_context_synchronously
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously, avoid_web_libraries_in_flutter, use_null_aware_elements, curly_braces_in_flow_control_structures
 // 🏛️ [광장 시스템] 낚시터별 광장(허브). 1단계: 나 혼자 걸어다니며 상점/아레나/포탈/낚시 진입.
 //    2단계에서 RTDB로 다른 유저 실시간 표시 예정.
 import 'dart:async';

@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
 // 🔖 앱 버전 체크 — 오픈 후 "새 버전 나왔어요, 새로고침" 안내
 //
 // 사용법(배포할 때마다):

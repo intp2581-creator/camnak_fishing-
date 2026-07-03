@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter, curly_braces_in_flow_control_structures, unnecessary_underscores
 // 🌧️ 실시간 날씨 연동 (기상청 초단기실황 → 게임 화면에 비/눈)
 //   - 브라우저 위치(권한) → Firebase 함수 getWeather 호출 → 강수형태(PTY)
 //   - 위치 거부/실패 시 함수가 서울 기본값 사용 → 게임은 정상 동작
