@@ -97,7 +97,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🚶 걷기 바운스용
   late final AnimationController _walkCtrl;
   bool _walking = false;
-  int _moveToken = 0;
+  Offset? _tapTarget;      // 🎯 탭 이동 목표(월드 0~1). 매 틱 한 걸음씩 접근
+  Timer? _tapMoveTimer;    // 탭 이동 스텝 타이머(조이스틱과 동일 방식)
 
   // 🚶 원격 캐릭터 걷기 애니메이션 (위치가 바뀌는 동안 걷기 프레임 순환 → 강시 방지)
   final Map<String, Offset> _remotePrevPos = {};       // uid별 직전 위치(이동 감지용)
@@ -445,7 +446,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     var dir = Offset(dx, dy);
     if (dir.distance > 1) dir = dir / dir.distance; // 대각선 정규화
     if (mounted) setState(() => _joyDir = dir);
-    _moveToken++;
+    _cancelTapMove(); // 키보드 조작 중이면 탭 이동 종료
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
     _joyTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) => _joyTick());
   }
@@ -497,6 +498,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _remoteWalkTimer?.cancel();
     _walkCtrl.dispose();
     _joyTimer?.cancel();
+    _tapMoveTimer?.cancel();
     for (final s in _presenceSubs) {
       s.cancel();
     }
@@ -1377,36 +1379,63 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return _inWalkable(nudged) ? nudged : best;
   }
 
+  // 🖱️ 지점 탭 → 조이스틱과 동일한 '매 틱 한 걸음씩' 이동.
+  //    직선 순간이동(관통) 대신 걷기영역을 매 스텝 클램프 → 화단·구조물은 경계 따라 슬라이드.
+  //    또 매 120ms 위치를 전송 → 원격 화면에서도 순간이동 없이 부드럽게 걸어옴.
   void _moveTo(Offset rawTarget, double w, double h) {
     if (_devCoords) _lastTapWorld = rawTarget; // 🔧 좌표 수집
-    final dest = _devCoords ? rawTarget : _clampToPlaza(rawTarget); // 섬 안으로 보정(수집모드는 자유 이동)
-    final dx = (dest.dx - _charPos.dx) * w;
-    final dy = (dest.dy - _charPos.dy) * h;
-    final dist = math.sqrt(dx * dx + dy * dy);
-    final ms = (dist / 0.16).clamp(700, 4400).toInt(); // 걷기 속도(절반으로 느리게)
-    final moveDur = Duration(milliseconds: ms);
+    if (_joyTimer != null) return; // 조이스틱/키보드 조작 중이면 탭 이동 무시
+    _tapTarget = _devCoords ? rawTarget : _clampToPlaza(rawTarget); // 목적지는 걷기영역 안으로
+    if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
+    _tapMoveTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) => _tapTick());
+  }
+
+  void _tapTick() {
+    final target = _tapTarget;
+    if (target == null || !mounted) { _stopTapMove(); return; }
+    final w = _worldW, h = _worldH;
+    final dxW = (target.dx - _charPos.dx) * w;
+    final dyW = (target.dy - _charPos.dy) * h;
+    final distPx = math.sqrt(dxW * dxW + dyW * dyW);
+    if (distPx < 6) { _stopTapMove(); return; } // 도착
+    const speedPxPerSec = 160.0; // 조이스틱과 동일 속도
+    const dt = 16 / 1000.0;
+    final step = speedPxPerSec * dt;
+    final ux = dxW / distPx, uy = dyW / distPx; // 단위벡터
+    var np = Offset(_charPos.dx + (ux * step) / w, _charPos.dy + (uy * step) / h);
+    np = Offset(np.dx.clamp(0.0, 1.0), np.dy.clamp(0.0, 1.0));
+    if (!_devCoords) np = _clampToPlaza(np); // 화단·구조물 밖으로 보정(경계 슬라이드)
+    final movedPx = ((np.dx - _charPos.dx) * w).abs() + ((np.dy - _charPos.dy) * h).abs();
     setState(() {
-      // 🚶 이동 방향 → 스프라이트 방향 (가로 우세=옆, 세로=위/아래)
-      if (dx.abs() >= dy.abs()) {
-        _moveDir = 'side';
-        _facingRight = dx >= 0;
-      } else {
-        _moveDir = dy < 0 ? 'up' : 'down';
-      }
-      _charPos = dest;
-      _moveDuration = moveDur;
+      if (dxW.abs() >= dyW.abs()) { _moveDir = 'side'; _facingRight = dxW >= 0; }
+      else { _moveDir = dyW < 0 ? 'up' : 'down'; }
+      _charPos = np;
+      _moveDuration = Duration.zero; // 보간 끔 → 매 틱 직접 이동
       _walking = true;
     });
-    _myRef?.update({'x': _charPos.dx, 'y': _charPos.dy, 'face': _facingRight, 'dir': _moveDir}).catchError((Object e) => debugPrint('🌐 RTDB UPDATE ERR: $e')); // 실시간 위치 전송
-    // 걷기 바운스 시작, 도착하면 멈춤
-    final token = ++_moveToken;
-    if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
-    Future.delayed(moveDur, () {
-      if (!mounted || token != _moveToken) return;
-      setState(() => _walking = false);
-      _walkCtrl.stop();
-      _walkCtrl.value = 0;
-    });
+    // 벽/장애물에 완전히 막혀 더 못 감(목적지가 화단 안/뒤) → 정지
+    if (movedPx < 0.5) { _stopTapMove(); return; }
+    final now = DateTime.now();
+    if (now.difference(_lastNetSend).inMilliseconds > 120) {
+      _lastNetSend = now;
+      _sendPos();
+    }
+  }
+
+  void _stopTapMove() {
+    _tapMoveTimer?.cancel();
+    _tapMoveTimer = null;
+    _tapTarget = null;
+    if (mounted) setState(() => _walking = false);
+    _walkCtrl.stop();
+    _walkCtrl.value = 0;
+    _sendPos(); // 최종 위치 전송(원격 정지 동기화)
+  }
+
+  void _cancelTapMove() {
+    _tapMoveTimer?.cancel();
+    _tapMoveTimer = null;
+    _tapTarget = null;
   }
 
   // 🕹️ 조이스틱 ---------------------------------------------------------
@@ -1422,7 +1451,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _joyStart(Offset fromCenter) {
     _joyMove(fromCenter);
-    _moveToken++; // 진행 중이던 탭 이동 종료
+    _cancelTapMove(); // 진행 중이던 탭 이동 종료(조이스틱 우선)
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();
     _joyTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) => _joyTick());
   }
