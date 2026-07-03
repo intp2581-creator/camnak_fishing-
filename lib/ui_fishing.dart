@@ -30,6 +30,7 @@ class FishingScreen extends StatefulWidget {
   final bool isSea;
   final String? roomId;
   final String? targetFish; // ⚔️ 아레나 최대어 모드 대상 어종(이 어종만 카운트)
+  final int? playEndAt; // ⏱️ 아레나 공유 종료시각(ms) — 전원 동시 종료용
   final bool isFirstTime; // 🚀 [추가] 튜토리얼 꼬리표 받기!
 
   const FishingScreen({
@@ -43,6 +44,7 @@ class FishingScreen extends StatefulWidget {
     required this.isSea,
     this.roomId,
     this.targetFish,
+    this.playEndAt,
     this.isFirstTime = false, // 🚀 [추가] 기본값은 false!
   });
 
@@ -776,8 +778,10 @@ Widget _buildChatTab(int index, String title) {
 
     // ⚔️ [아레나 모드] 메인 시간 멈추고 10분 단판 타이머 가동!
     if (widget.title != widget.locationName) {
-      // 🌟 1. 타이머 시작하기 직전에 '현실의 대회 종료 시간'을 미리 못 박아둡니다.
-      DateTime arenaEndTime = DateTime.now().add(Duration(seconds: arenaTimeLeft));
+      // 🌟 1. 종료 시각을 못 박아둡니다. 공유 playEndAt이 있으면 그걸 써서 전원 '동시 종료'(입장 타이밍·클럭차 무관).
+      DateTime arenaEndTime = (widget.playEndAt != null && widget.playEndAt! > 0)
+          ? DateTime.fromMillisecondsSinceEpoch(widget.playEndAt!)
+          : DateTime.now().add(Duration(seconds: arenaTimeLeft));
 
       gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) { timer.cancel(); return; }

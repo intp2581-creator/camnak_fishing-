@@ -26,6 +26,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   bool _isSettling = false;
   bool _hasTransitioned = false;
   bool _popupShown = false;
+  bool _inFishing = false; // 🎣 낚시 화면에 가 있는 동안 true(결과 팝업은 복귀 후에)
 
   @override
   void initState() {
@@ -144,11 +145,15 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         _status = status;
         if (status == 'playing' && !_hasTransitioned) {
           if (!_charged) { _charged = true; _chargeArenaEntry(); } // 🪙 시작 시 각자 차감(시간·포인트·입장횟수)
-          _goToFishing();
+          final pe = (snapshot.data()?['playEndAt'] is num) ? (snapshot.data()!['playEndAt'] as num).toInt() : 0;
+          _goToFishing(pe);
         }
-        if (status == 'finished' && !_popupShown) {
+        // 결과 팝업은 '대기실에 돌아와 있을 때만' (낚시 중이면 복귀 후 _showResultIfFinished가 처리)
+        if (status == 'finished' && !_popupShown && !_inFishing) {
           if (snapshot.data()?['voided'] == true) {
             _showVoidDialog(); // ⚔️ 참가자 부족(혼자) → 무효
+          } else if (snapshot.data()?['draw'] == true) {
+            _showDrawDialog(); // 🤝 아무도 못 잡음 → 무승부
           } else {
             String winner = snapshot.data()?['winnerNick'] ?? '누군가';
             int prize = snapshot.data()?['totalPrize'] ?? 0;
@@ -248,6 +253,56 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     );
   }
 
+  // 🤝 무승부(아무도 못 잡음) 안내
+  void _showDrawDialog() {
+    if (_popupShown) return;
+    setState(() => _popupShown = true);
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.amber, width: 2)),
+        title: const Text('무승부 🤝', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+        content: const Text('아무도 물고기를 잡지 못해\n무승부로 끝났어요.\n참가비는 환불됩니다. 🙏', style: TextStyle(color: Colors.white, height: 1.5)),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (widget.roomData['hostId'] == FirebaseAuth.instance.currentUser?.uid) {
+                  FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).delete();
+                }
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text('나가기', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🏆 낚시에서 복귀했을 때, 이미 종료된 대회면 결과 팝업을 확실히 띄움(낚시 중 놓친 경우 대비)
+  Future<void> _showResultIfFinished() async {
+    if (_popupShown || !mounted) return;
+    try {
+      final s = await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).get();
+      if (!mounted) return;
+      if (!s.exists) { Navigator.pop(context); return; } // 방이 이미 정리됨 → 대기실 나가기
+      final d = s.data()!;
+      if ((d['status'] ?? '') != 'finished') return;
+      if (d['voided'] == true) {
+        _showVoidDialog();
+      } else if (d['draw'] == true) {
+        _showDrawDialog();
+      } else {
+        _showSettlementDialog((d['winnerNick'] ?? '누군가').toString(), (d['totalPrize'] is num) ? (d['totalPrize'] as num).toInt() : 0);
+      }
+    } catch (_) {}
+  }
+
   void _showSettlementDialog(String winner, int prize) async {
     if (_popupShown) return;
     setState(() => _popupShown = true);
@@ -344,8 +399,9 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     );
   }
 
-  void _goToFishing() async {
+  void _goToFishing(int playEndAt) async {
     setState(() { _hasTransitioned = true; _popupShown = false; });
+    _inFishing = true;
     
     // 💡 [수술 1] 사장님 DB의 모든 낚시터를 다 넣어주는 만능 지도입니다!
     final Map<String, String> locationMap = {
@@ -377,12 +433,17 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           isSea: widget.roomData['type'] == '바다',
           roomId: widget.roomId,
           targetFish: widget.roomData['targetFish']?.toString(), // ⚔️ 최대어 대상 어종
+          playEndAt: playEndAt > 0 ? playEndAt : null, // ⏱️ 공유 종료시각 → 전원 동시 종료
         ),
       ),
     );
     // 낚시에서 돌아옴 → 정산 시도(누구나. 단, 경기 시간 끝난 뒤에만 실제 정산됨)
     // _hasTransitioned는 true로 유지 → 경기 도중 돌아온(이탈) 사람이 다시 낚시로 끌려가지 않음
-    if (mounted) _runAutomaticSettlement();
+    _inFishing = false;
+    if (mounted) {
+      await _runAutomaticSettlement();
+      await _showResultIfFinished(); // 🏆 복귀 후 결과 팝업 보장(무승부·무효·정산). 낚시 중 놓친 경우 대비
+    }
   }
 
   Future<void> _runAutomaticSettlement() async {
@@ -427,6 +488,22 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       }
 
       final winner = valid.first; // 완주자 중 1위(최대어=maxSize / 마릿수=score)
+      // 🤝 아무도 못 잡음(1위 성적이 0) → 무승부: 상금 없음 + 완주자 참가비 환불
+      final wData = winner.data();
+      final topRaw = (widget.roomData['winCondition'] == '최대어') ? wData['maxSize'] : wData['score'];
+      final topMetric = (topRaw is num) ? topRaw.toDouble() : 0.0;
+      if (topMetric <= 0) {
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          tx.update(arenaRef, {'status': 'finished', 'draw': true, 'winnerNick': '', 'totalPrize': 0});
+          if (fee > 0) {
+            for (final d in valid) {
+              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(fee)});
+            }
+          }
+        });
+        await arenaRef.collection('messages').add({'text': '🤝 아무도 물고기를 잡지 못해 무승부로 끝났어요. (참가비 환불)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        return;
+      }
       final participantsSnap = allSnap;
       int prize = (widget.roomData['entryFee'] ?? 1000) * participantsSnap.docs.length;
       
