@@ -1495,14 +1495,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             title: Text(s['name'],
                                 style: const TextStyle(
                                     color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-                            subtitle: Row(
-                              children: List.generate(
-                                5,
-                                (k) => Icon(
-                                    k < (s['stars'] as int) ? Icons.star : Icons.star_border,
-                                    color: _kGold,
-                                    size: 15),
-                              ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: List.generate(
+                                    5,
+                                    (k) => Icon(
+                                        k < (s['stars'] as int) ? Icons.star : Icons.star_border,
+                                        color: _kGold,
+                                        size: 15),
+                                  ),
+                                ),
+                                if ((s['target'] ?? '').toString().isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text('💡 ${s['target']}',
+                                        style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3)),
+                                  ),
+                              ],
                             ),
                             trailing: isHere
                                 ? const Text('🎣 출조',
