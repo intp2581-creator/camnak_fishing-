@@ -1153,6 +1153,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final face = d['face'] == true;
     final dir = (d['dir'] ?? 'down').toString();
     final baseImg = d['img'] as String;
+    final nick = d['nick'] as String;
     // 🚶 걷는 중이면 걷기 프레임(1↔2) 순환, 멈추면 정지자세(0) → 내 캐릭터와 동일하게 걷는 모습
     final moving = DateTime.now().isBefore(_remoteMovingUntil[uid] ?? DateTime(2000));
     final frame = moving ? (_remoteWalkTick.isEven ? 1 : 2) : 0;
@@ -1167,12 +1168,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       top: dy * worldH - rH,
       width: rW,
       height: rH,
-      child: IgnorePointer(
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.bottomCenter,
-          children: [
-            Positioned.fill(
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => _showUserMenu(nick), // 👆 캐릭터 클릭 → 귓속말/친구추가 메뉴
               child: Transform.translate(
                 offset: Offset(0, -bob), // 🚶 걷기 바운스
                 child: Transform(
@@ -1191,26 +1194,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
               ),
             ),
-            Positioned(
-              bottom: rH * 0.62, // 머리 위(내 캐릭터와 동일)
-              left: -150,
-              right: -150,
+          ),
+          // 이름표·말풍선은 탭을 통과시켜(IgnorePointer) 그 자리로 걷기가 가능하게
+          Positioned(
+            bottom: rH * 0.62, // 머리 위(내 캐릭터와 동일)
+            left: -150,
+            right: -150,
+            child: IgnorePointer(
               child: Center(
-                child: _nameTag(d['nick'] as String, (d['guild'] ?? '') as String,
+                child: _nameTag(nick, (d['guild'] ?? '') as String,
                     champ: d['champ'] == true,
                     garamRank: (d['garam'] ?? 0) as int),
               ),
             ),
-            // 💬 다른 유저 말풍선
-            if (_bubbleUntil[uid] != null && DateTime.now().isBefore(_bubbleUntil[uid]!))
-              Positioned(
-                bottom: rH * 0.68,
-                left: -150,
-                right: -150,
-                child: Center(child: _bubble(_bubbleMsg[uid] ?? '')),
-              ),
-          ],
-        ),
+          ),
+          // 💬 다른 유저 말풍선
+          if (_bubbleUntil[uid] != null && DateTime.now().isBefore(_bubbleUntil[uid]!))
+            Positioned(
+              bottom: rH * 0.68,
+              left: -150,
+              right: -150,
+              child: IgnorePointer(child: Center(child: _bubble(_bubbleMsg[uid] ?? ''))),
+            ),
+        ],
       ),
     );
   }
@@ -1931,19 +1937,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _addFriend(String nick) {
+    if (nick == widget.nickname) {
+      _infoPopup('친구 추가', '자기 자신은 친구로 추가할 수 없어요 😅');
+      return;
+    }
     FirebaseFirestore.instance
         .collection('friends')
         .doc(widget.nickname)
         .collection('my_list')
         .doc(nick)
         .set({'nickname': nick, 'addedAt': FieldValue.serverTimestamp()}).then((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('[$nick]님을 친구 목록에 추가했습니다! 🤝'),
-          backgroundColor: Colors.blueGrey,
-          duration: const Duration(seconds: 2),
-        ));
-      }
+      if (mounted) _infoPopup('친구 추가 완료 🤝', '[$nick]님을 친구 목록에 추가했어요!');
+    }).catchError((Object e) {
+      if (mounted) _infoPopup('친구 추가 실패', '잠시 후 다시 시도해주세요.');
     });
   }
 
