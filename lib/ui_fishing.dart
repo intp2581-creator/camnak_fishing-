@@ -542,6 +542,7 @@ Widget _buildChatTab(int index, String title) {
       // 💡 2. 공통 최상급 장비 (스킨, 선글라스)
       equippedSkin = {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설'};
       equippedSunglasses = {'name': '선글라스', 'price': 5000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'};
+      equippedCooler = null; // 🧊 아이스박스(발밑 슬롯)는 개인차가 나므로 아레나에선 제거 → 완전 평준화
 
       // 💡 3. 민물 / 바다 완벽 분기 처리!
       if (widget.isSea) {
