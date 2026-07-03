@@ -38,7 +38,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
         title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
-        content: Text('오늘 무료 2회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        content: Text('오늘 무료 2회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 10분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
@@ -211,9 +211,10 @@ class _ArenaScreenState extends State<ArenaScreen> {
                               showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('잔액 부족 😅', style: TextStyle(color: Colors.redAccent)), content: Text('참가비가 부족합니다.\n(보유: $myGold P)', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                               return;
                             }
-                            if (myTime < 600) {
+                            // 🎟️ 입장권을 쓰는 입장(무료 2회 초과)은 입장권이 낚시시간 10분을 채워주므로 시간 부족 무시
+                            if (arenaCount < 2 && myTime < 600) {
                               if (!context.mounted) return;
-                              showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회에 참가하려면 최소 10분의 낚시 시간이 필요합니다.', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
+                              showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회에 참가하려면 최소 10분의 낚시 시간이 필요합니다.\n(무료 2회를 다 쓰면 "아레나 입장권"으로 시간 없이도 참가할 수 있어요 🎟️)', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                               return;
                             }
 
@@ -540,9 +541,10 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       return;
                     }
 
-                    if (myTime < 600) {
+                    // 🎟️ 입장권을 쓰는 입장(무료 2회 초과)은 입장권이 낚시시간 10분을 채워주므로 시간 부족 무시
+                    if (arenaCount < 2 && myTime < 600) {
                       if (!context.mounted) return;
-                      showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회를 개설하려면 최소 10분의 낚시 시간이 필요합니다.', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
+                      showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회를 개설하려면 최소 10분의 낚시 시간이 필요합니다.\n(무료 2회를 다 쓰면 "아레나 입장권"으로 시간 없이도 개설할 수 있어요 🎟️)', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                       return;
                     }
 

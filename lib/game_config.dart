@@ -397,7 +397,7 @@ final List<Map<String, dynamic>> storeBaitItems = [
 // 😎 상점: 스킨 및 악세서리 목록
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '대회 1시간 이용권', 'price': 1000, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '캠피싱 낚시대회 1시간 프리미엄 입장권입니다.\n(계정당 1일 1회 이용 가능)',},
-  {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n(하루 1장 사용 · 여러 장 보관 가능)',},
+  {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
   {'name': '선글라스', 'price': 10000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'},
   {'name': '레인보우 편광 선글라스', 'price': 50000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'item_sunglasses_rainbow.png', 'desc': '무지개빛 편광 렌즈로 수면 반사광을 잡아 찌·물밑까지 또렷하게 보여주는 프리미엄 선글라스 (민물·바다 공용)'},
   {'name': '소형 아이스박스', 'price': 20000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},

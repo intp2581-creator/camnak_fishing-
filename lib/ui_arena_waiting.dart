@@ -54,11 +54,11 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       final int arenaCount = (lastDate == today) ? ((data['arenaCount'] ?? 0) as num).toInt() : 0;
       final update = <String, dynamic>{
         'gold': FieldValue.increment(-fee),
-        'remainingTime': FieldValue.increment(-600),
         'lastArenaDate': today,
         'arenaCount': arenaCount + 1,
       };
-      // 무료 2회 초과분은 입장권 1장 사용
+      int timeCost = 600; // 기본: 낚시시간 10분 차감
+      // 무료 2회 초과분은 입장권 1장 사용 → 입장권이 낚시시간 10분을 대신 충전(차감 상쇄)
       if (arenaCount >= 2) {
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
@@ -67,8 +67,10 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
           update['inventory'] = inv;
           update['arenaTicketDate'] = today;
+          timeCost = 0; // 🎟️ 입장권이 낚시시간 10분을 채워줘서 시간 차감 없음(시간 없어도 참가 가능)
         }
       }
+      update['remainingTime'] = FieldValue.increment(-timeCost);
       await ref.update(update);
     } catch (e) {
       debugPrint('아레나 시작 차감 에러: $e');
