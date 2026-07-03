@@ -2810,6 +2810,11 @@ Positioned(
       _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
       return;
     }
+    // 🐟 잡은 물고기는 미끼 슬롯에 못 들어감(고등어만 참치용 생미끼로 예외)
+    if ((item['type'] ?? '') == 'FISH' && !item['name'].toString().contains('고등어')) {
+      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
+      return;
+    }
     audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -2880,6 +2885,11 @@ Positioned(
     // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (완전 평준화 유지)
     if (widget.roomId != null) {
       _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+      return;
+    }
+    // 🐟 잡은 물고기는 미끼 슬롯에 못 들어감(고등어만 참치용 생미끼로 예외)
+    if ((item['type'] ?? '') == 'FISH' && !item['name'].toString().contains('고등어')) {
+      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
       return;
     }
     String category = item['category'] ?? '';
