@@ -920,6 +920,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
       guildGoOnline(); // 접속 초록불 재확인
     });
+    _subscribeChannel(); // 🧩 현재 채널 presence 구독
+  }
+
+  // 🧩 현재 _channelKey 채널의 실시간 presence 구독(초기 접속·채널 전환 공용)
+  void _subscribeChannel() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
     // 🧩 채널 단위 구독(onValue). 채널당 정원 50이라 페이로드는 항상 한정(샤딩 효과).
     //    ※ child 이벤트 방식은 멀티 표시 이슈가 있어 검증된 onValue로 복구.
     final ref = _db.ref('plaza/$_channelKey');
@@ -974,6 +980,150 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         });
       }
     }, onError: (Object e) => debugPrint('🌐 RTDB READ ERR: $e')));
+  }
+
+  // 🧩 채널 목록 조회: {채널번호: 인원수} (선택 다이얼로그용)
+  Future<Map<int, int>> _fetchChannelCounts() async {
+    final counts = <int, int>{};
+    try {
+      final snap = await _db.ref('plaza/$_roomKey').get();
+      final val = snap.value;
+      if (val is Map) {
+        val.forEach((k, v) {
+          final ks = k.toString();
+          if (ks.startsWith('ch') && v is Map) {
+            final n = int.tryParse(ks.substring(2));
+            if (n != null) counts[n] = v.length;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('🌐 채널 목록 조회 실패: $e');
+    }
+    return counts;
+  }
+
+  // 🧩 다른 채널로 이동: 기존 채널에서 빠지고 새 채널로 재접속(친구끼리 모이기용)
+  Future<void> _switchChannel(int targetNum) async {
+    if (targetNum == _channelNum) return; // 같은 채널이면 무시
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    // 1) 기존 채널에서 나가기(구독 해제 + 내 노드 제거 + onDisconnect 취소)
+    for (final s in _presenceSubs) {
+      s.cancel();
+    }
+    _presenceSubs.clear();
+    try { await _myRef?.onDisconnect().cancel(); } catch (_) {}
+    try { await _myRef?.remove(); } catch (_) {}
+    // 2) 화면·상태 초기화
+    if (mounted) {
+      setState(() {
+        _others.clear();
+        _remotePrevPos.clear();
+        _remoteMovingUntil.clear();
+      });
+    }
+    // 3) 새 채널로 재접속
+    _channelNum = targetNum;
+    _channelKey = '$_roomKey/ch$targetNum';
+    _myRef = _db.ref('plaza/$_channelKey/$uid');
+    _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e'));
+    _writeMe();
+    _subscribeChannel();
+    if (mounted) setState(() {}); // 채널 표시·채팅 필터 갱신
+  }
+
+  // 🧩 채널 선택 다이얼로그 (자동배정 유지 + 원하면 이동)
+  Future<void> _openChannelPicker() async {
+    final counts = await _fetchChannelCounts();
+    if (!mounted) return;
+    int maxN = _channelNum;
+    counts.forEach((n, _) { if (n > maxN) maxN = n; });
+    final int nextNew = maxN + 1; // '새 채널' 번호
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('🧩 채널 이동',
+            style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 18)),
+        content: SizedBox(
+          width: 300,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('친구·길드원과 같은 채널에서 만날 수 있어요.\n(다른 채널의 조사는 서로 보이지 않아요)',
+                  style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.4)),
+              const SizedBox(height: 10),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (int n = 1; n <= maxN; n++) _channelRow(c, n, counts[n] ?? 0),
+                    _channelRow(c, nextNew, 0, isNew: true),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('닫기', style: TextStyle(color: Colors.white54))),
+        ],
+      ),
+    );
+  }
+
+  Widget _channelRow(BuildContext c, int n, int count, {bool isNew = false}) {
+    final bool isCurrent = n == _channelNum;
+    final bool isFull = !isNew && count >= _plazaChannelCap;
+    final bool canTap = !isCurrent && !isFull;
+    final String label = isNew ? '➕ 새 채널 (CH$n)' : 'CH$n';
+    final String sub = isCurrent
+        ? '현재 채널'
+        : (isNew ? '새로 열기' : (isFull ? '가득 참' : '$count/$_plazaChannelCap명'));
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Material(
+        color: isCurrent ? _kGold.withOpacity(0.15) : Colors.white10,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: canTap
+              ? () async {
+                  Navigator.pop(c);
+                  await _switchChannel(n);
+                  if (mounted) _toast('CH$n 채널로 이동했어요 🧩');
+                }
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(children: [
+              Icon(isNew ? Icons.add_circle_outline : Icons.groups,
+                  color: canTap ? _kGold : Colors.white30, size: 18),
+              const SizedBox(width: 10),
+              Text(label,
+                  style: TextStyle(
+                      color: (canTap || isCurrent) ? Colors.white : Colors.white38,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15)),
+              const Spacer(),
+              Text(sub,
+                  style: TextStyle(
+                      color: isCurrent
+                          ? _kGold
+                          : (isFull ? Colors.redAccent : Colors.white54),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ]),
+          ),
+        ),
+      ),
+    );
   }
 
   void _writeMe() {
@@ -4616,14 +4766,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   Text(widget.isSea ? '바다낚시 광장' : '민물낚시 광장',
                       style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900)),
                   const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                    decoration: BoxDecoration(
-                        color: _kGold.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: _kGold, width: 0.8)),
-                    child: Text('CH$_channelNum',
-                        style: const TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.w900)),
+                  // 🧩 채널 뱃지 — 탭하면 채널 목록에서 이동(친구끼리 모이기)
+                  InkWell(
+                    onTap: _openChannelPicker,
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      decoration: BoxDecoration(
+                          color: _kGold.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: _kGold, width: 0.8)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('CH$_channelNum',
+                            style: const TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.w900)),
+                        const Icon(Icons.expand_more, color: _kGold, size: 13),
+                      ]),
+                    ),
                   ),
                 ]),
                 const SizedBox(height: 3),
