@@ -3010,27 +3010,35 @@ void _showTodayMissionInfo() {
     if (fishImg.isEmpty) return; // 이미지 없는 어종은 스킵(안전)
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     try {
-      int newCount = 0;
       bool claimedToday = false;
+      int caughtToday = 0;
       final today = DateTime.now().toIso8601String().substring(0, 10);
+      final bobaeFish = getTodayBobaeFish()['fish'];
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final data = (await tx.get(userRef)).data() ?? {};
         final bp = data['bobae_progress'];
-        claimedToday = bp is Map && bp['date'] == today && bp['claimed'] == true; // 오늘 이미 정산?
+        final sameDay = bp is Map && bp['date'] == today;
+        claimedToday = sameDay && bp['claimed'] == true; // 오늘 이미 정산?
+        // 인벤 보관(판매·보유용)
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final idx = inv.indexWhere((i) => i['name'] == fishName && (i['type'] ?? '') == 'FISH');
         if (idx >= 0) {
           inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 1;
-          newCount = inv[idx]['quantity'];
         } else {
           inv.add({'name': fishName, 'category': 'FISH', 'type': 'FISH', 'icon': fishImg, 'quantity': 1, 'desc': '낚시로 잡은 $fishName 🐟 (서윤에게 판매 가능)'});
-          newCount = 1;
         }
-        tx.set(userRef, {'inventory': inv}, SetOptions(merge: true));
+        // 🛍️ 서윤 일일: '오늘 새로 잡은' 지정 어종만 카운트 (날짜 바뀌면 0부터)
+        int caught = sameDay ? (((bp['caught'] ?? 0) as num).toInt()) : 0;
+        if (fishName == bobaeFish) caught += 1;
+        caughtToday = caught;
+        tx.set(userRef, {
+          'inventory': inv,
+          'bobae_progress': {'date': today, 'caught': caught, 'claimed': sameDay ? (bp['claimed'] == true) : false},
+        }, SetOptions(merge: true));
       });
-      // 보배 일일 지정 어종을 딱 3마리 채우면 안내 (단, 오늘 이미 정산했으면 안 뜸)
-      if (mounted && !claimedToday && fishName == getTodayBobaeFish()['fish'] && newCount == bobaeCount) {
-        _showNotificationPopup('🐟 서윤 의뢰 달성!', '$fishName $bobaeCount마리를 모았어요!\n광장의 서윤에게 가서 정산받으세요!', const Color(0xFFD4AF37));
+      // 오늘 지정 어종을 새로 딱 3마리 잡으면 안내 (오늘 이미 정산했으면 안 뜸)
+      if (mounted && !claimedToday && fishName == bobaeFish && caughtToday == bobaeCount) {
+        _showNotificationPopup('🐟 서윤 의뢰 달성!', '$fishName $bobaeCount마리를 잡았어요!\n광장의 서윤에게 가서 정산받으세요!', const Color(0xFFD4AF37));
       }
     } catch (e) {
       print('물고기 보관 에러: $e');

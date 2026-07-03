@@ -290,6 +290,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
   int _fwProg = 0, _seaProg = 0; // 진행도(표시용)
   bool _bobaeDone = false; // 🛍️ 오늘 보배 정산 완료
+  int _bobaeCaught = 0; // 🛍️ 오늘 새로 잡은 지정 어종 수(퀘스트 진행도)
+  int _bobaeCaughtFrom(dynamic bp, String today) =>
+      (bp is Map && bp['date'] == today && bp['caught'] is num) ? (bp['caught'] as num).toInt() : 0;
   // 🥊 한별 아레나 일일 퀘스트: 오늘 승리 1회 → 보상. 2회 도전 다 지면 종료.
   bool _hanbyeolWon = false;     // 오늘 아레나 승리 기록
   bool _hanbyeolClaimed = false; // 오늘 한별 보상 수령
@@ -301,12 +304,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _hanbyeolClaimed = d['hanbyeol_reward_date'] == today;
     final ac = (d['arenaCount'] is num) ? (d['arenaCount'] as num).toInt() : 0;
     _arenaCount = (d['lastArenaDate'] == today) ? ac : 0;
-  }
-  // 현재 가방에 든 오늘 지정 어종 마릿수 (인벤에서 계산)
-  int get _bobaeCount {
-    final fish = getTodayBobaeFish()['fish'];
-    final it = _inventory.cast<Map<String, dynamic>>().where((i) => i['name'] == fish && (i['type'] ?? '') == 'FISH');
-    return it.isEmpty ? 0 : ((it.first['quantity'] is num) ? (it.first['quantity'] as num).toInt() : 0);
   }
 
   String _greeting() {
@@ -564,6 +561,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       // 🛍️ 보배 일일 — 오늘 정산 완료 여부
       final bp = d['bobae_progress'];
       final bobaeDone = bp is Map && bp['date'] == today && bp['claimed'] == true;
+      final bobaeCaught = _bobaeCaughtFrom(bp, today);
       // 🎖️ #13 승급: 저장된 칭호 + 6대장 누적
       final newRank = (d['rank'] ?? '초보').toString();
       final dc = <String, int>{};
@@ -580,6 +578,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _questDone = questDone;
         _fwDone = fwDone; _seaDone = seaDone; _fwProg = fwProg; _seaProg = seaProg;
         _bobaeDone = bobaeDone;
+        _bobaeCaught = bobaeCaught;
         _applyHanbyeol(d, today); // 🥊 한별 아레나 일일 상태(실시간)
         _rank = newRank;
         _daejangCatch = dc;
@@ -1347,6 +1346,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         }
         _inventory = (d['inventory'] ?? _inventory) as List<dynamic>; // 🐟 보배 ❗용 마릿수 갱신
         _bobaeDone = bp is Map && bp['date'] == today && bp['claimed'] == true;
+        _bobaeCaught = _bobaeCaughtFrom(bp, today);
         _applyHanbyeol(d, today); // 🥊 한별 아레나 일일 상태
       });
     } catch (_) {}
@@ -4151,8 +4151,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (!mounted) return;
     final b = getTodayBobaeFish();
     final fish = b['fish'].toString();
-    final cnt = _bobaeCount;
-    // 정산 가능: 3마리 이상 + 오늘 미정산
+    final cnt = _bobaeCaught; // 오늘 새로 잡은 지정 어종 수(진행도)
+    // 정산 가능: 오늘 3마리 잡음 + 오늘 미정산
     if (!_bobaeDone && cnt >= bobaeCount) {
       showDialog(
         context: context,
@@ -4198,6 +4198,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (u == null) return;
     final today = DateTime.now().toIso8601String().substring(0, 10);
     final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
+    // 정산 시 [지정 어종] 3마리를 넘겨야 함 — 가방에 없으면(상점에 판 경우) 안내
+    try {
+      final snap = await ref.get();
+      final inv0 = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+      final have = inv0
+          .where((i) => i['name'] == fish && (i['type'] ?? '') == 'FISH')
+          .fold<int>(0, (s, i) => s + (((i['quantity'] ?? 0) as num).toInt()));
+      if (have < bobaeCount) {
+        if (mounted) _toast('정산할 [$fish] $bobaeCount마리가 가방에 없어요!\n상점에 팔지 말고 가지고 오셔야 해요 🐟');
+        return;
+      }
+    } catch (_) {}
     try {
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final data = (await tx.get(ref)).data() ?? {};
