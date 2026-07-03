@@ -99,6 +99,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _walking = false;
   int _moveToken = 0;
 
+  // 🚶 원격 캐릭터 걷기 애니메이션 (위치가 바뀌는 동안 걷기 프레임 순환 → 강시 방지)
+  final Map<String, Offset> _remotePrevPos = {};       // uid별 직전 위치(이동 감지용)
+  final Map<String, DateTime> _remoteMovingUntil = {}; // uid별 '걷는 중' 만료시각
+  Timer? _remoteWalkTimer;
+  int _remoteWalkTick = 0;      // 걷기 프레임 카운터(150ms마다 +1)
+  bool _remoteWalkDirty = false; // 멈춘 직후 한 프레임 더 그려 정지자세로
+
   // 🕹️ 가상 조이스틱 (우하단, 드래그 방향으로 연속 이동)
   static const double _joyRadius = 55;
   Offset _joyKnob = Offset.zero; // 노브 오프셋(화면px)
@@ -350,6 +357,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     super.initState();
     _level = widget.level;
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
+    // 🚶 원격 캐릭터 걷기 프레임 클럭 (움직이는 유저가 있을 때만 다시 그림)
+    _remoteWalkTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
+      if (!mounted) return;
+      final now = DateTime.now();
+      final anyMoving = _remoteMovingUntil.values.any((u) => now.isBefore(u));
+      if (anyMoving || _remoteWalkDirty) {
+        setState(() => _remoteWalkTick++);
+        _remoteWalkDirty = anyMoving; // 방금 멈췄으면 한 번 더 그린 뒤 정지
+      }
+    });
     _loadUser();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     WidgetsBinding.instance.addPostFrameCallback((_) => checkAppUpdate(context)); // 🔖 새 버전 알림
@@ -457,6 +474,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHwKey); // ⌨️ 키보드 핸들러 해제
+    _remoteWalkTimer?.cancel();
     _walkCtrl.dispose();
     _joyTimer?.cancel();
     for (final s in _presenceSubs) {
@@ -912,14 +930,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         val.forEach((k, v) {
           if (k.toString() == uid || v is! Map) return; // 나 제외
           final kk = k.toString();
+          final nx = (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5;
+          final ny = (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8;
+          // 🚶 직전 위치와 비교해 움직였으면 '걷는 중'으로 표시(원격 걷기 프레임 순환용)
+          final prev = _remotePrevPos[kk];
+          if (prev != null &&
+              ((nx - prev.dx).abs() > 0.0015 || (ny - prev.dy).abs() > 0.0015)) {
+            _remoteMovingUntil[kk] = DateTime.now().add(const Duration(milliseconds: 750));
+          }
+          _remotePrevPos[kk] = Offset(nx, ny);
           next[kk] = {
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
             'champ': v['champ'] == true,
             'garam': (v['garam'] is num) ? (v['garam'] as num).toInt() : 0, // 🎖️ 순위마크
-            'x': (v['x'] is num) ? (v['x'] as num).toDouble() : 0.5,
-            'y': (v['y'] is num) ? (v['y'] as num).toDouble() : 0.8,
+            'x': nx,
+            'y': ny,
             'face': v['face'] == true,
             'dir': (v['dir'] ?? 'down').toString(), // 🚶 이동방향 스프라이트
             't': (v['t'] is num) ? (v['t'] as num).toInt() : 0, // 마지막 갱신 시각(고스트 필터용)
@@ -936,6 +963,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           }
         });
       }
+      // 🧹 떠난 유저의 이동 상태 정리(맵 무한 증가 방지)
+      _remotePrevPos.removeWhere((k, _) => !next.containsKey(k));
+      _remoteMovingUntil.removeWhere((k, _) => !next.containsKey(k));
       if (mounted) {
         setState(() {
           _others
@@ -973,7 +1003,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final face = d['face'] == true;
     final dir = (d['dir'] ?? 'down').toString();
     final baseImg = d['img'] as String;
-    final sprite = baseImg.replaceAll('.png', '_${dir}0.png'); // 방향별 정지 스프라이트
+    // 🚶 걷는 중이면 걷기 프레임(1↔2) 순환, 멈추면 정지자세(0) → 내 캐릭터와 동일하게 걷는 모습
+    final moving = DateTime.now().isBefore(_remoteMovingUntil[uid] ?? DateTime(2000));
+    final frame = moving ? (_remoteWalkTick.isEven ? 1 : 2) : 0;
+    final bob = moving && _remoteWalkTick.isEven ? rH * 0.03 : 0.0; // 살짝 위아래 바운스
+    final sprite = baseImg.replaceAll('.png', '_$dir$frame.png'); // 방향별 걷기/정지 스프라이트
     final flip = (dir == 'side' && !face); // 옆모습이고 왼쪽 보면 좌우반전
     return AnimatedPositioned(
       key: ValueKey('remote_$uid'),
@@ -989,19 +1023,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           alignment: Alignment.bottomCenter,
           children: [
             Positioned.fill(
-              child: Transform(
-                alignment: Alignment.bottomCenter,
-                transform: Matrix4.rotationY(flip ? math.pi : 0),
-                // 🚶 내 캐릭터와 동일하게 방향별 정지 스프라이트로 표시(낚시 포즈 풀이미지 대신).
-                //    스킨 등 스프라이트 없으면 원본 이미지로 폴백.
-                child: Image.asset(
-                    sprite,
-                    fit: BoxFit.contain,
-                    alignment: Alignment.bottomCenter,
-                    errorBuilder: (a, b, c) => Image.asset(baseImg,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.bottomCenter,
-                        errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
+              child: Transform.translate(
+                offset: Offset(0, -bob), // 🚶 걷기 바운스
+                child: Transform(
+                  alignment: Alignment.bottomCenter,
+                  transform: Matrix4.rotationY(flip ? math.pi : 0),
+                  // 🚶 내 캐릭터와 동일하게 방향별 걷기 스프라이트로 표시(낚시 포즈 풀이미지 대신).
+                  //    스킨 등 스프라이트 없으면 원본 이미지로 폴백.
+                  child: Image.asset(
+                      sprite,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomCenter,
+                      errorBuilder: (a, b, c) => Image.asset(baseImg,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.bottomCenter,
+                          errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
+                ),
               ),
             ),
             Positioned(
