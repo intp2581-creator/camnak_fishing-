@@ -264,7 +264,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.amber, width: 2)),
         title: const Text('무승부 🤝', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-        content: const Text('아무도 물고기를 잡지 못해\n무승부로 끝났어요.\n참가비는 환불됩니다. 🙏', style: TextStyle(color: Colors.white, height: 1.5)),
+        content: const Text('아무도 물고기를 잡지 못해\n무승부로 끝났어요.\n참가비의 90%가 환불됩니다.\n(운영 수수료 10% 제외) 💸', style: TextStyle(color: Colors.white, height: 1.5)),
         actions: [
           Center(
             child: ElevatedButton(
@@ -493,15 +493,16 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       final topRaw = (widget.roomData['winCondition'] == '최대어') ? wData['maxSize'] : wData['score'];
       final topMetric = (topRaw is num) ? topRaw.toDouble() : 0.0;
       if (topMetric <= 0) {
+        final refund = fee - (fee * 0.1).toInt(); // 💸 무승부도 운영 수수료 10%는 징수, 90% 환불
         await FirebaseFirestore.instance.runTransaction((tx) async {
           tx.update(arenaRef, {'status': 'finished', 'draw': true, 'winnerNick': '', 'totalPrize': 0});
-          if (fee > 0) {
+          if (refund > 0) {
             for (final d in valid) {
-              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(fee)});
+              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(refund)});
             }
           }
         });
-        await arenaRef.collection('messages').add({'text': '🤝 아무도 물고기를 잡지 못해 무승부로 끝났어요. (참가비 환불)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        await arenaRef.collection('messages').add({'text': '🤝 아무도 못 잡아 무승부! 참가비의 90%(운영 수수료 10% 제외)를 환불했어요.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
         return;
       }
       final participantsSnap = allSnap;
