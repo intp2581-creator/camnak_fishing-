@@ -1010,7 +1010,9 @@ Widget _buildChatTab(int index, String title) {
     _useBaitOne(); // 🪱 #2 입질(파이팅 시작)마다 미끼 1개 소모 — 승리·실패 동일
 
     Map<String, int> myStats = getMyTotalStats();
-    final int lvBonus = ((_currentLevel > 0 ? _currentLevel : 1) - 1) * 3; // 🆙 레벨 보너스(제압력) 전투 반영
+    // 🏆 아레나는 완전 평준화(장비=마스터 지급 + 레벨 보너스 0) → 순수 실력 대결. 일반 낚시는 레벨 보너스 반영.
+    final bool isArenaMode = widget.title != widget.locationName;
+    final int lvBonus = isArenaMode ? 0 : ((_currentLevel > 0 ? _currentLevel : 1) - 1) * 3; // 🆙 레벨 보너스(제압력)
     double totalStats = ((myStats['strength'] ?? 0) + (myStats['control'] ?? 0) + (myStats['sensitivity'] ?? 0) + lvBonus).toDouble();
 
     // 🎣 [내부 함수] 실제 파이팅 미니게임을 띄우는 로직
