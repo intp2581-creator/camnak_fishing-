@@ -2805,7 +2805,12 @@ Positioned(
   }
 
   void _showEquipPopup(Map<String, dynamic> item) {
-    audioManager.playSfx("sfx_click.mp3"); 
+    // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (제공된 대회용 장비만 사용 → 완전 평준화 유지)
+    if (widget.roomId != null) {
+      _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+      return;
+    }
+    audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -2872,6 +2877,11 @@ Positioned(
   }
 
   void _quickEquipItem(Map<String, dynamic> item) {
+    // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (완전 평준화 유지)
+    if (widget.roomId != null) {
+      _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+      return;
+    }
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
