@@ -462,6 +462,7 @@ Widget _buildChatTab(int index, String title) {
       equippedSunglasses: equippedSunglasses,
       equippedBadge: equippedBadge,
       equippedCooler: equippedCooler,
+      equippedBait: equippedBait, // 🪱 미끼 감도(S) 반영 → 입질 속도
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;

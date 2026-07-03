@@ -258,6 +258,7 @@ for (var fish in availableFishes) {
     Map<String, dynamic>? equippedSunglasses,
     Map<String, dynamic>? equippedBadge,
     Map<String, dynamic>? equippedCooler,
+    Map<String, dynamic>? equippedBait, // 🪱 미끼도 감도(S) 등 스탯 제공(집어력 → 입질 속도)
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -276,6 +277,7 @@ for (var fish in availableFishes) {
     addStats(equippedSunglasses);
     addStats(equippedBadge);
     addStats(equippedCooler);     // 🧊 아이스박스
+    addStats(equippedBait);       // 🪱 미끼(감도 S)
 
     return {'strength': totalStr, 'control': totalCtrl, 'sensitivity': totalSens};
   }

@@ -339,15 +339,15 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '초보 조사', 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': 'KREFT 조사의 기본 복장'},
     {'name': 'CF-20T', 'category': 'FW', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_fw_cf20.png', 'desc': '초보 조사용 기본 민물대'},
     {'name': '일반찌', 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'float_fw_normal.png', 'desc': '가장 기본적인 민물 찌'},
-    {'name': '글루텐', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_gluten.png', 'desc': '붕어 집어에 탁월한 미끼 (20)'},
-    {'name': '지렁이', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_worm.png', 'desc': '민물 만능 미끼 (10)'},
-    {'name': '옥수수', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어용 미끼 (30)'},
+    {'name': '글루텐', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png', 'desc': '붕어 집어에 탁월한 미끼 (감도 +10)'},
+    {'name': '지렁이', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png', 'desc': '민물 만능 미끼 (감도 +20)'},
+    {'name': '옥수수', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어용 미끼 (감도 +15)'},
     {'name': 'CF250', 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_sea_cf250.png', 'desc': '바다 낚시 입문용 기본대'},
     {'name': 'CF2000', 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'reel_sea_cf2000.png', 'desc': '기본 제공되는 바다 릴'},
-    {'name': '갯지렁이', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_worm.png', 'desc': '바다 낚시 기본 미끼 (10)'},
-    {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (20)'},
-    {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (30)'},
-    {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (30)'},
+    {'name': '갯지렁이', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_worm.png', 'desc': '바다 낚시 기본 미끼 (감도 +20)'},
+    {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
+    {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
+    {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
   ];
 }
 
@@ -385,13 +385,13 @@ final List<Map<String, dynamic>> storeGearItems = [
 
 // 🪱 상점: 미끼 목록
 final List<Map<String, dynamic>> storeBaitItems = [
-  {'name': '지렁이', 'price': 500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_worm.png', 'desc': '민물 잡어부터 붕어까지 만능 미끼 (집어력 10)'},
-  {'name': '글루텐', 'price': 600, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_gluten.png', 'desc': '붕어 집어에 탁월한 미끼 (집어력 20)'},
-  {'name': '옥수수', 'price': 700, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어를 노리기 위한 미끼 (집어력 30)'},
-  {'name': '갯지렁이', 'price': 500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_worm.png', 'desc': '바다 낚시의 기본 미끼 (집어력 10)'},
-  {'name': '크릴', 'price': 600, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_krill.png', 'desc': '다양한 어종을 유혹하는 미끼 (집어력 20)'},
-  {'name': '루어', 'price': 700, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종을 노리는 가짜 미끼 (집어력 30)'},
-  {'name': '에기', 'price': 700, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_egi.png', 'desc': '두족류(오징어, 문어 등) 전용 미끼 (집어력 30)'},
+  {'name': '글루텐', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png', 'desc': '붕어 집어에 탁월한 미끼 (감도 +10)'},
+  {'name': '옥수수', 'price': 1500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어를 노리기 위한 미끼 (감도 +15)'},
+  {'name': '지렁이', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png', 'desc': '민물 잡어부터 붕어까지 만능 미끼 (감도 +20)'},
+  {'name': '루어', 'price': 1000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종을 노리는 가짜 미끼 (감도 +10)'},
+  {'name': '크릴', 'price': 1500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '다양한 어종을 유혹하는 미끼 (감도 +15)'},
+  {'name': '에기', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류(오징어, 문어 등) 전용 미끼 (감도 +20)'},
+  {'name': '갯지렁이', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_worm.png', 'desc': '바다 낚시의 기본 미끼 (감도 +20)'},
 ];
 
 // 😎 상점: 스킨 및 악세서리 목록
