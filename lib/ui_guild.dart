@@ -39,18 +39,99 @@ StreamSubscription<DatabaseEvent> watchLoginSession(void Function() onKicked) {
 }
 
 // 🟢 전역 접속표시: 앱 화면(광장/낚시터)에서 호출. 연결 끊기면 자동 offline.
-void guildGoOnline() {
+//   loc: 현재 접속 위치(예: 'CH2·민물광장', '낚시터', '로비') → 친구·길드 목록에 표시
+//   nick: 닉네임(친구는 닉으로 저장되므로 nick 기준 프레즌스도 같이 기록)
+void guildGoOnline({String? nick, String? loc}) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return;
+  final data = <String, Object>{'online': true, 't': ServerValue.timestamp};
+  if (loc != null && loc.isNotEmpty) data['loc'] = loc;
   final ref = _statusDb().ref('status/$uid');
   ref.onDisconnect().update({'online': false, 't': ServerValue.timestamp});
-  ref.set({'online': true, 't': ServerValue.timestamp});
+  ref.set(data);
+  // 친구 목록(닉 기준) 조회용 프레즌스도 동일 기록
+  if (nick != null && nick.isNotEmpty) {
+    final nref = _statusDb().ref('status_nick/$nick');
+    nref.onDisconnect().update({'online': false, 't': ServerValue.timestamp});
+    nref.set(data);
+  }
 }
 
 // 길드원 접속 점(초록=접속/회색=비접속)
 // 🛡️ 유령접속 방지: online 불리언이 아니라 '마지막 하트비트(t) 신선도'로 판정.
 // 탭 강제종료 등으로 onDisconnect가 안 먹어도 40초 지나면 자동 회색.
 const int _onlineFreshMs = 40000; // 하트비트 12초 → 40초 넘으면 오프라인 처리
+
+// 📍 접속 위치(채널·장소) 배지. 접속 중이면 'CH2·민물광장'처럼 표시, 아니면 숨김.
+//   길드=uid 기준, 친구=nick 기준
+Widget userLocByUid(String uid, {double fontSize = 11}) =>
+    _UserLocBadge(path: 'status/$uid', fontSize: fontSize);
+Widget userLocByNick(String nick, {double fontSize = 11}) =>
+    _UserLocBadge(path: 'status_nick/$nick', fontSize: fontSize);
+
+class _UserLocBadge extends StatefulWidget {
+  final String path;
+  final double fontSize;
+  const _UserLocBadge({required this.path, this.fontSize = 11});
+  @override
+  State<_UserLocBadge> createState() => _UserLocBadgeState();
+}
+
+class _UserLocBadgeState extends State<_UserLocBadge> {
+  StreamSubscription<DatabaseEvent>? _sub;
+  Timer? _ticker;
+  bool _isOn = false;
+  int _t = 0;
+  String _loc = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = _statusDb().ref(widget.path).onValue.listen((e) {
+      final v = e.snapshot.value;
+      if (v is Map) {
+        _isOn = v['online'] == true;
+        _t = (v['t'] is int) ? v['t'] as int : 0;
+        _loc = (v['loc'] ?? '').toString();
+      } else {
+        _isOn = false;
+        _t = 0;
+        _loc = '';
+      }
+      if (mounted) setState(() {});
+    });
+    _ticker = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final online =
+        _isOn && (DateTime.now().millisecondsSinceEpoch - _t) < _onlineFreshMs;
+    if (!online || _loc.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFF4CD964).withOpacity(0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFF4CD964).withOpacity(0.6), width: 0.7),
+      ),
+      child: Text('📍$_loc',
+          style: TextStyle(
+              color: const Color(0xFF7FFFB0),
+              fontSize: widget.fontSize,
+              fontWeight: FontWeight.w700)),
+    );
+  }
+}
 
 Widget guildOnlineDot(String memberUid, {double size = 9}) =>
     _GuildOnlineDot(uid: memberUid, size: size);

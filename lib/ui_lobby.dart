@@ -176,9 +176,9 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
     super.initState();
     _checkDailyLogin(); // 🚀 [여기에 2단계 딱 1줄 추가!]
     audioManager.playBgm('bgm_menu.mp3');
-    guildGoOnline(); // 🟢 #6 로비에서도 접속표시(시간 소진 후 머무는 화면)
+    guildGoOnline(nick: widget.nickname, loc: '로비'); // 🟢 #6 로비에서도 접속표시(시간 소진 후 머무는 화면)
     _onlineHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) {
-      if (mounted) guildGoOnline(); // 접속 초록불 주기적 재확인
+      if (mounted) guildGoOnline(nick: widget.nickname, loc: '로비'); // 접속 초록불 주기적 재확인
     });
 
     // 🚀 처음 온 유저면 튜토리얼 스텝을 0으로 시작!

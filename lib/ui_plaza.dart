@@ -122,6 +122,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   final List<StreamSubscription<DatabaseEvent>> _presenceSubs = []; // 채널 child 이벤트 구독들
   final Map<String, Map<String, dynamic>> _others = {};
   String get _roomKey => widget.isSea ? 'sea' : 'fresh';
+  // 📍 친구·길드 목록에 표시할 내 접속 위치 (예: 'CH2·민물광장')
+  String get _plazaLoc => 'CH$_channelNum·${widget.isSea ? '바다' : '민물'}광장';
 
   // 🧩 광장 채널 샤딩: 정원 차면 자동으로 ch2, ch3… 생성 (스파이크 대비)
   //    평소(소수 접속)엔 전원 ch1 → 지금과 체감 동일.
@@ -140,6 +142,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _guildId = '';
   String _guildName = '';
   StreamSubscription<DocumentSnapshot>? _userSub;
+  StreamSubscription<QuerySnapshot>? _incomingSub; // 🤝 나를 친구로 등록한 사람 알림(B안)
 
   // 🏆 주간 길드 리그 (1위 길드 챔피언 → 머리 위 👑 + 추가 버프)
   bool _isChampionGuild = false;
@@ -371,6 +374,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     WidgetsBinding.instance.addPostFrameCallback((_) => checkAppUpdate(context)); // 🔖 새 버전 알림
     _maybeShowRankNotice(); // 🔰 초반: 랭킹 시스템 안내 1회
+    // 🤝 나를 친구로 등록한 사람 알림(B안) — 접속 중 실시간 + 재접속 시 밀린 알림
+    _incomingSub = FirebaseFirestore.instance
+        .collection('friends')
+        .doc(widget.nickname)
+        .collection('incoming')
+        .where('seen', isEqualTo: false)
+        .snapshots()
+        .listen((snap) {
+      if (!mounted || snap.docs.isEmpty) return;
+      final names = <String>[];
+      for (final d in snap.docs) {
+        names.add(((d.data())['nickname'] ?? '조사').toString());
+        d.reference.set({'seen': true}, SetOptions(merge: true)); // 읽음 처리(다시 안 뜨게)
+      }
+      _showIncomingFriendPopup(names);
+    }, onError: (Object e) => debugPrint('친구 알림 구독 실패: $e'));
     // 🔒 중복 로그인 방지: 내 세션 등록 + 다른 기기 접속 감시
     registerLoginSession();
     _sessionSub = watchLoginSession(_onDuplicateLogin);
@@ -482,6 +501,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     _presenceSubs.clear();
     _userSub?.cancel();
+    _incomingSub?.cancel();
     _leagueSub?.cancel();
     _garamSub?.cancel();
     _sessionSub?.cancel();
@@ -908,7 +928,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     setState(() {}); // 채널 표시 갱신
     _myRef = _db.ref('plaza/$_channelKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e')); // 접속 끊기면 자동 사라짐
-    guildGoOnline(); // 🟢 전역 접속표시
+    guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 🟢 전역 접속표시(+채널 위치)
     _writeMe();
     // 말풍선 만료 처리용 1초 타이머
     _bubbleTimer ??= Timer.periodic(const Duration(seconds: 1), (_) {
@@ -918,7 +938,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _heartbeatTimer ??= Timer.periodic(const Duration(seconds: 12), (_) {
       if (!mounted) return;
       _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
-      guildGoOnline(); // 접속 초록불 재확인
+      guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 접속 초록불 + 채널 위치 재확인
     });
     _subscribeChannel(); // 🧩 현재 채널 presence 구독
   }
@@ -1029,6 +1049,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _myRef = _db.ref('plaza/$_channelKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e'));
     _writeMe();
+    guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 📍 바뀐 채널 위치 즉시 반영
     _subscribeChannel();
     if (mounted) setState(() {}); // 채널 표시·채팅 필터 갱신
   }
@@ -1936,21 +1957,66 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  void _addFriend(String nick) {
+  void _addFriend(String nick, {bool silent = false}) {
     if (nick == widget.nickname) {
-      _infoPopup('친구 추가', '자기 자신은 친구로 추가할 수 없어요 😅');
+      if (!silent) _infoPopup('친구 추가', '자기 자신은 친구로 추가할 수 없어요 😅');
       return;
     }
-    FirebaseFirestore.instance
+    final db = FirebaseFirestore.instance;
+    db
         .collection('friends')
         .doc(widget.nickname)
         .collection('my_list')
         .doc(nick)
         .set({'nickname': nick, 'addedAt': FieldValue.serverTimestamp()}).then((_) {
-      if (mounted) _infoPopup('친구 추가 완료 🤝', '[$nick]님을 친구 목록에 추가했어요!');
+      // 🤝 상대에게 "○○님이 친구로 등록했어요" 알림 남기기(B안: 단방향 + 알림)
+      db
+          .collection('friends')
+          .doc(nick)
+          .collection('incoming')
+          .doc(widget.nickname)
+          .set({'nickname': widget.nickname, 'addedAt': FieldValue.serverTimestamp(), 'seen': false})
+          .catchError((Object e) => debugPrint('친구 알림 기록 실패: $e'));
+      if (mounted && !silent) _infoPopup('친구 추가 완료 🤝', '[$nick]님을 친구 목록에 추가했어요!');
     }).catchError((Object e) {
-      if (mounted) _infoPopup('친구 추가 실패', '잠시 후 다시 시도해주세요.');
+      if (mounted && !silent) _infoPopup('친구 추가 실패', '잠시 후 다시 시도해주세요.');
     });
+  }
+
+  // 🤝 나를 친구로 등록한 사람 알림(B안). 접속 중 실시간 + 재접속 시 밀린 알림도 표시.
+  void _showIncomingFriendPopup(List<String> names) {
+    if (!mounted || names.isEmpty) return;
+    final first = names.first;
+    final more = names.length > 1 ? ' 외 ${names.length - 1}명' : '';
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('🤝 새 친구 알림',
+            style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: Text('[$first]$more님이 회원님을 친구로 등록했어요!',
+            style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c),
+              child: const Text('확인', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () {
+              Navigator.pop(c);
+              for (final n in names) {
+                _addFriend(n, silent: true);
+              }
+              _infoPopup('친구 추가 완료 🤝', '${names.length}명을 친구로 추가했어요!');
+            },
+            child: const Text('나도 친구 추가', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   // 🛡️ 길드 채팅 목록
@@ -2054,14 +2120,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               itemCount: docs.length,
                               itemBuilder: (c, i) {
                                 final f = docs[i].data() as Map<String, dynamic>;
-                                final fn = f['nickname'] ?? '?';
+                                final fn = (f['nickname'] ?? '?').toString();
                                 return ListTile(
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                                   visualDensity: VisualDensity.compact,
                                   leading: const Icon(Icons.person, color: Colors.greenAccent, size: 20),
-                                  title: Text(fn,
-                                      style: const TextStyle(
-                                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                  title: Row(children: [
+                                    Flexible(
+                                      child: Text(fn,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    userLocByNick(fn, fontSize: 10), // 📍 접속 채널·위치(접속 중일 때만)
+                                  ]),
                                   trailing: IconButton(
                                     icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
                                     onPressed: () => setState(() {
@@ -3649,6 +3722,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     decoration: BoxDecoration(color: roleColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
                     child: Text(roleLabel, style: TextStyle(color: roleColor, fontSize: 10, fontWeight: FontWeight.bold)),
                   ),
+                  const SizedBox(width: 6),
+                  userLocByUid(mUid, fontSize: 10), // 📍 접속 채널·위치(접속 중일 때만)
                   const Spacer(),
                   if (canAct)
                     SizedBox(

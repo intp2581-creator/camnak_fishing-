@@ -16,6 +16,12 @@
         ".write": "auth != null && auth.uid === $uid"
       }
     },
+    "status_nick": {
+      ".read": "auth != null",
+      "$nick": {
+        ".write": "auth != null"
+      }
+    },
     "login_session": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",

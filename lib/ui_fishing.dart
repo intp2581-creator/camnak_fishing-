@@ -486,8 +486,9 @@ Widget _buildChatTab(int index, String title) {
 
     // 🛡️ 길드 버프 불러오기 (능력치 보너스)
     _loadGuildBuff();
-    guildGoOnline(); // 🟢 전역 접속표시
-    _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(); }); // 💓 낚시 중에도 접속 유지
+    final String presenceLoc = (widget.title != widget.locationName) ? '아레나' : '낚시터'; // 📍 접속 위치
+    guildGoOnline(nick: widget.nickname, loc: presenceLoc); // 🟢 전역 접속표시(+위치)
+    _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(nick: widget.nickname, loc: presenceLoc); }); // 💓 낚시 중에도 접속 유지
 
     // 🚀 [추가] 튜토리얼 중인 쌩초보 유저면 윤슬님 출근시키기!
     if (widget.isFirstTime) {
