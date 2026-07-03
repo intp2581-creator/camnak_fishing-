@@ -3011,8 +3011,12 @@ void _showTodayMissionInfo() {
     final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     try {
       int newCount = 0;
+      bool claimedToday = false;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final data = (await tx.get(userRef)).data() ?? {};
+        final bp = data['bobae_progress'];
+        claimedToday = bp is Map && bp['date'] == today && bp['claimed'] == true; // 오늘 이미 정산?
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final idx = inv.indexWhere((i) => i['name'] == fishName && (i['type'] ?? '') == 'FISH');
         if (idx >= 0) {
@@ -3024,8 +3028,8 @@ void _showTodayMissionInfo() {
         }
         tx.set(userRef, {'inventory': inv}, SetOptions(merge: true));
       });
-      // 보배 일일 지정 어종을 딱 3마리 채우면 안내
-      if (mounted && fishName == getTodayBobaeFish()['fish'] && newCount == bobaeCount) {
+      // 보배 일일 지정 어종을 딱 3마리 채우면 안내 (단, 오늘 이미 정산했으면 안 뜸)
+      if (mounted && !claimedToday && fishName == getTodayBobaeFish()['fish'] && newCount == bobaeCount) {
         _showNotificationPopup('🐟 서윤 의뢰 달성!', '$fishName $bobaeCount마리를 모았어요!\n광장의 서윤에게 가서 정산받으세요!', const Color(0xFFD4AF37));
       }
     } catch (e) {
