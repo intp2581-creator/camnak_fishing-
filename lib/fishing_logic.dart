@@ -120,12 +120,10 @@ class FishingLogic {
 
     bool isHotSpot = (locationName == fwHotSpot || locationName == seaHotSpot);
 
-    String currentTarget = '';
-    int currentStars = 1; 
+    int currentStars = 1;
     locations.forEach((category, locList) {
       for (var loc in locList) {
         if (loc['name'] == locationName) {
-          currentTarget = loc['target'] ?? '';
           currentStars = loc['stars'] ?? 1;
         }
       }
@@ -153,7 +151,7 @@ final Map<String, Map<String, double>> baitAffinity = {
 int totalWeight = 0;
 for (var fish in availableFishes) {
   int w = fish['weight'] as int? ?? 10;
-  if (currentTarget.contains(fish['name'])) w = w * 5;
+  // (지정어종 ×5 제거) — 이제 미끼 상성 + 장소 종류 + 별점 규칙만으로 출현 결정
   if (isHotSpot && w <= 15) w = (w * 2);
   
   // 🎯 미끼 상성 보너스 적용
@@ -177,7 +175,7 @@ Map<String, dynamic>? selectedFish;
 int currentWeight = 0;
 for (var fish in availableFishes) {
   int w = fish['weight'] as int? ?? 10;
-  if (currentTarget.contains(fish['name'])) w = w * 5;
+  // (지정어종 ×5 제거) — 이제 미끼 상성 + 장소 종류 + 별점 규칙만으로 출현 결정
   if (isHotSpot && w <= 15) w = (w * 2);
   
   // 🎯 미끼 상성 보너스 (위와 동일하게!)
