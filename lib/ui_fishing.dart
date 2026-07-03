@@ -1993,20 +1993,27 @@ Positioned(
                                       itemCount: docs.length,
                                       itemBuilder: (context, index) {
                                         var data = docs[index].data() as Map<String, dynamic>;
-                                        
-                                        String type = data['type'] ?? 'global'; 
-                                        String receiver = data['receiver'] ?? '';
-                                        String sender = data['nickname'] ?? '조사님';
-                                        String msg = data['message'] ?? '';
 
-                                        String myNickname = widget.nickname; 
+                                        String type, receiver, sender, msg;
+                                        if (_currentChatTab == 3) {
+                                          // 🏆 아레나 전용 메시지함: 유저채팅({nickname,message,type})과
+                                          //    시스템 메시지(잡았다/정산 → {sender,text})가 섞여 있음 → 둘 다 표시
+                                          type = 'arena';
+                                          receiver = '';
+                                          sender = (data['nickname'] ?? data['sender'] ?? '조사님').toString();
+                                          msg = (data['message'] ?? data['text'] ?? '').toString();
+                                        } else {
+                                          type = data['type'] ?? 'global';
+                                          receiver = data['receiver'] ?? '';
+                                          sender = data['nickname'] ?? '조사님';
+                                          msg = data['message'] ?? '';
+                                        }
 
-                                        if (_currentChatTab == 1) { 
+                                        String myNickname = widget.nickname;
+
+                                        if (_currentChatTab == 1) {
                                           if (type != 'whisper') return const SizedBox.shrink();
                                           if (sender != myNickname && receiver != myNickname) return const SizedBox.shrink();
-                                         }
-                                          if (_currentChatTab == 3) {
-                                          if (type != 'arena') return const SizedBox.shrink(); // 아레나 채팅만 보여주기
                                          }
 
                                         Color prefixColor = Colors.white;
