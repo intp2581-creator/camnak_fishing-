@@ -218,24 +218,25 @@ final List<String> _garamMessages = [
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: SizedBox(
-          width: 760, height: 560,
+          width: 530, height: 560,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              buildInventoryPanel(context),
-              // ❌ 닫기 버튼(우측 상단)
+              // 패널에 크기(530×560)를 딱 줘서 그리드(Expanded) 높이 확보
+              Positioned.fill(child: buildInventoryPanel(context)),
+              // ❌ 닫기 버튼(패널 안쪽 우측 상단)
               Positioned(
-                top: 12, right: 12,
+                top: 10, right: 10,
                 child: GestureDetector(
                   onTap: () { audioManager.playSfx("sfx_click.mp3"); Navigator.pop(ctx); },
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.6),
+                      color: Colors.black.withValues(alpha: 0.55),
                       shape: BoxShape.circle,
                       border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
                     ),
-                    child: const Icon(Icons.close, color: Color(0xFFD4AF37), size: 24),
+                    child: const Icon(Icons.close, color: Color(0xFFD4AF37), size: 22),
                   ),
                 ),
               ),
