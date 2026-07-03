@@ -905,9 +905,19 @@ Widget _buildChatTab(int index, String title) {
     _escapeTimer?.cancel();
     if (!mounted || !isFloatInWater) return;
 
-    // 🎣 대수 무관, 바다와 동일한 입질 간격
-    const int minWait = 10;
-    const int maxWait = 20;
+    // 🎣 대수 무관, 바다와 동일한 입질 간격(기본 10~20초)
+    const int baseMin = 10;
+    const int baseMax = 20;
+    // 🪝 [센서 감도 보정] 감도(S)가 높을수록 입질이 빨리 옴.
+    //   초보 기준(S≈30) 0% → 감도가 높을수록 최대 30%까지 대기시간 단축.
+    const int kSensBase = 30;    // 초보 기준 감도(보정 0%)
+    const int kSensFull = 300;   // 이 이상이면 최대 단축
+    const double kMaxCut = 0.30; // 최대 단축 비율(30%)
+    final int sens = getMyTotalStats()['sensitivity'] ?? 0;
+    final double cut =
+        (((sens - kSensBase) / (kSensFull - kSensBase)).clamp(0.0, 1.0)) * kMaxCut;
+    final int minWait = (baseMin * (1 - cut)).round();
+    final int maxWait = (baseMax * (1 - cut)).round();
     final int waitTime = minWait + math.Random().nextInt(maxWait - minWait + 1);
 
     _biteTimer = Timer(Duration(seconds: waitTime), () {
