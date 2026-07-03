@@ -105,6 +105,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Timer? _remoteWalkTimer;
   int _remoteWalkTick = 0;      // 걷기 프레임 카운터(150ms마다 +1)
   bool _remoteWalkDirty = false; // 멈춘 직후 한 프레임 더 그려 정지자세로
+  bool _awayFromPlaza = false;  // 🚪 낚시터/아레나 등 다른 화면에 가 있음(고스트 방지: presence 재기록 중지)
 
   // 🕹️ 가상 조이스틱 (우하단, 드래그 방향으로 연속 이동)
   static const double _joyRadius = 55;
@@ -936,7 +937,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     // 💓 하트비트: 닉/이미지/접속상태를 12초마다 재기록 → 닉 누락("조사")·미표시·접속불 깜빡임 자가복구
     _heartbeatTimer ??= Timer.periodic(const Duration(seconds: 12), (_) {
-      if (!mounted) return;
+      if (!mounted || _awayFromPlaza) return; // 낚시터/아레나 가 있으면 광장 presence 재기록 안 함
       _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
       guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 접속 초록불 + 채널 위치 재확인
     });
@@ -1520,11 +1521,26 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // ---- 진입 액션들 (기존 화면 재활용) ----
+  // 🚪 낚시터/아레나 등 다른 화면으로 나갈 때: 광장 presence 제거(고스트 방지) + 하트비트 정지
+  void _leavePlazaPresence() {
+    _awayFromPlaza = true;
+    _myRef?.remove().catchError((Object e) => debugPrint('🌐 광장 presence 제거 실패: $e'));
+  }
+
+  // 🚪 광장으로 복귀: presence 재등록 + 하트비트 재개
+  void _returnPlazaPresence() {
+    if (!mounted) return;
+    _awayFromPlaza = false;
+    _writeMe();
+    guildGoOnline(nick: widget.nickname, loc: _plazaLoc);
+  }
+
   // loc/sea를 주면 그 낚시터로 바로 출조, 없으면 현재 광장 spot
   void _goFishing({Map<String, dynamic>? loc, bool? sea}) {
     final spot = loc ?? widget.spot;
     final isSea = sea ?? widget.isSea;
     globalIsSeaMode = isSea;
+    _leavePlazaPresence(); // 🚪 광장에서 사라짐(고스트 방지)
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -1540,6 +1556,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ),
       ),
     ).then((_) {
+      _returnPlazaPresence(); // 🚪 복귀 → 광장에 다시 등장
       if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 광장 BGM + 🎓 튜토리얼 상태 재읽기(나루 첫고기 완료 반영)
     });
   }
@@ -1582,8 +1599,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _openArena() {
+    _leavePlazaPresence(); // 🚪 광장에서 사라짐(고스트 방지)
     Navigator.push(context, MaterialPageRoute(builder: (_) => const ArenaScreen()))
         .then((_) {
+      _returnPlazaPresence(); // 🚪 복귀 → 광장에 다시 등장
       if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 BGM 재개 + 🥊 한별 승리 상태 갱신
     });
   }
