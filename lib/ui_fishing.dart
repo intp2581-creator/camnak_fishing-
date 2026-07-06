@@ -3870,11 +3870,12 @@ class _NatureAmbientEffectsState extends State<NatureAmbientEffects> {
       // 🌊 바다라면? 갈매기 '떼' 출격 시퀀스 가동!
       _spawnSeagullFlock(); 
     } else {
-      // 🌲 민물 로직은 사장님 코드 그대로 유지!
-      if (_random.nextBool()) {
-        _spawnShootingStar(); // 유성
+      // 🌲 민물: 별똥별은 '맑은 날'에만 (비/눈 오는데 유성 떨어지면 어색)
+      final bool clearSky = WeatherService.instance.notifier.value.isClear;
+      if (clearSky && _random.nextBool()) {
+        _spawnShootingStar(); // ☄️ 유성 (맑을 때만)
       } else {
-        _spawnFishJump(); // 붕어
+        _spawnFishJump(); // 🐟 붕어
       }
     }
   }
