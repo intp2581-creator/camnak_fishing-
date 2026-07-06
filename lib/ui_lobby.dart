@@ -1365,7 +1365,7 @@ class _StoreScreenState extends State<StoreScreen> {
 
   // 상점 정가 조회(이름으로) — 판매가 계산에 사용
   int? _storePriceOf(String name) {
-    for (final list in [storeRodItems, storeGearItems, storeBaitItems, storeSkinItems]) {
+    for (final list in [storeRodItems, storeGearItems, storeBaitItems, storeAuxItems, storeSkinItems]) {
       for (final it in list) {
         if (it['name'] == name) return (it['price'] as int?) ?? 0;
       }
@@ -1448,6 +1448,7 @@ class _StoreScreenState extends State<StoreScreen> {
     if (currentTab == 'ROD') displayList = storeRodItems;
     if (currentTab == 'GEAR') displayList = storeGearItems;
     if (currentTab == 'BAIT') displayList = storeBaitItems;
+    if (currentTab == 'AUX') displayList = storeAuxItems;
     if (currentTab == 'SKIN') displayList = storeSkinItems;
 
     return Scaffold(
@@ -1462,8 +1463,8 @@ class _StoreScreenState extends State<StoreScreen> {
             padding: const EdgeInsets.only(left: 20), 
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start, 
-              children: ['ROD', 'GEAR', 'BAIT', 'SKIN', 'SELL'].map((tab) {
-                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : tab == 'SKIN' ? '스킨/기타' : '💰 팔기';
+              children: ['ROD', 'GEAR', 'BAIT', 'AUX', 'SKIN', 'SELL'].map((tab) {
+                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : tab == 'AUX' ? '보조장비' : tab == 'SKIN' ? '스킨/티켓' : '💰 팔기';
                 bool isSelected = currentTab == tab;
                 return GestureDetector(
                   onTap: () { setState(() => currentTab = tab); },

@@ -400,27 +400,32 @@ final List<Map<String, dynamic>> storeBaitItems = [
 ];
 
 // 😎 상점: 스킨 및 악세서리 목록
-final List<Map<String, dynamic>> storeSkinItems = [
-  {'name': '대회 1시간 이용권', 'price': 1000, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '캠피싱 낚시대회 1시간 프리미엄 입장권입니다.\n(계정당 1일 1회 이용 가능)',},
-  {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
+// 🎒 보조장비 탭 — 착용 악세서리 · 도구 · P/C/S 스탯 장비
+final List<Map<String, dynamic>> storeAuxItems = [
   {'name': '선글라스', 'price': 10000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'},
   {'name': '레인보우 편광 선글라스', 'price': 50000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'item_sunglasses_rainbow.png', 'desc': '무지개빛 편광 렌즈로 수면 반사광을 잡아 찌·물밑까지 또렷하게 보여주는 프리미엄 선글라스 (민물·바다 공용)'},
+  {'name': '장갑', 'price': 20000, 'category': 'COMMON', 'type': 'GLOVES', 'stats': {'P': 10}, 'icon': 'gloves.png', 'desc': '그립을 단단히 잡아주는 조사 장갑 (힘 +10 · 민물·바다 공용)'},
+  {'name': '바다 파워벨트', 'price': 20000, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
+  {'name': '민물 뜰채', 'price': 20000, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
+  {'name': '바다 뜰채', 'price': 20000, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
+  // 🧵 낚시줄 — 힘 +10, 내구도 200m(랜딩 실패 시 −10m, 0m면 끊어짐)
+  {'name': '민물 낚시줄', 'price': 10000, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
+  {'name': '바다 낚시줄', 'price': 10000, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},
+  // 🍚 밑밥 — 감도 +10(낚시터당 1개 소모, 세션 버프)
+  {'name': '민물 밑밥', 'price': 5000, 'category': 'FW', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_fw.png', 'desc': '물고기를 불러 모으는 민물 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
+  {'name': '바다 밑밥', 'price': 5000, 'category': 'SEA', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_sea.png', 'desc': '집어 효과 확실한 바다 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
+  {'name': '새우 채집망', 'price': 5000, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
   {'name': '소형 아이스박스', 'price': 20000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
   {'name': '중형 아이스박스', 'price': 40000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
   {'name': '대형 아이스박스', 'price': 80000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
-  {'name': '새우 채집망', 'price': 5000, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
   {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'},
   {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'},
-  // 🆕 P/C/S 스탯 장비 (뜰채=컨트롤 / 파워벨트·장갑=힘)
-  {'name': '민물 뜰채', 'price': 20000, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
-  {'name': '바다 뜰채', 'price': 20000, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
-  {'name': '바다 파워벨트', 'price': 20000, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
-  {'name': '장갑', 'price': 20000, 'category': 'COMMON', 'type': 'GLOVES', 'stats': {'P': 10}, 'icon': 'gloves.png', 'desc': '그립을 단단히 잡아주는 조사 장갑 (힘 +10 · 민물·바다 공용)'},
-  // 🧵 낚시줄 — 힘 +10, 내구도 200m(랜딩 실패 시 −10m, 0m면 끊어짐) / 🍚 밑밥 — 감도 +10(낚시터당 1개 소모, 세션 버프)
-  {'name': '민물 낚시줄', 'price': 10000, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
-  {'name': '바다 낚시줄', 'price': 10000, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},
-  {'name': '민물 밑밥', 'price': 5000, 'category': 'FW', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_fw.png', 'desc': '물고기를 불러 모으는 민물 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
-  {'name': '바다 밑밥', 'price': 5000, 'category': 'SEA', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_sea.png', 'desc': '집어 효과 확실한 바다 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
+];
+
+// 👕 스킨/티켓 탭 — 조사 스킨 · 이용권 · 입장권
+final List<Map<String, dynamic>> storeSkinItems = [
+  {'name': '대회 1시간 이용권', 'price': 1000, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '캠피싱 낚시대회 1시간 프리미엄 입장권입니다.\n(계정당 1일 1회 이용 가능)',},
+  {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
   {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 15},
   {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
