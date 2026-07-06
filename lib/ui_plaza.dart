@@ -3208,28 +3208,35 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                           child: Row(children: [
-                            // 왼쪽 슬롯 열
+                            // 🡐 왼쪽 2열
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('스킨', Icons.checkroom, globalEquippedSkin),
                               _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses),
                               _equipSlot('뱃지', Icons.shield, globalEquippedBadge),
-                              _equipSlot('낚시대', Icons.phishing, globalEquippedRod),
-                              _equipSlot('장갑', Icons.back_hand, globalEquippedGloves),
                             ]),
-                            // 캐릭터 (가운데, 크게)
+                            const SizedBox(width: 4),
+                            Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                              _equipSlot('낚시대', Icons.phishing, globalEquippedRod),
+                              _equipSlot('릴/찌', Icons.album, reelOrFloat),
+                              _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
+                            ]),
+                            // 캐릭터 (가운데)
                             Expanded(
                               child: Image.asset(_charImage,
                                   fit: BoxFit.contain,
                                   alignment: Alignment.bottomCenter,
                                   errorBuilder: (a, b, c) => const SizedBox.shrink()),
                             ),
-                            // 오른쪽 슬롯 열
+                            // 오른쪽 2열 🡒
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                              _equipSlot('릴/찌', Icons.album, reelOrFloat),
-                              _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
                               _equipSlot('아이스박스', Icons.ac_unit, globalEquippedCooler),
                               _equipSlot('뜰채', Icons.pool, globalEquippedNet),
                               _equipSlot('벨트', Icons.fitness_center, globalEquippedBelt),
+                            ]),
+                            const SizedBox(width: 4),
+                            Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                              _equipSlot('장갑', Icons.back_hand, globalEquippedGloves),
+                              // 🆕 (예약) 낚시줄·밑밥 등 추후 추가 아이템 슬롯 자리
                             ]),
                           ]),
                         ),
