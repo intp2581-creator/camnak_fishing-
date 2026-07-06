@@ -3870,12 +3870,9 @@ class _NatureAmbientEffectsState extends State<NatureAmbientEffects> {
       // 🌊 바다라면? 갈매기 '떼' 출격 시퀀스 가동!
       _spawnSeagullFlock(); 
     } else {
-      // 🌲 민물: 별똥별은 '맑은 날'에만 (비/눈 오는데 유성 떨어지면 어색)
-      final bool clearSky = WeatherService.instance.notifier.value.isClear;
-      if (clearSky && _random.nextBool()) {
+      // 🌲 민물: 맑은 날에만 별똥별. (물고기 뛰는 연출은 위치가 배경과 안 맞아 제거)
+      if (WeatherService.instance.notifier.value.isClear && _random.nextBool()) {
         _spawnShootingStar(); // ☄️ 유성 (맑을 때만)
-      } else {
-        _spawnFishJump(); // 🐟 붕어
       }
     }
   }
@@ -3963,12 +3960,8 @@ class _NatureAmbientEffectsState extends State<NatureAmbientEffects> {
     });
   }
   // ====================================================================
-  
-  // 🐟 사장표 명품 움짤 물고기 소환 로직!
-  void _spawnFishJump() {
-    return; // 🚀 [영구 해고 도장 쾅!] 여기서 함수를 강제 종료시켜버립니다!
-    
-  }
+
+  // 🐟 (제거됨) 물고기 뛰는 연출 — 배경과 위치가 안 맞아(도로·산에서 뜀) 삭제
 
   // ☄️ 진짜 낭만적인 하얀 별똥별 (디테일 업그레이드 버전!)
   void _spawnShootingStar() {
