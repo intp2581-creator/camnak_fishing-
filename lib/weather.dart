@@ -9,6 +9,7 @@ import 'dart:html' as html;
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'fishing_logic.dart'; // 🌧️ audioManager(빗소리)
 
 /// 날씨 정보 (강수형태 PTY 기반)
 ///   PTY: 0 없음 / 1 비 / 2 비·눈 / 3 눈 / 4 소나기 / 5 빗방울 / 6 진눈깨비 / 7 눈날림
@@ -139,12 +140,14 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   final List<_Drop> _drops = [];
   final math.Random _rnd = math.Random();
   WeatherInfo _w = const WeatherInfo();
+  bool _holdingRain = false; // 🌧️ 이 오버레이가 빗소리 참조를 잡고 있는지
 
   @override
   void initState() {
     super.initState();
     _w = WeatherService.instance.notifier.value;
     _rebuildDrops();
+    _updateRainSound();
     WeatherService.instance.notifier.addListener(_onWeather);
     _ticker = createTicker((elapsed) {
       _time = elapsed.inMicroseconds / 1e6;
@@ -158,6 +161,19 @@ class _WeatherOverlayState extends State<WeatherOverlay>
       _w = WeatherService.instance.notifier.value;
       _rebuildDrops();
     });
+    _updateRainSound();
+  }
+
+  // 🌧️ 비/진눈깨비면 빗소리 켜고, 아니면 끔(참조 카운트로 화면 겹침 안전 처리)
+  void _updateRainSound() {
+    final bool wantRain = _w.isRain || _w.isSleet;
+    if (wantRain && !_holdingRain) {
+      _holdingRain = true;
+      audioManager.requestRain();
+    } else if (!wantRain && _holdingRain) {
+      _holdingRain = false;
+      audioManager.releaseRain();
+    }
   }
 
   void _rebuildDrops() {
@@ -187,6 +203,7 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   @override
   void dispose() {
     WeatherService.instance.notifier.removeListener(_onWeather);
+    if (_holdingRain) { _holdingRain = false; audioManager.releaseRain(); } // 🌧️ 화면 나가면 참조 반납
     _ticker.dispose();
     super.dispose();
   }

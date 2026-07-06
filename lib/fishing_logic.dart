@@ -13,8 +13,10 @@ class AudioManager {
 
   final AudioPlayer bgmPlayer = AudioPlayer();
   final AudioPlayer efxPlayer = AudioPlayer();
+  final AudioPlayer ambientPlayer = AudioPlayer(); // 🌧️ 빗소리 등 앰비언트(BGM 위에 겹침)
   bool isMuted = false;
   String currentBgm = "";
+  int _rainRefs = 0; // 🌧️ 빗소리를 원하는 화면 수(플라자·낚시터 겹침 대비 참조 카운트)
 
   Future<void> playBgm(String fileName) async {
     if (isMuted) return;
@@ -47,10 +49,32 @@ class AudioManager {
 
   void stopEfx() { efxPlayer.stop(); }
   Future<void> stopBgm() async { currentBgm = ""; await bgmPlayer.stop(); }
+
+  // 🌧️ 빗소리: 비 오는 화면이 요청/해제. 참조가 1 이상이면 반복 재생.
+  Future<void> requestRain() async {
+    _rainRefs++;
+    if (_rainRefs == 1) await _startRain();
+  }
+  Future<void> releaseRain() async {
+    if (_rainRefs > 0) _rainRefs--;
+    if (_rainRefs == 0) { try { await ambientPlayer.stop(); } catch (_) {} }
+  }
+  Future<void> _startRain() async {
+    if (isMuted) return; // 음소거면 소리만 안 냄(참조는 유지 → 해제 시 정상 카운트)
+    try {
+      await ambientPlayer.setReleaseMode(ReleaseMode.loop);
+      await ambientPlayer.setVolume(0.4);
+      await ambientPlayer.play(AssetSource('sound/rain_loop.mp3'));
+    } catch (_) {} // 파일 없거나 웹 오디오 에러여도 게임엔 지장 없음
+  }
+
   Future<void> toggleMute() async {
     isMuted = !isMuted;
-    if (isMuted) { await bgmPlayer.pause(); await efxPlayer.stop(); } 
-    else { if (currentBgm.isNotEmpty) await bgmPlayer.resume(); }
+    if (isMuted) { await bgmPlayer.pause(); await efxPlayer.stop(); try { await ambientPlayer.stop(); } catch (_) {} }
+    else {
+      if (currentBgm.isNotEmpty) await bgmPlayer.resume();
+      if (_rainRefs > 0) await _startRain(); // 🌧️ 음소거 해제 시 비 오는 중이면 빗소리 재개
+    }
   }
 }
 
