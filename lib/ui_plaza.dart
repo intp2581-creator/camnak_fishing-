@@ -1383,6 +1383,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   //    직선 순간이동(관통) 대신 걷기영역을 매 스텝 클램프 → 화단·구조물은 경계 따라 슬라이드.
   //    또 매 120ms 위치를 전송 → 원격 화면에서도 순간이동 없이 부드럽게 걸어옴.
   void _moveTo(Offset rawTarget, double w, double h) {
+    audioManager.ensureRainPlaying(); // 🌧️ 첫 조작 시 빗소리 열기(자동재생 차단 우회)
     if (_devCoords) _lastTapWorld = rawTarget; // 🔧 좌표 수집
     if (_joyTimer != null) return; // 조이스틱/키보드 조작 중이면 탭 이동 무시
     _tapTarget = _devCoords ? rawTarget : _clampToPlaza(rawTarget); // 목적지는 걷기영역 안으로
@@ -1450,6 +1451,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _joyStart(Offset fromCenter) {
+    audioManager.ensureRainPlaying(); // 🌧️ 첫 조작 시 빗소리 열기
     _joyMove(fromCenter);
     _cancelTapMove(); // 진행 중이던 탭 이동 종료(조이스틱 우선)
     if (!_walkCtrl.isAnimating) _walkCtrl.repeat();

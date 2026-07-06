@@ -59,6 +59,12 @@ class AudioManager {
     if (_rainRefs > 0) _rainRefs--;
     if (_rainRefs == 0) { try { await ambientPlayer.stop(); } catch (_) {} }
   }
+  // 🌧️ 사용자 조작(터치) 시 호출 — 자동재생 차단으로 못 켜진 빗소리를 그때 켬(이미 재생 중이면 무시)
+  Future<void> ensureRainPlaying() async {
+    if (_rainRefs <= 0 || isMuted) return;
+    if (ambientPlayer.state == PlayerState.playing) return;
+    await _startRain();
+  }
   Future<void> _startRain() async {
     if (isMuted) return; // 음소거면 소리만 안 냄(참조는 유지 → 해제 시 정상 카운트)
     try {

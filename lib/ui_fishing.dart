@@ -1514,6 +1514,7 @@ int _getLocationStars() {
 }
 
 void _recast() {  // 기존 코드
+    audioManager.ensureRainPlaying(); // 🌧️ 낚시터에서도 조작 시 빗소리 열기(자동재생 우회)
     if (!mounted || remainingTimeNotifier.value <= 0) return;
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
     // 🪱 미끼 없으면 캐스팅 불가
