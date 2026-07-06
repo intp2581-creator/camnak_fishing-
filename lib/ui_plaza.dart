@@ -2986,6 +2986,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedNet: globalEquippedNet,       // 🥅 뜰채(C)
       equippedBelt: globalEquippedBelt,     // 🎽 파워벨트(P)
       equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
+      equippedLine: globalEquippedLine,           // 🧵 낚시줄(P)
+      equippedGroundbait: globalEquippedGroundbait, // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
     );
     final eP = (equip['strength'] ?? 10) - 10;
     final eC = (equip['control'] ?? 10) - 10;
@@ -3091,6 +3093,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       globalEquippedBelt = same(globalEquippedBelt) ? null : item;
     } else if (n.contains('장갑')) {
       globalEquippedGloves = same(globalEquippedGloves) ? null : item;
+    } else if (n.contains('낚시줄')) {
+      globalEquippedLine = same(globalEquippedLine) ? null : item;
+    } else if (n.contains('밑밥')) {
+      globalEquippedGroundbait = same(globalEquippedGroundbait) ? null : item;
     } else {
       globalEquippedBait = same(globalEquippedBait) ? null : item;
     }
@@ -3236,7 +3242,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             const SizedBox(width: 4),
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('장갑', Icons.back_hand, globalEquippedGloves),
-                              // 🆕 (예약) 낚시줄·밑밥 등 추후 추가 아이템 슬롯 자리
+                              _equipSlot('낚시줄', Icons.linear_scale, globalEquippedLine),
+                              _equipSlot('밑밥', Icons.grain, globalEquippedGroundbait),
                             ]),
                           ]),
                         ),

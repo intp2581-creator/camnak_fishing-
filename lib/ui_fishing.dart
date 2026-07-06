@@ -384,6 +384,9 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedNet;    // 🥅 뜰채(컨트롤, 민물/바다)
   Map<String, dynamic>? equippedBelt;   // 🎽 파워벨트(힘, 바다 전용)
   Map<String, dynamic>? equippedGloves; // 🧤 장갑(힘, 공용)
+  Map<String, dynamic>? equippedLine;   // 🧵 낚시줄(힘, 내구도 m)
+  Map<String, dynamic>? equippedGroundbait; // 🍚 밑밥(감도, 세션 버프)
+  bool _groundbaitActive = false; // 🍚 이번 낚시터 세션에 밑밥 효과 적용 중
   bool _trapDeployed = false; // 🦐 새우 채집망 던져둔 상태
   Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
   Timer? _guildHeartbeat;     // 💓 길드 접속 유지(낚시 중)
@@ -469,6 +472,8 @@ Widget _buildChatTab(int index, String title) {
       equippedNet: equippedNet,       // 🥅 뜰채(C)
       equippedBelt: equippedBelt,     // 🎽 파워벨트(P)
       equippedGloves: equippedGloves, // 🧤 장갑(P)
+      equippedLine: equippedLine,     // 🧵 낚시줄(P)
+      equippedGroundbait: _groundbaitActive ? equippedGroundbait : null, // 🍚 밑밥(S) — 세션 활성 시만
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;
@@ -521,11 +526,14 @@ Widget _buildChatTab(int index, String title) {
       equippedReel = globalEquippedReel;
       equippedNet = globalEquippedNet;   // 🥅 뜰채(모드별)
       equippedBelt = globalEquippedBelt; // 🎽 파워벨트(바다 전용)
+      equippedLine = globalEquippedLine;             // 🧵 낚시줄(모드별)
+      equippedGroundbait = globalEquippedGroundbait; // 🍚 밑밥(모드별)
     } else {
       globalIsSeaMode = widget.isSea;
       globalEquippedRod = null; globalEquippedFloat = null;
       globalEquippedBait = null; globalEquippedReel = null;
       globalEquippedNet = null; globalEquippedBelt = null;
+      globalEquippedLine = null; globalEquippedGroundbait = null;
     }
     equippedSkin = globalEquippedSkin;
     equippedSunglasses = globalEquippedSunglasses;
@@ -542,7 +550,8 @@ Widget _buildChatTab(int index, String title) {
 
     isRodEquipped = equippedRod != null;
 
-    
+    // 🍚 일반 낚시터 입장 시 밑밥 1개 소모 → 이번 세션 감도 +10 (아레나는 method 내부에서 제외)
+    _useGroundbaitOnEntry();
 
     // 👇 [여기서부터 덮어씌우기] 아레나 모드 진입 시 장비 강제 풀세팅!
     if (widget.title != widget.locationName) {
@@ -557,6 +566,7 @@ Widget _buildChatTab(int index, String title) {
       equippedSunglasses = {'name': '선글라스', 'price': 5000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'};
       equippedCooler = null; // 🧊 아이스박스(발밑 슬롯)는 개인차가 나므로 아레나에선 제거 → 완전 평준화
       equippedNet = null; equippedBelt = null; equippedGloves = null; // 🆕 P/C/S 장비도 아레나 평준화 위해 제거
+      equippedLine = null; equippedGroundbait = null; _groundbaitActive = false; // 🧵🍚 낚시줄·밑밥도 아레나 제거
 
       // 💡 3. 민물 / 바다 완벽 분기 처리!
       if (widget.isSea) {
@@ -661,6 +671,8 @@ Widget _buildChatTab(int index, String title) {
       globalEquippedNet = equippedNet;       // 🥅
       globalEquippedBelt = equippedBelt;     // 🎽
       globalEquippedGloves = equippedGloves; // 🧤
+      globalEquippedLine = equippedLine;             // 🧵
+      globalEquippedGroundbait = equippedGroundbait; // 🍚
       globalIsSeaMode = widget.isSea;
     }
 
@@ -1186,8 +1198,9 @@ Widget _buildChatTab(int index, String title) {
           }
         }
       } else {
-        // 🚨 이 else가 아까 에러 났던 녀석입니다! 
-        audioManager.playSfx("sfx_break.mp3"); 
+        // 🚨 이 else가 아까 에러 났던 녀석입니다!
+        _damageLineOnFail(); // 🧵 랜딩 실패 → 낚시줄 −10m (0m면 끊어짐)
+        audioManager.playSfx("sfx_break.mp3");
         List<String> failMessages = ['와우~ 대물인데 아쉽습니다!\n상점에서 장비를 업그레이드 해보세요.', '앗! 바늘털이에 당했습니다.\n다음엔 텐션 조절을 조금 더 신중히 해보시죠!', '팅! 줄이 터져버렸네요...\n제압력이 더 높은 낚싯대가 필요할지도?', '아슬아슬했는데 코앞에서 놓쳤습니다!\n심호흡 한 번 하고 다시 캐스팅해 보시죠.', '물고기의 힘이 너무 압도적이네요!\n장비의 한계가 온 것 같습니다.', '수초를 감아버렸습니다!\n채비를 정비하고 다시 도전하세요.']; 
         String randomMsg = failMessages[math.Random().nextInt(failMessages.length)]; 
         _showNotificationPopup('💥 줄이 터졌습니다...', randomMsg, Colors.redAccent, onConfirm: _recast);
@@ -1378,6 +1391,67 @@ Widget _buildChatTab(int index, String title) {
       }
       await userDoc.update({'inventory': inventory});
     } catch (e) { print("미끼 소모 중 에러: $e"); }
+  }
+
+  // 🧵 낚시줄 내구도: 랜딩 실패마다 −10m, 0m 되면 끊어짐(자동 해제 + 안내)
+  Future<void> _damageLineOnFail() async {
+    if (equippedLine == null || widget.roomId != null) return; // 아레나 제외
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final lineName = equippedLine!['name'].toString();
+    try {
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await userDoc.get();
+      if (!snap.exists) return;
+      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+      final idx = inv.indexWhere((it) => (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE');
+      if (idx < 0) return;
+      int dur = (inv[idx]['dur'] is num) ? (inv[idx]['dur'] as num).toInt() : 200;
+      dur -= 10;
+      if (dur <= 0) {
+        inv.removeAt(idx); // 줄 끊어짐 → 인벤에서 제거
+        if (mounted) setState(() => equippedLine = null);
+        globalEquippedLine = null;
+        await userDoc.update({'inventory': inv});
+        if (mounted) _baitToast('🧵 낚시줄이 끊어졌어요! 상점에서 새 줄을 구매하세요', Colors.redAccent);
+      } else {
+        inv[idx]['dur'] = dur;
+        if (mounted) setState(() => equippedLine!['dur'] = dur);
+        globalEquippedLine = equippedLine;
+        await userDoc.update({'inventory': inv});
+        if (mounted && dur <= 30) _baitToast('🧵 낚시줄 잔여 ${dur}m — 곧 끊어져요!', Colors.orangeAccent);
+      }
+    } catch (e) { debugPrint('낚시줄 내구도 처리 에러: $e'); }
+  }
+
+  // 🍚 밑밥: 낚시터 입장 시 1개 소모 → 이번 세션 감도 +10. 재고 0이면 해제 + 팝업 안내.
+  Future<void> _useGroundbaitOnEntry() async {
+    if (equippedGroundbait == null || widget.roomId != null) return; // 아레나 제외
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final gbName = equippedGroundbait!['name'].toString();
+    try {
+      final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await userDoc.get();
+      if (!snap.exists) return;
+      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+      final idx = inv.indexWhere((it) => (it['name'] ?? '') == gbName && (it['type'] ?? '') == 'GROUNDBAIT');
+      int q = idx >= 0 ? ((inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0) : 0;
+      if (idx < 0 || q <= 0) {
+        // 재고 없음 → 해제 + 안내 팝업
+        if (mounted) setState(() { equippedGroundbait = null; _groundbaitActive = false; });
+        globalEquippedGroundbait = null;
+        if (idx >= 0) { inv.removeAt(idx); await userDoc.update({'inventory': inv}); }
+        if (mounted) _showNotificationPopup('🍚 밑밥이 다 떨어졌어요', '밑밥이 모두 소진됐어요.\n상점에서 구매해 다시 장착하세요.', Colors.orangeAccent);
+        return;
+      }
+      q -= 1; // 1개 소모
+      if (q <= 0) { inv.removeAt(idx); globalEquippedGroundbait = null; } // 마지막 1개 사용 → 다음 세션엔 없음
+      else { inv[idx]['quantity'] = q; }
+      await userDoc.update({'inventory': inv});
+      if (mounted) setState(() => _groundbaitActive = true); // 이번 세션 감도 +10 ON
+      if (mounted) _baitToast('🍚 밑밥을 뿌렸어요! 이번 낚시터 감도 +10 (잔여 $q개)', const Color(0xFF7FFFB0));
+    } catch (e) { debugPrint('밑밥 소모 에러: $e'); }
   }
 
   // 🦐 새우 채집망 보유 여부
@@ -2681,6 +2755,8 @@ Positioned(
                           if (equippedNet != null && equippedNet!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedBelt != null && equippedBelt!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedGloves != null && equippedGloves!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedLine != null && equippedLine!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedGroundbait != null && equippedGroundbait!['name'] == iName) isCurrentlyEquipped = true;
                           
                           return GestureDetector(
                             onTap: () {
@@ -2770,7 +2846,7 @@ Positioned(
 
       equippedRod = null; equippedFloat = null; equippedBait = null;
       equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null; equippedCooler = null;
-      equippedNet = null; equippedBelt = null; equippedGloves = null;
+      equippedNet = null; equippedBelt = null; equippedGloves = null; equippedLine = null; equippedGroundbait = null;
 
       Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel; Map<String, dynamic>? bestCooler;
       int maxBaitQty = -1;
@@ -2798,6 +2874,8 @@ Positioned(
         else if (name.contains('뜰채') && equippedNet == null) { equippedNet = item; }
         else if (name.contains('벨트') && equippedBelt == null) { equippedBelt = item; }
         else if (name.contains('장갑') && equippedGloves == null) { equippedGloves = item; }
+        else if (name.contains('낚시줄') && equippedLine == null) { equippedLine = item; }
+        else if (name.contains('밑밥') && equippedGroundbait == null) { equippedGroundbait = item; }
         else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기')) {
           int qty = item['quantity'] as int? ?? 0;
           if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; }
@@ -2867,6 +2945,8 @@ Positioned(
     if (equippedNet?['name'] == iName) isEquipped = true;
     if (equippedBelt?['name'] == iName) isEquipped = true;
     if (equippedGloves?['name'] == iName) isEquipped = true;
+    if (equippedLine?['name'] == iName) isEquipped = true;
+    if (equippedGroundbait?['name'] == iName) isEquipped = true;
 
     showDialog(
       context: context,
@@ -2898,6 +2978,8 @@ Positioned(
                   else if (cleanName.contains('뜰채')) equippedNet = null;
                   else if (cleanName.contains('벨트')) equippedBelt = null;
                   else if (cleanName.contains('장갑')) equippedGloves = null;
+                  else if (cleanName.contains('낚시줄')) equippedLine = null;
+                  else if (cleanName.contains('밑밥')) { equippedGroundbait = null; _groundbaitActive = false; }
                   else equippedBait = null;
                 } else {
                   // 🎒 [입기] 기존 장착 로직
@@ -2911,6 +2993,8 @@ Positioned(
                   else if (cleanName.contains('뜰채')) { equippedNet = item; }
                   else if (cleanName.contains('벨트')) { equippedBelt = item; }
                   else if (cleanName.contains('장갑')) { equippedGloves = item; }
+                  else if (cleanName.contains('낚시줄')) { equippedLine = item; }
+                  else if (cleanName.contains('밑밥')) { equippedGroundbait = item; }
                   else { equippedBait = item; }
                 }
               });
@@ -2951,6 +3035,8 @@ Positioned(
       else if (cleanName.contains('뜰채')) equippedNet = item;
       else if (cleanName.contains('벨트')) equippedBelt = item;
       else if (cleanName.contains('장갑')) equippedGloves = item;
+      else if (cleanName.contains('낚시줄')) equippedLine = item;
+      else if (cleanName.contains('밑밥')) equippedGroundbait = item;
       else equippedBait = item;
     });
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));
