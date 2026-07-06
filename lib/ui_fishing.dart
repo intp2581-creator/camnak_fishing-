@@ -1488,7 +1488,11 @@ Widget _buildChatTab(int index, String title) {
       List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
       final idx = inv.indexWhere((i) => (i['name'] ?? '') == '민물새우');
       if (idx >= 0) {
-        inv[idx]['quantity'] = (inv[idx]['quantity'] ?? 0) + 2;
+        final int cur = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0;
+        if (cur >= 50) return; // 🦐 최대 50개 — 가득 차면 더 안 모음(조용히 스킵, 스팸 방지)
+        final int next = (cur + 2) > 50 ? 50 : (cur + 2);
+        inv[idx]['quantity'] = next;
+        if (next >= 50 && mounted) _baitToast('🦐 민물새우가 가득 찼어요! (50/50)\n채집망을 건지거나 미끼로 써주세요', const Color(0xFFD4AF37));
       } else {
         inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼 (집어력 25, 베스·메기·가물치 등 육식·대물에 강함)'});
       }
