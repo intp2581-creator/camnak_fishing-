@@ -304,32 +304,32 @@ final List<Map<String, dynamic>> seaFishPool = [
   // =========================================================================
   final Map<String, List<Map<String, dynamic>>> locations = {
     '저수지': [
-      {'name': '예산 예당지', 'target': '국민 낚시터! 메기/베스를 원하면 지렁이 필수', 'stars': 1, 'image': 'assets/fields/bg_yedang.jpg'},
-      {'name': '안성 고삼지', 'target': '월척급 붕어와 가물치! 육식어종은 지렁이 추천', 'stars': 2, 'image': 'assets/fields/bg_gosam.jpg'},
-      {'name': '진천 백곡지', 'target': '허릿급 붕어 명당! 메기/가물치는 지렁이 추천', 'stars': 3, 'image': 'assets/fields/bg_baekgok.jpg'},
-      {'name': '춘천 파로호', 'target': '4짜 붕어와 강준치! 다양한 어종의 천국', 'stars': 4, 'image': 'assets/fields/bg_paro.jpg'},
-      {'name': '충주 충주호', 'target': '대물 붕어 랭킹 도전! (🚨최대어 출연 주의)', 'stars': 5, 'image': 'assets/fields/bg_chungju.jpg'}
+      {'name': '예산 예당지', 'target': '수초 바닥을 노려라. 단내 나는 미끼에 붕어가 붙는다.', 'stars': 1, 'image': 'assets/fields/bg_yedang.jpg'},
+      {'name': '안성 고삼지', 'target': '곡물엔 대물 붕어·잉어, 바닥의 사나운 놈은 생미끼로.', 'stars': 2, 'image': 'assets/fields/bg_gosam.jpg'},
+      {'name': '진천 백곡지', 'target': '깊은 골자리가 명당. 노란 알갱이에 씨알이 굵어진다.', 'stars': 3, 'image': 'assets/fields/bg_baekgok.jpg'},
+      {'name': '춘천 파로호', 'target': '어종 천국. 미끼 하나로 입질이 완전히 갈린다.', 'stars': 4, 'image': 'assets/fields/bg_paro.jpg'},
+      {'name': '충주 충주호', 'target': '댐 대물터. 단·곡물 미끼로 4짜를 노려라. (대물 주의)', 'stars': 5, 'image': 'assets/fields/bg_chungju.jpg'}
     ],
     '수로': [
-      {'name': '예산 신양수로', 'target': '붕어 마릿수! 메기/베스는 지렁이 껴주세요', 'stars': 1, 'image': 'assets/fields/bg_sinyang.jpg'},
-      {'name': '청양 지천', 'target': '씨알 좋은 붕어와 강준치! 지렁이 추천', 'stars': 2, 'image': 'assets/fields/bg_jicheon.jpg'},
-      {'name': '인천 청라수로', 'target': '수도권 붕어 핫스팟! 블루길/베스는 지렁이', 'stars': 3, 'image': 'assets/fields/bg_chungla.jpg'},
-      {'name': '해남 금자천', 'target': '겨울 붕어 명당! 지렁이 달면 메기/베스 입질', 'stars': 4, 'image': 'assets/fields/bg_gumja.jpg'},
-      {'name': '충주 달천', 'target': '풍부한 어종! 미끼에 따라 입질이 완벽히 갈림', 'stars': 5, 'image': 'assets/fields/bg_dalchun.jpg'}
+      {'name': '예산 신양수로', 'target': '물풀 언저리에 사냥꾼이 숨는다. 살아 움직이는 미끼로.', 'stars': 1, 'image': 'assets/fields/bg_sinyang.jpg'},
+      {'name': '청양 지천', 'target': '흐름 느린 자리, 곡물엔 강준치·붕어가 반응한다.', 'stars': 2, 'image': 'assets/fields/bg_jicheon.jpg'},
+      {'name': '인천 청라수로', 'target': '베스·블루길 소굴. 꿈틀대는 미끼에 사족을 못 쓴다.', 'stars': 3, 'image': 'assets/fields/bg_chungla.jpg'},
+      {'name': '해남 금자천', 'target': '겨울 대물터. 바닥에 붙는 육식어는 생미끼가 답.', 'stars': 4, 'image': 'assets/fields/bg_gumja.jpg'},
+      {'name': '충주 달천', 'target': '미끼 궁합이 극명한 곳. 노리는 어종에 맞춰 골라라.', 'stars': 5, 'image': 'assets/fields/bg_dalchun.jpg'}
     ],
     '갯바위': [
-      {'name': '통영 척포 갯바위', 'target': '감성돔, 참돔 대물 포인트! 두족류는 에기 필수', 'stars': 1, 'image': 'assets/fields/bg_chukpo.jpg'},
-      {'name': '신안 가거도', 'target': '벵에돔과 감성돔 성지! 갑오징어는 에기 추천', 'stars': 2, 'image': 'assets/fields/bg_gageo.jpg'},
-      {'name': '완도 청산도', 'target': '다양한 돔류와 문어 서식지! 에기 챙겨가세요', 'stars': 3, 'image': 'assets/fields/bg_cheongsan.jpg'},
-      {'name': '여수 거문도', 'target': '씨알 좋은 돔과 👑참치 등장! 두족류는 에기', 'stars': 4, 'image': 'assets/fields/bg_geumo.jpg'},
-      {'name': '제주 섶섬', 'target': '미터급 👑참치 랭킹 도전! 문어 타작은 에기', 'stars': 5, 'image': 'assets/fields/bg_seop.jpg'}
+      {'name': '통영 척포 갯바위', 'target': '여(礁) 주변을 노려라. 갯내 나는 생미끼에 돔이 붙는다.', 'stars': 1, 'image': 'assets/fields/bg_chukpo.jpg'},
+      {'name': '신안 가거도', 'target': '벵에돔·감성돔 성지. 먹물 뿜는 놈은 채비부터 다르다.', 'stars': 2, 'image': 'assets/fields/bg_gageo.jpg'},
+      {'name': '완도 청산도', 'target': '돔과 두족류가 공존. 노리는 대상에 채비를 바꿔라.', 'stars': 3, 'image': 'assets/fields/bg_cheongsan.jpg'},
+      {'name': '여수 거문도', 'target': '조류 센 명당. 굵은 돔과 큰 손님이 오른다.', 'stars': 4, 'image': 'assets/fields/bg_geumo.jpg'},
+      {'name': '제주 섶섬', 'target': '미터급이 노니는 물. 큰 놈은 작은 물고기를 통째 삼킨다.', 'stars': 5, 'image': 'assets/fields/bg_seop.jpg'}
     ],
     '선상': [
-      {'name': '거제 선상', 'target': '참돔, 광어 선상 낚시! 두족류 3형제는 에기 필수', 'stars': 1, 'image': 'assets/fields/bg_geo_ship.jpg'},
-      {'name': '오천항 선상', 'target': '주꾸미, 갑오징어 선상 타작 명당! 에기 필수', 'stars': 2, 'image': 'assets/fields/bg_ocheon_ship.jpg'},
-      {'name': '대천 선상', 'target': '대물 우럭과 문어 핫스팟! 문어는 무조건 에기', 'stars': 3, 'image': 'assets/fields/bg_daecheon_ship.jpg'},
-      {'name': '통영 선상', 'target': '은빛 대물 갈치와 👑참치 등장! 주꾸미는 에기', 'stars': 4, 'image': 'assets/fields/bg_tong_ship.jpg'},
-      {'name': '완도 선상', 'target': '대형 👑참치 랭킹 도전! 두족류 싹쓸이는 에기 추천', 'stars': 5, 'image': 'assets/fields/bg_wando_ship.jpg'}
+      {'name': '거제 선상', 'target': '바닥 여를 찍어라. 여덟 다리는 눈이 밝아 채비를 탄다.', 'stars': 1, 'image': 'assets/fields/bg_geo_ship.jpg'},
+      {'name': '오천항 선상', 'target': '두족류 타작터. 색과 움직임에 민감하게 반응한다.', 'stars': 2, 'image': 'assets/fields/bg_ocheon_ship.jpg'},
+      {'name': '대천 선상', 'target': '여 주변 우럭 핫스팟. 반짝이는 가짜 먹이에 덤빈다.', 'stars': 3, 'image': 'assets/fields/bg_daecheon_ship.jpg'},
+      {'name': '통영 선상', 'target': '은빛 갈치가 오르는 밤바다. 갯내 나는 생미끼로 태워라.', 'stars': 4, 'image': 'assets/fields/bg_tong_ship.jpg'},
+      {'name': '완도 선상', 'target': '미터급 참치터. 큰 놈일수록 작은 물고기를 통째 삼킨다.', 'stars': 5, 'image': 'assets/fields/bg_wando_ship.jpg'}
     ]
   };
 
