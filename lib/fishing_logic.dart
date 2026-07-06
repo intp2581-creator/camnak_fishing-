@@ -249,6 +249,14 @@ for (var fish in availableFishes) {
     };
   }
 
+  // 🪱 미끼 이름 → 감도(S) 보너스. stats 필드 없는 옛 미끼·민물새우도 착용 시 감도 적용되게.
+  static int baitSensByName(String name) {
+    if (['지렁이', '갯지렁이', '에기', '민물새우'].contains(name)) return 20;
+    if (['옥수수', '크릴'].contains(name)) return 15;
+    if (['글루텐', '루어'].contains(name)) return 10;
+    return 0;
+  }
+
   // 💪 2. 내 캐릭터 총 능력치 계산기 (인벤토리용)
   static Map<String, int> getMyTotalStats({
     Map<String, dynamic>? equippedSkin,
@@ -282,7 +290,12 @@ for (var fish in availableFishes) {
     addStats(equippedSunglasses);
     addStats(equippedBadge);
     addStats(equippedCooler);     // 🧊 아이스박스
-    addStats(equippedBait);       // 🪱 미끼(감도 S)
+    // 🪱 미끼 감도(S): stats에 S가 있으면 그대로, 없으면(옛 미끼·민물새우) 이름 기반으로 부여
+    if (equippedBait != null) {
+      final bs = equippedBait['stats'];
+      final byStat = (bs is Map && bs['S'] != null) ? (int.tryParse(bs['S'].toString()) ?? 0) : 0;
+      totalSens += byStat > 0 ? byStat : baitSensByName((equippedBait['name'] ?? '').toString());
+    }
     addStats(equippedNet);        // 🥅 뜰채(컨트롤)
     addStats(equippedBelt);       // 🎽 파워벨트(힘)
     addStats(equippedGloves);     // 🧤 장갑(힘)

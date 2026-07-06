@@ -468,7 +468,7 @@ Widget _buildChatTab(int index, String title) {
       equippedSunglasses: equippedSunglasses,
       equippedBadge: equippedBadge,
       equippedCooler: equippedCooler,
-      equippedBait: equippedBait, // 🪱 미끼 감도(S) 반영 → 입질 속도
+      equippedBait: (widget.roomId != null) ? null : equippedBait, // 🪱 미끼 감도(S) 반영 → 입질 속도 (아레나는 평준화 위해 제외)
       equippedNet: equippedNet,       // 🥅 뜰채(C)
       equippedBelt: equippedBelt,     // 🎽 파워벨트(P)
       equippedGloves: equippedGloves, // 🧤 장갑(P)
