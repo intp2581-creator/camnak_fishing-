@@ -64,7 +64,7 @@ class AudioManager {
     try {
       await ambientPlayer.setReleaseMode(ReleaseMode.loop);
       await ambientPlayer.setVolume(0.4);
-      await ambientPlayer.play(AssetSource('sound/rain_loop.mp3'));
+      await ambientPlayer.play(AssetSource('sound/rain_sound.mp3'));
     } catch (_) {} // 파일 없거나 웹 오디오 에러여도 게임엔 지장 없음
   }
 
