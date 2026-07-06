@@ -1754,29 +1754,33 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           child: ListTile(
                             leading: Text(isMainSea ? '🌊' : '🏞️',
                                 style: const TextStyle(fontSize: 22)),
-                            title: Text(s['name'],
-                                style: const TextStyle(
-                                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17)),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+            // 🏷️ 이름 옆에 별점을 붙이고(한 줄), 설명은 바로 아래에 크게 → 모바일 가독성
+                            title: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                Row(
-                                  children: List.generate(
-                                    5,
-                                    (k) => Icon(
-                                        k < (s['stars'] as int) ? Icons.star : Icons.star_border,
-                                        color: _kGold,
-                                        size: 15),
-                                  ),
+                                Flexible(
+                                  child: Text(s['name'],
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16.5)),
                                 ),
-                                if ((s['target'] ?? '').toString().isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4),
-                                    child: Text('💡 ${s['target']}',
-                                        style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3)),
-                                  ),
+                                const SizedBox(width: 8),
+                                ...List.generate(
+                                  5,
+                                  (k) => Icon(
+                                      k < (s['stars'] as int) ? Icons.star : Icons.star_border,
+                                      color: _kGold,
+                                      size: 13),
+                                ),
                               ],
                             ),
+                            subtitle: (s['target'] ?? '').toString().isNotEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 5),
+                                    child: Text('💡 ${s['target']}',
+                                        style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.35, fontWeight: FontWeight.w500)),
+                                  )
+                                : null,
                             trailing: isHere
                                 ? const Text('🎣 출조',
                                     style: TextStyle(color: _kGold, fontWeight: FontWeight.bold))
