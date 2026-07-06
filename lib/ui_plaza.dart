@@ -2982,6 +2982,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedSunglasses: globalEquippedSunglasses,
       equippedBadge: globalEquippedBadge,
       equippedCooler: globalEquippedCooler,
+      equippedBait: globalEquippedBait,     // 🪱 미끼 감도(S)
+      equippedNet: globalEquippedNet,       // 🥅 뜰채(C)
+      equippedBelt: globalEquippedBelt,     // 🎽 파워벨트(P)
+      equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
     );
     final eP = (equip['strength'] ?? 10) - 10;
     final eC = (equip['control'] ?? 10) - 10;
@@ -3081,6 +3085,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       globalEquippedSunglasses = same(globalEquippedSunglasses) ? null : item;
     } else if (n.contains('휘장')) {
       globalEquippedBadge = same(globalEquippedBadge) ? null : item;
+    } else if (n.contains('뜰채')) {
+      globalEquippedNet = same(globalEquippedNet) ? null : item;
+    } else if (n.contains('벨트')) {
+      globalEquippedBelt = same(globalEquippedBelt) ? null : item;
+    } else if (n.contains('장갑')) {
+      globalEquippedGloves = same(globalEquippedGloves) ? null : item;
     } else {
       globalEquippedBait = same(globalEquippedBait) ? null : item;
     }
@@ -3127,9 +3137,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               final t = (it['type'] ?? '').toString().toUpperCase();
               switch (invTab) {
                 case '민물':
-                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA') || t == 'COOLER';
+                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN');
                 case '바다':
-                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER';
+                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN');
                 case '미끼':
                   return t == 'BAIT';
                 case '물고기':
@@ -3204,6 +3214,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses),
                               _equipSlot('뱃지', Icons.shield, globalEquippedBadge),
                               _equipSlot('낚시대', Icons.phishing, globalEquippedRod),
+                              _equipSlot('장갑', Icons.back_hand, globalEquippedGloves),
                             ]),
                             // 캐릭터 (가운데, 크게)
                             Expanded(
@@ -3217,6 +3228,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               _equipSlot('릴/찌', Icons.album, reelOrFloat),
                               _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
                               _equipSlot('아이스박스', Icons.ac_unit, globalEquippedCooler),
+                              _equipSlot('뜰채', Icons.pool, globalEquippedNet),
+                              _equipSlot('벨트', Icons.fitness_center, globalEquippedBelt),
                             ]),
                           ]),
                         ),
