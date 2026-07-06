@@ -259,6 +259,9 @@ for (var fish in availableFishes) {
     Map<String, dynamic>? equippedBadge,
     Map<String, dynamic>? equippedCooler,
     Map<String, dynamic>? equippedBait, // 🪱 미끼도 감도(S) 등 스탯 제공(집어력 → 입질 속도)
+    Map<String, dynamic>? equippedNet,    // 🥅 뜰채(C)
+    Map<String, dynamic>? equippedBelt,   // 🎽 파워벨트(P)
+    Map<String, dynamic>? equippedGloves, // 🧤 장갑(P)
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -278,6 +281,9 @@ for (var fish in availableFishes) {
     addStats(equippedBadge);
     addStats(equippedCooler);     // 🧊 아이스박스
     addStats(equippedBait);       // 🪱 미끼(감도 S)
+    addStats(equippedNet);        // 🥅 뜰채(컨트롤)
+    addStats(equippedBelt);       // 🎽 파워벨트(힘)
+    addStats(equippedGloves);     // 🧤 장갑(힘)
 
     return {'strength': totalStr, 'control': totalCtrl, 'sensitivity': totalSens};
   }

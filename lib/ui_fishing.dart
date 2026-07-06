@@ -381,6 +381,9 @@ Widget _buildChatTab(int index, String title) {
   Map<String, dynamic>? equippedBadge;
   Map<String, dynamic>? equippedReel;
   Map<String, dynamic>? equippedCooler; // 🧊 아이스박스(발밑 슬롯, 민물·바다 공용)
+  Map<String, dynamic>? equippedNet;    // 🥅 뜰채(컨트롤, 민물/바다)
+  Map<String, dynamic>? equippedBelt;   // 🎽 파워벨트(힘, 바다 전용)
+  Map<String, dynamic>? equippedGloves; // 🧤 장갑(힘, 공용)
   bool _trapDeployed = false; // 🦐 새우 채집망 던져둔 상태
   Timer? _trapTimer;          // 🦐 1분마다 민물새우 적립
   Timer? _guildHeartbeat;     // 💓 길드 접속 유지(낚시 중)
@@ -463,6 +466,9 @@ Widget _buildChatTab(int index, String title) {
       equippedBadge: equippedBadge,
       equippedCooler: equippedCooler,
       equippedBait: equippedBait, // 🪱 미끼 감도(S) 반영 → 입질 속도
+      equippedNet: equippedNet,       // 🥅 뜰채(C)
+      equippedBelt: equippedBelt,     // 🎽 파워벨트(P)
+      equippedGloves: equippedGloves, // 🧤 장갑(P)
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;
@@ -513,15 +519,19 @@ Widget _buildChatTab(int index, String title) {
       equippedFloat = globalEquippedFloat;
       equippedBait = globalEquippedBait;
       equippedReel = globalEquippedReel;
+      equippedNet = globalEquippedNet;   // 🥅 뜰채(모드별)
+      equippedBelt = globalEquippedBelt; // 🎽 파워벨트(바다 전용)
     } else {
       globalIsSeaMode = widget.isSea;
       globalEquippedRod = null; globalEquippedFloat = null;
       globalEquippedBait = null; globalEquippedReel = null;
+      globalEquippedNet = null; globalEquippedBelt = null;
     }
     equippedSkin = globalEquippedSkin;
     equippedSunglasses = globalEquippedSunglasses;
     equippedBadge = globalEquippedBadge;
-    equippedCooler = globalEquippedCooler; // 🧊 공용(모드 무관)
+    equippedCooler = globalEquippedCooler;   // 🧊 공용(모드 무관)
+    equippedGloves = globalEquippedGloves;   // 🧤 장갑 공용(모드 무관)
 
     // 🛡️ 위치와 안 맞는 미끼는 자동 해제 (바다↔민물 이동 시 에기 등 잔류 방지)
     final bcat = (equippedBait?['category'] ?? '').toString().toUpperCase();
@@ -546,6 +556,7 @@ Widget _buildChatTab(int index, String title) {
       equippedSkin = {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설'};
       equippedSunglasses = {'name': '선글라스', 'price': 5000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'};
       equippedCooler = null; // 🧊 아이스박스(발밑 슬롯)는 개인차가 나므로 아레나에선 제거 → 완전 평준화
+      equippedNet = null; equippedBelt = null; equippedGloves = null; // 🆕 P/C/S 장비도 아레나 평준화 위해 제거
 
       // 💡 3. 민물 / 바다 완벽 분기 처리!
       if (widget.isSea) {
@@ -647,6 +658,9 @@ Widget _buildChatTab(int index, String title) {
       globalEquippedBadge = equippedBadge;
       globalEquippedReel = equippedReel;
       globalEquippedCooler = equippedCooler; // 🧊
+      globalEquippedNet = equippedNet;       // 🥅
+      globalEquippedBelt = equippedBelt;     // 🎽
+      globalEquippedGloves = equippedGloves; // 🧤
       globalIsSeaMode = widget.isSea;
     }
 
@@ -2664,6 +2678,9 @@ Positioned(
                           if (equippedBadge != null && equippedBadge!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedReel != null && equippedReel!['name'] == iName) isCurrentlyEquipped = true;
                           if (equippedCooler != null && equippedCooler!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedNet != null && equippedNet!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedBelt != null && equippedBelt!['name'] == iName) isCurrentlyEquipped = true;
+                          if (equippedGloves != null && equippedGloves!['name'] == iName) isCurrentlyEquipped = true;
                           
                           return GestureDetector(
                             onTap: () {
@@ -2753,6 +2770,7 @@ Positioned(
 
       equippedRod = null; equippedFloat = null; equippedBait = null;
       equippedSunglasses = null; equippedBadge = null; equippedSkin = null; equippedReel = null; equippedCooler = null;
+      equippedNet = null; equippedBelt = null; equippedGloves = null;
 
       Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel; Map<String, dynamic>? bestCooler;
       int maxBaitQty = -1;
@@ -2777,6 +2795,9 @@ Positioned(
         }
         else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; }
         else if (name.contains('휘장')) { if (widget.isSea && name.contains('바다')) equippedBadge = item; if (!widget.isSea && name.contains('민물')) equippedBadge = item; }
+        else if (name.contains('뜰채') && equippedNet == null) { equippedNet = item; }
+        else if (name.contains('벨트') && equippedBelt == null) { equippedBelt = item; }
+        else if (name.contains('장갑') && equippedGloves == null) { equippedGloves = item; }
         else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기')) {
           int qty = item['quantity'] as int? ?? 0;
           if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; }
@@ -2843,6 +2864,9 @@ Positioned(
     if (equippedBadge?['name'] == iName) isEquipped = true;
     if (equippedReel?['name'] == iName) isEquipped = true;
     if (equippedCooler?['name'] == iName) isEquipped = true;
+    if (equippedNet?['name'] == iName) isEquipped = true;
+    if (equippedBelt?['name'] == iName) isEquipped = true;
+    if (equippedGloves?['name'] == iName) isEquipped = true;
 
     showDialog(
       context: context,
@@ -2871,6 +2895,9 @@ Positioned(
                   else if (cleanName.contains('선글라스')) equippedSunglasses = null;
                   else if (cleanName.contains('휘장')) equippedBadge = null;
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = null;
+                  else if (cleanName.contains('뜰채')) equippedNet = null;
+                  else if (cleanName.contains('벨트')) equippedBelt = null;
+                  else if (cleanName.contains('장갑')) equippedGloves = null;
                   else equippedBait = null;
                 } else {
                   // 🎒 [입기] 기존 장착 로직
@@ -2881,6 +2908,9 @@ Positioned(
                   else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
                   else if (cleanName.contains('휘장')) { equippedBadge = item; }
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) { equippedCooler = item; }
+                  else if (cleanName.contains('뜰채')) { equippedNet = item; }
+                  else if (cleanName.contains('벨트')) { equippedBelt = item; }
+                  else if (cleanName.contains('장갑')) { equippedGloves = item; }
                   else { equippedBait = item; }
                 }
               });
@@ -2918,6 +2948,9 @@ Positioned(
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
       else if (cleanName.contains('휘장')) equippedBadge = item;
       else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = item;
+      else if (cleanName.contains('뜰채')) equippedNet = item;
+      else if (cleanName.contains('벨트')) equippedBelt = item;
+      else if (cleanName.contains('장갑')) equippedGloves = item;
       else equippedBait = item;
     });
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));

@@ -105,6 +105,9 @@ Map<String, dynamic>? globalEquippedSunglasses;
 Map<String, dynamic>? globalEquippedBadge;
 Map<String, dynamic>? globalEquippedReel;
 Map<String, dynamic>? globalEquippedCooler; // 🧊 발밑 슬롯(아이스박스/쿨러) — 신발 대신
+Map<String, dynamic>? globalEquippedNet;    // 🥅 뜰채(민물/바다) — 컨트롤
+Map<String, dynamic>? globalEquippedBelt;   // 🎽 파워벨트(바다 전용) — 힘
+Map<String, dynamic>? globalEquippedGloves; // 🧤 장갑(공용) — 힘
 bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 
 
@@ -406,6 +409,11 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '새우 채집망', 'price': 5000, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
   {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'},
   {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'},
+  // 🆕 P/C/S 스탯 장비 (뜰채=컨트롤 / 파워벨트·장갑=힘)
+  {'name': '민물 뜰채', 'price': 20000, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
+  {'name': '바다 뜰채', 'price': 20000, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
+  {'name': '바다 파워벨트', 'price': 20000, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
+  {'name': '장갑', 'price': 20000, 'category': 'COMMON', 'type': 'GLOVES', 'stats': {'P': 10}, 'icon': 'gloves.png', 'desc': '그립을 단단히 잡아주는 조사 장갑 (힘 +10 · 민물·바다 공용)'},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
   {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 15},
   {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
