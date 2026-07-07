@@ -3691,8 +3691,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
                             const SizedBox(height: 2),
-                            Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$cap명',
-                                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                            Row(children: [
+                              Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$cap명',
+                                  style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                    color: ((g['joinPolicy'] ?? 'approval') == 'open') ? const Color(0x224CAF50) : Colors.white10,
+                                    borderRadius: BorderRadius.circular(5)),
+                                child: Text(((g['joinPolicy'] ?? 'approval') == 'open') ? '자유가입' : '승인제',
+                                    style: TextStyle(
+                                        color: ((g['joinPolicy'] ?? 'approval') == 'open') ? const Color(0xFF7FFFB0) : Colors.white54,
+                                        fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ]),
                           ],
                         ),
                       ),
@@ -3704,7 +3717,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             minimumSize: const Size(0, 0),
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                         onPressed: full ? null : () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
-                        child: Text(full ? '만원' : '가입신청', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        child: Text(full ? '만원' : (((g['joinPolicy'] ?? 'approval') == 'open') ? '바로가입' : '가입신청'), style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ]),
                   );
@@ -3796,7 +3809,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   child: _guildTab == 1
                       ? _guildPerksTab(gLevel, guildExp)
                       : _guildTab == 2
-                          ? _guildSettingsTab(ctx, uid, gid, isMaster, canManage)
+                          ? _guildSettingsTab(ctx, uid, gid, isMaster, canManage, g)
                           : _guildTab == 3
                               ? _guildApplicationsTab(gid)
                               : _guildMembersTab(gid, uid, isMaster),
@@ -4044,12 +4057,52 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _guildSettingsTab(BuildContext ctx, String uid, String gid, bool isMaster, bool canManage) {
+  Widget _guildSettingsTab(BuildContext ctx, String uid, String gid, bool isMaster, bool canManage, Map<String, dynamic> g) {
+    final String policy = (g['joinPolicy'] ?? 'approval').toString(); // 기본 승인제(기존 호환)
+    final bool isOpen = policy == 'open';
+    Widget policyBtn(String label, String sub, bool active, VoidCallback onTap) {
+      return Expanded(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+            decoration: BoxDecoration(
+              color: active ? const Color(0x22D4AF37) : Colors.white10,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: active ? _kGold : Colors.white24, width: active ? 1.6 : 1),
+            ),
+            child: Column(children: [
+              Text(label, style: TextStyle(color: active ? _kGold : Colors.white70, fontSize: 14, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 3),
+              Text(sub, textAlign: TextAlign.center, style: TextStyle(color: active ? Colors.white70 : Colors.white38, fontSize: 11, height: 1.25)),
+            ]),
+          ),
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // 🚪 가입 방식 설정 (길드장만)
+          if (isMaster) ...[
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('가입 방식', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              policyBtn('✅ 자유 가입', '신청 즉시 바로 가입\n(승인 대기 없음)', isOpen, () { if (!isOpen) _setJoinPolicy(gid, 'open'); }),
+              policyBtn('🔒 승인 후 가입', '길드장·부길드장이\n승인해야 가입', !isOpen, () { if (isOpen) _setJoinPolicy(gid, 'approval'); }),
+            ]),
+            const SizedBox(height: 8),
+            Text(isOpen ? '지금은 누구나 승인 없이 바로 가입할 수 있어요.' : '지금은 승인을 받아야 가입할 수 있어요.',
+                style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            const Divider(color: Colors.white12, height: 28),
+          ],
           if (canManage) ...[
             // ⚔️ 길드전 (예약) — 길드장/부길드장 권한 자리
             OutlinedButton.icon(
@@ -4243,6 +4296,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'masterUid': uid,
       'memberCount': 1,
       'guildExp': 0,
+      'joinPolicy': 'approval', // 🚪 기본 승인제 (길드장이 설정에서 자유가입으로 변경 가능)
       'createdAt': FieldValue.serverTimestamp(),
     });
     batch.set(guildRef.collection('members').doc(uid), {
@@ -4266,6 +4320,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     if (ctx.mounted) Navigator.pop(ctx); // 생성 다이얼로그 닫기
     _toast('"$name" 길드를 만들었어요! 🎉');
+  }
+
+  // 🚪 가입 방식 변경 (길드장) — 'open'(자유) / 'approval'(승인제)
+  Future<void> _setJoinPolicy(String gid, String policy) async {
+    try {
+      await FirebaseFirestore.instance.collection('guilds').doc(gid).update({'joinPolicy': policy});
+      _toast(policy == 'open' ? '자유 가입으로 바꿨어요. (승인 없이 바로 가입) ✅' : '승인 후 가입으로 바꿨어요. 🔒');
+    } catch (e) {
+      _infoPopup('변경 실패', e.toString());
+    }
   }
 
   Future<void> _joinGuild(String uid, String gid, String gname) async {
@@ -4301,6 +4365,36 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _infoPopup('신청 불가', '길드 인원이 가득 찼어요. (최대 $cap명)\n길드 레벨을 올리면 정원이 늘어나요.');
         return;
       }
+      // 🚪 자유 가입(open) 길드 → 승인 없이 바로 가입 처리
+      final policy = (data['joinPolicy'] ?? 'approval').toString();
+      if (policy == 'open') {
+        await fs.runTransaction((tx) async {
+          final gs = await tx.get(guildRef);
+          if (!gs.exists) throw '길드가 사라졌어요.';
+          final dd = gs.data() ?? {};
+          final mc2 = (dd['memberCount'] is num) ? (dd['memberCount'] as num).toInt() : 0;
+          final ge2 = (dd['guildExp'] is num) ? (dd['guildExp'] as num).toInt() : 0;
+          final cap2 = FishingLogic.guildMaxMembers(FishingLogic.guildLevelFromExp(ge2));
+          if (mc2 >= cap2) throw '길드 인원이 가득 찼어요. (최대 $cap2명)';
+          tx.set(guildRef.collection('members').doc(uid), {
+            'uid': uid,
+            'nickname': widget.nickname,
+            'role': 'member',
+            'level': _level,
+            'contribution': 0,
+            'joinedAt': FieldValue.serverTimestamp(),
+          });
+          tx.update(guildRef, {'memberCount': FieldValue.increment(1)});
+          tx.update(fs.collection('users').doc(uid), {
+            'guildId': gid,
+            'guildName': dd['name'] ?? gname,
+          });
+          tx.delete(guildRef.collection('applications').doc(uid)); // 혹시 남아있던 신청 정리
+        });
+        _infoPopup('가입 완료', '"$gname" 길드에 바로 가입했어요! 🎉\n(자유 가입 길드)');
+        return;
+      }
+      // 🔒 승인제(approval) → 가입 신청
       final appRef = guildRef.collection('applications').doc(uid);
       final appSnap = await appRef.get();
       if (appSnap.exists) {
