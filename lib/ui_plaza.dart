@@ -2982,21 +2982,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _statusStats() {
+  Widget _statusStats(bool isSea) {
+    // 👕 선택 모드(민물/바다)에 맞는 장비만 합산 (COMMON은 항상 포함) — 낚시터 실제 적용과 동일 기준
+    Map<String, dynamic>? fm(Map<String, dynamic>? it) {
+      if (it == null) return null;
+      final c = (it['category'] ?? '').toString().toUpperCase();
+      if (c == 'COMMON') return it;
+      return c == (isSea ? 'SEA' : 'FW') ? it : null;
+    }
     final equip = FishingLogic.getMyTotalStats(
-      equippedSkin: globalEquippedSkin,
-      equippedRod: globalEquippedRod,
-      equippedFloat: globalEquippedFloat,
-      equippedReel: globalEquippedReel,
+      equippedSkin: globalEquippedSkin,     // 스킨은 공용(모드 무관)
+      equippedRod: fm(globalEquippedRod),
+      equippedFloat: isSea ? null : globalEquippedFloat,
+      equippedReel: isSea ? globalEquippedReel : null,
       equippedSunglasses: globalEquippedSunglasses,
-      equippedBadge: globalEquippedBadge,
+      equippedBadge: fm(globalEquippedBadge),
       equippedCooler: globalEquippedCooler,
-      equippedBait: globalEquippedBait,     // 🪱 미끼 감도(S)
-      equippedNet: globalEquippedNet,       // 🥅 뜰채(C)
-      equippedBelt: globalEquippedBelt,     // 🎽 파워벨트(P)
+      equippedBait: fm(globalEquippedBait),     // 🪱 미끼 감도(S)
+      equippedNet: fm(globalEquippedNet),       // 🥅 뜰채(C)
+      equippedBelt: fm(globalEquippedBelt),     // 🎽 파워벨트(P, 바다 전용)
       equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
-      equippedLine: globalEquippedLine,           // 🧵 낚시줄(P)
-      equippedGroundbait: globalEquippedGroundbait, // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
+      equippedLine: fm(globalEquippedLine),           // 🧵 낚시줄(P)
+      equippedGroundbait: fm(globalEquippedGroundbait), // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
     );
     final eP = (equip['strength'] ?? 10) - 10;
     final eC = (equip['control'] ?? 10) - 10;
@@ -3115,6 +3122,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _openStatusWindow() {
     String invTab = '전체';
+    String equipMode = (globalIsSeaMode == true) ? '바다' : '민물'; // 👕 광장 장비 미리보기 모드(민물/바다)
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -3126,7 +3134,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           width: 900,
           height: 600,
           child: StatefulBuilder(builder: (ctx, setD) {
-            final reelOrFloat = globalEquippedReel ?? globalEquippedFloat;
+            // 👕 선택 모드(민물/바다)에 맞는 장비만 슬롯·능력치에 반영 (COMMON은 항상)
+            final bool seaMode = equipMode == '바다';
+            Map<String, dynamic>? forMode(Map<String, dynamic>? it) {
+              if (it == null) return null;
+              final c = (it['category'] ?? '').toString().toUpperCase();
+              if (c == 'COMMON') return it;
+              return c == (seaMode ? 'SEA' : 'FW') ? it : null;
+            }
+            final rodSlot = forMode(globalEquippedRod);
+            final reelFloatSlot = seaMode ? globalEquippedReel : globalEquippedFloat;
+            final baitSlot = forMode(globalEquippedBait);
+            final netSlot = forMode(globalEquippedNet);
+            final beltSlot = forMode(globalEquippedBelt);
+            final lineSlot = forMode(globalEquippedLine);
+            final gbSlot = forMode(globalEquippedGroundbait);
+            final badgeSlot = forMode(globalEquippedBadge);
             // 인벤토리 필터/정렬 (가방과 동일)
             int typeRank(Map<String, dynamic> it) {
               switch ((it['type'] ?? '').toString().toUpperCase()) {
@@ -3219,6 +3242,37 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   Expanded(
                     flex: 5,
                     child: Column(children: [
+                      // 👕 민물/바다 미리보기 모드 토글 — 선택 모드 장비·제압력만 표시
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+                        child: Row(children: [
+                          for (final m in const ['민물', '바다'])
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () => setD(() { equipMode = m; invTab = m; }),
+                                child: Container(
+                                  margin: EdgeInsets.only(right: m == '민물' ? 6 : 0),
+                                  padding: const EdgeInsets.symmetric(vertical: 7),
+                                  decoration: BoxDecoration(
+                                    color: equipMode == m
+                                        ? (m == '바다' ? const Color(0xFF123A5E) : const Color(0xFF16401F))
+                                        : Colors.white10,
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: equipMode == m ? _kGold : Colors.white24,
+                                        width: equipMode == m ? 1.5 : 1),
+                                  ),
+                                  child: Text(m == '민물' ? '🏞️ 민물' : '🌊 바다',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          color: equipMode == m ? Colors.white : Colors.white54,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900)),
+                                ),
+                              ),
+                            ),
+                        ]),
+                      ),
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
@@ -3227,13 +3281,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('스킨', Icons.checkroom, globalEquippedSkin),
                               _equipSlot('선글라스', Icons.remove_red_eye, globalEquippedSunglasses),
-                              _equipSlot('뱃지', Icons.shield, globalEquippedBadge),
+                              _equipSlot('뱃지', Icons.shield, badgeSlot),
                             ]),
                             const SizedBox(width: 4),
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                              _equipSlot('낚시대', Icons.phishing, globalEquippedRod),
-                              _equipSlot('릴/찌', Icons.album, reelOrFloat),
-                              _equipSlot('미끼', Icons.bug_report, globalEquippedBait),
+                              _equipSlot('낚시대', Icons.phishing, rodSlot),
+                              _equipSlot('릴/찌', Icons.album, reelFloatSlot),
+                              _equipSlot('미끼', Icons.bug_report, baitSlot),
                             ]),
                             // 캐릭터 (가운데)
                             Expanded(
@@ -3245,21 +3299,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             // 오른쪽 2열 🡒
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('아이스박스', Icons.ac_unit, globalEquippedCooler),
-                              _equipSlot('뜰채', Icons.pool, globalEquippedNet),
-                              _equipSlot('벨트', Icons.fitness_center, globalEquippedBelt),
+                              _equipSlot('뜰채', Icons.pool, netSlot),
+                              _equipSlot('벨트', Icons.fitness_center, beltSlot),
                             ]),
                             const SizedBox(width: 4),
                             Column(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                               _equipSlot('장갑', Icons.back_hand, globalEquippedGloves),
-                              _equipSlot('낚시줄', Icons.linear_scale, globalEquippedLine),
-                              _equipSlot('밑밥', Icons.grain, globalEquippedGroundbait),
+                              _equipSlot('낚시줄', Icons.linear_scale, lineSlot),
+                              _equipSlot('밑밥', Icons.grain, gbSlot),
                             ]),
                           ]),
                         ),
                       ),
                       const Divider(color: Colors.white12, height: 1),
                       // 능력치는 자연 높이로(스크롤 X) → 힘/컨트롤/감도 한 번에 보임. 캐릭터가 위 남는 공간 차지.
-                      _statusStats(),
+                      _statusStats(seaMode),
                     ]),
                   ),
                   const VerticalDivider(color: Colors.white12, width: 1),
@@ -3299,7 +3353,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 ),
                                 itemCount: items.length,
                                 itemBuilder: (c, i) => GestureDetector(
-                                  onTap: () => _equipFromStatus(items[i], setD),
+                                  onTap: () {
+                                    _equipFromStatus(items[i], setD);
+                                    // 모드 전용 장비를 착용하면 미리보기 모드도 그 모드로 전환
+                                    final cc = (items[i]['category'] ?? '').toString().toUpperCase();
+                                    if (cc == 'FW' || cc == 'SEA') {
+                                      setD(() => equipMode = cc == 'SEA' ? '바다' : '민물');
+                                    }
+                                  },
                                   child: _invItem(items[i]),
                                 ),
                               ),
