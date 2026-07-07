@@ -87,11 +87,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _cycleSkinPreview() {
     setState(() {
       _skinPreviewIdx = (_skinPreviewIdx + 1) % _previewSkins.length;
+      final nm = _previewSkins[_skinPreviewIdx];
+      final st = skinStatsByName(nm); // 👕 스킨별 능력치도 함께 적용(낚시터별 확인용)
       globalEquippedSkin = {
-        'name': _previewSkins[_skinPreviewIdx], 'category': 'SKIN', 'type': 'SKIN'
+        'name': nm, 'category': 'SKIN', 'type': 'SKIN', 'stats': st,
       };
     });
-    _toast('스킨 미리보기 → ${_previewSkins[_skinPreviewIdx]}');
+    final st = skinStatsByName(_previewSkins[_skinPreviewIdx]);
+    _toast('스킨 미리보기 → ${_previewSkins[_skinPreviewIdx]} (💪${st['P']} 🎯${st['C']} 📡${st['S']})');
   }
 
   // 🚶 걷기 바운스용

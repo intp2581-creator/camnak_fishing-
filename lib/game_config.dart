@@ -434,3 +434,22 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 100},
 ];
 
+// 👕 스킨 이름 → 능력치(P/C/S). 상점 목록에 정의된 값을 우선 사용하고,
+//    아직 미공개(레전드·낚시의 신)는 진행 패턴에 맞춘 임시 미리보기 값을 반환.
+Map<String, int> skinStatsByName(String name) {
+  for (final s in storeSkinItems) {
+    if (s['name'] == name && s['stats'] is Map) {
+      final st = s['stats'] as Map;
+      return {
+        'P': int.tryParse(st['P']?.toString() ?? '0') ?? 0,
+        'C': int.tryParse(st['C']?.toString() ?? '0') ?? 0,
+        'S': int.tryParse(st['S']?.toString() ?? '0') ?? 0,
+      };
+    }
+  }
+  // 발표 전 스킨 임시값 (마스터 300 → 레전드 400 → 낚시의 신 500)
+  if (name == '레전드 조사') return {'P': 400, 'C': 400, 'S': 400};
+  if (name == '낚시의 신') return {'P': 500, 'C': 500, 'S': 500};
+  return {'P': 10, 'C': 10, 'S': 10};
+}
+
