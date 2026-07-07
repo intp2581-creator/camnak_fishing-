@@ -1380,9 +1380,9 @@ Widget _buildChatTab(int index, String title) {
               }
               setState(() { equippedBait = nextBait; });
               if (nextBait != null) {
-                _baitToast('🔁 $targetBaitName 소진 → ${nextBait['name']}(으)로 자동 교체', const Color(0xFFD4AF37));
+                if (mounted) _showNotificationPopup('🔁 미끼 자동 교체', '$targetBaitName 이(가) 다 떨어져서\n${nextBait['name']}(으)로 자동 교체했어요.', const Color(0xFFD4AF37));
               } else {
-                _baitToast('🛑 미끼 소진! 가방에서 장착하거나 상점에서 구매하세요', Colors.orangeAccent);
+                if (mounted) _showNotificationPopup('🛑 미끼 소진', '미끼가 모두 떨어졌어요.\n가방에서 장착하거나 상점에서 구매하세요.', Colors.orangeAccent);
               }
             }
             break;
