@@ -292,6 +292,35 @@ for (var fish in availableFishes) {
     return 0;
   }
 
+  // 🛡️ 채팅 비속어 필터 (등급심사 언어관리 정책) — 매칭되면 같은 길이의 *로 치환
+  //    한글/영문 공용, 대소문자 무시. 오탐을 줄이려 '명백한 욕설' 위주로 구성.
+  static const List<String> _badWords = [
+    // 한글 욕설·변형
+    '시발', '씨발', '시팔', '씨팔', '씨빨', '시빨', '씨바', '시바', '슈발', '쉬발', '씌발', '싀발',
+    'ㅅㅂ', 'ㅆㅂ', 'ㅄ', 'ㅂㅅ', 'ㅈㄹ', 'ㅄ끼',
+    '병신', '븅신', '병1신', '지랄', '지럴', '개지랄',
+    '좆', '좇', '좃', '존나', '존내', '졸라', '조낸', '존니',
+    '개새끼', '개색끼', '개세끼', '개쉐이', '새끼', '색끼', '쌔끼', '쉐끼', '썅', '쌍놈', '쌍년',
+    '니미', '니애미', '니에미', '애미', '애비', '엄창', '느금마', '느금',
+    '보지', '자지', '섹스', '창녀', '걸레년', '호로', '후장',
+    '닥쳐', '닥치', '꺼져', '엿먹', '뒤져', '뒈져', '디져라',
+    '미친놈', '미친년', '또라이', '등신', '머저리', '호구새끼',
+    // 영문 욕설
+    'fuck', 'fuckyou', 'fuckin', 'shit', 'bitch', 'asshole', 'dick', 'pussy',
+    'nigger', 'motherfucker', 'bastard',
+  ];
+
+  static String cleanChat(String input) {
+    if (input.isEmpty) return input;
+    String out = input;
+    for (final w in _badWords) {
+      if (w.isEmpty) continue;
+      final re = RegExp(RegExp.escape(w), caseSensitive: false);
+      out = out.replaceAllMapped(re, (m) => '*' * m.group(0)!.runes.length);
+    }
+    return out;
+  }
+
   // 💪 2. 내 캐릭터 총 능력치 계산기 (인벤토리용)
   static Map<String, int> getMyTotalStats({
     Map<String, dynamic>? equippedSkin,

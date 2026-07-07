@@ -742,6 +742,7 @@ Widget _buildChatTab(int index, String title) {
   void _sendMessage() {
     String text = _chatController.text.trim();
     if (text.isEmpty) return;
+    text = FishingLogic.cleanChat(text); // 🛡️ 비속어 필터
 
     // 🏆 1. 아레나 탭(3번)일 때는 '아레나 전용 방'으로 바로 쏩니다!
     if (_currentChatTab == 3) {

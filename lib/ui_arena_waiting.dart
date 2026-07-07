@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ui_fishing.dart';
+import 'fishing_logic.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // 👑 KREFT 아레나 공식 찐 황금색 (눈 아픈 샛노란색 컷!)
@@ -533,7 +534,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
 
   void _sendMessage() async {
     if (_chatController.text.trim().isEmpty) return;
-    String text = _chatController.text.trim();
+    String text = FishingLogic.cleanChat(_chatController.text.trim()); // 🛡️ 비속어 필터
     _chatController.clear();
     await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('messages').add({'text': text, 'sender': myNickname, 'createdAt': FieldValue.serverTimestamp()});
   }

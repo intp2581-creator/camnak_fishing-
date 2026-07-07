@@ -1860,8 +1860,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _sendChat() {
-    final text = _chatCtrl.text.trim();
-    if (text.isEmpty) return;
+    final raw = _chatCtrl.text.trim();
+    if (raw.isEmpty) return;
+    final text = FishingLogic.cleanChat(raw); // 🛡️ 비속어 필터
     // 🛡️ 길드 탭: 길드 전용 채팅으로 전송
     if (_chatTab == 3) {
       if (_guildId.isEmpty) return;
