@@ -1776,7 +1776,8 @@ Widget _buildChatTab(int index, String title) {
                     onPressed: () {
                       audioManager.playSfx('sfx_click.mp3');
                       Navigator.pop(dctx); // 리스트 닫고
-                      Navigator.pop(context); // 광장으로 복귀
+                      // 🏛️ 낚시 종류에 맞는 광장으로 (바다낚시→바다광장 / 민물낚시→민물광장)
+                      Navigator.pop(context, {'toPlaza': widget.isSea ? 'sea' : 'fresh'});
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2E7D32),
@@ -1784,8 +1785,8 @@ Widget _buildChatTab(int index, String title) {
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    icon: const Text('🏛️', style: TextStyle(fontSize: 16)),
-                    label: const Text('광장으로 가기', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                    icon: Text(widget.isSea ? '🌊' : '🏞️', style: const TextStyle(fontSize: 16)),
+                    label: Text(widget.isSea ? '바다광장으로' : '민물광장으로', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
                   ),
                 ]),
               ),

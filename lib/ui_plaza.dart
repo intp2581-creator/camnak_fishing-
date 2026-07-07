@@ -1596,9 +1596,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _goFishing(loc: Map<String, dynamic>.from(result['hopTo'] as Map), sea: result['sea'] == true);
         return;
       }
+      // 🏛️ 낚시 종류에 맞는 광장으로 복귀 (바다낚시→바다광장). 현재 광장과 종류가 다르면 광장 교체.
+      if (result is Map && result['toPlaza'] != null) {
+        final wantSea = result['toPlaza'] == 'sea';
+        if (wantSea != widget.isSea) { _switchPlazaWorld(wantSea); return; }
+      }
       _returnPlazaPresence(); // 🚪 복귀 → 광장에 다시 등장
       if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 광장 BGM + 🎓 튜토리얼 상태 재읽기(나루 첫고기 완료 반영)
     });
+  }
+
+  // 🏛️ 광장 종류 전환 (민물광장 ↔ 바다광장) — 낚시 종류에 맞춰 해당 광장으로 교체
+  void _switchPlazaWorld(bool sea) {
+    if (!mounted) return;
+    final spot = sea ? locations['갯바위']![0] : locations['저수지']![0];
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PlazaScreen(
+          nickname: widget.nickname,
+          level: _level,
+          spot: spot,
+          isSea: sea,
+        ),
+      ),
+    );
   }
 
   // 🎓 낚시/외부 화면에서 돌아왔을 때 튜토리얼 상태 일회성 재읽기
