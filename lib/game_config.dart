@@ -453,3 +453,13 @@ Map<String, int> skinStatsByName(String name) {
   return {'P': 10, 'C': 10, 'S': 10};
 }
 
+// 👕 스킨 이름 → 아이콘 경로. 상점 목록 우선, 미공개(레전드·낚시의 신)는 에셋 직접 지정.
+String skinIconByName(String name) {
+  for (final s in storeSkinItems) {
+    if (s['name'] == name && s['icon'] != null) return s['icon'].toString();
+  }
+  if (name == '레전드 조사') return '../images/skin_regend.jpg';
+  if (name == '낚시의 신') return '../images/skin_god.jpg';
+  return '../images/skin_beginner.jpg';
+}
+

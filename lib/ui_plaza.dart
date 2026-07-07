@@ -91,6 +91,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final st = skinStatsByName(nm); // 👕 스킨별 능력치도 함께 적용(낚시터별 확인용)
       globalEquippedSkin = {
         'name': nm, 'category': 'SKIN', 'type': 'SKIN', 'stats': st,
+        'icon': skinIconByName(nm), // 🖼️ 슬롯 아이콘(없으면 낚시대 기본값으로 잘못 뜨는 버그 방지)
       };
     });
     final st = skinStatsByName(_previewSkins[_skinPreviewIdx]);
