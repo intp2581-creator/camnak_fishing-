@@ -2872,15 +2872,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return 'assets/items/$icon';
   }
 
+  // 👕 이 아이템이 지금 착용 중인지(어느 슬롯이든 이름 일치) — 가방 체크표시용
+  bool _isEquippedInPlaza(Map<String, dynamic> item) {
+    final nm = item['name'];
+    if (nm == null) return false;
+    bool m(Map<String, dynamic>? g) => g != null && g['name'] == nm;
+    return m(globalEquippedSkin) || m(globalEquippedRod) || m(globalEquippedFloat) ||
+        m(globalEquippedReel) || m(globalEquippedSunglasses) || m(globalEquippedBadge) ||
+        m(globalEquippedCooler) || m(globalEquippedBait) || m(globalEquippedNet) ||
+        m(globalEquippedBelt) || m(globalEquippedGloves) || m(globalEquippedLine) ||
+        m(globalEquippedGroundbait);
+  }
+
   Widget _invItem(Map<String, dynamic> item) {
     final name = item['name']?.toString() ?? '';
     final qty = item['quantity'];
     final icon = _itemIconPath(item['icon']?.toString() ?? '');
+    final equipped = _isEquippedInPlaza(item); // ✅ 착용 중이면 체크 표시
     return Container(
       decoration: BoxDecoration(
-        color: Colors.grey.shade900,
+        color: equipped ? const Color(0xFF2A2410) : Colors.grey.shade900,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white12),
+        border: Border.all(color: equipped ? _kGold : Colors.white12, width: equipped ? 1.6 : 1),
       ),
       child: Column(
         children: [
@@ -2896,6 +2909,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             const Icon(Icons.inventory_2, color: Colors.white24, size: 30)),
                   ),
                 ),
+                if (equipped)
+                  const Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Icon(Icons.check_circle, color: _kGold, size: 18),
+                  ),
                 if (qty != null)
                   Positioned(
                     right: 4,
