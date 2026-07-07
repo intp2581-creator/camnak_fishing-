@@ -541,11 +541,35 @@ Widget _buildChatTab(int index, String title) {
     equippedCooler = globalEquippedCooler;   // 🧊 공용(모드 무관)
     equippedGloves = globalEquippedGloves;   // 🧤 장갑 공용(모드 무관)
 
-    // 🛡️ 위치와 안 맞는 미끼는 자동 해제 (바다↔민물 이동 시 에기 등 잔류 방지)
-    final bcat = (equippedBait?['category'] ?? '').toString().toUpperCase();
-    if (equippedBait != null && bcat != (widget.isSea ? 'SEA' : 'FW') && bcat != 'COMMON') {
-      equippedBait = null;
-      globalEquippedBait = null;
+    // 🛡️ 위치(민물/바다)와 안 맞는 장비는 전부 자동 해제!
+    //    (광장에서 민물 장비 착용 → 바다 낚시터에서 민물 낚싯대·찌·휘장 등이 그대로 먹히던 버그 방지)
+    //    릴·벨트=바다 전용, 낚싯대·찌·뜰채·낚시줄·밑밥·휘장=민물/바다 구분. 장갑·아이스박스·선글라스=공용(COMMON) 유지.
+    final String wantCat = widget.isSea ? 'SEA' : 'FW';
+    bool _wrongCat(Map<String, dynamic>? it) {
+      if (it == null) return false;
+      final c = (it['category'] ?? '').toString().toUpperCase();
+      return c != wantCat && c != 'COMMON';
+    }
+    int _strippedCount = 0;
+    if (_wrongCat(equippedRod))        { equippedRod = null;        globalEquippedRod = null;        _strippedCount++; }
+    if (_wrongCat(equippedFloat))      { equippedFloat = null;      globalEquippedFloat = null;      _strippedCount++; }
+    if (_wrongCat(equippedBait))       { equippedBait = null;       globalEquippedBait = null;       _strippedCount++; }
+    if (_wrongCat(equippedReel))       { equippedReel = null;       globalEquippedReel = null;       _strippedCount++; }
+    if (_wrongCat(equippedNet))        { equippedNet = null;        globalEquippedNet = null;        _strippedCount++; }
+    if (_wrongCat(equippedBelt))       { equippedBelt = null;       globalEquippedBelt = null;       _strippedCount++; }
+    if (_wrongCat(equippedLine))       { equippedLine = null;       globalEquippedLine = null;       _strippedCount++; }
+    if (_wrongCat(equippedGroundbait)) { equippedGroundbait = null; globalEquippedGroundbait = null; _groundbaitActive = false; _strippedCount++; }
+    if (_wrongCat(equippedBadge))      { equippedBadge = null;      globalEquippedBadge = null;      _strippedCount++; }
+
+    // 아레나(강제 세팅)가 아닌 일반 낚시터에서 실제로 해제된 게 있으면 안내
+    if (_strippedCount > 0 && widget.title == widget.locationName) {
+      final String modeLabel = widget.isSea ? '바다' : '민물';
+      final String otherLabel = widget.isSea ? '민물' : '바다';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showNotificationPopup('🔄 장비 자동 정리',
+            '$otherLabel 전용 장비는 $modeLabel 낚시터에서 쓸 수 없어\n자동으로 해제했어요.\n$modeLabel 장비로 다시 장착해 주세요.',
+            const Color(0xFFD4AF37));
+      });
     }
 
     isRodEquipped = equippedRod != null;
