@@ -1503,6 +1503,149 @@ Widget _buildChatTab(int index, String title) {
     }
   }
 
+  // 🗺️ 낚시터 리스트(뒤로가기·낚시터 이동에서 호출)
+  //    다른 낚시터 탭 → 바로 이동(광장의 _goFishing이 처리) / '광장으로 가기' → 광장 복귀
+  void _openMoveSpotList() {
+    // 아레나(대회)에서는 이동 불가 → 그냥 나가기
+    if (widget.roomId != null) { Navigator.pop(context); return; }
+    String subCat = widget.isSea ? '갯바위' : '저수지';
+    showDialog(
+      context: context,
+      builder: (dctx) => Dialog(
+        backgroundColor: const Color(0xFF161616),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        child: SizedBox(
+          width: 720,
+          height: 560,
+          child: StatefulBuilder(builder: (dctx, setD) {
+            final bool isMainSea = (subCat == '갯바위' || subCat == '선상');
+            final spots = List<Map<String, dynamic>>.from(locations[subCat] ?? []);
+            Widget tab(String label, bool active, VoidCallback onTap) {
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+                  child: GestureDetector(
+                    onTap: onTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 9),
+                      decoration: BoxDecoration(
+                        color: active ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: active ? const Color(0xFFD4AF37) : Colors.white24),
+                      ),
+                      child: Text(label,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                              color: active ? Colors.black : Colors.white70,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900)),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return Column(children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 6),
+                child: Text('🗺️  낚시터 이동',
+                    style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.w900)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(children: [
+                  tab('저수지', subCat == '저수지', () => setD(() => subCat = '저수지')),
+                  tab('수로', subCat == '수로', () => setD(() => subCat = '수로')),
+                  tab('갯바위', subCat == '갯바위', () => setD(() => subCat = '갯바위')),
+                  tab('선상', subCat == '선상', () => setD(() => subCat = '선상')),
+                ]),
+              ),
+              const Divider(color: Colors.white12, height: 12),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: spots.length,
+                  itemBuilder: (c, i) {
+                    final s = spots[i];
+                    final isHere = s['name'] == widget.locationName;
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isHere ? const Color(0x22D4AF37) : Colors.grey.shade900,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: isHere ? const Color(0xFFD4AF37) : Colors.white10,
+                            width: isHere ? 1.5 : 1),
+                      ),
+                      child: ListTile(
+                        leading: Text(isMainSea ? '🌊' : '🏞️', style: const TextStyle(fontSize: 22)),
+                        title: Row(children: [
+                          Flexible(
+                            child: Text(s['name'],
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16.5)),
+                          ),
+                          const SizedBox(width: 8),
+                          ...List.generate(
+                              5,
+                              (k) => Icon(k < ((s['stars'] ?? 0) as int) ? Icons.star : Icons.star_border,
+                                  color: const Color(0xFFD4AF37), size: 13)),
+                        ]),
+                        subtitle: (s['target'] ?? '').toString().isNotEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.only(top: 5),
+                                child: Text('💡 ${s['target']}',
+                                    style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.3, fontWeight: FontWeight.w500)),
+                              )
+                            : null,
+                        trailing: isHere
+                            ? const Text('🎣 여기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))
+                            : const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
+                        onTap: () {
+                          audioManager.playSfx('sfx_click.mp3');
+                          if (isHere) { Navigator.pop(dctx); return; } // 현재 낚시터면 닫기만
+                          Navigator.pop(dctx); // 리스트 닫고
+                          Navigator.pop(context, {'hopTo': s, 'sea': isMainSea}); // 낚시 화면 나가며 이동 요청
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const Divider(color: Colors.white12, height: 1),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(children: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(dctx),
+                      child: const Text('취소', style: TextStyle(color: Colors.white54))),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      audioManager.playSfx('sfx_click.mp3');
+                      Navigator.pop(dctx); // 리스트 닫고
+                      Navigator.pop(context); // 광장으로 복귀
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2E7D32),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    icon: const Text('🏛️', style: TextStyle(fontSize: 16)),
+                    label: const Text('광장으로 가기', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+                  ),
+                ]),
+              ),
+            ]);
+          }),
+        ),
+      ),
+    );
+  }
+
   // 🦐 1분마다 민물새우 +2 적립
   Future<void> _collectShrimp() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -1854,7 +1997,7 @@ Positioned(
                         children: [
                           Row(
                             children: [
-                              IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 22), onPressed: () { audioManager.playSfx("sfx_click.mp3"); Navigator.pop(context); }),
+                              IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 22), onPressed: () { audioManager.playSfx("sfx_click.mp3"); if (widget.roomId != null) { Navigator.pop(context); } else { _openMoveSpotList(); } }),
                               const SizedBox(width: 5),
                               Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
                             ],
@@ -3380,8 +3523,8 @@ void _showTodayMissionInfo() {
                   ),
                   onPressed: () {
                     audioManager.playSfx("sfx_click.mp3");
-                    Navigator.pop(context); // 팝업 닫고
-                    Navigator.pop(context); // 로비로 이동
+                    Navigator.pop(context); // 결과 팝업 닫고
+                    _openMoveSpotList(); // 🗺️ 낚시터 리스트 열기(이동 또는 광장으로)
                   },
                   icon: const Icon(Icons.map, size: 18),
                   label: const Text('낚시터 이동'),

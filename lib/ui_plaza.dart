@@ -1590,7 +1590,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           isFirstTime: widget.isFirstTime,
         ),
       ),
-    ).then((_) {
+    ).then((result) {
+      // 🗺️ 낚시터 리스트에서 '다른 낚시터로 이동' 요청 → 광장 복귀 없이 바로 다음 낚시터로
+      if (result is Map && result['hopTo'] != null) {
+        _goFishing(loc: Map<String, dynamic>.from(result['hopTo'] as Map), sea: result['sea'] == true);
+        return;
+      }
       _returnPlazaPresence(); // 🚪 복귀 → 광장에 다시 등장
       if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 광장 BGM + 🎓 튜토리얼 상태 재읽기(나루 첫고기 완료 반영)
     });
