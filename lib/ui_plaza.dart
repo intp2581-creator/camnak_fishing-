@@ -478,20 +478,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
   }
 
-  // 상단 미니 버튼 (소리/전체화면)
+  // 상단 미니 버튼 (소리/전체화면) — 폰에서 탭하기 쉽게 크게(내정보 카드 높이에 맞춤)
   Widget _miniBtn(IconData icon, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 58,
+        alignment: Alignment.center, // 세로는 IntrinsicHeight+stretch로 카드 높이만큼 늘어남
         decoration: BoxDecoration(
           color: Colors.black.withOpacity(0.7),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: _kGold, width: 1.5),
           boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
         ),
-        child: Icon(icon, color: _kGold, size: 24),
+        child: Icon(icon, color: _kGold, size: 34),
       ),
     );
   }
@@ -5050,7 +5050,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
           ),
           // 🔊 소리/전체화면 + 내 정보 카드 (오른쪽에 함께)
-          Row(mainAxisSize: MainAxisSize.min, children: [
+          IntrinsicHeight(
+          child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _miniBtn(audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
                 () => setState(() => audioManager.toggleMute())),
             const SizedBox(width: 8),
@@ -5114,7 +5115,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
-          ]),
+          ])),
         ],
       ),
     );
