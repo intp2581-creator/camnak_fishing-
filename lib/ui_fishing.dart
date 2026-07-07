@@ -1503,6 +1503,156 @@ Widget _buildChatTab(int index, String title) {
     }
   }
 
+  // 📋 진행 중인 퀘스트 + 진행현황 (일일 민물/바다 · 서윤 의뢰 · 승급)
+  void _showQuestPopup() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final fwM = getTodayFwMission();
+    final seaM = getTodaySeaMission();
+    final bobaeM = getTodayBobaeFish();
+
+    Widget section(String title, List<Widget> rows) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white12)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 15, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            ...rows,
+          ]),
+        );
+    Widget qRow(String label, int cur, int target, bool done) {
+      final p = target > 0 ? (cur / target).clamp(0.0, 1.0) : 1.0;
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))),
+            done
+                ? const Text('✅ 완료', style: TextStyle(color: Color(0xFF7FFFB0), fontSize: 13, fontWeight: FontWeight.bold))
+                : Text('$cur/$target', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 14, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 5),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+                value: p, minHeight: 7, backgroundColor: Colors.white12,
+                valueColor: AlwaysStoppedAnimation(done ? const Color(0xFF7FFFB0) : const Color(0xFFD4AF37))),
+          ),
+        ]),
+      );
+    }
+    Widget note(String text, {Color color = Colors.white60}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Text(text, style: TextStyle(color: color, fontSize: 13, height: 1.35)),
+        );
+
+    showDialog(
+      context: context,
+      builder: (dctx) => Dialog(
+        backgroundColor: const Color(0xFF161616),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480, maxHeight: 640),
+          child: StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+            builder: (c, snap) {
+              final d = (snap.data?.data() as Map<String, dynamic>?) ?? {};
+              // 일일(민물/바다)
+              final mp = d['mission_progress'];
+              final sd = mp is Map && mp['date'] == today;
+              final int fwP = sd && mp['fw'] is num ? (mp['fw'] as num).toInt() : 0;
+              final int seaP = sd && mp['sea'] is num ? (mp['sea'] as num).toInt() : 0;
+              final bool fwDone = sd && mp['fwDone'] == true;
+              final bool seaDone = sd && mp['seaDone'] == true;
+              // 서윤(보배)
+              final bp = d['bobae_progress'];
+              final sdb = bp is Map && bp['date'] == today;
+              final int bC = sdb && bp['caught'] is num ? (bp['caught'] as num).toInt() : 0;
+              final bool bClaimed = sdb && bp['claimed'] == true;
+              // 승급
+              final rank = (d['rank'] ?? '초보').toString();
+              final tier = nextPromotion(rank);
+              final int lvl = calcLevelFromExp((d['exp'] is num) ? (d['exp'] as num).toInt() : 0);
+              final dc = <String, int>{};
+              if (d['daejangCatch'] is Map) {
+                (d['daejangCatch'] as Map).forEach((k, v) { dc[k.toString()] = (v is num) ? v.toInt() : 0; });
+              }
+              final int bobaeTarget = bobaeM['count'] as int;
+
+              return Column(mainAxisSize: MainAxisSize.min, children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+                  child: Row(children: [
+                    const Icon(Icons.assignment_turned_in, color: Color(0xFFD4AF37), size: 22),
+                    const SizedBox(width: 8),
+                    const Text('진행 중인 퀘스트', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.w900)),
+                    const Spacer(),
+                    IconButton(onPressed: () => Navigator.pop(dctx), icon: const Icon(Icons.close, color: Colors.white54)),
+                  ]),
+                ),
+                const Divider(color: Colors.white12, height: 1),
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+                    child: Column(children: [
+                      // 📋 일일 퀘스트
+                      section('📋 일일 퀘스트  ·  아라', [
+                        qRow('🏞️ 민물 — ${fwM['fish']} 잡기', fwP, fwM['count'] as int, fwDone),
+                        fwDone
+                            ? qRow('🌊 바다 — ${seaM['fish']} 잡기', seaP, seaM['count'] as int, seaDone)
+                            : note('🌊 바다 — 민물 완료 후 열려요 🔒'),
+                        note('완료하면 아라에게 각 ${dailyMissionPrize}P!'),
+                      ]),
+                      // 🐟 서윤 의뢰
+                      section('🐟 서윤 의뢰', [
+                        bClaimed
+                            ? note('오늘 의뢰 완료 · 정산까지 끝났어요! ✅', color: const Color(0xFF7FFFB0))
+                            : qRow('${bobaeM['fish']} $bobaeTarget마리 잡기', bC, bobaeTarget, bC >= bobaeTarget),
+                        if (!bClaimed && bC >= bobaeTarget) note('광장의 서윤에게 가서 정산받으세요!', color: const Color(0xFF7FFFB0)),
+                      ]),
+                      // 🎖️ 승급 퀘스트
+                      section('🎖️ 승급 퀘스트  ·  아라', tier == null
+                          ? [note('현재 최고 칭호예요! (레전드·낚시의 신 준비 중) 🏆', color: const Color(0xFF7FFFB0))]
+                          : (lvl < (tier['level'] as int)
+                              ? [note('Lv.${tier['level']} 도달 시 [${tier['rank']}] 승급 퀘스트가 열려요.\n(현재 Lv.$lvl)')]
+                              : [
+                                  note('6대장을 각 ${tier['need']}마리씩! (달성 후 아라에게 승급)'),
+                                  const SizedBox(height: 6),
+                                  Wrap(spacing: 8, runSpacing: 8, children: daejangFish.map((f) {
+                                    final cur = dc[f] ?? 0;
+                                    final need = tier['need'] as int;
+                                    final ok = cur >= need;
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: ok ? const Color(0x224CAF50) : Colors.white10,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: ok ? const Color(0xFF7FFFB0) : Colors.white24),
+                                      ),
+                                      child: Text('$f ${cur > need ? need : cur}/$need${ok ? " ✅" : ""}',
+                                          style: TextStyle(color: ok ? const Color(0xFF7FFFB0) : Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                    );
+                                  }).toList()),
+                                ])),
+                      const SizedBox(height: 4),
+                    ]),
+                  ),
+                ),
+              ]);
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
   // 🗺️ 낚시터 리스트(뒤로가기·낚시터 이동에서 호출)
   //    다른 낚시터 탭 → 바로 이동(광장의 _goFishing이 처리) / '광장으로 가기' → 광장 복귀
   void _openMoveSpotList() {
@@ -2092,6 +2242,14 @@ Positioned(
                 icon: Icons.groups,
                 onPressed: () => showGuildInfoDialog(context),
               ),
+              // 📋 퀘스트 진행현황 (아레나 제외 — 일반 낚시터에서만)
+              if (widget.roomId == null) ...[
+                const SizedBox(width: 8),
+                _buildTopMiniButton(
+                  icon: Icons.assignment_turned_in,
+                  onPressed: () { audioManager.playSfx("sfx_click.mp3"); _showQuestPopup(); },
+                ),
+              ],
               // 🦐 새우 채집망 던지기/건지기 (민물 전용 · 보유 시에만 표시)
               if (_hasShrimpTrap() && !widget.isSea) ...[
                 const SizedBox(width: 8),
