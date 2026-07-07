@@ -1450,7 +1450,7 @@ Widget _buildChatTab(int index, String title) {
       else { inv[idx]['quantity'] = q; }
       await userDoc.update({'inventory': inv});
       if (mounted) setState(() => _groundbaitActive = true); // 이번 세션 감도 +10 ON
-      if (mounted) _baitToast('🍚 밑밥을 뿌렸어요! 이번 낚시터 감도 +10 (잔여 $q개)', const Color(0xFF7FFFB0));
+      if (mounted) _showNotificationPopup('🍚 밑밥을 뿌렸어요!', '이번 낚시터에 머무는 동안 감도 +10 효과가 적용돼요.\n(잔여 $q개)', const Color(0xFF7FFFB0));
     } catch (e) { debugPrint('밑밥 소모 에러: $e'); }
   }
 
