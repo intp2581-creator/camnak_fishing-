@@ -2803,42 +2803,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final figW = figH * 0.6;
     final cx = widget.isSea ? 0.281 : 0.530;
     final cy = widget.isSea ? 0.837 : 0.877; // 발 위치 (민물=새 배치 / 바다=기존)
+    final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
+    final araBang = araTut || (_tutStep == 99 && !_questDone); // 📋 일일 미션 미완료면 ❗
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 58, // 이름+역할+❗슬롯 높이 보정(❗ 유무와 무관하게 발 위치 고정)
+      top: cy * worldH - figH, // 발이 cy에 오도록(그림 bottomCenter)
+      width: figW,
+      height: figH,
       child: GestureDetector(
         onTap: _onAraTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            Builder(builder: (_) {
-              final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
-              // 📋 일일 미션 미완료면 접속 시 ❗ (튜토리얼 끝난 뒤), 완료하면 사라짐
-              final araBang = araTut || (_tutStep == 99 && !_questDone);
-              return Column(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(height: 26, child: araBang ? Center(child: _tutBang()) : null), // ❗ 자리 항상 확보
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
-                    boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
-                  ),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('아라',
-                        style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                    Text(araTut ? '튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
-                        style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
-                  ]),
-                ),
-              ]);
-            }),
-            const SizedBox(height: 2),
-            SizedBox(
-              width: figW,
-              height: figH,
-              // 🌊 바다광장이면 '_sea' 변형 먼저 시도 → 없으면 기본 이미지
+            // 🌊 바다광장이면 '_sea' 변형 먼저 시도 → 없으면 기본 이미지
+            Positioned.fill(
               child: Image.asset('assets/images/${widget.isSea ? 'npc_manager_quest_sea.png' : 'npc_manager_quest.png'}',
                   fit: BoxFit.contain,
                   alignment: Alignment.bottomCenter,
@@ -2846,6 +2825,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       fit: BoxFit.contain,
                       alignment: Alignment.bottomCenter,
                       errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
+            ),
+            // 🏷️ 이름표 + ❗ — 머리 근처(그림 높이의 86% 지점)에 오버레이
+            Positioned(
+              bottom: figH * 0.86,
+              left: -90,
+              right: -90,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(height: 24, child: araBang ? Center(child: _tutBang()) : null),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
+                      boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
+                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const Text('아라', style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                      Text(araTut ? '튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
+                          style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                ),
+              ]),
             ),
           ],
         ),
@@ -2868,33 +2872,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest || isHanbyeolQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
-      top: cy * worldH - figH - 58, // cy=발 위치, 이름+역할+❗슬롯 높이 보정(❗ 유무와 무관하게 발 위치 고정)
+      top: cy * worldH - figH, // 발이 cy에 오도록(그림은 bottomCenter로 하단 정렬)
+      width: figW,
+      height: figH,
       child: GestureDetector(
         onTap: onTap,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(
+          clipBehavior: Clip.none,
           children: [
-            SizedBox(height: 26, child: bang ? Center(child: _tutBang()) : null), // ❗ 자리 항상 확보(캐릭터 세로위치 고정)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.65),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: bang ? Colors.orangeAccent : _kGold, width: bang ? 2 : 1),
-                boxShadow: [BoxShadow(color: (bang ? Colors.orangeAccent : _kGold).withOpacity(bang ? 0.8 : 0.4), blurRadius: bang ? 10 : 7)],
-              ),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(name,
-                    style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                Text(label,
-                    style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-              ]),
-            ),
-            const SizedBox(height: 2),
-            SizedBox(
-              width: figW,
-              height: figH,
-              // 🌊 바다광장이면 '_sea' 변형 먼저 시도 → 없으면 기본 이미지 → 그래도 없으면 fallback
+            // NPC 그림 (발=하단). 바다광장이면 '_sea' 변형 먼저 시도.
+            Positioned.fill(
               child: Image.asset('assets/images/${widget.isSea ? img.replaceFirst('.png', '_sea.png') : img}',
                   fit: BoxFit.contain,
                   alignment: Alignment.bottomCenter,
@@ -2905,6 +2893,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           fit: BoxFit.contain,
                           alignment: Alignment.bottomCenter,
                           errorBuilder: (a2, b2, c2) => const SizedBox.shrink()))),
+            ),
+            // 🏷️ 이름표 + ❗ — 머리 근처(그림 높이의 86% 지점)에 오버레이
+            Positioned(
+              bottom: figH * 0.86,
+              left: -90,
+              right: -90,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                SizedBox(height: 24, child: bang ? Center(child: _tutBang()) : null),
+                Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.65),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: bang ? Colors.orangeAccent : _kGold, width: bang ? 2 : 1),
+                      boxShadow: [BoxShadow(color: (bang ? Colors.orangeAccent : _kGold).withOpacity(bang ? 0.8 : 0.4), blurRadius: bang ? 10 : 7)],
+                    ),
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(name, style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
+                      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ]),
+                  ),
+                ),
+              ]),
             ),
           ],
         ),
