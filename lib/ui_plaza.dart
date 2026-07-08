@@ -2438,6 +2438,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           final sprites = <MapEntry<double, Widget>>[];
                           // 🏞️ 민물광장 시설 포털 (각 NPC 자리 뒤). 바다광장은 아직 포털 이미지 없음.
                           if (!widget.isSea) {
+                            // 🗼 중앙 화단 그랜드오픈 기념탑 (장식)
+                            sprites.add(MapEntry(0.575, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.575, 'center_monument_fw.png', 0.44)));
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.36)));
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.34)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.36)));
