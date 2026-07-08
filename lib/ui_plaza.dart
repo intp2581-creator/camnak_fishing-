@@ -1285,7 +1285,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
-  bool get _devCoords => _isOperator; // 🔧 좌표 수집 모드(운영자만): 탭하면 우하단에 좌표 표시. 배치 확정 후 false로
+  static const bool _devCoords = false; // 🔧 좌표 수집 모드(운영자만): 탭하면 우하단에 좌표 표시. 다시 켜려면 => _isOperator
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
@@ -1301,20 +1301,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🚫 못 가는 구역(화단·구조물) — 바깥 폴리곤 안에서도 여기 안이면 못 감
   static const List<List<Offset>> _freshObstacles = [
-    // 화단1
-    [Offset(0.347, 0.641), Offset(0.401, 0.553), Offset(0.432, 0.496), Offset(0.438, 0.530),
-     Offset(0.504, 0.532), Offset(0.496, 0.592), Offset(0.444, 0.599), Offset(0.418, 0.646)],
-    // 화단2
-    [Offset(0.450, 0.742), Offset(0.448, 0.660), Offset(0.517, 0.645), Offset(0.527, 0.561),
-     Offset(0.554, 0.601), Offset(0.593, 0.613), Offset(0.575, 0.699)],
-    // 화단3
-    [Offset(0.729, 0.746), Offset(0.741, 0.674), Offset(0.780, 0.667), Offset(0.790, 0.621),
-     Offset(0.804, 0.613), Offset(0.818, 0.677), Offset(0.841, 0.696), Offset(0.763, 0.781)],
-    // 상점앞 포탈
-    [Offset(0.703, 0.826), Offset(0.697, 0.651), Offset(0.670, 0.636), Offset(0.642, 0.702),
-     Offset(0.637, 0.809), Offset(0.635, 0.852), Offset(0.664, 0.876)],
-    // 퀘스트 용지
-    [Offset(0.295, 0.699), Offset(0.277, 0.554), Offset(0.239, 0.557), Offset(0.239, 0.723)],
+    // 🗼 기념탑
+    [Offset(0.496, 0.550), Offset(0.578, 0.546), Offset(0.585, 0.593), Offset(0.511, 0.592)],
+    // 📜 퀘스트 두루마리
+    [Offset(0.535, 0.867), Offset(0.535, 0.918), Offset(0.457, 0.916), Offset(0.445, 0.864)],
+    // 🏆 랭킹 트로피
+    [Offset(0.166, 0.663), Offset(0.060, 0.664), Offset(0.059, 0.599), Offset(0.166, 0.581)],
+    // 🛡️ 길드 방패
+    [Offset(0.325, 0.405), Offset(0.256, 0.405), Offset(0.256, 0.370), Offset(0.321, 0.370)],
+    // (낚시터·아레나·상점은 외곽 경계로 이미 차단)
   ];
   static const List<List<Offset>> _seaObstacles = _freshObstacles;
   List<List<Offset>> get _activeObstacles => widget.isSea ? _seaObstacles : _freshObstacles;
