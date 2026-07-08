@@ -2830,7 +2830,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
             // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.72,
+              bottom: figH * 0.62,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -2897,7 +2897,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
             // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.72,
+              bottom: figH * 0.62,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
