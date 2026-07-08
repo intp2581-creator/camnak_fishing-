@@ -2443,7 +2443,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.40)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.710, 0.370, 'portal_arena_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.390, _plazaPortal(worldW, worldH, sizeRef, 0.760, 0.390, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
                             sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
                           }
@@ -2534,8 +2534,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             widget.isSea ? 0.598 : 0.270, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
                             () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
                             scale: 0.9),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.675,
-                            widget.isSea ? 0.657 : 0.371, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.725,
+                            widget.isSea ? 0.657 : 0.391, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
                             _onHanbyeolTap,
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.910,
