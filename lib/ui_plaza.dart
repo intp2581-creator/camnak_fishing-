@@ -2450,7 +2450,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.340, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.340, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
-                            sprites.add(MapEntry(0.913, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.913, 'portal_quest_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.913, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.913, 'portal_quest_fw.png', 0.36, flip: true)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
@@ -2929,17 +2929,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏞️ 시설 포털(배경 위 장식) — 바닥 중앙을 (cx,cy) 발높이에 맞춰 세움. 캐릭터/NPC보다 뒤에 그려짐.
-  Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac) {
+  Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac, {bool flip = false}) {
     return Positioned(
       left: cx * worldW,
       top: cy * worldH, // 포털 바닥 = 찍은 좌표(=NPC 발 위치). NPC의 -58은 이름표 높이라 포털엔 불필요.
       child: IgnorePointer(
         child: FractionalTranslation(
           translation: const Offset(-0.5, -1.0), // 바닥 중앙 앵커
-          child: Image.asset('assets/plaza/$file',
+          child: Transform.flip(
+            flipX: flip, // 🔄 좌우 반전 옵션
+            child: Image.asset('assets/plaza/$file',
               height: sizeRef * hFrac,
               fit: BoxFit.contain,
-              errorBuilder: (a, b, c) => const SizedBox.shrink()),
+              errorBuilder: (a, b, c) => const SizedBox.shrink())),
         ),
       ),
     );
