@@ -2445,7 +2445,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.44)));
                             sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.710, 0.370, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48)));
-                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.877, 'portal_quest_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
@@ -2800,7 +2800,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내) — 위치=월드, 크기=뷰포트
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final cx = widget.isSea ? 0.281 : 0.513;
-    final cy = widget.isSea ? 0.837 : 0.900; // 발 위치 (민물=새 배치 / 바다=기존)
+    final cy = widget.isSea ? 0.837 : 0.920; // 발 위치 (민물=새 배치 / 바다=기존)
     // 🧍 원근 크기(아주 약하게)
     final double pT = ((cy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
     final figH = sizeH * (0.27 + pT * 0.03);
@@ -2830,11 +2830,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
             // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.80,
+              bottom: figH * 0.72,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(height: 22, child: araBang ? Center(child: _tutBang()) : null),
+                if (araBang) Center(child: _tutBang()), // ❗ 고정 높이 없이(안 잘리게)
+                if (araBang) const SizedBox(height: 2),
                 const Center(
                   child: Text('아라',
                       style: TextStyle(
@@ -2896,11 +2897,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
             // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.80,
+              bottom: figH * 0.72,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(height: 22, child: bang ? Center(child: _tutBang()) : null),
+                if (bang) Center(child: _tutBang()), // ❗ 고정 높이 없이(안 잘리게)
+                if (bang) const SizedBox(height: 2),
                 Center(
                   child: Text(name,
                       style: const TextStyle(
