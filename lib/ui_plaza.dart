@@ -1285,7 +1285,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
-  bool get _devCoords => _isOperator; // 🔧 좌표 수집 모드(운영자만): 탭하면 우하단에 좌표 표시. 확정 후 static const false로
+  static const bool _devCoords = false; // 🔧 좌표 수집 모드(운영자만). 다시 켜려면 => _isOperator
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
@@ -1309,7 +1309,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     [Offset(0.166, 0.663), Offset(0.060, 0.664), Offset(0.059, 0.599), Offset(0.166, 0.581)],
     // 🛡️ 길드 방패
     [Offset(0.325, 0.405), Offset(0.256, 0.405), Offset(0.256, 0.370), Offset(0.321, 0.370)],
-    // (낚시터·아레나·상점은 외곽 경계로 이미 차단)
+    // 🏛️ 아레나 탑 (외곽 경계 틈 보강)
+    [Offset(0.779, 0.391), Offset(0.743, 0.392), Offset(0.705, 0.395), Offset(0.705, 0.302),
+     Offset(0.807, 0.334), Offset(0.804, 0.390)],
+    // (낚시터·상점은 외곽 경계로 이미 차단)
   ];
   static const List<List<Offset>> _seaObstacles = _freshObstacles;
   List<List<Offset>> get _activeObstacles => widget.isSea ? _seaObstacles : _freshObstacles;
