@@ -2415,6 +2415,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             },
                           ),
                         ),
+                        // 🏞️ 민물광장 시설 포털(배경 위 · 캐릭터/NPC보다 뒤). 각 NPC 자리 뒤에 세움.
+                        //    바다광장은 아직 포털 이미지 없음 → 기존(배경에 그려진) 방식 유지.
+                        if (!widget.isSea) ...[
+                          _plazaPortal(worldW, worldH, sizeRef, 0.156, 0.485, 'portal_rank_fw.png', 0.30),
+                          _plazaPortal(worldW, worldH, sizeRef, 0.407, 0.550, 'portal_guild_fw.png', 0.28),
+                          _plazaPortal(worldW, worldH, sizeRef, 0.599, 0.593, 'portal_fishing_fw.png', 0.30),
+                          _plazaPortal(worldW, worldH, sizeRef, 0.846, 0.648, 'portal_arena_fw.png', 0.30),
+                          _plazaPortal(worldW, worldH, sizeRef, 0.809, 0.945, 'portal_shop_fw.png', 0.32),
+                          _plazaPortal(worldW, worldH, sizeRef, 0.281, 0.837, 'portal_quest_fw.png', 0.26),
+                        ],
                         // 🔧 좌표 수집 마커
                         if (_devCoords && _lastTapWorld != null)
                           Positioned(
@@ -2892,6 +2902,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           errorBuilder: (a2, b2, c2) => const SizedBox.shrink()))),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  // 🏞️ 시설 포털(배경 위 장식) — 바닥 중앙을 (cx,cy) 발높이에 맞춰 세움. 캐릭터/NPC보다 뒤에 그려짐.
+  Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac) {
+    return Positioned(
+      left: cx * worldW,
+      top: cy * worldH - 58, // _standNpc의 발높이 보정(-58)과 동일 → NPC 발밑에 정확히 붙음
+      child: IgnorePointer(
+        child: FractionalTranslation(
+          translation: const Offset(-0.5, -1.0), // 바닥 중앙 앵커
+          child: Image.asset('assets/plaza/$file',
+              height: sizeRef * hFrac,
+              fit: BoxFit.contain,
+              errorBuilder: (a, b, c) => const SizedBox.shrink()),
         ),
       ),
     );
