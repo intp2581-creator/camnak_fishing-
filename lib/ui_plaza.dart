@@ -1285,7 +1285,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
-  static const double _imgAspect = 3296 / 1700; // 월드 가로:세로 비율
+  // 월드 가로:세로 비율. 바다광장은 실제 이미지 비율(2760×1504)로 → 하단 안 잘림. 민물은 기존값 유지(배치 보존).
+  double get _imgAspect => widget.isSea ? (2760 / 1504) : (3296 / 1700);
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
