@@ -2415,16 +2415,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             },
                           ),
                         ),
-                        // 🏞️ 민물광장 시설 포털(배경 위 · 캐릭터/NPC보다 뒤). 각 NPC 자리 뒤에 세움.
-                        //    바다광장은 아직 포털 이미지 없음 → 기존(배경에 그려진) 방식 유지.
-                        if (!widget.isSea) ...[
-                          _plazaPortal(worldW, worldH, sizeRef, 0.156, 0.485, 'portal_rank_fw.png', 0.30),
-                          _plazaPortal(worldW, worldH, sizeRef, 0.407, 0.550, 'portal_guild_fw.png', 0.28),
-                          _plazaPortal(worldW, worldH, sizeRef, 0.599, 0.593, 'portal_fishing_fw.png', 0.30),
-                          _plazaPortal(worldW, worldH, sizeRef, 0.846, 0.648, 'portal_arena_fw.png', 0.30),
-                          _plazaPortal(worldW, worldH, sizeRef, 0.809, 0.945, 'portal_shop_fw.png', 0.32),
-                          _plazaPortal(worldW, worldH, sizeRef, 0.281, 0.837, 'portal_quest_fw.png', 0.26),
-                        ],
                         // 🔧 좌표 수집 마커
                         if (_devCoords && _lastTapWorld != null)
                           Positioned(
@@ -2442,80 +2432,93 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               ),
                             ),
                           ),
-                        // 내 캐릭터 (탭 통과)
-                        AnimatedPositioned(
-                          duration: _moveDuration,
-                          curve: Curves.linear,
-                          left: _charPos.dx * worldW - charW / 2,
-                          top: _charPos.dy * worldH - charH,
-                          width: charW,
-                          height: charH,
-                          child: IgnorePointer(
-                            child: AnimatedBuilder(
-                              animation: _walkCtrl,
-                              builder: (context, _) {
-                                final phase = _walkCtrl.value * 2 * math.pi;
-                                final bob = _walking ? math.sin(phase).abs() * 2.0 : 0.0;
-                                // 옆모습일 때만 좌우반전(왼쪽). 앞/뒤는 반전 안 함
-                                final flip = (_moveDir == 'side' && !_facingRight);
-                                return Stack(
-                                  clipBehavior: Clip.none,
-                                  alignment: Alignment.bottomCenter,
-                                  children: [
-                                    Positioned.fill(
-                                      child: Transform.translate(
-                                        offset: Offset(0, -bob),
-                                        child: Transform(
-                                          alignment: Alignment.bottomCenter,
-                                          transform: Matrix4.rotationY(flip ? math.pi : 0),
-                                          child: Image.asset(
-                                            _charSprite,
-                                            fit: BoxFit.contain,
+                        // 🎭 깊이정렬 스프라이트: 시설 포털 + 내 캐릭터 + 원격 유저를
+                        //    발높이(y)순으로 그려서, 캐릭터가 포털보다 위(뒤)면 포털에 가려지게 함.
+                        ...(() {
+                          final sprites = <MapEntry<double, Widget>>[];
+                          // 🏞️ 민물광장 시설 포털 (각 NPC 자리 뒤). 바다광장은 아직 포털 이미지 없음.
+                          if (!widget.isSea) {
+                            sprites.add(MapEntry(0.485, _plazaPortal(worldW, worldH, sizeRef, 0.156, 0.485, 'portal_rank_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.550, _plazaPortal(worldW, worldH, sizeRef, 0.407, 0.550, 'portal_guild_fw.png', 0.28)));
+                            sprites.add(MapEntry(0.593, _plazaPortal(worldW, worldH, sizeRef, 0.599, 0.593, 'portal_fishing_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.648, _plazaPortal(worldW, worldH, sizeRef, 0.846, 0.648, 'portal_arena_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.945, _plazaPortal(worldW, worldH, sizeRef, 0.809, 0.945, 'portal_shop_fw.png', 0.32)));
+                            sprites.add(MapEntry(0.837, _plazaPortal(worldW, worldH, sizeRef, 0.281, 0.837, 'portal_quest_fw.png', 0.26)));
+                          }
+                          // 🧍 내 캐릭터 (탭 통과)
+                          sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
+                            duration: _moveDuration,
+                            curve: Curves.linear,
+                            left: _charPos.dx * worldW - charW / 2,
+                            top: _charPos.dy * worldH - charH,
+                            width: charW,
+                            height: charH,
+                            child: IgnorePointer(
+                              child: AnimatedBuilder(
+                                animation: _walkCtrl,
+                                builder: (context, _) {
+                                  final phase = _walkCtrl.value * 2 * math.pi;
+                                  final bob = _walking ? math.sin(phase).abs() * 2.0 : 0.0;
+                                  final flip = (_moveDir == 'side' && !_facingRight);
+                                  return Stack(
+                                    clipBehavior: Clip.none,
+                                    alignment: Alignment.bottomCenter,
+                                    children: [
+                                      Positioned.fill(
+                                        child: Transform.translate(
+                                          offset: Offset(0, -bob),
+                                          child: Transform(
                                             alignment: Alignment.bottomCenter,
-                                            // 방향 스프라이트 없으면 기본 이미지로 폴백
-                                            errorBuilder: (a, b, d) => Image.asset(
-                                              _charImage,
+                                            transform: Matrix4.rotationY(flip ? math.pi : 0),
+                                            child: Image.asset(
+                                              _charSprite,
                                               fit: BoxFit.contain,
                                               alignment: Alignment.bottomCenter,
-                                              errorBuilder: (a2, b2, d2) =>
-                                                  const SizedBox.shrink(),
+                                              errorBuilder: (a, b, d) => Image.asset(
+                                                _charImage,
+                                                fit: BoxFit.contain,
+                                                alignment: Alignment.bottomCenter,
+                                                errorBuilder: (a2, b2, d2) => const SizedBox.shrink(),
+                                              ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    Positioned(
-                                      bottom: charH * 0.62, // 머리 위(스프라이트 상단 여백 고려)
-                                      left: -150,
-                                      right: -150,
-                                      child: Center(
-                                        child: _nameTag(widget.nickname, _guildName,
-                                            isMe: true, champ: _isChampionGuild,
-                                            garamRank: _myGaramRank),
-                                      ),
-                                    ),
-                                    if (_myBubble != null &&
-                                        _myBubbleUntil != null &&
-                                        DateTime.now().isBefore(_myBubbleUntil!))
                                       Positioned(
-                                        bottom: charH * 0.80,
+                                        bottom: charH * 0.62,
                                         left: -150,
                                         right: -150,
-                                        child: Center(child: _bubble(_myBubble!)),
+                                        child: Center(
+                                          child: _nameTag(widget.nickname, _guildName,
+                                              isMe: true, champ: _isChampionGuild,
+                                              garamRank: _myGaramRank),
+                                        ),
                                       ),
-                                  ],
-                                );
-                              },
+                                      if (_myBubble != null &&
+                                          _myBubbleUntil != null &&
+                                          DateTime.now().isBefore(_myBubbleUntil!))
+                                        Positioned(
+                                          bottom: charH * 0.80,
+                                          left: -150,
+                                          right: -150,
+                                          child: Center(child: _bubble(_myBubble!)),
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                        ),
-                        // 🌐 다른 유저들 (실시간) — 45초 이상 갱신 없는 고스트는 숨김(onDisconnect 누락 대비)
-                        ..._others.entries
-                            .where((e) =>
-                                DateTime.now().millisecondsSinceEpoch -
-                                    ((e.value['t'] as int?) ?? 0) <
-                                45000)
-                            .map((e) => _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)),
+                          )));
+                          // 🌐 다른 유저들 (45초 이상 갱신 없는 고스트 숨김)
+                          for (final e in _others.entries.where((e) =>
+                              DateTime.now().millisecondsSinceEpoch - ((e.value['t'] as int?) ?? 0) < 45000)) {
+                            final ry = (e.value['y'] is num) ? (e.value['y'] as num).toDouble() : 0.9;
+                            sprites.add(MapEntry(ry, _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)));
+                          }
+                          // 발높이(y) 오름차순 → 위(뒤)부터 그림 → 아래(앞)가 위에 겹침
+                          sprites.sort((a, b) => a.key.compareTo(b.key));
+                          return sprites.map((e) => e.value).toList();
+                        })(),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.150 : 0.156,
                             widget.isSea ? 0.492 : 0.485, 'npc_rank.png', 'gm_garam.png', '가람', '🏆 랭킹',
