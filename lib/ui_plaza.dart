@@ -2444,13 +2444,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
                           } else {
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
-                            sprites.add(MapEntry(0.453, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.453, kCenterpieceFile, kCenterpieceHFrac)));
-                            sprites.add(MapEntry(0.900, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.900, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.381, _plazaPortal(worldW, worldH, sizeRef, 0.154, 0.381, 'portal_guild_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.310, 'portal_fishing_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.280, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.280, 'portal_arena_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.49, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.620, 'portal_shop_fw.png', 0.48))); // 렌더 0.620(여백보정), 깊이키 0.49
-                            sprites.add(MapEntry(0.883, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.883, 'portal_quest_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
+                            sprites.add(MapEntry(0.930, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.930, 'portal_rank_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.411, _plazaPortal(worldW, worldH, sizeRef, 0.154, 0.411, 'portal_guild_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.340, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.340, 'portal_fishing_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
+                            sprites.add(MapEntry(0.913, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.913, 'portal_quest_fw.png', 0.36)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
