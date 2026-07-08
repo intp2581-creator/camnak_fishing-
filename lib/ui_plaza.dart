@@ -2441,9 +2441,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.30)));
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.28)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.30)));
-                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.680, 0.370, 'portal_arena_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.660, 0.370, 'portal_arena_fw.png', 0.30)));
                             sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.38)));
-                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.510, 0.877, 'portal_quest_fw.png', 0.26)));
+                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.530, 0.877, 'portal_quest_fw.png', 0.26)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
@@ -2532,12 +2532,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             widget.isSea ? 0.598 : 0.256, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
                             () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
                             scale: 0.9),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.680,
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.660,
                             widget.isSea ? 0.657 : 0.370, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
                             _onHanbyeolTap,
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.910,
-                            widget.isSea ? 0.945 : 0.600, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
+                            widget.isSea ? 0.945 : 0.630, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
                             () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
@@ -2799,7 +2799,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final figH = sizeH * 0.21; // 캐릭터와 비슷한 크기
     final figW = figH * 0.6;
-    final cx = widget.isSea ? 0.281 : 0.510;
+    final cx = widget.isSea ? 0.281 : 0.530;
     final cy = widget.isSea ? 0.837 : 0.877; // 발 위치 (민물=새 배치 / 바다=기존)
     return Positioned(
       left: cx * worldW - figW / 2,
