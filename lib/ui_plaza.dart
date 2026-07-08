@@ -2801,9 +2801,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _araNpc(double worldW, double worldH, double sizeH) {
     final cx = widget.isSea ? 0.281 : 0.563;
     final cy = widget.isSea ? 0.837 : 0.900; // 발 위치 (민물=새 배치 / 바다=기존)
-    // 🧍 원근 크기(플레이어와 동일 곡선)
+    // 🧍 원근 크기(아주 약하게)
     final double pT = ((cy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final figH = sizeH * (0.156 + pT * 0.138);
+    final figH = sizeH * (0.25 + pT * 0.03);
     final figW = figH * 0.6;
     final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
     final araBang = araTut || (_tutStep == 99 && !_questDone); // 📋 일일 미션 미완료면 ❗
@@ -2858,9 +2858,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🧍 시설 NPC (포털/시설 앞에 한 명씩 세움). img 없으면 fallback 이미지로.
   Widget _standNpc(double worldW, double worldH, double sizeH, double cx, double cy,
       String img, String fallback, String name, String label, VoidCallback onTap, {double scale = 1.0}) {
-    // 🧍 원근 크기: 발높이(cy)가 아래(가까움)일수록 크게 — 플레이어/원격유저와 동일 곡선. scale=NPC별 보정.
+    // 🧍 원근 크기(아주 약하게): 나루(먼 쪽) 기존 크기 기준 + 가까울수록 살짝만 큼. scale=NPC별 보정.
     final double pT = ((cy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final figH = sizeH * (0.156 + pT * 0.138) * scale;
+    final figH = sizeH * (0.25 + pT * 0.03) * scale;
     final figW = figH * 0.6;
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
