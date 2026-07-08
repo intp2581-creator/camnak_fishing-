@@ -2914,7 +2914,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac) {
     return Positioned(
       left: cx * worldW,
-      top: cy * worldH - 58, // _standNpc의 발높이 보정(-58)과 동일 → NPC 발밑에 정확히 붙음
+      top: cy * worldH, // 포털 바닥 = 찍은 좌표(=NPC 발 위치). NPC의 -58은 이름표 높이라 포털엔 불필요.
       child: IgnorePointer(
         child: FractionalTranslation(
           translation: const Offset(-0.5, -1.0), // 바닥 중앙 앵커
