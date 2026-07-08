@@ -2441,8 +2441,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.30)));
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.28)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.30)));
-                            sprites.add(MapEntry(0.361, _plazaPortal(worldW, worldH, sizeRef, 0.701, 0.361, 'portal_arena_fw.png', 0.30)));
-                            sprites.add(MapEntry(0.568, _plazaPortal(worldW, worldH, sizeRef, 0.895, 0.568, 'portal_shop_fw.png', 0.38)));
+                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.700, 0.370, 'portal_arena_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.600, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.600, 'portal_shop_fw.png', 0.38)));
                             sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.500, 0.877, 'portal_quest_fw.png', 0.26)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
@@ -2532,12 +2532,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             widget.isSea ? 0.598 : 0.256, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
                             () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
                             scale: 0.9),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.701,
-                            widget.isSea ? 0.657 : 0.361, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.834 : 0.700,
+                            widget.isSea ? 0.657 : 0.370, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
                             _onHanbyeolTap,
                             scale: 0.82),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.895,
-                            widget.isSea ? 0.945 : 0.568, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.910,
+                            widget.isSea ? 0.945 : 0.600, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
                             () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
@@ -2839,10 +2839,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 🌊 바다광장이면 '_sea' 변형 먼저 시도 → 없으면 기본 이미지
               child: Image.asset('assets/images/${widget.isSea ? 'npc_manager_quest_sea.png' : 'npc_manager_quest.png'}',
                   fit: BoxFit.contain,
-                  alignment: Alignment.topCenter,
+                  alignment: Alignment.bottomCenter,
                   errorBuilder: (a, b, c) => Image.asset('assets/images/npc_manager_quest.png',
                       fit: BoxFit.contain,
-                      alignment: Alignment.topCenter,
+                      alignment: Alignment.bottomCenter,
                       errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
             ),
           ],
@@ -2895,13 +2895,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 🌊 바다광장이면 '_sea' 변형 먼저 시도 → 없으면 기본 이미지 → 그래도 없으면 fallback
               child: Image.asset('assets/images/${widget.isSea ? img.replaceFirst('.png', '_sea.png') : img}',
                   fit: BoxFit.contain,
-                  alignment: Alignment.topCenter,
+                  alignment: Alignment.bottomCenter,
                   errorBuilder: (a, b, c) => Image.asset('assets/images/$img',
                       fit: BoxFit.contain,
-                      alignment: Alignment.topCenter,
+                      alignment: Alignment.bottomCenter,
                       errorBuilder: (a1, b1, c1) => Image.asset('assets/images/$fallback',
                           fit: BoxFit.contain,
-                          alignment: Alignment.topCenter,
+                          alignment: Alignment.bottomCenter,
                           errorBuilder: (a2, b2, c2) => const SizedBox.shrink()))),
             ),
           ],
