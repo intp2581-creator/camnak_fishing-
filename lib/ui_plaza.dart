@@ -1176,7 +1176,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final dx = (d['x'] as double).clamp(0.02, 0.98);
     final dy = (d['y'] as double).clamp(0.0, 1.0);
     final pT = ((dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final rH = sizeH * (0.156 + pT * 0.138); // 🧍 내 캐릭터와 동일한 크기 곡선(~20% 확대)
+    final rH = sizeH * (0.19 + pT * 0.12); // 🧍 내 캐릭터와 동일한 크기 곡선
     final rW = rH * 0.55;
     final face = d['face'] == true;
     final dir = (d['dir'] ?? 'down').toString();
@@ -2359,7 +2359,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           final sizeRef = h; // 캐릭터/NPC 기본 크기(줌은 Transform.scale로)
           // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
           final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-          final charH = sizeRef * (0.156 + perspT * 0.138); // 광장 커진 만큼 ~20% 확대
+          final charH = sizeRef * (0.19 + perspT * 0.12); // NPC 크기에 맞춰 확대
           final charW = charH * 0.55;
           // 📷 카메라: 캐릭터 중심, 맵 가장자리에서 멈춤(검은 영역 안 보이게)
           final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
@@ -2440,12 +2440,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           if (!widget.isSea) {
                             // 🗼 중앙 화단 그랜드오픈 기념탑 (장식)
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, 'center_monument_fw.png', 0.48)));
-                            sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.36)));
-                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.34)));
-                            sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.36)));
-                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.660, 0.370, 'portal_arena_fw.png', 0.36)));
-                            sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.46)));
-                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.530, 0.877, 'portal_quest_fw.png', 0.31)));
+                            sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.44)));
+                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.660, 0.370, 'portal_arena_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48)));
+                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.530, 0.877, 'portal_quest_fw.png', 0.40)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
@@ -2803,7 +2803,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final cy = widget.isSea ? 0.837 : 0.900; // 발 위치 (민물=새 배치 / 바다=기존)
     // 🧍 원근 크기(아주 약하게)
     final double pT = ((cy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final figH = sizeH * (0.25 + pT * 0.03);
+    final figH = sizeH * (0.27 + pT * 0.03);
     final figW = figH * 0.6;
     final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
     final araBang = araTut || (_tutStep == 99 && !_questDone); // 📋 일일 미션 미완료면 ❗
@@ -2860,7 +2860,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       String img, String fallback, String name, String label, VoidCallback onTap, {double scale = 1.0}) {
     // 🧍 원근 크기(아주 약하게): 나루(먼 쪽) 기존 크기 기준 + 가까울수록 살짝만 큼. scale=NPC별 보정.
     final double pT = ((cy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final figH = sizeH * (0.25 + pT * 0.03) * scale;
+    final figH = sizeH * (0.27 + pT * 0.03) * scale;
     final figW = figH * 0.6;
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
     // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
