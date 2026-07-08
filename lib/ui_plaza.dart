@@ -2537,7 +2537,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             _onHanbyeolTap,
                             scale: 0.82),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.809 : 0.910,
-                            widget.isSea ? 0.945 : 0.680, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
+                            widget.isSea ? 0.945 : 0.600, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
                             () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
