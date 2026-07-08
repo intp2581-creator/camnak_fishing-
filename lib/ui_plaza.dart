@@ -2826,28 +2826,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       alignment: Alignment.bottomCenter,
                       errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
             ),
-            // 🏷️ 이름표 + ❗ — 머리 근처(그림 높이의 86% 지점)에 오버레이
+            // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.86,
+              bottom: figH * 0.80,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(height: 24, child: araBang ? Center(child: _tutBang()) : null),
-                Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)),
-                      boxShadow: [BoxShadow(color: (araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : _kGold)).withOpacity(0.6), blurRadius: 8)],
-                    ),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('아라', style: TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                      Text(araTut ? '튜토리얼' : (_questDone ? '✅ 퀘스트 완료' : '📋 일일퀘스트'),
-                          style: TextStyle(color: araTut ? Colors.orangeAccent : (_questDone ? const Color(0xFF7FFFB0) : Colors.white70), fontSize: 10, fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
+                SizedBox(height: 22, child: araBang ? Center(child: _tutBang()) : null),
+                const Center(
+                  child: Text('아라',
+                      style: TextStyle(
+                        color: _kGold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black, blurRadius: 2),
+                        ],
+                      )),
                 ),
               ]),
             ),
@@ -2894,27 +2890,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           alignment: Alignment.bottomCenter,
                           errorBuilder: (a2, b2, c2) => const SizedBox.shrink()))),
             ),
-            // 🏷️ 이름표 + ❗ — 머리 근처(그림 높이의 86% 지점)에 오버레이
+            // 🏷️ 이름만 (박스·부연설명 없이) — 머리 바로 위에 그림자로 띄움
             Positioned(
-              bottom: figH * 0.86,
+              bottom: figH * 0.80,
               left: -90,
               right: -90,
               child: Column(mainAxisSize: MainAxisSize.min, children: [
-                SizedBox(height: 24, child: bang ? Center(child: _tutBang()) : null),
+                SizedBox(height: 22, child: bang ? Center(child: _tutBang()) : null),
                 Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.65),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: bang ? Colors.orangeAccent : _kGold, width: bang ? 2 : 1),
-                      boxShadow: [BoxShadow(color: (bang ? Colors.orangeAccent : _kGold).withOpacity(bang ? 0.8 : 0.4), blurRadius: bang ? 10 : 7)],
-                    ),
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Text(name, style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
-                      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
+                  child: Text(name,
+                      style: const TextStyle(
+                        color: _kGold,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        shadows: [
+                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black, blurRadius: 2),
+                        ],
+                      )),
                 ),
               ]),
             ),
