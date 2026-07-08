@@ -2444,7 +2444,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.40)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.44)));
                             sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.710, 0.370, 'portal_arena_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48)));
+                            sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
                             sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
