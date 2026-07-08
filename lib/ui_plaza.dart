@@ -2440,12 +2440,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           if (!widget.isSea) {
                             // 🗼 중앙 화단 그랜드오픈 기념탑 (장식)
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, 'center_monument_fw.png', 0.48)));
-                            sprites.add(MapEntry(0.662, _plazaPortal(worldW, worldH, sizeRef, 0.146, 0.662, 'portal_rank_fw.png', 0.36)));
-                            sprites.add(MapEntry(0.424, _plazaPortal(worldW, worldH, sizeRef, 0.294, 0.424, 'portal_guild_fw.png', 0.34)));
-                            sprites.add(MapEntry(0.270, _plazaPortal(worldW, worldH, sizeRef, 0.500, 0.270, 'portal_fishing_fw.png', 0.36)));
-                            sprites.add(MapEntry(0.371, _plazaPortal(worldW, worldH, sizeRef, 0.625, 0.371, 'portal_arena_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.34)));
+                            sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.36)));
+                            sprites.add(MapEntry(0.370, _plazaPortal(worldW, worldH, sizeRef, 0.660, 0.370, 'portal_arena_fw.png', 0.36)));
                             sprites.add(MapEntry(0.680, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.46)));
-                            sprites.add(MapEntry(0.900, _plazaPortal(worldW, worldH, sizeRef, 0.563, 0.900, 'portal_quest_fw.png', 0.31)));
+                            sprites.add(MapEntry(0.877, _plazaPortal(worldW, worldH, sizeRef, 0.530, 0.877, 'portal_quest_fw.png', 0.31)));
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
