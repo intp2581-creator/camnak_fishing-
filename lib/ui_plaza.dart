@@ -83,6 +83,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const List<String> _previewSkins = [
     '초보 조사', '하수 조사', '중수 조사', '고수 조사', '프로 조사', '마스터 조사', '레전드 조사', '낚시의 신'
   ];
+  // 🎇 광장 중앙 시즌 조형물 — 시즌/이벤트마다 이 파일만 교체(그랜드오픈→크리스마스트리→벚꽃→야자수 등).
+  //    민물·바다 광장 양쪽 중앙에 동일하게 표시. (assets/plaza/ 폴더)
+  static const String kCenterpieceFile = 'center_monument_fw.png';
+  static const double kCenterpieceHFrac = 0.48;
   int _skinPreviewIdx = 0;
   void _cycleSkinPreview() {
     setState(() {
@@ -2429,8 +2433,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           final sprites = <MapEntry<double, Widget>>[];
                           // 🏞️ 민물광장 시설 포털 (각 NPC 자리 뒤). 바다광장은 아직 포털 이미지 없음.
                           if (!widget.isSea) {
-                            // 🗼 중앙 화단 그랜드오픈 기념탑 (장식)
-                            sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, 'center_monument_fw.png', 0.48)));
+                            // 🎇 중앙 시즌 조형물 (kCenterpieceFile — 시즌마다 파일만 교체)
+                            sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
                             sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.40)));
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.40)));
