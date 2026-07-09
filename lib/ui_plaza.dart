@@ -1305,7 +1305,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     Offset(0.996, 0.490), Offset(0.784, 0.540), Offset(0.914, 0.668), Offset(0.994, 0.623),
     Offset(0.994, 0.992), Offset(0.006, 0.989),
   ];
-  static const List<Offset> _seaPoly = _freshPoly; // 동일 구도 — 다르면 바다 좌표 따로 받아 교체
+  // 🌊 바다광장 걷기 경계 (계단 때문에 점 많음)
+  static const List<Offset> _seaPoly = [
+    Offset(0.008, 0.462), Offset(0.048, 0.467), Offset(0.063, 0.408), Offset(0.259, 0.303),
+    Offset(0.288, 0.337), Offset(0.388, 0.342), Offset(0.420, 0.310), Offset(0.412, 0.269),
+    Offset(0.583, 0.261), Offset(0.606, 0.322), Offset(0.690, 0.328), Offset(0.712, 0.284),
+    Offset(0.878, 0.329), Offset(0.998, 0.398), Offset(0.998, 0.466), Offset(0.780, 0.492),
+    Offset(0.780, 0.528), Offset(0.992, 0.547), Offset(0.995, 0.996), Offset(0.902, 0.973),
+    Offset(0.793, 0.829), Offset(0.622, 0.800), Offset(0.598, 0.696), Offset(0.575, 0.702),
+    Offset(0.589, 0.832), Offset(0.718, 0.832), Offset(0.819, 0.895), Offset(0.877, 0.998),
+    Offset(0.176, 0.994), Offset(0.237, 0.880), Offset(0.349, 0.817), Offset(0.434, 0.820),
+    Offset(0.452, 0.846), Offset(0.472, 0.834), Offset(0.490, 0.702), Offset(0.457, 0.691),
+    Offset(0.431, 0.786), Offset(0.315, 0.802), Offset(0.205, 0.876), Offset(0.133, 0.995),
+    Offset(0.003, 0.986),
+  ];
   List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
 
   // 🚫 못 가는 구역(화단·구조물) — 바깥 폴리곤 안에서도 여기 안이면 못 감
