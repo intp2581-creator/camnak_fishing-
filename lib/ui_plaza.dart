@@ -2473,7 +2473,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           } else {
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
-                            sprites.add(MapEntry(0.930, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.930, 'portal_rank_fw.png', 0.42)));
+                            sprites.add(MapEntry(0.910, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.910, 'portal_rank_fw.png', 0.42)));
                             sprites.add(MapEntry(0.411, _plazaPortal(worldW, worldH, sizeRef, 0.154, 0.411, 'portal_guild_fw.png', 0.40)));
                             sprites.add(MapEntry(0.330, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.330, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
