@@ -450,22 +450,37 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   Future<void> _runAutomaticSettlement() async {
     if (_isSettling) return;
     final arenaRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId);
-    // ⏱️ 경기 시간이 끝났을 때만 정산 (조기 이탈자가 트리거해도 시간 전이면 무시 → 남은 사람은 계속)
+    int playEndAt = 0;
     try {
       final aSnap = await arenaRef.get();
       if (!aSnap.exists) return;
       if ((aSnap.data()?['status'] ?? '') != 'playing') return; // 이미 정산됨/종료됨
-      final playEndAt = (aSnap.data()?['playEndAt'] is num) ? (aSnap.data()!['playEndAt'] as num).toInt() : 0;
-      if (playEndAt > 0 && DateTime.now().millisecondsSinceEpoch < playEndAt - 1500) return; // 아직 경기 중
+      playEndAt = (aSnap.data()?['playEndAt'] is num) ? (aSnap.data()!['playEndAt'] as num).toInt() : 0;
     } catch (_) { return; }
+
+    // 🏳️ 참가자·완주자를 시간 게이트보다 먼저 파악 (기권승 판정 위해)
+    final orderField = (widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score';
+    late final List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs;
+    try {
+      final allSnap = await arenaRef.collection('participants').orderBy(orderField, descending: true).get();
+      allDocs = allSnap.docs;
+    } catch (_) { return; }
+    if (allDocs.isEmpty) return;
+    // ⚔️ 실격(도중 이탈) 제외한 완주자
+    final valid = allDocs.where((d) => d.data()['forfeit'] != true).toList();
+
+    final myUid = FirebaseAuth.instance.currentUser?.uid;
+    // 🏳️ 기권승 상황: 원래 2명 이상이었는데 완주자가 나 하나뿐 → 상대 전원 기권
+    final bool walkover = allDocs.length >= 2 && valid.length == 1;
+    final bool iAmSole = walkover && valid.first.id == myUid;
+
+    // ⏱️ 경기 시간이 끝났을 때만 정산 (조기 이탈자가 트리거해도 시간 전이면 무시 → 남은 사람은 계속)
+    //    단, '내가 마지막 1인(기권승)'으로 나가는 경우엔 시간 전이라도 즉시 정산.
+    final bool timeUp = playEndAt <= 0 || DateTime.now().millisecondsSinceEpoch >= playEndAt - 1500;
+    if (!timeUp && !iAmSole) return; // 아직 경기 중 + 남은 사람 있음 → 계속 진행
+
     setState(() => _isSettling = true);
     try {
-      final orderField = (widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score';
-      final allSnap = await arenaRef.collection('participants').orderBy(orderField, descending: true).get();
-      if (allSnap.docs.isEmpty) return;
-      // ⚔️ 실격(도중 이탈) 제외
-      final valid = allSnap.docs.where((d) => (d.data() as Map)['forfeit'] != true).toList();
-
       final feeRaw = widget.roomData['entryFee'];
       final fee = (feeRaw is num) ? feeRaw.toInt() : 0;
 
@@ -476,8 +491,8 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         return;
       }
       // 처음부터 혼자였던 방(참가자 1명) → 무효 + 참가비 환불
-      if (allSnap.docs.length < 2) {
-        final soloId = allSnap.docs.first.id;
+      if (allDocs.length < 2) {
+        final soloId = allDocs.first.id;
         await FirebaseFirestore.instance.runTransaction((tx) async {
           tx.update(arenaRef, {'status': 'finished', 'voided': true, 'winnerNick': '', 'totalPrize': 0});
           if (fee > 0) {
@@ -489,6 +504,24 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       }
 
       final winner = valid.first; // 완주자 중 1위(최대어=maxSize / 마릿수=score)
+
+      // 🏳️ 기권승: 상대가 모두 기권하고 완주자가 1명뿐 → 성적과 무관하게 전액 획득(수수료 10% 제외)
+      if (walkover) {
+        final prize = fee * allDocs.length;
+        final taxAmount = (prize * 0.1).toInt();
+        final finalPrize = prize - taxAmount;
+        final todayKst = DateTime.now().toIso8601String().substring(0, 10);
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          tx.update(FirebaseFirestore.instance.collection('users').doc(winner.id), {
+            'gold': FieldValue.increment(finalPrize),
+            'hanbyeol_won_date': todayKst,
+          });
+          tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize, 'walkover': true});
+        });
+        await arenaRef.collection('messages').add({'text': '🏳️ 상대가 모두 기권! ${winner['nickname']}님 기권승! ${finalPrize}P 획득 (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        return;
+      }
+
       // 🤝 아무도 못 잡음(1위 성적이 0) → 무승부: 상금 없음 + 완주자 참가비 환불
       final wData = winner.data();
       final topRaw = (widget.roomData['winCondition'] == '최대어') ? wData['maxSize'] : wData['score'];
@@ -506,8 +539,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         await arenaRef.collection('messages').add({'text': '🤝 아무도 못 잡아 무승부! 참가비의 90%(운영 수수료 10% 제외)를 환불했어요.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
         return;
       }
-      final participantsSnap = allSnap;
-      int prize = (widget.roomData['entryFee'] ?? 1000) * participantsSnap.docs.length;
+      int prize = fee * allDocs.length;
       
       // 💰 [국세청 출동] 상금에서 10% 수수료 징수 계산!
       int taxAmount = (prize * 0.1).toInt();

@@ -421,6 +421,7 @@ Widget _buildChatTab(int index, String title) {
   bool _isChampionGuild = false; // 지난주 길드 리그 1위 → 이번주 추가 버프
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
   bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
+  bool _arenaWalkoverWin = false;    // 🏳️ 상대 전원 기권 → 혼자 남아 나감(기권승) → dispose에서 실격 처리 안 함
 
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -674,7 +675,8 @@ Widget _buildChatTab(int index, String title) {
   @override
   void dispose() {
     // ⚔️ 아레나 경기 도중(시간 종료 전) 이탈 → 실격 기록 (실수든 고의든 종료 전 이탈 = 실격)
-    if (widget.roomId != null && !_arenaEndedNaturally) {
+    //    단, 기권승(_arenaWalkoverWin)으로 나가는 사람은 실격 아님(유일 완주자로 정산받아야 함)
+    if (widget.roomId != null && !_arenaEndedNaturally && !_arenaWalkoverWin) {
       final uid = FirebaseAuth.instance.currentUser?.uid;
       if (uid != null) {
         FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(uid)
@@ -1653,6 +1655,92 @@ Widget _buildChatTab(int index, String title) {
     );
   }
 
+  // ⚔️ 시스템/브라우저 뒤로가기(WillPopScope) — 아레나 경기 중이면 확인 후에만 나가기
+  Future<bool> _onWillPopFishing() async {
+    if (widget.roomId != null && !_arenaEndedNaturally) {
+      return _confirmArenaLeave();
+    }
+    return true;
+  }
+
+  // ⚔️ 아레나 경기 도중 나가기 확인
+  //    · 다른 참가자가 남아있으면 → 기권패 경고(참가비 환불 안 됨). 나가도 남은 사람들은 끝까지 진행.
+  //    · 나 빼고 다 나갔으면(마지막 1인) → 기권승 안내 후 정산(전액-수수료 10%).
+  Future<bool> _confirmArenaLeave() async {
+    final rid = widget.roomId;
+    if (rid == null || _arenaEndedNaturally) return true;
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    int total = 0;
+    int activeOthers = 0;
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('arenas').doc(rid).collection('participants').get();
+      total = snap.docs.length;
+      activeOthers = snap.docs
+          .where((d) => d.id != uid && (d.data()['forfeit'] != true))
+          .length;
+    } catch (_) {}
+
+    if (!mounted) return false;
+
+    // 처음부터 혼자였던 방 → 페널티 없이 그냥 나가기(정산이 참가비 환불 처리)
+    if (total < 2) return true;
+
+    // 🏳️ 나 빼고 아무도 안 남음 → 기권승
+    if (activeOthers == 0) {
+      final ok = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+          title: const Text('🏳️ 상대가 모두 나갔어요!',
+              style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 17)),
+          content: const Text('남은 참가자가 나뿐이에요.\n지금 종료하면 기권승으로 정산돼요! (수수료 10% 제외)',
+              style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false),
+                child: const Text('계속하기', style: TextStyle(color: Colors.white54))),
+            ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+                onPressed: () => Navigator.pop(c, true),
+                child: const Text('종료하고 정산', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+        ),
+      );
+      if (ok == true) { _arenaWalkoverWin = true; return true; }
+      return false;
+    }
+
+    // ⚠️ 다른 참가자가 아직 남아있음 → 기권패 경고
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Colors.redAccent, width: 1.2)),
+        title: const Text('⚠️ 경기 도중 나가기',
+            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 17)),
+        content: const Text('경기 도중 나가면 참가비를 돌려받을 수 없어요.\n이기고 있어도 기권패로 처리됩니다.\n\n정말 나가시겠어요?',
+            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false),
+              child: const Text('계속 낚시', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('기권하고 나가기', style: TextStyle(fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
   // 🗺️ 낚시터 리스트(뒤로가기·낚시터 이동에서 호출)
   //    다른 낚시터 탭 → 바로 이동(광장의 _goFishing이 처리) / '광장으로 가기' → 광장 복귀
   void _openMoveSpotList() {
@@ -1968,7 +2056,10 @@ void _recast() {  // 기존 코드
     } 
     
     // 🚀 1. 가장 바깥에 투명 필름(Stack)을 먼저 깝니다!
-    return Stack(
+    //    ⚔️ 아레나 경기 중 시스템/브라우저 뒤로가기도 확인 팝업 거치게 WillPopScope로 감쌈
+    return WillPopScope(
+      onWillPop: _onWillPopFishing,
+      child: Stack(
       children: [
         // ==========================================================
         // 1. 사장님의 기존 본게임 화면
@@ -2148,7 +2239,7 @@ Positioned(
                         children: [
                           Row(
                             children: [
-                              IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 22), onPressed: () { audioManager.playSfx("sfx_click.mp3"); if (widget.roomId != null) { Navigator.pop(context); } else { _openMoveSpotList(); } }),
+                              IconButton(padding: EdgeInsets.zero, constraints: const BoxConstraints(), icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 22), onPressed: () async { audioManager.playSfx("sfx_click.mp3"); if (widget.roomId != null) { if (await _confirmArenaLeave() && mounted) { Navigator.pop(context); } } else { _openMoveSpotList(); } }),
                               const SizedBox(width: 5),
                               Text(widget.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 2)])),
                             ],
@@ -2543,7 +2634,8 @@ Positioned(
           ),
           
       ],
-    ); // 🚀 2. 아까 위에서 열었던 Stack 필름을 최종적으로 닫아줍니다!
+    ), // 🚀 2. 아까 위에서 열었던 Stack 필름을 최종적으로 닫아줍니다!
+    ); // ⚔️ WillPopScope 닫기
   } // <-- build 함수 끝나는 괄호
 
 // 🎟️ [여기에 추가!] 티켓 사용 확인 팝업
