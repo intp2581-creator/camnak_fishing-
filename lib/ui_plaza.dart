@@ -2475,7 +2475,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.930, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.930, 'portal_rank_fw.png', 0.42)));
                             sprites.add(MapEntry(0.411, _plazaPortal(worldW, worldH, sizeRef, 0.154, 0.411, 'portal_guild_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.340, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.340, 'portal_fishing_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.330, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.330, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
                             sprites.add(MapEntry(0.913, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.913, 'portal_quest_fw.png', 0.36, flip: true)));
@@ -2560,7 +2560,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             _onGaramTap,
                             scale: 0.9),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.154 : 0.294,
-                            widget.isSea ? 0.411 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
+                            widget.isSea ? 0.421 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
                             () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
                             scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.350 : 0.500,
