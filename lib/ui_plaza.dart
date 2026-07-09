@@ -1542,8 +1542,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   Widget _joystick() {
     return Positioned(
-      left: 130, // 🕹️ 채팅창 위(왼쪽) — 모바일 대부분 방향키가 왼쪽
-      bottom: 290,
+      left: 45, // 🕹️ 좌측 하단(8시 방향) — 모바일 방향키 왼쪽 관례
+      bottom: 150,
 
       child: GestureDetector(
         onPanDown: (d) => _joyStart(d.localPosition - const Offset(_joyRadius, _joyRadius)),
