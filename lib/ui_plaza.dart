@@ -4450,7 +4450,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _setJoinPolicy(String gid, String policy) async {
     try {
       await FirebaseFirestore.instance.collection('guilds').doc(gid).update({'joinPolicy': policy});
-      _toast(policy == 'open' ? '자유 가입으로 바꿨어요. (승인 없이 바로 가입) ✅' : '승인 후 가입으로 바꿨어요. 🔒');
+      _infoPopup(policy == 'open' ? '✅ 자유 가입으로 변경' : '🔒 승인 후 가입으로 변경',
+          policy == 'open' ? '이제 누구나 승인 없이 바로 가입할 수 있어요.' : '이제 길드장·부길드장이 승인해야 가입할 수 있어요.');
     } catch (e) {
       _infoPopup('변경 실패', e.toString());
     }
