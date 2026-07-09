@@ -1294,7 +1294,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
-  bool get _devCoords => _isOperator; // 🔧 좌표 수집 모드(운영자만): 바다광장 배치 조정용. 확정 후 static const false로
+  static const bool _devCoords = false; // 🔧 좌표 수집 모드. 다시 켜려면 => _isOperator
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
@@ -1336,7 +1336,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
      Offset(0.807, 0.334), Offset(0.804, 0.390)],
     // (낚시터·상점은 외곽 경계로 이미 차단)
   ];
-  static const List<List<Offset>> _seaObstacles = _freshObstacles;
+  // 🌊 바다광장 못 가는 구역 (낚시터·아레나·상점은 외곽 경계로 차단)
+  static const List<List<Offset>> _seaObstacles = [
+    // 🗼 기념탑
+    [Offset(0.580, 0.490), Offset(0.501, 0.490), Offset(0.485, 0.452), Offset(0.570, 0.432)],
+    // 📜 퀘스트 두루마리
+    [Offset(0.705, 0.862), Offset(0.798, 0.897), Offset(0.782, 0.921), Offset(0.706, 0.912)],
+    // 🏆 랭킹 트로피
+    [Offset(0.234, 0.902), Offset(0.334, 0.856), Offset(0.348, 0.916), Offset(0.245, 0.941)],
+    // 🛡️ 길드 방패
+    [Offset(0.112, 0.416), Offset(0.120, 0.387), Offset(0.188, 0.379), Offset(0.191, 0.413)],
+  ];
   List<List<Offset>> get _activeObstacles => widget.isSea ? _seaObstacles : _freshObstacles;
 
   // 점이 다각형 안인지 (ray casting)
