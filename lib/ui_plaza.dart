@@ -42,19 +42,21 @@ class PlazaScreen extends StatefulWidget {
     this.startTutorial = false,
   });
 
-  // 🚪 기본 진입 광장(예산 예당지)
+  // 🚪 기본 진입 광장 — 재접속 시 마지막에 있던 광장(민물/바다)으로
   factory PlazaScreen.defaultEntry({
     required String nickname,
     required int level,
     bool isFirstTime = false,
     bool startTutorial = false,
   }) {
-    final spot = locations['저수지']![0]; // 예산 예당지
+    bool lastSea = false;
+    try { lastSea = html.window.localStorage['lastPlazaSea'] == '1'; } catch (_) {}
+    final spot = lastSea ? locations['갯바위']![0] : locations['저수지']![0];
     return PlazaScreen(
       nickname: nickname,
       level: level,
       spot: spot,
-      isSea: false,
+      isSea: lastSea,
       isFirstTime: isFirstTime,
       startTutorial: startTutorial,
     );
@@ -369,6 +371,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _level = widget.level;
+    // 🔁 재접속 시 이 광장(민물/바다)으로 돌아오게 마지막 광장 기록
+    try { html.window.localStorage['lastPlazaSea'] = widget.isSea ? '1' : '0'; } catch (_) {}
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 340));
     // 🚶 원격 캐릭터 걷기 프레임 클럭 (움직이는 유저가 있을 때만 다시 그림)
     _remoteWalkTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
@@ -1605,6 +1609,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🏛️ 광장 종류 전환 (민물광장 ↔ 바다광장) — 낚시 종류에 맞춰 해당 광장으로 교체
   void _switchPlazaWorld(bool sea) {
     if (!mounted) return;
+    _leavePlazaPresence(); // 🚪 현재 광장에서 사라짐(고스트 방지)
     final spot = sea ? locations['갯바위']![0] : locations['저수지']![0];
     Navigator.pushReplacement(
       context,
@@ -5206,6 +5211,27 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         Text('CH$_channelNum',
                             style: const TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.w900)),
                         const Icon(Icons.expand_more, color: _kGold, size: 13),
+                      ]),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // 🔀 광장 전환 (민물↔바다 바로가기)
+                  InkWell(
+                    onTap: () => _switchPlazaWorld(!widget.isSea),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: (widget.isSea ? const Color(0xFF2E7D32) : const Color(0xFF1565C0)).withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.white70, width: 0.8)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(widget.isSea ? '🏞️' : '🌊', style: const TextStyle(fontSize: 12)),
+                        const SizedBox(width: 3),
+                        Text(widget.isSea ? '민물광장' : '바다광장',
+                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+                        const SizedBox(width: 2),
+                        const Icon(Icons.swap_horiz, color: Colors.white, size: 13),
                       ]),
                     ),
                   ),
