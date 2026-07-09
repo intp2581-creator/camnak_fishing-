@@ -1284,7 +1284,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   //    이미지 없으면 build의 errorBuilder가 기본 _charImage로 폴백.
   String get _charSprite {
     final base = _charImage.replaceAll('.png', ''); // assets/images/char_beginner
-    final frame = _walking ? (_walkCtrl.value < 0.5 ? 1 : 2) : 0; // 걷기A/B, 멈추면 서있기
+    int frame = 0;
+    if (_walking) {
+      final v = _walkCtrl.value;
+      if (_moveDir == 'side') {
+        // 옆걸음: 스텝A(1)→모음(0)→스텝B(2)→모음(0) — 다리 교차감(passing 프레임 삽입)
+        frame = v < 0.25 ? 1 : (v < 0.5 ? 0 : (v < 0.75 ? 2 : 0));
+      } else {
+        frame = v < 0.5 ? 1 : 2; // 앞/뒤는 기존(자연스러움)
+      }
+    }
     return '${base}_$_moveDir$frame.png';
   }
 
