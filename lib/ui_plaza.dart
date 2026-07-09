@@ -373,7 +373,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _level = widget.level;
     // 🔁 재접속 시 이 광장(민물/바다)으로 돌아오게 마지막 광장 기록
     try { html.window.localStorage['lastPlazaSea'] = widget.isSea ? '1' : '0'; } catch (_) {}
-    _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 290)); // 이동속도에 맞춘 걷기주기(미끄러짐/통통 사이 중간)
+    _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400)); // 걷기 교차 주기(느리게=교차 확실)
     // 🚶 원격 캐릭터 걷기 프레임 클럭 (움직이는 유저가 있을 때만 다시 그림)
     _remoteWalkTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
       if (!mounted) return;
