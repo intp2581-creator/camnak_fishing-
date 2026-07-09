@@ -2558,7 +2558,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.307 : 0.146,
                             widget.isSea ? 0.930 : 0.662, 'npc_rank.png', 'gm_garam.png', '가람', '🏆 랭킹',
                             _onGaramTap,
-                            scale: 0.9),
+                            scale: 1.0),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.134 : 0.294,
                             widget.isSea ? 0.451 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
                             () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
