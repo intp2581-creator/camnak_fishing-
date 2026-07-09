@@ -1294,7 +1294,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
-  static const bool _devCoords = false; // 🔧 좌표 수집 모드. 다시 켜려면 => _isOperator
+  bool get _devCoords => _isOperator; // 🔧 좌표 수집 모드(운영자만): 소나무 배치용. 확정 후 static const false로
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
