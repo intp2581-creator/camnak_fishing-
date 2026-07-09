@@ -2473,9 +2473,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             // 🌲 소나무 장식 (화단 위 · 깊이정렬 · 원근으로 먼 건 작게)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.213, 0.483, 'tree_pine1_fw.png', 0.38)));
                             sprites.add(MapEntry(0.867, _plazaPortal(worldW, worldH, sizeRef, 0.029, 0.867, 'tree_pine2_fw.png', 0.46)));
-                            sprites.add(MapEntry(0.879, _plazaPortal(worldW, worldH, sizeRef, 0.307, 0.879, 'tree_pine3_fw.png', 0.46)));
+                            sprites.add(MapEntry(0.891, _plazaPortal(worldW, worldH, sizeRef, 0.309, 0.891, 'tree_pine3_fw.png', 0.46)));
                             sprites.add(MapEntry(0.346, _plazaPortal(worldW, worldH, sizeRef, 0.892, 0.346, 'tree_pine1_fw.png', 0.32)));
-                            sprites.add(MapEntry(0.320, _plazaPortal(worldW, worldH, sizeRef, 0.621, 0.320, 'tree_pine2_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.327, _plazaPortal(worldW, worldH, sizeRef, 0.624, 0.327, 'tree_pine2_fw.png', 0.30)));
                             sprites.add(MapEntry(0.977, _plazaPortal(worldW, worldH, sizeRef, 0.713, 0.977, 'tree_pine3_fw.png', 0.52)));
                           } else {
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
