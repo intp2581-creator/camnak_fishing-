@@ -2470,6 +2470,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(0.390, _plazaPortal(worldW, worldH, sizeRef, 0.760, 0.390, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
                             sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
+                            // 🌲 소나무 장식 (화단 위 · 깊이정렬 · 원근으로 먼 건 작게)
+                            sprites.add(MapEntry(0.478, _plazaPortal(worldW, worldH, sizeRef, 0.217, 0.478, 'tree_pine1_fw.png', 0.38)));
+                            sprites.add(MapEntry(0.867, _plazaPortal(worldW, worldH, sizeRef, 0.029, 0.867, 'tree_pine2_fw.png', 0.46)));
+                            sprites.add(MapEntry(0.879, _plazaPortal(worldW, worldH, sizeRef, 0.307, 0.879, 'tree_pine3_fw.png', 0.46)));
+                            sprites.add(MapEntry(0.346, _plazaPortal(worldW, worldH, sizeRef, 0.892, 0.346, 'tree_pine1_fw.png', 0.32)));
+                            sprites.add(MapEntry(0.320, _plazaPortal(worldW, worldH, sizeRef, 0.621, 0.320, 'tree_pine2_fw.png', 0.30)));
+                            sprites.add(MapEntry(0.977, _plazaPortal(worldW, worldH, sizeRef, 0.713, 0.977, 'tree_pine3_fw.png', 0.52)));
                           } else {
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
