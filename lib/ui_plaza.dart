@@ -1435,7 +1435,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final dyW = (target.dy - _charPos.dy) * h;
     final distPx = math.sqrt(dxW * dxW + dyW * dyW);
     if (distPx < 6) { _stopTapMove(); return; } // 도착
-    const speedPxPerSec = 240.0; // 조이스틱과 동일 속도
+    const speedPxPerSec = 170.0; // 조이스틱과 동일 속도
     const dt = 16 / 1000.0;
     final step = speedPxPerSec * dt;
     final ux = dxW / distPx, uy = dyW / distPx; // 단위벡터
@@ -1509,7 +1509,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _joyTick() {
     if (_joyDir == Offset.zero || !mounted) return;
-    const speedPxPerSec = 240.0; // 월드 스크린px 기준 이동 속도(절반으로 느리게)
+    const speedPxPerSec = 170.0; // 월드 스크린px 기준 이동 속도(절반으로 느리게)
     const dt = 16 / 1000.0;
     final movePx = _joyDir * speedPxPerSec * dt; // 방향*세기
     var np = Offset(
