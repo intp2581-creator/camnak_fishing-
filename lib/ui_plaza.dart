@@ -2864,7 +2864,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final figH = sizeH * (0.27 + pT * 0.03);
     final figW = figH * 0.6;
     final araTut = _tutStep == 0 || (_tutQuestNow != null && _tutCleared); // ❗ 튜토리얼 표시 조건
-    final araBang = araTut || (_tutStep == 99 && !_questDone); // 📋 일일 미션 미완료면 ❗
+    // 🎓 튜토리얼 완료 상태: 시작 전(0)도 아니고 진행 중 퀘스트(_tutQuestNow)도 없음
+    //    → 정상 완주(_tutStep=6)든, 옛날 계정 기본값(99)이든 모두 '완료'로 인정
+    final tutDone = _tutStep != 0 && _tutQuestNow == null;
+    final araBang = araTut || (tutDone && !_questDone); // 📋 일일 미션 미완료면 ❗
     return Positioned(
       left: cx * worldW - figW / 2,
       top: cy * worldH - figH, // 발이 cy에 오도록(그림 bottomCenter)
