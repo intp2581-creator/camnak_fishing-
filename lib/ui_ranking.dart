@@ -180,8 +180,8 @@ class _RankingScreenState extends State<RankingScreen> {
                     ? _buildGaramList()
                 : selectedTab == '길드' ? _buildGuildList() : StreamBuilder<QuerySnapshot>(
               stream: selectedTab == '레벨'
-                  ? FirebaseFirestore.instance.collection('users').orderBy('exp', descending: true).limit(10).snapshots()
-                  : FirebaseFirestore.instance.collection('users').orderBy('maxCatch.$selectedFish.size', descending: true).limit(10).snapshots(),
+                  ? FirebaseFirestore.instance.collection('users').orderBy('exp', descending: true).limit(20).snapshots()
+                  : FirebaseFirestore.instance.collection('users').orderBy('maxCatch.$selectedFish.size', descending: true).limit(20).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
@@ -189,7 +189,14 @@ class _RankingScreenState extends State<RankingScreen> {
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(child: Text('데이터가 없습니다.', style: TextStyle(color: Colors.white54)));
                 }
-                var docs = snapshot.data!.docs;
+                // 🙈 랭킹 제외(운영자·테스트 계정: hideFromRank=true) 걸러내고 top10만
+                var docs = snapshot.data!.docs.where((d) {
+                  final dd = d.data() as Map<String, dynamic>;
+                  return dd['hideFromRank'] != true;
+                }).take(10).toList();
+                if (docs.isEmpty) {
+                  return const Center(child: Text('데이터가 없습니다.', style: TextStyle(color: Colors.white54)));
+                }
                 return ListView.builder(
                   itemCount: docs.length,
                   itemBuilder: (context, index) {

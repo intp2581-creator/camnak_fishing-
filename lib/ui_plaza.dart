@@ -717,17 +717,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           if (n.isNotEmpty) nick[docs[i].id] = n;
         }
       }
-      // 레벨(경험치) 보드
-      final lv = await fs.collection('users').orderBy('exp', descending: true).limit(10).get();
-      award(lv.docs);
+      // 레벨(경험치) 보드 — 🙈 랭킹 제외 계정(hideFromRank) 빼고 top10
+      final lv = await fs.collection('users').orderBy('exp', descending: true).limit(20).get();
+      award(lv.docs.where((d) => d.data()['hideFromRank'] != true).take(10).toList());
       // 어종별 최대어 보드 (민물 + 바다 전어종)
       for (final f in [...garamFwFish, ...garamSeaFish]) {
         try {
-          final q = await fs.collection('users').orderBy('maxCatch.$f.size', descending: true).limit(10).get();
+          final q = await fs.collection('users').orderBy('maxCatch.$f.size', descending: true).limit(20).get();
           award(q.docs.where((d) {
             final s = d.data()['maxCatch']?[f]?['size'] ?? 0;
-            return (s is num) && s > 0;
-          }).toList());
+            return (d.data()['hideFromRank'] != true) && (s is num) && s > 0;
+          }).take(10).toList());
         } catch (_) {}
       }
       final sorted = score.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
