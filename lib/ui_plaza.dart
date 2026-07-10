@@ -1596,6 +1596,52 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 🚪 게임 종료: "종료할까요?"(기록 자동저장 안내) → 저장 정리 → "저장 완료" → camnak.com
+  Future<void> _confirmExitGame() async {
+    audioManager.playSfx('sfx_click.mp3');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('🚪 게임 종료', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 18)),
+        content: const Text(
+            '게임을 종료할까요?\n\n지금까지의 기록(레벨·포인트·조과·인벤토리)은\n자동으로 저장돼 있어요. 다음에 접속하면 그대로예요! 😊',
+            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false),
+              child: const Text('계속하기', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('저장하고 종료', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    _leavePlazaPresence(); // 접속정보(고스트) 정리
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF7FFFB0), width: 1.2)),
+        title: const Text('✅ 저장 완료', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold, fontSize: 18)),
+        content: const Text('기록이 안전하게 저장됐어요.\n안심하고 종료하셔도 됩니다. 다음에 또 만나요! 🎣',
+            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => html.window.location.href = 'https://camnak.com',
+            child: const Text('camnak.com으로 나가기', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ---- 진입 액션들 (기존 화면 재활용) ----
   // 🚪 낚시터/아레나 등 다른 화면으로 나갈 때: 광장 presence 제거(고스트 방지) + 하트비트 정지
   void _leavePlazaPresence() {
@@ -5313,6 +5359,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           // 🔊 소리/전체화면 + 내 정보 카드 (오른쪽에 함께)
           IntrinsicHeight(
           child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            _miniBtn(Icons.logout, _confirmExitGame), // 🚪 게임 종료(저장 안내)
+            const SizedBox(width: 8),
             _miniBtn(audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
                 () => setState(() => audioManager.toggleMute())),
             const SizedBox(width: 8),
