@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# 삭제복구 백업(회원 PII 포함) — 리포에 올리지 않음
+_recovery/
