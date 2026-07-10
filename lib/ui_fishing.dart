@@ -2673,6 +2673,16 @@ Positioned(
 
     try {
       var doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      // 🎟️ [1일 1회 제한] 오늘 이미 시간 이용권을 썼으면 차단 (현질 렙업 폭주 방지 / 인벤엔 그대로 보관)
+      final String today = DateTime.now().toString().substring(0, 10);
+      if (doc.data()?['lastTimeTicketDate'] == today) {
+        if (mounted) {
+          _showNotificationPopup('🎟️ 오늘은 이미 사용했어요',
+              '시간 이용권은 하루에 한 번만 사용할 수 있어요.\n내일 다시 사용해 주세요!\n(이용권은 인벤토리에 그대로 남아있어요 😊)',
+              const Color(0xFFD4AF37));
+        }
+        return;
+      }
       List<dynamic> inv = doc.data()?['inventory'] ?? [];
 
       int index = inv.indexWhere((item) => item['name'] == ticketItem['name']);
@@ -2693,6 +2703,7 @@ Positioned(
          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
            'inventory': inv,
            'remainingTime': remainingTimeNotifier.value, // 🚨 중요: 만약 파이어베이스에 저장되는 시간 필드명이 다르면 맞춰주세요! (예: dailyTime, timeLeft 등)
+           'lastTimeTicketDate': today, // 🎟️ 오늘 사용 기록 → 1일 1회 제한(날짜 바뀌면 자동 해제)
          });
          
          // 5. 럭셔리 블랙&골드 성공 알림창 띄우기
