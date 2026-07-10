@@ -1190,10 +1190,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final dir = (d['dir'] ?? 'down').toString();
     final baseImg = d['img'] as String;
     final nick = d['nick'] as String;
-    // 🚶 걷는 중이면 걷기 프레임(1↔2) 순환, 멈추면 정지자세(0) → 내 캐릭터와 동일하게 걷는 모습
+    // 🚶 걷는 중이면 걷기 프레임 순환, 멈추면 정지자세(0) → 내 캐릭터와 동일하게 걷는 모습
     final moving = DateTime.now().isBefore(_remoteMovingUntil[uid] ?? DateTime(2000));
-    final frame = moving ? (_remoteWalkTick.isEven ? 1 : 2) : 0;
-    final bob = moving && _remoteWalkTick.isEven ? rH * 0.03 : 0.0; // 살짝 위아래 바운스
+    int frame;
+    if (!moving) {
+      frame = 0;
+    } else if (dir == 'side') {
+      // 옆걸음: 정지프레임(0)을 거쳐 1→0→2→0 순환 → 다리가 교차되는 느낌(밀려가는 느낌 제거)
+      const seq = [1, 0, 2, 0];
+      frame = seq[_remoteWalkTick % 4];
+    } else {
+      frame = _remoteWalkTick.isEven ? 1 : 2; // 앞/뒤는 기존(자연스러움)
+    }
+    final bob = (moving && frame != 0) ? rH * 0.03 : 0.0; // 스트라이드 프레임일 때만 살짝 위아래 바운스
     final sprite = baseImg.replaceAll('.png', '_$dir$frame.png'); // 방향별 걷기/정지 스프라이트
     final flip = (dir == 'side' && !face); // 옆모습이고 왼쪽 보면 좌우반전
     return AnimatedPositioned(
