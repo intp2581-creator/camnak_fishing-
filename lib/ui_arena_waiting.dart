@@ -787,9 +787,19 @@ Container(
                   child: StreamBuilder<DocumentSnapshot>(
                     stream: FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).snapshots(),
                     builder: (context, snap) {
-                      String status = snap.data?['status'] ?? 'waiting';
+                      final doc = snap.data;
+                      // 🧯 방이 삭제됨(방장이 나가며 폭파) → 없어진 문서에 [] 접근하면 크래시 → 나가기 버튼만
+                      if (doc != null && !doc.exists) {
+                        return ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800),
+                          onPressed: () { if (context.mounted) Navigator.pop(context); },
+                          child: const Text('나가기', style: TextStyle(color: Colors.white)),
+                        );
+                      }
+                      final ddata = doc?.data() as Map<String, dynamic>?;
+                      String status = ddata?['status'] ?? 'waiting';
                       // 👑 실시간 방장 판정(위임되면 새 방장에게 START 버튼이 감)
-                      final bool liveIsHost = snap.data?['hostId'] == FirebaseAuth.instance.currentUser?.uid;
+                      final bool liveIsHost = ddata?['hostId'] == FirebaseAuth.instance.currentUser?.uid;
                       if (status == 'finished') {
                         return ElevatedButton(
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800),
@@ -814,7 +824,9 @@ Container(
                         : StreamBuilder<DocumentSnapshot>(
                             stream: FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(FirebaseAuth.instance.currentUser?.uid).snapshots(),
                             builder: (context, pSnap) {
-                              bool isReady = pSnap.data?['isReady'] ?? false;
+                              final pdoc = pSnap.data;
+                              final pdata = (pdoc != null && pdoc.exists) ? pdoc.data() as Map<String, dynamic>? : null;
+                              bool isReady = pdata?['isReady'] ?? false;
                               return ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: isReady ? Colors.green : Colors.grey.shade700), onPressed: () => FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(FirebaseAuth.instance.currentUser?.uid).update({'isReady': !isReady}), child: Text(isReady ? '준비 완료 (READY)' : '준비(READY) 하기', style: const TextStyle(color: Colors.white, fontSize: 16)));
                             },
                           );
