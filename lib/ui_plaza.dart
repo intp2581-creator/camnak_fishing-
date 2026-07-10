@@ -4640,11 +4640,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final fs = FirebaseFirestore.instance;
     final guildRef = fs.collection('guilds').doc(gid);
     try {
+      // 👻 유저 문서가 있을 때만 소속 해제 (없는 문서에 쓰면 guildId만 있는 빈 껍데기가 생김)
+      final uref = fs.collection('users').doc(mUid);
+      final uexists = (await uref.get()).exists;
       final batch = fs.batch();
       batch.delete(guildRef.collection('members').doc(mUid));
       batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
       // 추방된 유저의 소속 해제 (다음 접속 시 반영). 추방은 24h 재가입 제한 없음.
-      batch.set(fs.collection('users').doc(mUid), {'guildId': '', 'guildName': ''}, SetOptions(merge: true));
+      if (uexists) batch.set(uref, {'guildId': '', 'guildName': ''}, SetOptions(merge: true));
       await batch.commit();
       _toast('$nick 님을 길드에서 추방했어요.');
     } catch (e) {
@@ -4728,22 +4731,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final members = await guildRef.collection('members').get();
       final batch = fs.batch();
       for (final m in members.docs) {
-        // 해체한 길드장(본인)만 24h 재가입 제한 / 강제로 나가게 된 멤버는 제한 없음
-        batch.update(fs.collection('users').doc(m.id), {
-          'guildId': '', 'guildName': '',
-          if (m.id == uid) 'leftGuildAt': FieldValue.serverTimestamp(),
-        });
+        // 👻 유저 문서가 있을 때만 소속 해제 (없으면 껍데기 생성/배치 실패 방지)
+        final uref = fs.collection('users').doc(m.id);
+        if ((await uref.get()).exists) {
+          // 해체한 길드장(본인)만 24h 재가입 제한 / 강제로 나가게 된 멤버는 제한 없음
+          batch.set(uref, {
+            'guildId': '', 'guildName': '',
+            if (m.id == uid) 'leftGuildAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
         batch.delete(m.reference);
       }
       batch.delete(guildRef);
       await batch.commit();
       _toast('길드를 해체했어요.');
     } else {
+      final uref = fs.collection('users').doc(uid);
+      final uexists = (await uref.get()).exists; // 👻 없는 문서에 안 써서 껍데기 방지
       final batch = fs.batch();
       batch.delete(guildRef.collection('members').doc(uid));
       batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
-      batch.update(fs.collection('users').doc(uid),
-          {'guildId': '', 'guildName': '', 'leftGuildAt': FieldValue.serverTimestamp()}); // #9
+      if (uexists) batch.set(uref,
+          {'guildId': '', 'guildName': '', 'leftGuildAt': FieldValue.serverTimestamp()}, SetOptions(merge: true)); // #9
       await batch.commit();
       _toast('길드를 탈퇴했어요.');
     }
