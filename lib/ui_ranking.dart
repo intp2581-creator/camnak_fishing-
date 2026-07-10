@@ -792,14 +792,27 @@ class _RankingScreenState extends State<RankingScreen> {
   Future<int> _getMyRank(Map<String, dynamic> myData) async {
     final col = FirebaseFirestore.instance.collection('users');
     try {
+      // 🙈 랭킹 제외 계정(hideFromRank=true) 목록 — 나보다 위에 있으면 순위 계산에서 뺀다
+      final hidden = await col.where('hideFromRank', isEqualTo: true).get();
       if (selectedTab == '레벨') {
         int myExp = myData['exp'] ?? 0;
         final agg = await col.where('exp', isGreaterThan: myExp).count().get();
-        return (agg.count ?? 0) + 1;
+        int above = agg.count ?? 0;
+        for (final h in hidden.docs) {
+          final he = ((h.data() as Map)['exp'] is num) ? ((h.data() as Map)['exp'] as num).toInt() : 0;
+          if (he > myExp) above -= 1;
+        }
+        return (above < 0 ? 0 : above) + 1;
       } else {
         double mySize = (myData['maxCatch']?[selectedFish]?['size'] ?? 0.0).toDouble();
         final agg = await col.where('maxCatch.$selectedFish.size', isGreaterThan: mySize).count().get();
-        return (agg.count ?? 0) + 1;
+        int above = agg.count ?? 0;
+        for (final h in hidden.docs) {
+          final hs = (h.data() as Map)['maxCatch']?[selectedFish]?['size'];
+          final hsize = (hs is num) ? hs.toDouble() : 0.0;
+          if (hsize > mySize) above -= 1;
+        }
+        return (above < 0 ? 0 : above) + 1;
       }
     } catch (e) {
       return 0;
