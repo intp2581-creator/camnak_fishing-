@@ -12,32 +12,32 @@ const itemDatabase = {
   },
   "스킨(하수)": {
     name: "하수 조사",
-    reqLevel: 5, // 👈 레벨 제한 (5레벨 이상만) - 상점 표시와 일치
+    reqLevel: 15, // 👈 착용 레벨(game_config storeSkinItems와 일치)
     category: "SKIN", type: "SKIN", icon: "../images/skin_novice.jpg", stats: { P: 20, C: 20, S: 20 },
     limitType: "ONCE"  // 👈 계정당 1회 한정
   },
   "스킨(중수)": {
     name: "중수 조사",
-    reqLevel: 10,
+    reqLevel: 30,
     category: "SKIN", type: "SKIN", icon: "../images/skin_intermediate.jpg", stats: { P: 50, C: 50, S: 50 },
     limitType: "ONCE"
   },
   "스킨(고수)": {
     name: "고수 조사",
-    reqLevel: 15,
+    reqLevel: 50,
     category: "SKIN", type: "SKIN", icon: "../images/skin_expert.jpg", stats: { P: 100, C: 100, S: 100 },
     limitType: "ONCE"
   }
   ,
   "스킨(프로)": {
     name: "프로 조사",
-    reqLevel: 20,
+    reqLevel: 70,
     category: "SKIN", type: "SKIN", icon: "../images/skin_pro.jpg", stats: { P: 200, C: 200, S: 200 },
     limitType: "ONCE"
   },
   "스킨(마스터)": {
     name: "마스터 조사",
-    reqLevel: 25,
+    reqLevel: 100,
     category: "SKIN", type: "SKIN", icon: "../images/skin_master.jpg", stats: { P: 300, C: 300, S: 300 },
     limitType: "ONCE"
   }
