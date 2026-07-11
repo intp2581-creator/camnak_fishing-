@@ -182,15 +182,15 @@ int calcLevelFromExp(int exp) {
 }
 
 // 🏅 칭호: 레벨 breakpoint 기준 (실제 칭호는 승급 퀘스트 통과로 결정 — 이건 참고용).
-//    하수15 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드130 → 낚시의 신150(만렙)
+//    하수10 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드120 → 낚시의 신150(만렙)
 String calcRankFromLevel(int level) {
   if (level >= 150) return '낚시의 신';
-  if (level >= 130) return '레전드';
+  if (level >= 120) return '레전드';
   if (level >= 100) return '마스터';
   if (level >= 70) return '프로';
   if (level >= 50) return '고수';
   if (level >= 30) return '중수';
-  if (level >= 15) return '하수';
+  if (level >= 10) return '하수';
   return '초보';
 }
 
@@ -251,7 +251,7 @@ const List<Map<String, dynamic>> promotionTiers = [
   {'rank': '고수', 'level': 50, 'need': 15, 'reward': 50000},
   {'rank': '프로', 'level': 70, 'need': 20, 'reward': 100000},
   {'rank': '마스터', 'level': 100, 'need': 30, 'reward': 200000},
-  // 레전드(130)·낚시의 신(150) 승급 퀘스트는 발표 때 추가
+  // 레전드(120)·낚시의 신(150) 승급 퀘스트는 발표 때 추가
 ];
 
 // 현재 칭호(promoRank) 기준 '다음 승급' 정보 (없으면 null = 더 승급 없음/미구현)
@@ -427,7 +427,7 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '대회 1시간 이용권', 'price': 1000, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '캠피싱 낚시대회 1시간 프리미엄 입장권입니다.\n(계정당 1일 1회 이용 가능)',},
   {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
-  {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 15},
+  {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 10},
   {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
   {'name': '고수 조사', 'price': 20000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 50},
   {'name': '프로 조사', 'price': 50000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 70},

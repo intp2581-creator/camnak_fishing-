@@ -12,7 +12,7 @@ const itemDatabase = {
   },
   "스킨(하수)": {
     name: "하수 조사",
-    reqLevel: 15, // 👈 착용 레벨(game_config storeSkinItems와 일치)
+    reqLevel: 10, // 👈 착용 레벨(하수는 매출 위해 10으로 낮춤 · game_config와 일치)
     category: "SKIN", type: "SKIN", icon: "../images/skin_novice.jpg", stats: { P: 20, C: 20, S: 20 },
     limitType: "ONCE"  // 👈 계정당 1회 한정
   },
