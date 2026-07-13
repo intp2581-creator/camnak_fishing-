@@ -5037,7 +5037,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             '③ 점수는 주간 → 월간 → 연간으로 계속 누적!\n'
             '꾸준한 조사님이 유리해요 😊\n\n'
             '🎁 월간·연간 상위 랭커에게는\n'
-            'camnak.com 쇼핑몰 선물 이벤트도 준비 중!',
+            '푸짐한 게임 내 보상(포인트·아이템)이 지급돼요!',
         imagePath: 'assets/images/npc_rank.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [
