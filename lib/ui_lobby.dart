@@ -773,7 +773,7 @@ filteredItems.sort((a, b) {
                                 onPressed: () {
                                   audioManager.playSfx("sfx_click.mp3");
                                   Navigator.pop(context); // 가방 먼저 닫기
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => StoreScreen(currentGold: myGold, currentLevel: myLevel, currentInventory: inventory)));
+                                  Navigator.push(context, MaterialPageRoute(builder: (context) => StoreScreen(currentGold: myGold, currentLevel: myLevel, currentInventory: inventory, currentRank: (userData['rank'] ?? '초보').toString())));
                                 },
                                 child: const Text('🛒 상점 가기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                               ),
@@ -1342,9 +1342,10 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
 class StoreScreen extends StatefulWidget {
   final int currentGold;
   final int currentLevel;
-  final List<dynamic> currentInventory; 
+  final List<dynamic> currentInventory;
+  final String currentRank; // 🎖️ 승급 칭호(스킨 구매 자격 = 해당 승급 퀘스트 통과 여부)
 
-  const StoreScreen({super.key, required this.currentGold, required this.currentLevel, required this.currentInventory});
+  const StoreScreen({super.key, required this.currentGold, required this.currentLevel, required this.currentInventory, this.currentRank = '초보'});
 
   @override
   State<StoreScreen> createState() => _StoreScreenState();
@@ -1448,7 +1449,7 @@ class _StoreScreenState extends State<StoreScreen> {
     if (currentTab == 'ROD') displayList = storeRodItems;
     if (currentTab == 'GEAR') displayList = storeGearItems;
     if (currentTab == 'BAIT') displayList = storeBaitItems;
-    if (currentTab == 'AUX') displayList = storeAuxItems;
+    if (currentTab == 'AUX') displayList = [...eventStoreItems(), ...storeAuxItems]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
     if (currentTab == 'SKIN') displayList = storeSkinItems;
 
     return Scaffold(
@@ -1738,7 +1739,7 @@ class _StoreScreenState extends State<StoreScreen> {
           Container(width: 1, color: Colors.white10),
           Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), const SizedBox(height: 12), if (item['stats'] != null) Row(children: [_buildStatBadge('파워', item['stats']['P'] ?? 0, Colors.redAccent), const SizedBox(width: 6), _buildStatBadge('컨트롤', item['stats']['C'] ?? 0, Colors.blueAccent), const SizedBox(width: 6), _buildStatBadge('감도', item['stats']['S'] ?? 0, Colors.greenAccent)]) else if (isBait) Text('수량: x${item['quantity']}개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.bold)) else const Text('기본 장비', style: TextStyle(color: Colors.grey, fontSize: 13))]))),
           Container(width: 1, color: Colors.white10),
-          Expanded(flex: 4, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 17), SizedBox(width: 6), Text('장비 효과', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 15, fontWeight: FontWeight.bold))]), const SizedBox(height: 8), Text((item['desc'] ?? '').toString().replaceAll('(쇼핑몰 전용)', '(OBT 스페셜)'), style: TextStyle(color: Colors.grey.shade200, fontSize: 16.5, height: 1.35, fontWeight: FontWeight.w500), maxLines: 3, overflow: TextOverflow.ellipsis)]))),
+          Expanded(flex: 4, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 17), SizedBox(width: 6), Text('장비 효과', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 15, fontWeight: FontWeight.bold))]), const SizedBox(height: 8), Text((item['desc'] ?? '').toString(), style: TextStyle(color: Colors.grey.shade200, fontSize: 16.5, height: 1.35, fontWeight: FontWeight.w500), maxLines: 3, overflow: TextOverflow.ellipsis)]))),
           Container(width: 1, color: Colors.white10),
           Expanded(
             flex: 2,
@@ -1751,20 +1752,64 @@ class _StoreScreenState extends State<StoreScreen> {
                   if (isFreeStarter || (isSkin && itemName.contains('초보'))) return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('기본 지급', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade900, foregroundColor: Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: null, child: const Text('구매 불가', style: TextStyle(fontWeight: FontWeight.bold)))]);
                   bool isMallOnly = isSkin || itemName.contains('1시간 이용권');
                   if (isMallOnly) {
-                    return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('9,999,999 P', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.w900))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800, foregroundColor: Colors.redAccent, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: Colors.redAccent.withOpacity(0.5)))), onPressed: () { audioManager.playSfx("sfx_click.mp3"); _showNotificationPopup('🚧 오픈 베타 테스트 안내', '현재 OBT 기간으로 해당 상품은\n임시 구매 제한 상태입니다.\n\n(테스트 종료 후 데이터 초기화 방침에 따라\n정식 오픈 이후부터 획득이 가능합니다.)', Colors.amberAccent); }, child: const Text('[OBT] 구매 불가', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)))]);
+                    final int priceKrw = (item['price'] is num) ? (item['price'] as num).toInt() : 0;
+                    final String priceStr = priceKrw.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
+                    // 🎖️ 구매 자격(레벨) 체크 — 미달이면 쇼핑몰 이동 자체를 막아 헛구매·환불 방지
+                    final int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+                    final bool lvOk = reqLv == 0 || widget.currentLevel >= reqLv;
+                    // 🎖️ 승급(칭호) 체크 — 스킨은 해당 승급 퀘스트 통과해야 구매 가능(레벨만으론 불가, 웹훅과 일치)
+                    final String reqRank = isSkin ? skinReqRank(itemName) : '';
+                    final bool rankOk = reqRank.isEmpty || rankIndex(widget.currentRank) >= rankIndex(reqRank);
+                    // 🚫 이미 보유 중인 스킨(계정당 1개)은 재구매 불가
+                    final bool alreadyOwned = isSkin && myInventory.any((i) => i['name'] == itemName);
+                    final bool buyOk = lvOk && rankOk; // 레벨 + 승급 둘 다 충족해야 구매 가능
+                    return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Center(child: Text('₩$priceStr', style: TextStyle(color: (buyOk && !alreadyOwned) ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
+                      const SizedBox(height: 6),
+                      if (alreadyOwned)
+                        const Center(child: Text('✅ 보유 중', style: TextStyle(color: Color(0xFF7FFFB0), fontSize: 12, fontWeight: FontWeight.bold)))
+                      else if (!lvOk)
+                        Center(child: Text('🔒 Lv.$reqLv 부터 구매 가능\n(현재 Lv.${widget.currentLevel})',
+                            textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
+                      else if (!rankOk)
+                        Center(child: Text('🔒 \'$reqRank\' 승급 후 구매 가능\n(아라 NPC 승급 퀘스트)',
+                            textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
+                      const SizedBox(height: 6),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: (buyOk && !alreadyOwned) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+                          foregroundColor: (buyOk && !alreadyOwned) ? Colors.black : Colors.white38,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        onPressed: (buyOk && !alreadyOwned)
+                            ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName); }
+                            : null,
+                        child: Text(alreadyOwned ? '구매 완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : '🛒 쇼핑몰 구매')),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ),
+                    ]);
                   }
+                  // 🎖️ 보조장비 요구 레벨 체크 (미끼·입장권은 reqLevel 없어 영향 없음)
+                  final int auxReqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+                  final bool auxLvOk = auxReqLv == 0 || widget.currentLevel >= auxReqLv;
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Center(child: Text('${item['price']} P', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.w900))), const SizedBox(height: 10),
+                      Center(child: Text('${item['price']} P', style: TextStyle(color: auxLvOk ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
+                      if (!auxLvOk) ...[
+                        const SizedBox(height: 4),
+                        Center(child: Text('🔒 Lv.$auxReqLv 부터 구매 가능\n(현재 Lv.${widget.currentLevel})', textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
+                      ],
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(flex: 1, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade800, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: () { ScaffoldMessenger.of(context).hideCurrentSnackBar(); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Row(children: [const Icon(Icons.check_circle, color: Color(0xFFD4AF37)), const SizedBox(width: 10), Expanded(child: Text('$itemName 장바구니 담기 완료!', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))]), backgroundColor: Colors.grey.shade900, behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: const BorderSide(color: Color(0xFFD4AF37))), duration: const Duration(seconds: 2))); }, child: const Icon(Icons.add_shopping_cart, size: 20))), const SizedBox(width: 8),
                           Expanded(
                             flex: 2,
                             child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                              onPressed: () {
+                              style: ElevatedButton.styleFrom(backgroundColor: auxLvOk ? const Color(0xFFD4AF37) : Colors.grey.shade800, foregroundColor: auxLvOk ? Colors.black : Colors.white38, padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                              onPressed: !auxLvOk ? null : () {
                                 String itemCategory = item['category']?.toString().toUpperCase() ?? ''; String itemType = item['type']?.toString().toUpperCase() ?? '';
                                 bool isBait = itemCategory.contains('BAIT') || itemCategory.contains('미끼') || itemType.contains('BAIT') || itemType.contains('미끼') || ['지렁이', '글루텐', '옥수수'].contains(itemName);
                                 bool isTicket = itemCategory.contains('TICKET') || itemName.contains('입장권'); // 🎟️ 소비아이템(재구매·스택)
@@ -1774,7 +1819,7 @@ class _StoreScreenState extends State<StoreScreen> {
                                   if (isAlreadyOwned) { _showNotificationPopup('🛑 구매 불가!', '이미 보유 중인 장비입니다!\n인벤토리를 확인해주세요.', Colors.orangeAccent); return; } _buyItem(item);
                                 }
                               },
-                              child: const Text('🛒 구매하기', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              child: Text(auxLvOk ? '🛒 구매하기' : '🔒 레벨 부족', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                             ),
                           ),
                         ],
@@ -1790,10 +1835,67 @@ class _StoreScreenState extends State<StoreScreen> {
     );
   }
 
+  // 🛒 쇼핑몰 구매 전 '지급 대상 계정' 확인 — 다계정 유저의 오구매 방지
+  void _confirmMallPurchase(String itemName) {
+    final email = FirebaseAuth.instance.currentUser?.email ?? '(알 수 없음)';
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        title: const Text('🛒 쇼핑몰에서 구매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 18)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('『$itemName』', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            const Text('지급 대상 계정', style: TextStyle(color: Colors.white38, fontSize: 12)),
+            const SizedBox(height: 4),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFD4AF37).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.5)),
+              ),
+              child: Text(email, style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 14, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              '결제하시면 위 계정의 캐릭터에 자동 지급돼요.\n'
+              '쇼핑몰에서도 같은 계정으로 로그인되어 있는지\n'
+              '주문서의 이메일을 꼭 확인해주세요!',
+              style: TextStyle(color: Colors.white70, fontSize: 13.5, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+            onPressed: () { Navigator.pop(c); html.window.open(kGameStoreUrl, 'camnak_store'); },
+            child: const Text('쇼핑몰로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _buyItem(Map<String, dynamic> item) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    
+
+    // 🎖️ 요구 레벨 체크 (휘장 등 — 포인트 구매도 레벨 제한 적용)
+    final int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+    if (reqLv > 0 && widget.currentLevel < reqLv) {
+      _showNotificationPopup('🚫 레벨이 부족해요',
+          '${item['name']}은(는) Lv.$reqLv 부터 구매할 수 있어요!\n(현재 Lv.${widget.currentLevel})',
+          Colors.orangeAccent);
+      return;
+    }
+
     // 🛑 포인트 부족 시 럭셔리 팝업!
     if (item['price'] > 0 && myDisplayGold < item['price']) {
       _showNotificationPopup('🚫 구매 불가', '포인트가 부족합니다!\n열심히 고기를 잡으세요!', Colors.redAccent);
@@ -1826,7 +1928,8 @@ class _StoreScreenState extends State<StoreScreen> {
       });
 
       // 🎓 튜토리얼 '장비 장만'(보배, tutStep 5) — 아이템 구매하면 미션 완료 기록
-      if (((userDoc.data()?['tutStep']) as num?)?.toInt() == 5) {
+      final bool isTutShopDone = ((userDoc.data()?['tutStep']) as num?)?.toInt() == 5;
+      if (isTutShopDone) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid)
             .set({'tutCleared': true}, SetOptions(merge: true));
       }
@@ -1838,10 +1941,12 @@ class _StoreScreenState extends State<StoreScreen> {
 
       if (!mounted) return;
 
-      // 🛒 결제 성공 시 럭셔리 팝업 발사!
+      // 🛒 결제 성공 시 럭셔리 팝업 발사! (튜토리얼 마지막 단계면 아라 안내 추가)
       _showNotificationPopup(
         '🎉 결제 완료',
-        '${item['name']}\n성공적으로 구매하셨습니다!\n인벤토리에서 장착해 보세요.', 
+        isTutShopDone
+            ? '${item['name']}\n성공적으로 구매하셨습니다!\n\n🎁 광장의 매니저 아라에게 돌아가\n보상을 받으세요!'
+            : '${item['name']}\n성공적으로 구매하셨습니다!\n인벤토리에서 장착해 보세요.',
         const Color(0xFFD4AF37)
       );
       

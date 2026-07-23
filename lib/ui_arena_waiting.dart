@@ -59,8 +59,9 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         'lastArenaDate': today,
         'arenaCount': arenaCount + 1,
       };
-      int timeCost = 600; // 기본: 낚시시간 10분 차감
-      // 무료 2회 초과분은 입장권 1장 사용 → 입장권이 낚시시간 10분을 대신 충전(차감 상쇄)
+      // ⏱️ 낚시시간 차감은 '선불'이 아니라 아레나에서 '실제 있던 시간'만큼 나갈 때 차감(ui_fishing dispose).
+      //    → 5분만 하고 나오면 5분만 깎임. 여기선 시간 차감 안 함.
+      // 🎟️ 무료 2회 초과분은 입장권 1장 사용 → 입장권이 낚시시간 10분(+600초)을 채워줘서 시간 없어도 참가.
       if (arenaCount >= 2) {
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
@@ -69,10 +70,9 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
           update['inventory'] = inv;
           update['arenaTicketDate'] = today;
-          timeCost = 0; // 🎟️ 입장권이 낚시시간 10분을 채워줘서 시간 차감 없음(시간 없어도 참가 가능)
+          update['remainingTime'] = FieldValue.increment(600); // 🎟️ 입장권 = 낚시시간 10분 충전(그 시간을 아레나가 소모)
         }
       }
-      update['remainingTime'] = FieldValue.increment(-timeCost);
       await ref.update(update);
     } catch (e) {
       debugPrint('아레나 시작 차감 에러: $e');
@@ -504,8 +504,27 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       }
 
       final winner = valid.first; // 완주자 중 1위(최대어=maxSize / 마릿수=score)
+      final wData = winner.data();
+      final topRaw = (widget.roomData['winCondition'] == '최대어') ? wData['maxSize'] : wData['score'];
+      final topMetric = (topRaw is num) ? topRaw.toDouble() : 0.0;
 
-      // 🏳️ 기권승: 상대가 모두 기권하고 완주자가 1명뿐 → 성적과 무관하게 전액 획득(수수료 10% 제외)
+      // 🤝 완주했지만 1위조차 목표어를 못 잡음(성적 0) → 무승부: 상대 기권 여부와 무관하게 참가비 90% 환불(운영 수수료 10%)
+      //    ⚠️ 이 체크를 '기권승'보다 먼저! 혼자 남았어도(상대 기권) 목표어를 못 잡았으면 기권승이 아니라 무승부.
+      if (topMetric <= 0) {
+        final refund = fee - (fee * 0.1).toInt(); // 💸 무승부도 운영 수수료 10%는 징수, 90% 환불
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          tx.update(arenaRef, {'status': 'finished', 'draw': true, 'winnerNick': '', 'totalPrize': 0});
+          if (refund > 0) {
+            for (final d in valid) {
+              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(refund)});
+            }
+          }
+        });
+        await arenaRef.collection('messages').add({'text': '🤝 아무도 목표어를 못 잡아 무승부! 참가비의 90%(운영 수수료 10% 제외)를 환불했어요.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        return;
+      }
+
+      // 🏳️ 기권승: (위에서 목표어 잡음 확인됨) 상대가 모두 기권해 완주자가 나 하나 → 전액 상금(수수료 10% 제외)
       if (walkover) {
         final prize = fee * allDocs.length;
         final taxAmount = (prize * 0.1).toInt();
@@ -519,24 +538,6 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize, 'walkover': true});
         });
         await arenaRef.collection('messages').add({'text': '🏳️ 상대가 모두 기권! ${winner['nickname']}님 기권승! ${finalPrize}P 획득 (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
-        return;
-      }
-
-      // 🤝 아무도 못 잡음(1위 성적이 0) → 무승부: 상금 없음 + 완주자 참가비 환불
-      final wData = winner.data();
-      final topRaw = (widget.roomData['winCondition'] == '최대어') ? wData['maxSize'] : wData['score'];
-      final topMetric = (topRaw is num) ? topRaw.toDouble() : 0.0;
-      if (topMetric <= 0) {
-        final refund = fee - (fee * 0.1).toInt(); // 💸 무승부도 운영 수수료 10%는 징수, 90% 환불
-        await FirebaseFirestore.instance.runTransaction((tx) async {
-          tx.update(arenaRef, {'status': 'finished', 'draw': true, 'winnerNick': '', 'totalPrize': 0});
-          if (refund > 0) {
-            for (final d in valid) {
-              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(refund)});
-            }
-          }
-        });
-        await arenaRef.collection('messages').add({'text': '🤝 아무도 못 잡아 무승부! 참가비의 90%(운영 수수료 10% 제외)를 환불했어요.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
         return;
       }
       int prize = fee * allDocs.length;

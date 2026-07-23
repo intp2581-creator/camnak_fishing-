@@ -1,6 +1,156 @@
 // ignore_for_file: non_constant_identifier_names
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// =========================================================================
+// 🎉 [이벤트 시스템] Firestore `config/event` 문서 하나로 운영(코드수정·재배포 없이 켜고 끔).
+//    예) 광복절 하루 경험치 2배 → 콘솔에서 expMult:2.0, start/end 넣으면 그 기간에만 자동 적용.
+//    문서 형식:
+//    config/event {
+//      active: true, name: "🎉 광복절 경험치 2배",
+//      start: "2026-08-15 00:00", end: "2026-08-16 00:00",  (KST, "yyyy-MM-dd HH:mm")
+//      expMult: 2.0, ptsMult: 1.0, bossMult: 1.0
+//    }
+//    expMult=전체경험치배율 · ptsMult=전체포인트배율 · bossMult=6대장 추가배율(경험치·포인트 공통)
+// =========================================================================
+class GameEvent {
+  final bool active;
+  final String name;
+  final double expMult;
+  final double ptsMult;
+  final double bossMult;
+  // 🎁 기간제 이벤트 아이템 (상점 100P 등으로 판매 → 가방에 보유하면 효과 자동 적용 → 만료 시 자동 소멸)
+  //    config/event 에 itemName/itemIcon/itemStats{P,C,S}/itemPrice/itemExpire("yyyy-MM-dd HH:mm") 추가하면 상점에 등장.
+  final String itemName;
+  final String itemIcon;
+  final Map<String, int> itemStats;
+  final int itemPrice;
+  final DateTime? itemExpire;
+  const GameEvent({
+    this.active = false,
+    this.name = '',
+    this.expMult = 1.0,
+    this.ptsMult = 1.0,
+    this.bossMult = 1.0,
+    this.itemName = '',
+    this.itemIcon = '',
+    this.itemStats = const {},
+    this.itemPrice = 0,
+    this.itemExpire,
+  });
+  static const GameEvent none = GameEvent();
+}
+
+/// 🎁 이벤트 아이템의 상점 진열 목록(활성+아이템 정의+만료 전이면 1개, 아니면 빈 목록).
+///    보조장비 탭 맨 앞에 끼워넣어 사용.
+List<Map<String, dynamic>> eventStoreItems() {
+  final ev = currentGameEvent;
+  if (!ev.active || ev.itemName.isEmpty || ev.itemPrice <= 0) return [];
+  if (ev.itemExpire != null && DateTime.now().isAfter(ev.itemExpire!)) return [];
+  final String expireStr = ev.itemExpire != null ? ev.itemExpire.toString().substring(0, 16) : '';
+  return [{
+    'name': ev.itemName,
+    'price': ev.itemPrice,
+    'category': 'COMMON',
+    'type': 'EVENT',
+    'stats': ev.itemStats,
+    'icon': ev.itemIcon,
+    'desc': '🎁 기간제 이벤트 아이템! 가방에 있으면 효과가 자동 적용돼요.${expireStr.isNotEmpty ? '\n(⏳ $expireStr 까지 · 이후 자동 소멸)' : ''}',
+    if (ev.itemExpire != null) 'expiresAt': ev.itemExpire!.toIso8601String(),
+  }];
+}
+
+/// 🎁 가방 속 유효한(만료 전) 이벤트 아이템들의 P/C/S 합산 — 장착 불필요 '보유 버프'.
+Map<String, int> eventItemBonus(List<dynamic> inventory) {
+  int p = 0, c = 0, s = 0;
+  final now = DateTime.now();
+  for (final it in inventory) {
+    if (it is! Map) continue;
+    if ((it['type'] ?? '') != 'EVENT') continue;
+    final exp = it['expiresAt'];
+    if (exp != null) {
+      final dt = DateTime.tryParse(exp.toString());
+      if (dt != null && now.isAfter(dt)) continue; // ⏳ 만료 → 효과 없음(정리 전이어도)
+    }
+    final st = it['stats'];
+    if (st is Map) {
+      p += (st['P'] is num) ? (st['P'] as num).toInt() : 0;
+      c += (st['C'] is num) ? (st['C'] as num).toInt() : 0;
+      s += (st['S'] is num) ? (st['S'] as num).toInt() : 0;
+    }
+  }
+  return {'P': p, 'C': c, 'S': s};
+}
+
+/// 🎁 만료된 이벤트 아이템을 제거한 인벤 반환. 변화 없으면 null(쓰기 불필요).
+List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
+  final now = DateTime.now();
+  bool changed = false;
+  final out = <dynamic>[];
+  for (final it in inventory) {
+    if (it is Map && (it['type'] ?? '') == 'EVENT') {
+      final exp = it['expiresAt'];
+      final dt = exp != null ? DateTime.tryParse(exp.toString()) : null;
+      if (dt != null && now.isAfter(dt)) { changed = true; continue; } // 소멸
+    }
+    out.add(it);
+  }
+  return changed ? out : null;
+}
+
+/// 현재 활성 이벤트(전역). 앱 시작 시 loadGameEvent()로 채움. 기본=이벤트 없음.
+GameEvent currentGameEvent = GameEvent.none;
+
+/// "yyyy-MM-dd HH:mm"(KST) 또는 "yyyy-MM-dd" 문자열 → DateTime(로컬=KST). 실패 시 null.
+DateTime? _parseKst(dynamic v) {
+  if (v == null) return null;
+  final s = v.toString().trim();
+  if (s.isEmpty) return null;
+  try {
+    return DateTime.parse(s.length <= 10 ? '$s 00:00:00' : s.replaceFirst('T', ' '));
+  } catch (_) { return null; }
+}
+
+/// Firestore config/event 를 읽어 현재 시각 기준으로 활성 이벤트를 전역에 반영.
+/// 앱 시작(main) + 낚시터 입장 시 호출하면 됨. 실패해도 게임엔 지장 없음(이벤트만 미적용).
+Future<void> loadGameEvent() async {
+  try {
+    final doc = await FirebaseFirestore.instance.collection('config').doc('event').get();
+    final d = doc.data();
+    if (d == null || d['active'] != true) { currentGameEvent = GameEvent.none; return; }
+    final now = DateTime.now();
+    final start = _parseKst(d['start']);
+    final end = _parseKst(d['end']);
+    // 기간 지정돼 있으면 그 안에서만 적용(둘 다 없으면 상시)
+    if (start != null && now.isBefore(start)) { currentGameEvent = GameEvent.none; return; }
+    if (end != null && now.isAfter(end)) { currentGameEvent = GameEvent.none; return; }
+    double mult(dynamic x) => (x is num && x > 0) ? x.toDouble() : 1.0;
+    // 🎁 기간제 이벤트 아이템 파싱
+    final Map<String, int> iStats = {};
+    final rawStats = d['itemStats'];
+    if (rawStats is Map) {
+      for (final k in ['P', 'C', 'S']) {
+        final v = rawStats[k];
+        if (v is num && v != 0) iStats[k] = v.toInt();
+      }
+    }
+    currentGameEvent = GameEvent(
+      active: true,
+      name: (d['name'] ?? '').toString(),
+      expMult: mult(d['expMult']),
+      ptsMult: mult(d['ptsMult']),
+      bossMult: mult(d['bossMult']),
+      itemName: (d['itemName'] ?? '').toString(),
+      itemIcon: (d['itemIcon'] ?? '').toString(),
+      itemStats: iStats,
+      itemPrice: (d['itemPrice'] is num) ? (d['itemPrice'] as num).toInt() : 0,
+      itemExpire: _parseKst(d['itemExpire']),
+    );
+  } catch (_) {
+    currentGameEvent = GameEvent.none;
+  }
+}
 
 // =========================================================================
 // 📋 [일일 퀘스트] 민물/바다 2분리 — 민물 완료 후 바다 진행. 각 보상 500P.
@@ -181,6 +331,33 @@ int calcLevelFromExp(int exp) {
   return 1;
 }
 
+// 🎣 낚싯대별 캐스팅/파이팅 씬 이미지 접미사 ('' = 기본 그림 사용).
+//    이미지 파일명 규칙: cast_fw_cf20.png / hand_rod_fw_cf20.png (민물), cast_sea_cf250.png / hand_rod_sea_cf250.png (바다) 등.
+//    assets/images/에 해당 파일이 없으면 자동으로 기본 그림(cast_fw.png 등)으로 폴백 → 그린 낚싯대부터 하나씩 추가하면 됨.
+String rodSceneSuffix(Map<String, dynamic>? rod) {
+  final n = (rod?['name'] ?? '').toString().toUpperCase().replaceAll('-', '').replaceAll(' ', '');
+  const map = {
+    'CF20T': 'cf20', 'CF30T': 'cf30', 'CF40T': 'cf40', 'KT20T': 'kt20', 'KT30T': 'kt30', 'KT40T': 'kt40',
+    'CF250': 'cf250', 'CF350': 'cf350', 'CF500': 'cf500', 'KT250': 'kt250', 'KT350': 'kt350', 'KT500': 'kt500',
+  };
+  return map[n] ?? '';
+}
+
+// 🏅 승급 칭호 순서 (스킨 구매 자격 판정 — 웹훅 RANK_ORDER와 동일하게 유지!)
+const List<String> kRankOrder = ['초보', '하수', '중수', '고수', '프로', '마스터', '레전드', '낚시의 신'];
+// 칭호 → 순서 인덱스 (미등록/알 수 없으면 0=초보 취급)
+int rankIndex(String rank) {
+  final i = kRankOrder.indexOf(rank);
+  return i < 0 ? 0 : i;
+}
+// 스킨 이름('하수 조사')에서 요구 칭호('하수') 추출. 스킨 아니면 빈 문자열.
+String skinReqRank(String skinName) {
+  for (final r in kRankOrder) {
+    if (skinName.startsWith('$r 조사')) return r;
+  }
+  return '';
+}
+
 // 🏅 칭호: 레벨 breakpoint 기준 (실제 칭호는 승급 퀘스트 통과로 결정 — 이건 참고용).
 //    하수10 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드120 → 낚시의 신150(만렙)
 String calcRankFromLevel(int level) {
@@ -278,7 +455,7 @@ final List<Map<String, dynamic>> fwFishPool = [
   {'name': '베스', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_08_bass.png'},
   {'name': '강준치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_09_skygazer.png'},
   {'name': '잉어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 1, 'img': 'assets/images/fish_fw_02_carp.png'}, // 👑 6대장
-  {'name': '자라', 'weight': 5, 'unit': 'Cm', 'min': 15.0, 'max': 25.0, 'pts': 0, 'expMult': 2.0, 'img': 'assets/images/fish_fw_10_turtle.png'},
+  {'name': '자라', 'weight': 5, 'unit': 'Cm', 'min': 15.0, 'max': 25.0, 'pts': 0, 'img': 'assets/images/fish_fw_10_turtle.png'},
   {'name': '메기', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 150.0, 'pts': 0, 'img': 'assets/images/fish_fw_03_catfish.png'},
   {'name': '가물치', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 120.0, 'pts': 1, 'img': 'assets/images/fish_fw_06_snakehead.png'}, // 👑 6대장
 ];
@@ -359,33 +536,33 @@ List<Map<String, dynamic>> getInitialStarterPack() {
 // 🎣 상점: 낚싯대 목록
 final List<Map<String, dynamic>> storeRodItems = [
   {'name': 'CF-20T', 'price': 0, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_fw_cf20.png', 'desc': '초보 조사용 기본 민물대'},
-  {'name': 'CF-30T', 'price': 10000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_fw_cf30.png', 'desc': '입문자를 위한 밸런스형 민물대'},
-  {'name': 'CF-40T', 'price': 30000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_fw_cf40.png', 'desc': '중급 조사용 고탄성 민물대'},
-  {'name': 'KT-20T', 'price': 50000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_kt20.png', 'desc': '프리미엄 KREFT 민물대'},
-  {'name': 'KT-30T', 'price': 100000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_fw_kt30.png', 'desc': '대물 붕어 제압용 프로 민물대'},
-  {'name': 'KT-40T', 'price': 200000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_kt40.png', 'desc': '민물 낚시의 정점, 마스터 민물대'},
+  {'name': 'CF-30T', 'price': 20000, 'reqLevel': 5, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_fw_cf30.png', 'desc': '입문자를 위한 밸런스형 민물대'},
+  {'name': 'CF-40T', 'price': 50000, 'reqLevel': 10, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_fw_cf40.png', 'desc': '중급 조사용 고탄성 민물대'},
+  {'name': 'KT-20T', 'price': 100000, 'reqLevel': 30, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_kt20.png', 'desc': '프리미엄 KREFT 민물대'},
+  {'name': 'KT-30T', 'price': 300000, 'reqLevel': 50, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_fw_kt30.png', 'desc': '대물 붕어 제압용 프로 민물대'},
+  {'name': 'KT-40T', 'price': 600000, 'reqLevel': 70, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_kt40.png', 'desc': '민물 낚시의 정점, 마스터 민물대'},
   {'name': 'CF250', 'price': 0, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_sea_cf250.png', 'desc': '바다 낚시 입문용 기본대'},
-  {'name': 'CF350', 'price': 10000, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_sea_cf350.png', 'desc': '연안 방파제용 전천후 바다대'},
-  {'name': 'CF500', 'price': 30000, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 10}, 'icon': 'rod_sea_cf500.png', 'desc': '원투 낚시에 최적화된 바다대'},
-  {'name': 'KT250', 'price': 50000, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 30, 'C': 20, 'S': 10}, 'icon': 'rod_sea_kt250.png', 'desc': '선상 낚시의 표준, KREFT 바다대'},
-  {'name': 'KT350', 'price': 100000, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_sea_kt350.png', 'desc': '프로 앵글러를 위한 고강도 바다대'},
-  {'name': 'KT500', 'price': 200000, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_sea_kt500.png', 'desc': '심해 대물 제압용 마스터 바다대'},
+  {'name': 'CF350', 'price': 20000, 'reqLevel': 5, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_sea_cf350.png', 'desc': '연안 방파제용 전천후 바다대'},
+  {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 10}, 'icon': 'rod_sea_cf500.png', 'desc': '원투 낚시에 최적화된 바다대'},
+  {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 30, 'C': 20, 'S': 10}, 'icon': 'rod_sea_kt250.png', 'desc': '선상 낚시의 표준, KREFT 바다대'},
+  {'name': 'KT350', 'price': 300000, 'reqLevel': 50, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_sea_kt350.png', 'desc': '프로 앵글러를 위한 고강도 바다대'},
+  {'name': 'KT500', 'price': 600000, 'reqLevel': 70, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_sea_kt500.png', 'desc': '심해 대물 제압용 마스터 바다대'},
 ];
 
 // ⚙️ 상점: 릴 & 찌 목록
 final List<Map<String, dynamic>> storeGearItems = [
   {'name': '일반찌', 'price': 0, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'float_fw_normal.png', 'desc': '가장 기본적인 민물 찌'},
-  {'name': '오동나무찌', 'price': 5000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'float_fw_wood.png', 'desc': '예민한 입질 파악을 위한 찌'},
-  {'name': '수제찌', 'price': 10000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'float_fw_handmade.png', 'desc': '장인이 깎아 만든 고감도 수제찌'},
-  {'name': '나노카본찌', 'price': 30000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'float_fw_nano.png', 'desc': '최첨단 소재로 만든 초정밀 찌'},
-  {'name': 'CF 전자찌', 'price': 50000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 25, 'C': 25, 'S': 25}, 'icon': 'float_fw_elec_cf.png', 'desc': '야간 낚시의 필수품'},
-  {'name': 'KT 전자찌', 'price': 100000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'float_fw_elec_kt.png', 'desc': '압도적인 시인성을 자랑하는 최고급 전자찌'},
+  {'name': '오동나무찌', 'price': 10000, 'reqLevel': 5, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'float_fw_wood.png', 'desc': '예민한 입질 파악을 위한 찌'},
+  {'name': '수제찌', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'float_fw_handmade.png', 'desc': '장인이 깎아 만든 고감도 수제찌'},
+  {'name': '나노카본찌', 'price': 50000, 'reqLevel': 30, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'float_fw_nano.png', 'desc': '최첨단 소재로 만든 초정밀 찌'},
+  {'name': 'CF 전자찌', 'price': 100000, 'reqLevel': 50, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 25, 'C': 25, 'S': 25}, 'icon': 'float_fw_elec_cf.png', 'desc': '야간 낚시의 필수품'},
+  {'name': 'KT 전자찌', 'price': 200000, 'reqLevel': 70, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'float_fw_elec_kt.png', 'desc': '압도적인 시인성을 자랑하는 최고급 전자찌'},
   {'name': 'cf2000', 'price': 0, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'reel_sea_cf2000.png', 'desc': '기본 제공되는 바다 릴'},
-  {'name': 'CF3000', 'price': 5000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'reel_sea_cf3000.png', 'desc': '방파제용 경량 릴'},
-  {'name': 'CF5000', 'price': 10000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'reel_sea_cf5000.png', 'desc': '원투 낚시용 중형 릴'},
-  {'name': 'KF5000', 'price': 30000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'reel_sea_kf5000.png', 'desc': '선상 낚시용 고급 릴'},
-  {'name': 'KF6000', 'price': 50000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 25, 'C': 25, 'S': 25}, 'icon': 'reel_sea_kf6000.png', 'desc': '대형 어종 제압을 위한 강력한 릴'},
-  {'name': 'KF8000', 'price': 100000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'reel_sea_kf8000.png', 'desc': '괴물과 싸우기 위한 마스터급 대형 릴'},
+  {'name': 'CF3000', 'price': 10000, 'reqLevel': 5, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'reel_sea_cf3000.png', 'desc': '방파제용 경량 릴'},
+  {'name': 'CF5000', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'reel_sea_cf5000.png', 'desc': '원투 낚시용 중형 릴'},
+  {'name': 'KF5000', 'price': 50000, 'reqLevel': 30, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'reel_sea_kf5000.png', 'desc': '선상 낚시용 고급 릴'},
+  {'name': 'KF6000', 'price': 100000, 'reqLevel': 50, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 25, 'C': 25, 'S': 25}, 'icon': 'reel_sea_kf6000.png', 'desc': '대형 어종 제압을 위한 강력한 릴'},
+  {'name': 'KF8000', 'price': 200000, 'reqLevel': 70, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'reel_sea_kf8000.png', 'desc': '괴물과 싸우기 위한 마스터급 대형 릴'},
 ];
 
 // 🪱 상점: 미끼 목록
@@ -402,36 +579,40 @@ final List<Map<String, dynamic>> storeBaitItems = [
 // 😎 상점: 스킨 및 악세서리 목록
 // 🎒 보조장비 탭 — 착용 악세서리 · 도구 · P/C/S 스탯 장비
 final List<Map<String, dynamic>> storeAuxItems = [
-  {'name': '선글라스', 'price': 10000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'},
-  {'name': '레인보우 편광 선글라스', 'price': 50000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'item_sunglasses_rainbow.png', 'desc': '무지개빛 편광 렌즈로 수면 반사광을 잡아 찌·물밑까지 또렷하게 보여주는 프리미엄 선글라스 (민물·바다 공용)'},
-  {'name': '장갑', 'price': 20000, 'category': 'COMMON', 'type': 'GLOVES', 'stats': {'P': 10}, 'icon': 'gloves.png', 'desc': '그립을 단단히 잡아주는 조사 장갑 (힘 +10 · 민물·바다 공용)'},
-  {'name': '바다 파워벨트', 'price': 20000, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
-  {'name': '민물 뜰채', 'price': 20000, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
-  {'name': '바다 뜰채', 'price': 20000, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
+  {'name': '선글라스', 'price': 20000, 'reqLevel': 5, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_sunglasses.png', 'desc': '눈부심을 막아 찌를 잘 보게 해주는 장비'},
+  {'name': '레인보우 편광 선글라스', 'price': 50000, 'reqLevel': 30, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'item_sunglasses_rainbow.png', 'desc': '무지개빛 편광 렌즈로 수면 반사광을 잡아 찌·물밑까지 또렷하게 보여주는 프리미엄 선글라스 (민물·바다 공용)'},
+  {'name': '장갑', 'price': 10000, 'reqLevel': 10, 'category': 'COMMON', 'type': 'GLOVES', 'stats': {'P': 10}, 'icon': 'gloves.png', 'desc': '그립을 단단히 잡아주는 조사 장갑 (힘 +10 · 민물·바다 공용)'},
+  {'name': '바다 파워벨트', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
+  {'name': '민물 뜰채', 'price': 10000, 'reqLevel': 5, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
+  {'name': '바다 뜰채', 'price': 10000, 'reqLevel': 5, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
   // 🧵 낚시줄 — 힘 +10, 내구도 200m(랜딩 실패 시 −10m, 0m면 끊어짐)
-  {'name': '민물 낚시줄', 'price': 10000, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
-  {'name': '바다 낚시줄', 'price': 10000, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},
+  {'name': '민물 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
+  {'name': '바다 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},
   // 🍚 밑밥 — 감도 +10(낚시터당 1개 소모, 세션 버프)
-  {'name': '민물 밑밥', 'price': 5000, 'category': 'FW', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_fw.png', 'desc': '물고기를 불러 모으는 민물 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
-  {'name': '바다 밑밥', 'price': 5000, 'category': 'SEA', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_sea.png', 'desc': '집어 효과 확실한 바다 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
-  {'name': '새우 채집망', 'price': 5000, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
-  {'name': '소형 아이스박스', 'price': 20000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
-  {'name': '중형 아이스박스', 'price': 40000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
-  {'name': '대형 아이스박스', 'price': 80000, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
-  {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'},
-  {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'},
+  {'name': '민물 밑밥', 'price': 3000, 'reqLevel': 10, 'category': 'FW', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_fw.png', 'desc': '물고기를 불러 모으는 민물 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
+  {'name': '바다 밑밥', 'price': 3000, 'reqLevel': 10, 'category': 'SEA', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_sea.png', 'desc': '집어 효과 확실한 바다 밑밥 (감도 +10 · 낚시터당 1개 소모)'},
+  {'name': '새우 채집망', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'TRAP', 'icon': 'item_shrimp_trap.png', 'desc': '민물에 던져두면 민물새우가 모여요. 낚시 중 던져놓고 미끼를 자동 채집! (1분에 2마리)'},
+  {'name': '소형 아이스박스', 'price': 10000, 'reqLevel': 5, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
+  {'name': '중형 아이스박스', 'price': 50000, 'reqLevel': 20, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
+  {'name': '대형 아이스박스', 'price': 100000, 'reqLevel': 50, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
+  {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '캠피싱의 정예 민물 조사임을 증명하는 증표 (Lv.10↑)', 'reqLevel': 10},
+  {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '캠피싱의 정예 바다 조사임을 증명하는 증표 (Lv.10↑)', 'reqLevel': 10},
 ];
 
 // 👕 스킨/티켓 탭 — 조사 스킨 · 이용권 · 입장권
+// 🛒 게임 내 상점 "쇼핑몰 구매" 버튼이 여는 주소 (스킨·이용권 캐시 구매처)
+//    정확한 게임스토어 페이지 URL이 있으면 여기만 바꾸면 됨.
+const String kGameStoreUrl = 'https://camnak.com/137';
+
 final List<Map<String, dynamic>> storeSkinItems = [
-  {'name': '대회 1시간 이용권', 'price': 1000, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '캠피싱 낚시대회 1시간 프리미엄 입장권입니다.\n(계정당 1일 1회 이용 가능)',},
+  {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)',},
   {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
-  {'name': '하수 조사', 'price': 2000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 10},
-  {'name': '중수 조사', 'price': 5000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
-  {'name': '고수 조사', 'price': 20000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 50},
-  {'name': '프로 조사', 'price': 50000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 70},
-  {'name': '마스터 조사', 'price': 100000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 100},
+  {'name': '하수 조사', 'price': 2200, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 10},
+  {'name': '중수 조사', 'price': 5500, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
+  {'name': '고수 조사', 'price': 11000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 50},
+  {'name': '프로 조사', 'price': 22000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 70},
+  {'name': '마스터 조사', 'price': 55000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 100},
 ];
 
 // 👕 스킨 이름 → 능력치(P/C/S). 상점 목록에 정의된 값을 우선 사용하고,

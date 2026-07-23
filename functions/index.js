@@ -6,25 +6,28 @@ admin.initializeApp();
 // 📖 [아이템 사전 및 구매 조건 설정]
 const itemDatabase = {
   "1시간 이용권": { 
-    name: "대회 1시간 이용권", 
+    name: "낚시 1시간 이용권",
     category: "TICKET", type: "ETC", icon: "item_ticket_1h.png",
     limitType: "DAILY" // 👈 1일 1회 제한
   },
   "스킨(하수)": {
     name: "하수 조사",
     reqLevel: 10, // 👈 착용 레벨(하수는 매출 위해 10으로 낮춤 · game_config와 일치)
+    reqRank: "하수", // 👈 해당 승급 퀘스트 통과 필요(레벨만으론 불가)
     category: "SKIN", type: "SKIN", icon: "../images/skin_novice.jpg", stats: { P: 20, C: 20, S: 20 },
     limitType: "ONCE"  // 👈 계정당 1회 한정
   },
   "스킨(중수)": {
     name: "중수 조사",
     reqLevel: 30,
+    reqRank: "중수",
     category: "SKIN", type: "SKIN", icon: "../images/skin_intermediate.jpg", stats: { P: 50, C: 50, S: 50 },
     limitType: "ONCE"
   },
   "스킨(고수)": {
     name: "고수 조사",
     reqLevel: 50,
+    reqRank: "고수",
     category: "SKIN", type: "SKIN", icon: "../images/skin_expert.jpg", stats: { P: 100, C: 100, S: 100 },
     limitType: "ONCE"
   }
@@ -32,16 +35,22 @@ const itemDatabase = {
   "스킨(프로)": {
     name: "프로 조사",
     reqLevel: 70,
+    reqRank: "프로",
     category: "SKIN", type: "SKIN", icon: "../images/skin_pro.jpg", stats: { P: 200, C: 200, S: 200 },
     limitType: "ONCE"
   },
   "스킨(마스터)": {
     name: "마스터 조사",
     reqLevel: 100,
+    reqRank: "마스터",
     category: "SKIN", type: "SKIN", icon: "../images/skin_master.jpg", stats: { P: 300, C: 300, S: 300 },
     limitType: "ONCE"
   }
 };
+
+// 🏅 승급 칭호 순서 (스킨 구매 자격 = 해당 승급 퀘스트 통과 여부 판정용)
+//    레벨만 채우면 안 되고, 아라 NPC 승급 퀘스트(레벨+6대장)로 rank가 올라야 스킨 구매 가능.
+const RANK_ORDER = ["초보", "하수", "중수", "고수", "프로", "마스터", "레전드", "낚시의 신"];
 
 // 🕒 한국 시간(KST) 기준으로 오늘 날짜(YYYY-MM-DD) 구하는 함수
 function getTodayKST() {
@@ -176,10 +185,15 @@ exports.imwebWebhook = functions.https.onRequest(async (req, res) => {
       if (purchasedItemName.includes(key)) {
         matchedKnownItem = true;
 
-        // 🚫 1. 스킨 검사 (계정당 1회 & 레벨 제한)
+        // 🚫 1. 스킨 검사 (계정당 1회 & 레벨 & 승급 자격)
         if (itemTemplate.limitType === "ONCE") {
           const alreadyOwns = inventory.some(i => i.name === itemTemplate.name);
           const meetsLevel = realLevel >= itemTemplate.reqLevel;
+          // 🏅 승급 자격: 유저 rank가 요구 rank 이상이어야 함(승급 퀘스트 통과 필요)
+          const userRank = userData.rank || "초보";
+          const reqRankIdx = itemTemplate.reqRank ? RANK_ORDER.indexOf(itemTemplate.reqRank) : -1;
+          const userRankIdx = RANK_ORDER.indexOf(userRank);
+          const meetsRank = reqRankIdx < 0 || userRankIdx >= reqRankIdx;
 
           if (alreadyOwns) {
             needsRefund = true;
@@ -187,6 +201,9 @@ exports.imwebWebhook = functions.https.onRequest(async (req, res) => {
           } else if (!meetsLevel) {
             needsRefund = true;
             refundReason = `레벨 미달 (요구: Lv.${itemTemplate.reqLevel}, 현재: Lv.${realLevel})`;
+          } else if (!meetsRank) {
+            needsRefund = true;
+            refundReason = `승급 미달 (요구: ${itemTemplate.reqRank} 승급, 현재: ${userRank}) — 광장 아라 NPC의 승급 퀘스트를 먼저 완료하세요`;
           } else {
             inventory.push({ ...itemTemplate });
             isInventoryUpdated = true;

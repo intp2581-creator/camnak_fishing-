@@ -264,11 +264,11 @@ for (var fish in availableFishes) {
     size = double.parse(size.toStringAsFixed(1));
 
     // 💰 보상 계산
-    //  경험치: 메타 완화용 완만 공식 = 기본 20 + 사이즈구간(5cm당 +1) + 별점(★1~5)
+    //  경험치: 완만 공식 = 기본 15 + 사이즈구간(5cm당 +1) + 별점보너스(난이도↑=보상↑)
     //  포인트: 큰 고기=큰 돈(자연스러움) = 사이즈 × 2
     int sizeBand = (size / 5).floor();    // 5cm당 +1 (사이즈 비중 ↑)
-    int starBonus = 6 - currentStars;      // 🔄 거꾸로: ★1→+5(저렙터 성장 지원) ... ★5→+1(대물 사이즈경험치로 보상)
-    int exp = 25 + sizeBand + starBonus;   // 기본 25 (초반 페이스 회복)
+    int starBonus = currentStars;          // ⭐ 정방향: ★1→+1 ... ★5→+5 (난이도 높은 낚시터일수록 보상↑, 고삼지 역전현상 해소)
+    int exp = 15 + sizeBand + starBonus;   // 기본 15 (초반 랩업 속도 완화)
     int pts = (size * 2).round();
 
     // 👑 6대장은 +20% (살짝 더 가치 있게)
@@ -276,6 +276,26 @@ for (var fish in availableFishes) {
     if (bossFishes.contains(selectedFish['name'])) {
       exp = (exp * 1.2).round();
       pts = (pts * 1.2).round();
+    }
+
+    // 🎰 레어 잭팟 어종(자라·참치) — 출현확률 낮음(weight 5), 1시간에 한 마리 볼까말까.
+    //    크기 무관 EXP·포인트 ×3 (사이즈 비례라 큰 놈일수록 자연히 더 큰 잭팟)
+    const List<String> rareFishes = ['자라', '참치'];
+    if (rareFishes.contains(selectedFish['name'])) {
+      exp = (exp * 3).round();
+      pts = (pts * 3).round();
+    }
+
+    // 🎉 이벤트 배율(Firestore config/event) — 전체 경험치·포인트 배율 + 6대장 추가 배율.
+    //    이벤트 없으면 전부 1.0이라 영향 없음. currentGameEvent는 loadGameEvent()로 갱신됨.
+    final ev = currentGameEvent;
+    if (ev.active) {
+      if (ev.expMult != 1.0) exp = (exp * ev.expMult).round();
+      if (ev.ptsMult != 1.0) pts = (pts * ev.ptsMult).round();
+      if (ev.bossMult != 1.0 && bossFishes.contains(selectedFish['name'])) {
+        exp = (exp * ev.bossMult).round();
+        pts = (pts * ev.bossMult).round();
+      }
     }
 
     return {

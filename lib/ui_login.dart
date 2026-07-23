@@ -596,6 +596,41 @@ class TouchToStartScreen extends StatelessWidget {
                   ],
                 ),
               ),
+
+              // ⚠️ 광과민성 발작 경고 + 조명 권고 (등급분류 요건)
+              const SizedBox(height: 44),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 30),
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white24, width: 1.0),
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(0.04),
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.white54, size: 18),
+                        SizedBox(width: 6),
+                        Text("건강한 게임 이용 안내",
+                            style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      "· 밝은 곳에서 화면과 적당한 거리를 두고 이용하세요.\n"
+                      "· 장시간 이용 시 눈의 피로를 위해 중간에 휴식을 취하세요.\n"
+                      "· 드물게 빛의 깜빡임·화면 변화로 광과민성 발작이 일어날 수 있습니다.\n"
+                      "  이상 증상(어지럼·경련 등)이 나타나면 즉시 이용을 중단하고 전문의와 상담하세요.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.6),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

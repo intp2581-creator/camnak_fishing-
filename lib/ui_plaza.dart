@@ -237,6 +237,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _startTutorial() {
     setState(() { _tutStep = 1; _tutCleared = false; });
     _setTut({'tutStep': 1, 'tutCleared': false});
+    // 🎓 첫 목표 안내: 누구를 만나야 하는지 명확히 (광장이 넓어 ❗만으론 못 찾음)
+    final first = _tutQuests.isNotEmpty ? _tutQuests[0] : null;
+    if (first != null) {
+      _infoPopup('🎓 첫 번째 미션', '먼저 \'${first['name']}\' 조사님을 만나보세요!\n(${first['title']})\n\n조금 걸어가면 만날 수 있어요 🚶');
+    }
   }
 
   // 아라 클릭 시: 튜토리얼 우선 처리(완료/미대상이면 일반 일일퀘스트)
@@ -244,7 +249,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (_tutStep == 0) { setState(() => _showTutIntro = true); return; }
     if (_tutQuestNow != null) {
       if (_tutCleared) { setState(() => _showTutReward = true); }
-      else { _toast('${_tutQuestNow!['name']} 을(를) 만나러 가보세요!'); }
+      else { _infoPopup('🎓 진행 중인 미션', '먼저 \'${_tutQuestNow!['name']}\' 조사님을 만나보세요!\n(${_tutQuestNow!['title']})'); }
       return;
     }
     setState(() => _showQuest = true); // 튜토리얼 끝 → 일반 일일퀘스트
@@ -267,6 +272,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (_tutQuestNow?['npc'] == npcKey && !_tutCleared) {
       setState(() => _tutCleared = true);
       _setTut({'tutCleared': true});
+      // 🎓 "아라에게 가세요" 안내는 열린 화면(랭킹/길드/아레나)이 닫힌 뒤 _maybeShowAraGuide()로 표시
+      //    (여기서 바로 띄우면 곧이어 열리는 화면에 가려져 안 보임)
+    }
+  }
+
+  // 🎓 랭킹/길드/아레나 화면 닫힌 뒤 호출 — 미션 완료 상태면 "아라에게 가서 보상받으세요" 팝업
+  void _maybeShowAraGuide() {
+    if (!mounted) return;
+    if (_tutQuestNow != null && _tutCleared) {
+      _infoPopup('✅ 미션 완료!', '🎁 매니저 아라에게 돌아가\n보상을 받으세요!');
     }
   }
 
@@ -281,7 +296,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'tutCleared': false,
     });
     if (next > _tutQuests.length && mounted) {
-      _toast('🎉 튜토리얼 완료! 이제 자유롭게 즐겨보세요 🎣');
+      _infoPopup('🎉 튜토리얼 완료!', '🎁 보상 지급 완료 (경험치 +$_tutExp · 포인트 +$_tutPts)\n\n모든 미션을 마쳤어요!\n이제 자유롭게 즐겨보세요 🎣');
+    } else if (mounted) {
+      // 🎓 보상 수령 + 다음 목표 NPC 안내 (팝업 하나로 합침)
+      final nq = (next >= 1 && next <= _tutQuests.length) ? _tutQuests[next - 1] : null;
+      if (nq != null) {
+        _infoPopup('🎁 보상 받기 완료!', '경험치 +$_tutExp · 포인트 +$_tutPts\n\n👉 다음! \'${nq['name']}\' 조사님을 만나보세요!\n(${nq['title']})');
+      }
     }
   }
 
@@ -367,10 +388,51 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Timer? _bubbleTimer;
   Timer? _heartbeatTimer; // 💓 presence/접속상태 주기적 재기록(자가복구)
 
+  static bool _eventPopupShownThisSession = false; // 🎉 이벤트 안내(아라) 세션당 1회 제한
+  bool _showEventAra = false; // 🎉 아라 이벤트 안내 오버레이 표시
+
+  // 🎉 아라 이벤트 안내 멘트 — 이벤트 내용(배율/기간제 아이템)에 따라 자동 구성
+  String _buildEventAraText() {
+    final ev = currentGameEvent;
+    final bool hasMult = ev.expMult != 1.0 || ev.ptsMult != 1.0 || ev.bossMult != 1.0;
+    final bool hasItem = ev.itemName.isNotEmpty && ev.itemPrice > 0;
+    final sb = StringBuffer('${widget.nickname} 조사님, 좋은 소식이에요! 🎉\n\n${ev.name}\n\n');
+    if (hasMult) sb.write('지금 낚시하면 보상이 팍팍 올라가요!\n');
+    if (hasItem) {
+      sb.write('🛒 상점(보조장비)에서 [${ev.itemName}]를\n${ev.itemPrice}P에 기간 한정 판매 중!\n가방에 넣어두면 효과가 자동 적용돼요 ⏳\n');
+    }
+    sb.write('이 기회 놓치지 마세요 🎣');
+    return sb.toString();
+  }
+
+  // 🎁 만료된 기간제 이벤트 아이템 자동 소멸(접속 시 1회 정리 — 효과는 만료 즉시 무시되므로 정리 지연 무해)
+  Future<void> _cleanupExpiredEventItems() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
+      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
+      final cleaned = removeExpiredEventItems(inv);
+      if (cleaned != null) await ref.update({'inventory': cleaned});
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
     _level = widget.level;
+    _cleanupExpiredEventItems(); // 🎁 만료된 기간제 이벤트 아이템 자동 소멸(접속 시 정리)
+    loadGameEvent().then((_) {
+      if (!mounted) return;
+      setState(() {}); // 🎉 배너 반영
+      // 🎉 접속 시 이벤트 안내 — 퀘스트 담당 아라가 알려줌 (세션당 1회만)
+      if (currentGameEvent.active && currentGameEvent.name.isNotEmpty && !_eventPopupShownThisSession) {
+        _eventPopupShownThisSession = true;
+        Future.delayed(const Duration(milliseconds: 500), () {
+          if (mounted) setState(() => _showEventAra = true);
+        });
+      }
+    });
     // 🔁 재접속 시 이 광장(민물/바다)으로 돌아오게 마지막 광장 기록
     try { html.window.localStorage['lastPlazaSea'] = widget.isSea ? '1' : '0'; } catch (_) {}
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600)); // 걷기 교차 주기(확 느리게 → 감잡고 조절)
@@ -1622,24 +1684,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (ok != true) return;
     _leavePlazaPresence(); // 접속정보(고스트) 정리
     if (!mounted) return;
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFF7FFFB0), width: 1.2)),
-        title: const Text('✅ 저장 완료', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold, fontSize: 18)),
-        content: const Text('기록이 안전하게 저장됐어요.\n안심하고 종료하셔도 됩니다. 다음에 또 만나요! 🎣',
-            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
-        actions: [
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
-            onPressed: () => html.window.location.href = 'https://camnak.com',
-            child: const Text('camnak.com으로 나가기', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    // 💾 첫 팝업에서 이미 "자동 저장됨" 안내 → 바로 홈페이지로 (추가 클릭 불필요)
+    html.window.location.href = 'https://camnak.com';
   }
 
   // ---- 진입 액션들 (기존 화면 재활용) ----
@@ -1730,8 +1776,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _bobaeCaught = _bobaeCaughtFrom(bp, today);
         _applyHanbyeol(d, today); // 🥊 한별 아레나 일일 상태
       });
+      // 🎓 낚시(3단계) 미션을 낚시터에서 완료하고 광장 복귀 → "아라에게 가라" 팝업(1회)
+      if (_tutStep == 3 && _tutCleared && !_tutFishGuideShown) {
+        _tutFishGuideShown = true;
+        _infoPopup('✅ 첫 고기 완료!', '🎁 매니저 아라에게 돌아가\n보상을 받으세요!');
+      }
     } catch (_) {}
   }
+  bool _tutFishGuideShown = false; // 🎓 낚시 완료 후 아라 안내 팝업 1회 제한
 
   void _openStore() {
     Navigator.push(
@@ -1741,6 +1793,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           currentGold: _gold,
           currentLevel: _level,
           currentInventory: _inventory,
+          currentRank: _rank,
         ),
       ),
     ).then((_) {
@@ -1754,11 +1807,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         .then((_) {
       _returnPlazaPresence(); // 🚪 복귀 → 광장에 다시 등장
       if (mounted) { _playPlazaBgm(); _refreshTutFromDb(); } // 🎵 BGM 재개 + 🥊 한별 승리 상태 갱신
+      _maybeShowAraGuide(); // 🎓 아레나 미션 완료면 아라 안내
     });
   }
 
   void _openRanking() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen()))
+        .then((_) => _maybeShowAraGuide()); // 🎓 닫힌 뒤 아라 안내(튜토리얼)
   }
 
   // 🗺️ 미니맵(세계지도) — 다른 낚시터 광장으로 이동
@@ -2734,6 +2789,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   ),
                 ),
 
+              // 🎉 이벤트 안내 — 아라가 알려줌 (접속 시 1회 · 튜토리얼 중이면 튜토 끝나고 표시)
+              //    멘트는 이벤트 내용(배율/아이템)에 따라 자동 구성
+              //    조건: 튜토 시작 전(0)도 아니고 진행 중 퀘스트도 없음 = 튜토 완료(6) 또는 기존 유저(99)
+              if (_showEventAra && !_showTutIntro && _tutStep != 0 && _tutQuestNow == null)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: _buildEventAraText(),
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () {},
+                    action: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                      onPressed: () => setState(() => _showEventAra = false),
+                      child: const Text('신난다! 🎣'),
+                    ),
+                  ),
+                ),
+
               // 🎓 튜토리얼 — 시작 안내 (아라)
               if (_showTutIntro)
                 Positioned.fill(
@@ -2757,7 +2829,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showTutMission && _tutQuestNow != null)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '[${_tutQuestNow!['title']}]\n\n${_tutQuestNow!['desc']}',
+                    text: '[${_tutQuestNow!['title']}]\n\n${_tutQuestNow!['desc']}\n\n✅ 미션을 마치면 매니저 아라에게 돌아가 보상을 받으세요!',
                     imagePath: 'assets/images/npc_${_tutQuestNow!['npc']}.png',
                     onTap: () {},
                     action: ElevatedButton(
@@ -2789,8 +2861,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                       onPressed: () {
                         setState(() => _showTutReward = false);
-                        _claimTutReward();
-                        _toast('🎁 경험치 +$_tutExp · 포인트 +$_tutPts!');
+                        _claimTutReward(); // 보상 지급 + 안내 팝업(_infoPopup)까지 내부 처리
                       },
                       child: const Text('보상 받기 🎁'),
                     ),
@@ -2893,6 +2964,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 top: 8, left: 0, right: 0,
                 child: IgnorePointer(child: Center(child: WeatherBadge())),
               ),
+              // 🎉 이벤트 배너 (활성 이벤트일 때만) — 날씨뱃지 아래
+              if (currentGameEvent.active && currentGameEvent.name.isNotEmpty)
+                Positioned(top: 44, left: 0, right: 0, child: IgnorePointer(child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD4AF37).withOpacity(0.94),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+                    ),
+                    child: Text(currentGameEvent.name, style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900)),
+                  ),
+                ))),
             ],
           );
         },
@@ -2971,8 +3055,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final figH = sizeH * (0.27 + pT * 0.03) * scale;
     final figW = figH * 0.6;
     final bool isTutTarget = _tutQuestNow != null && !_tutCleared && _tutQuestNow!['name'] == name; // 🎓 현재 퀘스트 타겟
-    // 🛡️ 윤슬(길드): Lv.3 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
-    final bool isJoinQuest = name == '윤슬' && _level >= 3 && _guildId.isEmpty;
+    // 🛡️ 윤슬(길드): Lv.5 이상 + 길드 미가입이면 '가입 가능' 퀘스트 느낌표
+    final bool isJoinQuest = name == '윤슬' && _level >= 5 && _guildId.isEmpty;
     // 🛍️ 서윤: 오늘 지정어 배달 일일이 아직 안 끝났으면 접속 시 ❗ (완료하면 사라짐)
     final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone;
     // 🥊 한별: 오늘 아레나 일일 미완료면 ❗ (승리해서 보상받을 게 있거나, 아직 도전 기회 남음)
@@ -3159,8 +3243,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
-  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0]) {
-    final total = 10 + equipV + levelV + guildV + champV + rankV;
+  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0]) {
+    final total = 10 + equipV + levelV + guildV + champV + rankV + eventV;
     Widget chip(String t, Color c) => Text(t,
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
     return Padding(
@@ -3184,6 +3268,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
             if (champV != 0) chip('👑 +$champV', _kGold),
             if (rankV != 0) chip('🏆 +$rankV', const Color(0xFFFFE082)),
+            if (eventV != 0) chip('🎁 이벤트 +$eventV', const Color(0xFFFFAB91)),
           ]),
         ),
       ]),
@@ -3222,7 +3307,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final gB = FishingLogic.guildStatBonus(gLevel);
       final cB = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
       final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
-      final totP = 10 + eP + lvB + gB + cB + rB, totC = 10 + eC + lvB + gB + cB + rB, totS = 10 + eS + lvB + gB + cB + rB;
+      final evB = eventItemBonus(_inventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 자동)
+      final evP = evB['P'] ?? 0, evC = evB['C'] ?? 0, evS = evB['S'] ?? 0;
+      final totP = 10 + eP + lvB + gB + cB + rB + evP, totC = 10 + eC + lvB + gB + cB + rB + evC, totS = 10 + eS + lvB + gB + cB + rB + evS;
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -3259,12 +3346,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
           const Divider(color: Colors.white12, height: 18),
-          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언 + 주간랭킹)',
+          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언 + 주간랭킹 + 이벤트)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB),
-          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB),
-          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB),
+          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB, evP),
+          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB, evC),
+          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB, evS),
         ]),
       );
     }
@@ -3284,6 +3371,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
     final t = (item['type'] ?? '').toString().toUpperCase();
+    // 🎁 기간제 이벤트 아이템은 장착 불가 — 가방에 있으면 효과 자동 적용(보유 버프)
+    if (t == 'EVENT') {
+      _infoPopup('🎁 이벤트 아이템', '이 아이템은 가방에 있으면\n효과가 자동으로 적용돼요!\n장착할 필요 없어요 😊');
+      return;
+    }
     bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
     if (t == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) {
       globalEquippedCooler = same(globalEquippedCooler) ? null : item;
@@ -3748,6 +3840,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final uid = user.uid;
     showDialog(
       context: context,
+      // (아래 builder) — 닫힌 뒤 아라 안내는 이 showDialog의 .then에서 처리
       builder: (ctx) => Dialog(
         backgroundColor: const Color(0xFF1A1A1A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -3770,7 +3863,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           ),
         ),
       ),
-    );
+    ).then((_) => _maybeShowAraGuide()); // 🎓 길드 닫힌 뒤 아라 안내(튜토리얼)
   }
 
   Widget _guildDialogHeader(String title, {Widget? trailing}) {
@@ -4516,9 +4609,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Future<void> _joinGuild(String uid, String gid, String gname) async {
-    // 🎓 길드 가입은 Lv.3부터 (저렙은 '좀 더 커서 오세요')
-    if (_level < 3) {
-      _yunseulSay('아직 일러요, 조사님! 🐣\n길드 가입은 Lv.3부터 가능해요.\n조금 더 키워서 다시 와주세요!\n\n(현재 Lv.$_level)');
+    // 🎓 길드 가입은 Lv.5부터 (저렙은 '좀 더 커서 오세요')
+    if (_level < 5) {
+      _yunseulSay('아직 일러요, 조사님! 🐣\n길드 가입은 Lv.5부터 가능해요.\n조금 더 키워서 다시 와주세요!\n\n(현재 Lv.$_level)');
       return;
     }
     final fs = FirebaseFirestore.instance;

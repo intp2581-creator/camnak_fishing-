@@ -2,8 +2,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'game_config.dart'; // 🎉 이벤트 설정 로더(loadGameEvent)
 
-// 👇 방금 우리가 만든 로그인/출입문 파일 하나만 딱 불러오면 끝! 
+// 👇 방금 우리가 만든 로그인/출입문 파일 하나만 딱 불러오면 끝!
 // (나머지는 지들끼리 꼬리에 꼬리를 물고 알아서 연결됩니다 ㅋㅋ)
 import 'ui_login.dart';
 
@@ -19,6 +20,7 @@ void main() async {
   } catch (e) {
     debugPrint("파이어베이스 초기화 에러: $e");
   }
+  await loadGameEvent(); // 🎉 이벤트 설정 로드(실패해도 게임엔 지장 없음 — 이벤트만 미적용)
   runApp(const MyApp());
 }
 
