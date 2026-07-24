@@ -16,6 +16,7 @@ import 'ui_lobby.dart';
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
+// 🎖️ 등급분류 표시 위젯(buildRatingMark/showGameRatingDialog/kGameRatingNumber)은 game_config.dart로 이동.
 
 
 // 🎣 [메인 낚시터 화면]
@@ -2427,7 +2428,31 @@ Positioned(
                           ],
                         ),
                       ),
-                      
+
+                      // 🎖️ 게임물 등급분류 표시 (전체이용가) — 규정: 게임화면 우측 상단 상시 노출. 탭하면 상세정보 팝업.
+                      Positioned(
+                        top: 48, right: 30,
+                        child: GestureDetector(
+                          onTap: () => showGameRatingDialog(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.white24, width: 1),
+                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              buildRatingMark(size: 24),
+                              const SizedBox(width: 6),
+                              const Text('전체이용가',
+                                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.info_outline, color: Colors.white38, size: 13),
+                            ]),
+                          ),
+                        ),
+                      ),
+
                       Positioned(
                         top: 0, left: 0, right: 0,
                         child: Center(

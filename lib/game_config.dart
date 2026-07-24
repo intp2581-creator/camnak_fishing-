@@ -4,6 +4,80 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // =========================================================================
+// 🎖️ [게임물 등급분류 표시] GRAC 전체이용가 결정(2026-07-24). 게임물명: 캠피싱 낚시게임 KREFT.
+//   게임산업진흥법 의무 표기 — 광장(내정보 아래) 진입 시 30초 노출 후 사라짐 + 낚시화면 우측상단.
+//   내용정보 7항목(선정성·폭력성·공포·언어·약물·범죄·사행성) 전부 '무(없음)'.
+// =========================================================================
+const String kGameRatingNumber = 'GC-CC-NP-260724-005';
+
+// 전체이용가 등급 마크 (공식 이미지, 없으면 초록 폴백)
+Widget buildRatingMark({double size = 26}) {
+  return Image.asset(
+    'assets/images/rating_all.png',
+    width: size,
+    height: size,
+    errorBuilder: (c, e, s) => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E9E4F),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Center(
+        child: Text('전체\n이용가',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w900, height: 1.1)),
+      ),
+    ),
+  );
+}
+
+// 등급분류 상세정보 팝업 (번호·내용정보·제작배급)
+void showGameRatingDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (c) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2),
+      ),
+      title: Row(mainAxisSize: MainAxisSize.min, children: [
+        buildRatingMark(size: 40),
+        const SizedBox(width: 12),
+        const Text('게임물 등급분류',
+            style: TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
+      ]),
+      content: const Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('게임물명   캠피싱 낚시게임 KREFT',
+              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.9)),
+          Text('등급   전체이용가',
+              style: TextStyle(color: Colors.white, fontSize: 14, height: 1.9)),
+          Text('등급분류번호   $kGameRatingNumber',
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.9)),
+          Text('내용정보   없음\n(선정성·폭력성·공포·언어·약물·범죄·사행성 전부 해당없음)',
+              style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.6)),
+          Text('제작·배급   (주)안테모사',
+              style: TextStyle(color: Colors.white54, fontSize: 14, height: 1.9)),
+          SizedBox(height: 4),
+          Text('등급분류기관   게임콘텐츠등급분류위원회(GCRB)',
+              style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.6)),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(c),
+          child: const Text('닫기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
+}
+
+// =========================================================================
 // 🎉 [이벤트 시스템] Firestore `config/event` 문서 하나로 운영(코드수정·재배포 없이 켜고 끔).
 //    예) 광복절 하루 경험치 2배 → 콘솔에서 expMult:2.0, start/end 넣으면 그 기간에만 자동 적용.
 //    문서 형식:

@@ -417,10 +417,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (_) {}
   }
 
+  // 🎖️ 게임물 등급분류 표시 — 광장 진입 시 30초 노출 후 사라짐(게임산업진흥법 표기)
+  bool _showRatingBadge = true;
+  Timer? _ratingHideTimer;
+
   @override
   void initState() {
     super.initState();
     _level = widget.level;
+    // 🎖️ 등급 표시 30초 뒤 자동 숨김
+    _ratingHideTimer = Timer(const Duration(seconds: 30), () {
+      if (mounted) setState(() => _showRatingBadge = false);
+    });
     _cleanupExpiredEventItems(); // 🎁 만료된 기간제 이벤트 아이템 자동 소멸(접속 시 정리)
     loadGameEvent().then((_) {
       if (!mounted) return;
@@ -570,6 +578,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_onHwKey); // ⌨️ 키보드 핸들러 해제
     _remoteWalkTimer?.cancel();
+    _ratingHideTimer?.cancel();
     _walkCtrl.dispose();
     _joyTimer?.cancel();
     _tapMoveTimer?.cancel();
@@ -5449,7 +5458,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ],
             ),
           ),
-          // 🔊 소리/전체화면 + 내 정보 카드 (오른쪽에 함께)
+          // 🔊 소리/전체화면 + 내 정보 카드 (오른쪽에 함께) + 등급표시(카드 아래, 30초)
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.end, children: [
           IntrinsicHeight(
           child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _miniBtn(Icons.logout, _confirmExitGame), // 🚪 게임 종료(저장 안내)
@@ -5518,6 +5528,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
           ),
           ])),
+          // 🎖️ 게임물 등급분류 표시 (내정보 카드 아래) — 진입 후 30초 노출 뒤 사라짐. 탭하면 상세정보.
+          if (_showRatingBadge) ...[
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => showGameRatingDialog(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.6),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _kGold.withOpacity(0.5), width: 1),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  buildRatingMark(size: 22),
+                  const SizedBox(width: 6),
+                  const Text('전체이용가',
+                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.info_outline, color: Colors.white38, size: 12),
+                ]),
+              ),
+            ),
+          ],
+          ]),
         ],
       ),
     );
