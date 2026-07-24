@@ -1134,11 +1134,15 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
   }
 
   void _pickTodayHotSpot() {
-    if (fwHotSpot != null && seaHotSpot != null) return;
+    // 🎣 오늘의 핫스팟 = 날짜(KST)를 씨앗으로 결정론적 선정 → 모든 유저 동일 + 하루 고정 + 자정(KST)에 자동 변경.
+    //    (유저에겐 미표시 = 복불복. 새로고침해도 같은 날이면 안 바뀜.)
+    final DateTime kst = DateTime.now().toUtc().add(const Duration(hours: 9));
+    final int daySeed = kst.year * 10000 + kst.month * 100 + kst.day;
+    final math.Random rnd = math.Random(daySeed);
     List<String> fwNames = ['예산 예당지', '안성 고삼지', '충주 충주호', '춘천 파로호', '진천 백곡지', '예산 신양수로', '청양 지천', '인천 청라수로', '해남 금자천', '충주 달천'];
     List<String> seaNames = ['통영 척포 갯바위', '신안 가거도', '완도 청산도', '여수 거문도', '제주 섶섬', '거제 선상', '오천항 선상', '완도 선상', '통영 선상', '대천 선상'];
-    fwHotSpot = fwNames[math.Random().nextInt(fwNames.length)];
-    seaHotSpot = seaNames[math.Random().nextInt(seaNames.length)];
+    fwHotSpot = fwNames[rnd.nextInt(fwNames.length)];
+    seaHotSpot = seaNames[rnd.nextInt(seaNames.length)];
   }
 
   @override
