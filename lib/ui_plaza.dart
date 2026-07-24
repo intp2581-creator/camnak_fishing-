@@ -3900,7 +3900,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 12)),
               icon: const Icon(Icons.add),
-              label: const Text('길드 만들기 (Lv.10, 10,000 P)',
+              label: const Text('길드 만들기 (Lv.5, 10,000 P)',
                   style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
               onPressed: () => _createGuildDialog(uid),
             ),
@@ -4525,7 +4525,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 6),
-            const Text('조건: Lv.10 이상 · 생성 비용 10,000 P',
+            const Text('조건: Lv.5 이상 · 생성 비용 10,000 P',
                 style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -4548,8 +4548,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _toast('길드 이름을 입력해주세요.');
       return;
     }
-    if (_level < 10) {
-      _yunseulSay('길드를 만드시게요? 멋져요! 😊\n길드 생성은 Lv.10부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
+    if (_level < 5) {
+      _yunseulSay('길드를 만드시게요? 멋져요! 😊\n길드 생성은 Lv.5부터 가능해요.\n조금 더 성장한 뒤 도전하세요!\n\n(현재 Lv.$_level)');
       return;
     }
     if (_gold < 10000) {

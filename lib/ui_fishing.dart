@@ -1426,10 +1426,12 @@ Widget _buildChatTab(int index, String title) {
                 if (t == 'BAIT' && c == wantCat && qn > 0) { nextBait = m; break; }
               }
               setState(() { equippedBait = nextBait; });
+              // ⚠️ 반드시 토스트로! (전투 오버레이가 다이얼로그라 위에 모달을 또 띄우면
+              //    당기기 버튼이 가려지고 Navigator.pop이 꼬여 전투가 멈춰버림 — 화면 프리즈 버그)
               if (nextBait != null) {
-                if (mounted) _showNotificationPopup('🔁 미끼 자동 교체', '$targetBaitName 이(가) 다 떨어져서\n${nextBait['name']}(으)로 자동 교체했어요.', const Color(0xFFD4AF37));
+                if (mounted) _baitToast('🔁 $targetBaitName 소진 → ${nextBait['name']}(으)로 자동 교체!', const Color(0xFFD4AF37));
               } else {
-                if (mounted) _showNotificationPopup('🛑 미끼 소진', '미끼가 모두 떨어졌어요.\n가방에서 장착하거나 상점에서 구매하세요.', Colors.orangeAccent);
+                if (mounted) _baitToast('🛑 미끼가 모두 떨어졌어요! 가방/상점에서 준비하세요.', Colors.orangeAccent);
               }
             }
             break;
@@ -1767,6 +1769,9 @@ Widget _buildChatTab(int index, String title) {
     // 아레나(대회)에서는 이동 불가 → 그냥 나가기
     if (widget.roomId != null) { Navigator.pop(context); return; }
     String subCat = widget.isSea ? '갯바위' : '저수지';
+    // 🐛 [수정] 이 리스트를 '이동하지 않고' 닫으면(현재 낚시터 선택·닫기·바깥터치) 낚시가 멈춘 채 방치되던 버그.
+    //    물고기 잡은 뒤 '낚시터 이동'을 눌렀다가 취소하면 fightingRodIndex가 남아 입질 체인이 죽어 찌가 영영 안 올라옴.
+    //    → 닫힐 때마다 멈춘 상태면 되살림(이동한 경우엔 화면이 이미 pop 되어 무해).
     showDialog(
       context: context,
       builder: (dctx) => Dialog(
@@ -1902,7 +1907,22 @@ Widget _buildChatTab(int index, String title) {
           }),
         ),
       ),
-    );
+    ).then((_) => _resumeFishingIfStalled()); // 🐛 이동 없이 닫혔으면 멈춘 낚시 되살리기
+  }
+
+  // 🎣 낚시가 멈춘 채 방치된 상태면 입질 흐름을 되살린다.
+  //    (물고기를 잡은 뒤 '캐스팅'을 누르지 않고 낚시터 리스트를 열었다 닫으면
+  //     fightingRodIndex/isFighting이 남고 입질 타이머는 취소된 상태라 찌가 영영 안 올라옴)
+  void _resumeFishingIfStalled() {
+    if (!mounted) return;
+    if (widget.roomId != null) return;   // ⚔️ 아레나는 별도 흐름
+    if (isCasting) return;               // 캐스팅 연출 중이면 그쪽이 알아서 재개
+    if (!isFloatInWater) return;         // 찌가 물에 없으면 캐스팅부터 하는 게 맞음
+    final bool stalled = (fightingRodIndex != null || isFighting) ||
+        ((_biteTimer == null || !_biteTimer!.isActive) && (_escapeTimer == null || !_escapeTimer!.isActive));
+    if (!stalled) return;                // 정상 진행 중이면 건드리지 않음
+    setState(() { isFighting = false; fightingRodIndex = null; });
+    _scheduleNextBite();                 // 입질 체인 재개
   }
 
   // 🦐 1분마다 민물새우 +2 적립
@@ -3911,14 +3931,17 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   final ValueNotifier<int> playerGearNotifier = ValueNotifier(1);
   final ValueNotifier<bool> penaltyNotifier = ValueNotifier(false);
 
-  bool isPressing = false;
+  // 🎣 [챔질 직후 UX] 챔질 버튼을 '당기기'까지 끌어놓으면 손가락이 이미 눌린 상태 → 그 누름을 그대로 이어받아
+  //    전투 시작부터 isPressing=true. 손 떼지 않으면 계속 당겨지고, 저항 뜨면 손 뗐다 눌러 방향 전환(자연스러움).
+  //    (자동 당김은 오히려 헷갈려서 제거함)
+  bool isPressing = true;
   Timer? gameTimer;
   DateTime? lastReleaseTime;
   DateTime? lastSoundTime;
   bool _isGameOver = false;
 
   int fishSkillDuration = 0;
-  double fishCurrentMove = 0.0;
+  double fishBasePower = 1000.0; // 🎣 [v195] 물고기 고유 힘(최대어=4000, 최소어15=60). 전투 난이도의 기준.
   math.Random random = math.Random();
   late AnimationController _rodController;
 
@@ -3946,40 +3969,28 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     
     String fishName = widget.fish['name']?.toString() ?? '';
     double maxSize = fishMaxSize[fishName] ?? 100.0;
-    
-    // 🎯 [#14] 절대 크기 위주 + 종별 상대크기 보조 → 큰 고기가 항상 더 힘셈(현실 반영)
-    //    (예: 45cm 메기 > 11.8cm 블루길). 트로피(종별 만대)는 상대크기로 가산.
-    double sizeRatio = size / maxSize;        // 종별 상대(트로피)
-    // 🐟 큰 고기 힘 압축: 60cm까지는 사이즈대로, 그 위로는 절반만 힘에 반영.
-    //    (120~200cm 어종이 과도하게 세지는 걸 방지 — 붕어 55cm 등 중소형은 영향 없음)
-    const double capCm = 60.0, overRate = 0.5;
-    double effSize = size <= capCm ? size : capCm + (size - capCm) * overRate;
-    double absFactor = effSize / 120.0;       // 절대 크기 (압축 적용)
-    double resistancePower = absFactor * 0.7 + math.pow(sizeRatio, 2.0).toDouble() * 0.3;
-    
-    // safeStats 먼저
-double safeStats = (widget.playerTotalStats.isNaN || 
-                    widget.playerTotalStats.isInfinite) 
-                    ? 1000.0 : widget.playerTotalStats.toDouble();
 
-// 물고기 고유 저항력 = 사이즈(종)로만 결정. 낚시터 ★·내 제압력과 무관!
-// 같은 사이즈면 어디서 잡든 같은 힘. ★는 '어떤 사이즈가 나오냐'만 정함(큰 고기 = 자연히 힘셈).
-double fishBasePower = math.pow(resistancePower, 2.0).toDouble() * 4000.0;
-
-double powerDiff = fishBasePower - safeStats;
-
-if (powerDiff > 500) fishCurrentMove = 0.015 + (powerDiff / 30000);
-else if (powerDiff > 0) fishCurrentMove = 0.002 + (powerDiff / 20000);
-else fishCurrentMove = math.max(0.001, 0.002 + powerDiff / 60000); // 🐛FIX: 내가 강할수록 느려짐(쉬움). 기존 -powerDiff는 역전 버그(압도할수록 더 빨라짐)
+    // 🎣 [v195 신 밸런스] 물고기 힘 = 어종 최대어 대비 '상대 크기'로 결정.
+    //   · 최소어(15cm) = 힘 60, 최대어 = 힘 4000. 곡선(2.2)으로 큰 고기에서 급격히 빡세짐.
+    //   · 낚시터 ★·내 제압력과 무관! 같은 어종·같은 사이즈면 어디서 잡든 같은 힘.
+    //   · ★는 '어떤 사이즈가 나오냐(확률)'만 정함 → 큰 고기가 나올수록 자연히 어려움.
+    //   · ⚠️잡어(최대 30cm↓: 블루길·살치·자라·주꾸미)는 4000 규칙에서 제외.
+    //     절대 200기준 곡선을 적용해 아무리 커도 항상 약한 '방해꾼'(시간·기회만 축내는 존재).
+    const double kMinPower = 60.0, kMaxPower = 4000.0, kCurve = 2.2;
+    double refMax = (maxSize <= 30.0) ? 200.0 : maxSize; // 잡어는 절대200 기준(항상 약함)
+    double r = ((size - 15.0) / (refMax - 15.0)).clamp(0.0, 1.0);
+    fishBasePower = kMinPower + (kMaxPower - kMinPower) * math.pow(r, kCurve).toDouble();
 
   } catch (e) {
-    fishCurrentMove = 0.005;
+    fishBasePower = 1000.0;
   }
 }
 
   bool _isFishFacingRight = true; // 🐟 물고기 머리 방향 기억 장치! (기본은 오른쪽)
 
   void _startGame() {
+    // 🎣 전투 시작 1초는 저항/발악 안 뜨게(음수=쿨다운). 챔질 직후 바로 발악해서 허둥대던 문제 해결.
+    fishSkillDuration = -20; // 50ms × 20 = 1초
     gameTimer = Timer.periodic(const Duration(milliseconds: 50), (timer) {
       try {
         if (!mounted || _isGameOver) {
@@ -4024,11 +4035,15 @@ else fishCurrentMove = math.max(0.001, 0.002 + powerDiff / 60000); // 🐛FIX: �
           double wildFactor = (random.nextDouble() - 0.3) * 0.002;
           double safeStats = (widget.playerTotalStats.isNaN || widget.playerTotalStats.isInfinite) ? 1000.0 : widget.playerTotalStats.toDouble();
           
-          double statSpeedBonus = math.min(safeStats / 120000, 0.015); 
-          double basePullSpeed = 0.0031 + statSpeedBonus; 
-          // 🎣 물고기 속도 상한(0.012): 대물이라도 게이지를 순식간에 왼쪽 끝으로 끌고 가지 못하게 제한.
-          //    → 당기기·밀당 리듬이 항상 통하도록(반응 불가로 '휙' 지는 현상 방지). 작은 고기는 원래대로 느림.
-          double baseFishSpeed = fishCurrentMove.clamp(0.0023, 0.012);
+          // 🎣 [v195 신 밸런스 전투식] 물고기힘(fishBasePower)과 내 제압력(safeStats)만으로 속도 결정.
+          //   내당김(basePullSpeed): 제압력이 오를수록 빨라짐(0.0042→0.008).
+          //   물고기속도(baseFishSpeed): 힘이 클수록 빠르고, 제압력이 높을수록 일부 경감(대물일수록 경감폭도 큼).
+          //   → 배율 = 물고기/내당김. [힘4000 최대어 vs 제압2000 ≈ 1.5배 = 아주 어렵게 간신히]
+          //     [작은 고기·잡어는 제압력 무관 항상 <1 = 그냥 딸려옴]. 크기(힘)가 최소 난이도를 보장.
+          double basePullSpeed = 0.004 + safeStats / 500000.0;
+          double pwN = fishBasePower / 4000.0; // 힘 정규화(최대어=1.0)
+          double relief = math.min(safeStats / 2000.0, 1.0) * pwN * 0.010; // 제압력 경감
+          double baseFishSpeed = (0.002 + pwN * 0.020 - relief).clamp(0.0023, 0.05);
 
           int pGear = playerGearNotifier.value;
           int fGear = fishGearNotifier.value;
