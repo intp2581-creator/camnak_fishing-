@@ -58,6 +58,8 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   int _fishingStep = -1;
   DateTime? _lastGaramTime;
   Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
+  Timer? _garamRotateTimer; // 🎤 등장 중 멘트 순차 회전 타이머(~7초마다 다음 멘트)
+  int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(0~3 순환)
 
 // 👇 여기 추가!
 final List<String> _garamMessages = [
@@ -731,6 +733,7 @@ Widget _buildChatTab(int index, String title) {
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
+    _garamRotateTimer?.cancel(); // 🎤 멘트 회전 타이머 정리
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
@@ -1976,8 +1979,16 @@ void _maybeShowGaram() {
   final now = DateTime.now();
   if (_lastGaramTime != null && now.difference(_lastGaramTime!).inMinutes < 10) return;
   _lastGaramTime = now;
+  _garamMsgIdx = 0; // 첫 멘트부터
   setState(() => gmNoticeVisible = true);
+  // 🎤 등장 중 ~7초마다 다음 멘트로 순차 회전(30초 동안 4개 다 보여줌). 랜덤 깜빡임 대신 차분히 하나씩.
+  _garamRotateTimer?.cancel();
+  _garamRotateTimer = Timer.periodic(const Duration(seconds: 7), (t) {
+    if (!mounted || !gmNoticeVisible) { t.cancel(); return; }
+    setState(() => _garamMsgIdx = (_garamMsgIdx + 1) % _garamMessages.length);
+  });
   Future.delayed(const Duration(seconds: 30), () {
+    _garamRotateTimer?.cancel();
     if (mounted) setState(() => gmNoticeVisible = false);
   });
 }
@@ -2186,7 +2197,7 @@ void _recast() {  // 기존 코드
             ),
 
               if (gmNoticeVisible) GMNoticePopup(
-                message: _garamMessages[math.Random().nextInt(_garamMessages.length)],
+                message: _garamMessages[_garamMsgIdx % _garamMessages.length],
                onClose: () {
                  setState(() {
               gmNoticeVisible = false;
