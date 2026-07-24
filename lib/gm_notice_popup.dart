@@ -97,7 +97,7 @@ class _GMNoticePopupState extends State<GMNoticePopup> with SingleTickerProvider
                 child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('GM 가람', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 16)),
+                const Text('GM 윤슬', style: TextStyle(fontWeight: FontWeight.w900, color: Colors.black, fontSize: 16)),
                 const SizedBox(height: 4),
                 // 🚨 닫기 버튼은 지우고 멘트만 남깁니다!
                Text(widget.message, style: const TextStyle(color: Colors.black87, fontSize: 20, height: 1.5)),

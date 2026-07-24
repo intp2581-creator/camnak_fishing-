@@ -2691,7 +2691,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         })(),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.307 : 0.146,
-                            widget.isSea ? 0.930 : 0.662, 'npc_rank.png', 'gm_garam.png', '가람', '🏆 랭킹',
+                            widget.isSea ? 0.930 : 0.662, 'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹',
                             _onGaramTap,
                             scale: 1.0),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.134 : 0.294,
