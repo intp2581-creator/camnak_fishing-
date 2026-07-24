@@ -57,6 +57,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   // 💡 낚시터 전용 윤슬님 튜토리얼 스텝 (-1: 퇴근, 0~3: 설명 중)
   int _fishingStep = -1;
   DateTime? _lastGaramTime;
+  Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
 
 // 👇 여기 추가!
 final List<String> _garamMessages = [
@@ -499,7 +500,9 @@ Widget _buildChatTab(int index, String title) {
   super.initState();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
-    _lastGaramTime = null; // 🎤 첫 캐스팅에 가람 바로 등장(낚시 시작 안내), 이후 10분 쿨다운. (기존 now+10분은 첫 등장이 20분 뒤가 되던 버그)
+    _lastGaramTime = null; // 🎤 낚시 시작 후 첫 체크에 GM 윤슬 등장, 이후 10분 쿨다운.
+    // 🎤 GM 윤슬 공지: 낚시 중(찌 물에 있을 때)이면 20초마다 등장 조건 체크 → 되면 등장(10분 간격). 재캐스팅에만 의존하던 버그 해결.
+    _garamTimer = Timer.periodic(const Duration(seconds: 20), (_) => _maybeShowGaram());
 
     // 🚀 [추가] 낚시터 입장 시 윤슬이 출입증 검사!
     _blockYunseulInFishing();
@@ -727,6 +730,7 @@ Widget _buildChatTab(int index, String title) {
     _castController.dispose();
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
+    _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
@@ -1961,6 +1965,23 @@ int _getLocationStars() {
   return stars;
 }
 
+// 🎤 GM 윤슬 공지 팝업 등장 판정 (주기 타이머 + 재캐스팅에서 호출).
+//    낚시 중(찌 물에)·아레나 아님·튜토리얼 아님·이미 안 떠있음·10분 경과 시 등장 → 30초 후 자동 퇴근.
+void _maybeShowGaram() {
+  if (!mounted) return;
+  if (widget.roomId != null) return;            // ⚔️ 아레나 중엔 안 뜸
+  if (widget.isFirstTime) return;               // 🎓 튜토리얼 유저 제외
+  if (isSettingUp || !isFloatInWater) return;   // 🎣 낚시 시작(찌 물에) 상태에서만
+  if (gmNoticeVisible) return;                  // 이미 떠있으면 스킵
+  final now = DateTime.now();
+  if (_lastGaramTime != null && now.difference(_lastGaramTime!).inMinutes < 10) return;
+  _lastGaramTime = now;
+  setState(() => gmNoticeVisible = true);
+  Future.delayed(const Duration(seconds: 30), () {
+    if (mounted) setState(() => gmNoticeVisible = false);
+  });
+}
+
 void _recast() {  // 기존 코드
     audioManager.ensureRainPlaying(); // 🌧️ 낚시터에서도 조작 시 빗소리 열기(자동재생 우회)
     if (!mounted || remainingTimeNotifier.value <= 0) return;
@@ -1972,29 +1993,8 @@ void _recast() {  // 기존 코드
     }
     // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
 
-    // 👩‍💼 [신규 3단계] 캐스팅 시 가람이 출근 조건 체크!
-    final now = DateTime.now();
-    
-    // 🚦 [교통정리] 튜토리얼 중(윤슬이가 떠들 때)에는 가람이 출근 방지!
-    // (🚨 만약 여기서 빨간 줄이 뜨면 widget.isTutorial 대신 사장님이 쓰시는 튜토리얼 변수명으로 싹 바꿔주시면 됩니다!)
-    if (widget.isFirstTime == false && !isSettingUp && isFloatInWater) {
-  if (_lastGaramTime == null || now.difference(_lastGaramTime!).inMinutes >= 10) {
-    if (!gmNoticeVisible && mounted) {
-    _lastGaramTime = now; // 🔒 등장 전에 먼저 시간 기록 (중복 방지!)
-    setState(() {
-      gmNoticeVisible = true;
-    });
-     
-          Future.delayed(const Duration(seconds: 30), () {
-            if (mounted) {
-              setState(() {
-                gmNoticeVisible = false; // 가람이 퇴근! (30초 노출 후)
-              });
-            }
-          });
-        }
-      }
-    } // 👈 🚦 [교통정리 끝] 윤슬이 보호막 괄호 완벽하게 닫힘! (참사 방어 완료)
+    // 👩‍💼 GM 윤슬 공지: 재캐스팅 시에도 즉시 한 번 체크(주기 타이머와 별개). 실제 판정은 _maybeShowGaram.
+    _maybeShowGaram();
 
     // 1. 일단 화면에 낚싯대를 짠! 하고 등장시킵니다.
     setState(() { 
