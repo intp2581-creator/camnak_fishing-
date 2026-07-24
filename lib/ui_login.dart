@@ -552,6 +552,11 @@ class _GuestWarningScreenState extends State<GuestWarningScreen> {
 }
 
 // 👆 [제 3.5의 문] 터치 투 스타트 화면 (화면 웅장하게 벌크업 완료!)
+// 🎖️ [게임물 등급분류 표시] 게임산업진흥법 의무 표기 — 시작화면에 노출.
+//   GCRB(게임콘텐츠등급분류위원회) 전체이용가 결정(2026-07-24). 게임물명: 캠피싱 낚시게임 KREFT.
+//   내용정보 7개 항목(선정성·폭력성·공포·언어·약물·범죄·사행성) 전부 '무(없음)'.
+const String kGameRatingNumber = 'GC-CC-NP-260724-005'; // 정식 등급분류번호
+
 class TouchToStartScreen extends StatelessWidget {
   final Widget nextScreen; // 👈 목적지 변수
   const TouchToStartScreen({super.key, required this.nextScreen});
@@ -593,6 +598,64 @@ class TouchToStartScreen extends StatelessWidget {
                     Icon(Icons.touch_app, color: Color(0xFFD4AF37), size: 36), // 아이콘도 크게!
                     SizedBox(width: 15),
                     Text("화면을 터치하여 입장하세요", style: TextStyle(color: Color(0xFFD4AF37), fontSize: 26, fontWeight: FontWeight.w900)), // 글씨 폭풍 성장! (18 -> 26)
+                  ],
+                ),
+              ),
+
+              // 🎖️ 게임물 등급분류 표시 (전체이용가) — 게임산업진흥법 의무 표기
+              const SizedBox(height: 40),
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 30),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.white24, width: 1.0),
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white.withOpacity(0.04),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 🎖️ 전체이용가 등급 마크 — GRAC 공식 마크(assets/images/rating_all.png).
+                    //   파일 없으면 초록색 '전체이용가' 위젯이 자동 폴백으로 표시됨.
+                    Image.asset(
+                      'assets/images/rating_all.png',
+                      width: 60,
+                      height: 60,
+                      errorBuilder: (c, e, s) => Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E9E4F),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white24, width: 1),
+                        ),
+                        child: const Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text("전체",
+                                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, height: 1.15)),
+                            Text("이용가",
+                                style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900, height: 1.15)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text("캠피싱 (KREFT)",
+                            style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 5),
+                        Text("등급분류번호   $kGameRatingNumber",
+                            style: const TextStyle(color: Colors.white70, fontSize: 12, height: 1.6)),
+                        const Text("내용정보   없음 (선정성·폭력성·사행성 등 해당없음)",
+                            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.6)),
+                        const Text("제작·배급   (주)안테모사",
+                            style: TextStyle(color: Colors.white54, fontSize: 12, height: 1.6)),
+                      ],
+                    ),
                   ],
                 ),
               ),
