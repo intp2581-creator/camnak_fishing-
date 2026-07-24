@@ -60,8 +60,8 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
 
 // 👇 여기 추가!
 final List<String> _garamMessages = [
-  "지금은 오픈 베타 중입니다!\n즐거운 시간 되세요! 😊",
-  "오늘 핫스팟은 어디일까요?\n랭킹 1위 도전해보세요! 🏆",
+  "지금은 오픈 베타 중입니다!\n결제 시스템은 준비중입니다! 😊",
+  "오늘 핫스팟은 어디일까요?\n즐거운 시간 되세요! 🏆",
   "미끼 소진되면 상점에서\n바로 구매하세요! 💰",
   "친구랑 같이하면 더 재밌어요!\n친구 초대해보세요~ 👥",
 ];
