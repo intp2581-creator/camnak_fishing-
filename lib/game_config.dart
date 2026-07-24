@@ -669,8 +669,9 @@ final List<Map<String, dynamic>> storeAuxItems = [
   {'name': '소형 아이스박스', 'price': 10000, 'reqLevel': 5, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
   {'name': '중형 아이스박스', 'price': 50000, 'reqLevel': 20, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
   {'name': '대형 아이스박스', 'price': 100000, 'reqLevel': 50, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
-  {'name': '민물 휘장', 'price': 100000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '캠피싱의 정예 민물 조사임을 증명하는 증표 (Lv.10↑)', 'reqLevel': 10},
-  {'name': '바다 휘장', 'price': 100000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '캠피싱의 정예 바다 조사임을 증명하는 증표 (Lv.10↑)', 'reqLevel': 10},
+  // 🎖️ 휘장(배지) — 포인트 상점 → 쇼핑몰 캐시(5,500원)로 전환(등급 승인 후, 2026-07-24). 'cash':true → 쇼핑몰 구매 플로우.
+  {'name': '민물 휘장', 'price': 5500, 'cash': true, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '캠피싱의 정예 민물 조사임을 증명하는 증표 (Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
+  {'name': '바다 휘장', 'price': 5500, 'cash': true, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '캠피싱의 정예 바다 조사임을 증명하는 증표 (Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
 ];
 
 // 👕 스킨/티켓 탭 — 조사 스킨 · 이용권 · 입장권

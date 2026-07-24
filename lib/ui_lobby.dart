@@ -1750,7 +1750,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   // 🚫 무료 지급품(0P)은 구매 불가 — 캐릭터 생성 시 지급되는 기본 장비 (되팔이 악용 방지)
                   final isFreeStarter = (item['price'] is num) && (item['price'] as num) <= 0;
                   if (isFreeStarter || (isSkin && itemName.contains('초보'))) return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('기본 지급', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade900, foregroundColor: Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: null, child: const Text('구매 불가', style: TextStyle(fontWeight: FontWeight.bold)))]);
-                  bool isMallOnly = isSkin || itemName.contains('1시간 이용권');
+                  bool isMallOnly = isSkin || item['cash'] == true || itemName.contains('1시간 이용권');
                   if (isMallOnly) {
                     final int priceKrw = (item['price'] is num) ? (item['price'] as num).toInt() : 0;
                     final String priceStr = priceKrw.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
@@ -1760,8 +1760,8 @@ class _StoreScreenState extends State<StoreScreen> {
                     // 🎖️ 승급(칭호) 체크 — 스킨은 해당 승급 퀘스트 통과해야 구매 가능(레벨만으론 불가, 웹훅과 일치)
                     final String reqRank = isSkin ? skinReqRank(itemName) : '';
                     final bool rankOk = reqRank.isEmpty || rankIndex(widget.currentRank) >= rankIndex(reqRank);
-                    // 🚫 이미 보유 중인 스킨(계정당 1개)은 재구매 불가
-                    final bool alreadyOwned = isSkin && myInventory.any((i) => i['name'] == itemName);
+                    // 🚫 이미 보유 중인 스킨·휘장(계정당 1개)은 재구매 불가
+                    final bool alreadyOwned = (isSkin || item['cash'] == true) && myInventory.any((i) => i['name'] == itemName);
                     final bool buyOk = lvOk && rankOk; // 레벨 + 승급 둘 다 충족해야 구매 가능
                     return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       Center(child: Text('₩$priceStr', style: TextStyle(color: (buyOk && !alreadyOwned) ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
