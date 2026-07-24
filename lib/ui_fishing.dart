@@ -4070,8 +4070,12 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                 }
               } 
               else {
+                // 🎣 [v196 밸런스핵심] 잔잔할 때(발악 아님)도 물고기가 '자기 힘(baseFishSpeed)'만큼 상시 저항!
+                //   이전엔 잔잔할 때 물고기 저항이 0이라, 약한 유저도 발악만 피하면 큰 고기를 야금야금 잡아버림.
+                //   (예: Lv2 제압120이 충주호 71잉어 잡던 버그) → 이제 대물은 잔잔해도 안 끌려옴(못잡음),
+                //   잡어는 baseFishSpeed 하한(0.0023)이라 저항 미미해서 여전히 쭉쭉 끌려옴(방해꾼).
                 double powerMult = (pGear == 3) ? 1.8 : (pGear == 2) ? 1.4 : 1.0;
-                change = (basePullSpeed * powerMult); // 내 쪽으로 쭉쭉!
+                change = (basePullSpeed * powerMult) - baseFishSpeed; // 내 당김 − 물고기 상시 저항
               }
             }
           } else {
