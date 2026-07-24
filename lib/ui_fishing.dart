@@ -3456,6 +3456,11 @@ Positioned(
       _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
       return;
     }
+    // 🎁 이벤트 아이템은 가방 보유만으로 자동 적용 — 장착 불필요(미끼 슬롯 오장착·소모 버그 방지)
+    if ((item['type'] ?? '') == 'EVENT') {
+      _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
+      return;
+    }
     audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -3546,6 +3551,11 @@ Positioned(
     // 🐟 잡은 물고기는 미끼 슬롯에 못 들어감(고등어만 참치용 생미끼로 예외)
     if ((item['type'] ?? '') == 'FISH' && !item['name'].toString().contains('고등어')) {
       _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
+      return;
+    }
+    // 🎁 이벤트 아이템은 가방 보유만으로 자동 적용 — 장착 불필요(미끼 슬롯 오장착·소모 버그 방지)
+    if ((item['type'] ?? '') == 'EVENT') {
+      _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
       return;
     }
     String category = item['category'] ?? '';
