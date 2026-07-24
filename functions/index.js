@@ -45,6 +45,19 @@ const itemDatabase = {
     reqRank: "마스터",
     category: "SKIN", type: "SKIN", icon: "../images/skin_master.jpg", stats: { P: 300, C: 300, S: 300 },
     limitType: "ONCE"
+  },
+  // 🎖️ 휘장(배지) — 쇼핑몰 캐시 5,500원. 스킨과 달리 '승급(reqRank)' 없이 레벨 10만 요구. 계정당 1개.
+  "민물 휘장": {
+    name: "민물 휘장",
+    reqLevel: 10, // 승급 불필요(reqRank 없음)
+    category: "FW", type: "ETC", icon: "item_badge_fw.png", stats: { P: 50, C: 50, S: 50 },
+    limitType: "ONCE"  // 계정당 1개 한정
+  },
+  "바다 휘장": {
+    name: "바다 휘장",
+    reqLevel: 10,
+    category: "SEA", type: "ETC", icon: "item_badge_sea.png", stats: { P: 50, C: 50, S: 50 },
+    limitType: "ONCE"
   }
 };
 
