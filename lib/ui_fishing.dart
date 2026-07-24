@@ -499,7 +499,7 @@ Widget _buildChatTab(int index, String title) {
   super.initState();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
-    _lastGaramTime = DateTime.now().add(const Duration(minutes: 10));
+    _lastGaramTime = null; // 🎤 첫 캐스팅에 가람 바로 등장(낚시 시작 안내), 이후 10분 쿨다운. (기존 now+10분은 첫 등장이 20분 뒤가 되던 버그)
 
     // 🚀 [추가] 낚시터 입장 시 윤슬이 출입증 검사!
     _blockYunseulInFishing();
@@ -1985,10 +1985,10 @@ void _recast() {  // 기존 코드
       gmNoticeVisible = true;
     });
      
-          Future.delayed(const Duration(seconds: 20), () {
+          Future.delayed(const Duration(seconds: 30), () {
             if (mounted) {
               setState(() {
-                gmNoticeVisible = false; // 가람이 퇴근!
+                gmNoticeVisible = false; // 가람이 퇴근! (30초 노출 후)
               });
             }
           });
