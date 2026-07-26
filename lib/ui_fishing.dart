@@ -63,10 +63,10 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
 
 // 👇 여기 추가!
 final List<String> _garamMessages = [
-  "지금은 오픈 베타 중입니다!\n결제 시스템은 준비중입니다! 😊",
-  "오늘 핫스팟은 어디일까요?\n즐거운 시간 되세요! 🏆",
-  "미끼 소진되면 상점에서\n바로 구매하세요! 💰",
-  "친구랑 같이하면 더 재밌어요!\n친구 초대해보세요~ 👥",
+  "지금은 오픈 베타 중입니다!\n낚시게임 결제 시스템 준비중\n홈페이지 공지사항 참조",
+  "캠피싱 오픈기념 할인판매\n품목 안내입니다.",
+  "와노와 낚시텐트 30% 할인\n1800, 2000 각 20동씩 한정",
+  "리얼프레임 전투텐트 10%\n1100 X 1500 10동 한정판매",
 ];
 
   void toggleFullScreen() {
