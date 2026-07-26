@@ -5534,19 +5534,20 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             GestureDetector(
               onTap: () => showGameRatingDialog(context),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _kGold.withOpacity(0.5), width: 1),
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kGold, width: 1.5), // 🎖️ 나가기·음소거·전체화면 버튼과 동일 스타일
+                  boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  buildRatingMark(size: 22),
-                  const SizedBox(width: 6),
+                  buildRatingMark(size: 46),
+                  const SizedBox(width: 10),
                   const Text('전체이용가',
-                      style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.info_outline, color: Colors.white38, size: 12),
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.info_outline, color: Colors.white70, size: 18),
                 ]),
               ),
             ),

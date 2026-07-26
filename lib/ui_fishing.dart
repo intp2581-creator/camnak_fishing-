@@ -2446,19 +2446,19 @@ Positioned(
                         child: GestureDetector(
                           onTap: () => showGameRatingDialog(context),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: Colors.black.withOpacity(0.55),
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.white24, width: 1),
                             ),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
-                              buildRatingMark(size: 24),
-                              const SizedBox(width: 6),
+                              buildRatingMark(size: 42),
+                              const SizedBox(width: 8),
                               const Text('전체이용가',
-                                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.bold)),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.info_outline, color: Colors.white38, size: 13),
+                                  style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)),
+                              const SizedBox(width: 5),
+                              const Icon(Icons.info_outline, color: Colors.white54, size: 17),
                             ]),
                           ),
                         ),
