@@ -4105,17 +4105,17 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
             } else {
               if (fGear == 2) {
                 if (pGear < 3) {
-                  change = -(baseFishSpeed * 1.8);
+                  change = -(baseFishSpeed * 1.6); // 💥강발악 못버팀→도망
                 } else {
-                  change = -((baseFishSpeed * 0.8) - (basePullSpeed * 0.6));
+                  change = (basePullSpeed * 0.7) - (baseFishSpeed * 1.1); // 💥강발악 최고제압으로 겨우 홀딩
                 }
               } 
               else if (fGear == 1) {
                 if (pGear < 2) {
-                  change = -(baseFishSpeed * 1.2);
+                  change = -(baseFishSpeed * 1.0); // 💢약발악 못받아침→도망
                 } else {
                   double powerMult = (pGear == 3) ? 1.2 : 1.0; 
-                  change = (basePullSpeed * powerMult) - (baseFishSpeed * 0.4); // 내 쪽으로!
+                  change = (basePullSpeed * powerMult) - (baseFishSpeed * 0.85); // 💢약발악 받아침(잔잔보다 저항 큼)
                 }
               } 
               else {
@@ -4124,7 +4124,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                 //   (예: Lv2 제압120이 충주호 71잉어 잡던 버그) → 이제 대물은 잔잔해도 안 끌려옴(못잡음),
                 //   잡어는 baseFishSpeed 하한(0.0023)이라 저항 미미해서 여전히 쭉쭉 끌려옴(방해꾼).
                 double powerMult = (pGear == 3) ? 1.8 : (pGear == 2) ? 1.4 : 1.0;
-                change = (basePullSpeed * powerMult) - baseFishSpeed; // 내 당김 − 물고기 상시 저항
+                change = (basePullSpeed * powerMult) - (baseFishSpeed * 0.6); // 🌊잔잔=주력 당김(저항 약함0.6, 발악보다 잘 딸려옴)
               }
             }
           } else {
@@ -4364,9 +4364,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                     onTapCancel: () => _onPullUp(),
                     child: Container(
                     width: 140, height: 140,
-                    // ✨ 원인 해결 2: 누를 때 주황색으로 번쩍이게 시각 효과 복구!
+                    // ✨ 당기기 버튼: 누르고 있을 때 파랑(당기는 중), 손 뗐을 때 노랑(대기)
                     decoration: BoxDecoration(
-                      color: hasPenalty ? Colors.grey : (isPressing ? Colors.orangeAccent : const Color(0xFFD4AF37)),
+                      color: hasPenalty ? Colors.grey : (isPressing ? const Color(0xFF2E82FF) : const Color(0xFFF5C518)),
                       shape: BoxShape.circle, 
                       boxShadow: [
                         if (isPressing && !hasPenalty) const BoxShadow(color: Colors.white54, blurRadius: 15, spreadRadius: 5),
