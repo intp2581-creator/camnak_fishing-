@@ -270,7 +270,7 @@ for (var fish in availableFishes) {
     //   개선: rel=(size−15)/(최대어−15), 0(최소어)~1(최대어). 어종 무관 같은 %면 같은 보상 → 바다·민물 어디든 공평.
     double rel = (baseMax > 15.0) ? ((size - 15.0) / (baseMax - 15.0)).clamp(0.0, 1.0) : 1.0;
     int sizeBand = (rel * 12).round();     // 상대크기 0~12 (절대 size/5 대체)
-    int starBonus = currentStars;          // ⭐ ★1→+1 ... ★5→+5 (난이도 높은 낚시터일수록 보상↑)
+    int starBonus = currentStars * 4;      // ⭐ [v218] ★1→+4 ... ★5→+20 (고별점 EXP 보상 강화 — 오픈 후 레벨업 속도 보고 조정)
     int exp = 15 + sizeBand + starBonus;   // 기본 15 (초반 랩업 속도 완화)
     int pts = (25 + rel * 100).round();    // 최소어 25 ~ 최대어 125 (상대크기 기준)
 
