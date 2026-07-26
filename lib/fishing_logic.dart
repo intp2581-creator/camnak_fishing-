@@ -265,13 +265,14 @@ for (var fish in availableFishes) {
 
     size = double.parse(size.toStringAsFixed(1));
 
-    // 💰 보상 계산
-    //  경험치: 완만 공식 = 기본 15 + 사이즈구간(5cm당 +1) + 별점보너스(난이도↑=보상↑)
-    //  포인트: 큰 고기=큰 돈(자연스러움) = 사이즈 × 2
-    int sizeBand = (size / 5).floor();    // 5cm당 +1 (사이즈 비중 ↑)
-    int starBonus = currentStars;          // ⭐ 정방향: ★1→+1 ... ★5→+5 (난이도 높은 낚시터일수록 보상↑, 고삼지 역전현상 해소)
+    // 💰 [v217 바다·민물 보상 통일] 절대 cm가 아니라 '최대어 대비 상대크기(rel)'로 보상 계산.
+    //   기존: EXP·포인트가 절대사이즈 기준 → 최대어 큰 바다어종(참치200·참돔120)이 같은 노력에 보상 더 받음 → 민물 버려짐.
+    //   개선: rel=(size−15)/(최대어−15), 0(최소어)~1(최대어). 어종 무관 같은 %면 같은 보상 → 바다·민물 어디든 공평.
+    double rel = (baseMax > 15.0) ? ((size - 15.0) / (baseMax - 15.0)).clamp(0.0, 1.0) : 1.0;
+    int sizeBand = (rel * 12).round();     // 상대크기 0~12 (절대 size/5 대체)
+    int starBonus = currentStars;          // ⭐ ★1→+1 ... ★5→+5 (난이도 높은 낚시터일수록 보상↑)
     int exp = 15 + sizeBand + starBonus;   // 기본 15 (초반 랩업 속도 완화)
-    int pts = (size * 2).round();
+    int pts = (25 + rel * 100).round();    // 최소어 25 ~ 최대어 125 (상대크기 기준)
 
     // 👑 6대장은 +20% (살짝 더 가치 있게)
     List<String> bossFishes = ['붕어', '잉어', '가물치', '참돔', '감성돔', '문어'];

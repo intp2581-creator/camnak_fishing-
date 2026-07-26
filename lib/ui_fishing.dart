@@ -1259,7 +1259,7 @@ Widget _buildChatTab(int index, String title) {
         // 🚨 이 else가 아까 에러 났던 녀석입니다!
         _damageLineOnFail(); // 🧵 랜딩 실패 → 낚시줄 −10m (0m면 끊어짐)
         audioManager.playSfx("sfx_break.mp3");
-        List<String> failMessages = ['와우~ 대물인데 아쉽습니다!\n상점에서 장비를 업그레이드 해보세요.', '앗! 바늘털이에 당했습니다.\n다음엔 텐션 조절을 조금 더 신중히 해보시죠!', '팅! 줄이 터져버렸네요...\n제압력이 더 높은 낚싯대가 필요할지도?', '아슬아슬했는데 코앞에서 놓쳤습니다!\n심호흡 한 번 하고 다시 캐스팅해 보시죠.', '물고기의 힘이 너무 압도적이네요!\n장비의 한계가 온 것 같습니다.', '수초를 감아버렸습니다!\n채비를 정비하고 다시 도전하세요.']; 
+        List<String> failMessages = ['와우~ 대물인데 아쉽습니다!\n상점에서 장비를 업그레이드 해보세요.', '앗! 바늘털이에 당했습니다.\n다음엔 텐션 조절을 조금 더 신중히 해보시죠!', '팅! 줄이 터져버렸네요...\n제압력이 더 높은 낚싯대가 필요할지도?', '아쉽게도 놓쳐 버렸습니다!\n심호흡 한 번 하고 다시 캐스팅해 보시죠.', '물고기의 힘이 너무 압도적이네요!\n장비의 한계가 온 것 같습니다.', '수초를 감은 것 같습니다!\n채비를 정비하고 다시 도전하세요.']; 
         String randomMsg = failMessages[math.Random().nextInt(failMessages.length)]; 
         _showNotificationPopup('💥 줄이 터졌습니다...', randomMsg, Colors.redAccent, onConfirm: _recast);
       }
