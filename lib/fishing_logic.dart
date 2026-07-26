@@ -237,13 +237,15 @@ for (var fish in availableFishes) {
     double minFactor = 0.0; double sizeCap = 1.0;
 
     // 📏 minFactor/sizeCap = '최대어(baseMax) 대비' 비율. (★1 하한은 종 최소어)
+    // 🎣 [v2 밸런스 2026-07-26] 별점=실력 관문. 하한↑ → 고별점일수록 평균 사이즈↑ → 저랩은 터짐 잦아 아랫단계로 자기조절.
+    //   (작은어종=어디서든 방해꾼 유지, 큰어종이 도전. 실유저 데이터 보고 미세조정 가능)
     switch (currentStars) {
-      case 1: minFactor = 0.0; sizeCap = 0.3; break; // 최소어 ~ 최대어 30%
-      case 2: minFactor = 0.2; sizeCap = 0.4; break; // 20% ~ 40%
-      case 3: minFactor = 0.3; sizeCap = 0.6; break; // 30% ~ 60%
-      case 4: minFactor = 0.4; sizeCap = 0.8; break; // 40% ~ 80%
+      case 1: minFactor = 0.0;  sizeCap = 0.32; break; // 잡어터: 최소어 ~ 최대어 32% (누구나)
+      case 2: minFactor = 0.40; sizeCap = 0.60; break; // 초보터: 40% ~ 60% (큰어종은 팽팽)
+      case 3: minFactor = 0.55; sizeCap = 0.78; break; // 중급터: 55% ~ 78% (초보만렙엔 벽)
+      case 4: minFactor = 0.68; sizeCap = 0.90; break; // 고급터: 68% ~ 90%
       case 5:
-      default: minFactor = 0.5; sizeCap = 1.0; break; // 50% ~ 최대어
+      default: minFactor = 0.80; sizeCap = 1.00; break; // 최상급: 80% ~ 최대어
     }
 
     double baseMin = double.tryParse(selectedFish['min'].toString()) ?? 10.0;
