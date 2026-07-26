@@ -53,10 +53,12 @@ class FishingScreen extends StatefulWidget {
   State<FishingScreen> createState() => _FishingScreenState();
 }
 
+// 🎤 GM 윤슬 공지 마지막 등장 시각 — 전역(낚시터 이동해도 10분 쿨다운 유지, 화면마다 리셋 방지)
+DateTime? gLastGaramNoticeTime;
+
 class _FishingScreenState extends State<FishingScreen> with TickerProviderStateMixin {
   // 💡 낚시터 전용 윤슬님 튜토리얼 스텝 (-1: 퇴근, 0~3: 설명 중)
   int _fishingStep = -1;
-  DateTime? _lastGaramTime;
   Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
   Timer? _garamRotateTimer; // 🎤 등장 중 멘트 순차 회전 타이머(~7초마다 다음 멘트)
   int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(순환)
@@ -502,7 +504,7 @@ Widget _buildChatTab(int index, String title) {
     _ratingHideTimer = Timer(const Duration(seconds: 30), () {
       if (mounted) setState(() => _showFishingRating = false);
     });
-    _lastGaramTime = null; // 🎤 낚시 시작 후 첫 체크에 GM 윤슬 등장, 이후 10분 쿨다운.
+    // 🎤 GM 윤슬 쿨다운은 전역(gLastGaramNoticeTime)이라 낚시터 이동해도 유지됨 — 여기서 리셋 안 함.
     // 🎤 GM 윤슬 공지: 낚시 중(찌 물에 있을 때)이면 20초마다 등장 조건 체크 → 되면 등장(10분 간격). 재캐스팅에만 의존하던 버그 해결.
     _garamTimer = Timer.periodic(const Duration(seconds: 20), (_) => _maybeShowGaram());
 
@@ -1978,8 +1980,8 @@ void _maybeShowGaram() {
   if (isSettingUp || !isFloatInWater) return;   // 🎣 낚시 시작(찌 물에) 상태에서만
   if (gmNoticeVisible) return;                  // 이미 떠있으면 스킵
   final now = DateTime.now();
-  if (_lastGaramTime != null && now.difference(_lastGaramTime!).inMinutes < 10) return;
-  _lastGaramTime = now;
+  if (gLastGaramNoticeTime != null && now.difference(gLastGaramNoticeTime!).inMinutes < 10) return;
+  gLastGaramNoticeTime = now;
   _garamMsgIdx = 0; // 첫 멘트부터
   setState(() => gmNoticeVisible = true);
   // 🎤 등장 중 ~7초마다 다음 멘트로 순차 회전(30초 동안 4개 다 보여줌). 랜덤 깜빡임 대신 차분히 하나씩.
