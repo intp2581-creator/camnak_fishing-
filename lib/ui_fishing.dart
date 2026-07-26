@@ -60,6 +60,8 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
   Timer? _garamRotateTimer; // 🎤 등장 중 멘트 순차 회전 타이머(~7초마다 다음 멘트)
   int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(순환)
+  bool _showFishingRating = true; // 🎖️ 낚시 화면 등급 마크(30초 노출 후 사라짐 — 광장과 통일, 규정 충족)
+  Timer? _ratingHideTimer;
 // 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
   void toggleFullScreen() {
@@ -496,6 +498,10 @@ Widget _buildChatTab(int index, String title) {
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
     loadGmNotice(); // 🎤 GM 윤슬 공지 멘트 최신화(Firestore config/gmnotice)
+    // 🎖️ 등급 마크 30초 노출 후 숨김(광장과 통일). 하루 1시간 세션이라 1회 노출로 "1시간마다 3초 이상" 충족.
+    _ratingHideTimer = Timer(const Duration(seconds: 30), () {
+      if (mounted) setState(() => _showFishingRating = false);
+    });
     _lastGaramTime = null; // 🎤 낚시 시작 후 첫 체크에 GM 윤슬 등장, 이후 10분 쿨다운.
     // 🎤 GM 윤슬 공지: 낚시 중(찌 물에 있을 때)이면 20초마다 등장 조건 체크 → 되면 등장(10분 간격). 재캐스팅에만 의존하던 버그 해결.
     _garamTimer = Timer.periodic(const Duration(seconds: 20), (_) => _maybeShowGaram());
@@ -728,6 +734,7 @@ Widget _buildChatTab(int index, String title) {
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
     _garamRotateTimer?.cancel(); // 🎤 멘트 회전 타이머 정리
+    _ratingHideTimer?.cancel(); // 🎖️ 등급 마크 숨김 타이머 정리
     // 🔇 효과음만 즉시 정지. 배경음(BGM)은 stop하지 않음 —
     //    광장 복귀 시 playBgm('bgm_menu')가 낚시 BGM을 '교체'하게 둬서
     //    stop↔play 경쟁(음악이 나오려다 끊김)을 방지한다.
@@ -2434,8 +2441,8 @@ Positioned(
                         ),
                       ),
 
-                      // 🎖️ 게임물 등급분류 표시 (전체이용가) — 규정: 게임화면 우측 상단 상시 노출. 탭하면 상세정보 팝업.
-                      Positioned(
+                      // 🎖️ 게임물 등급분류 표시 (전체이용가) — 진입 후 30초 노출 뒤 사라짐(광장과 통일). 탭하면 상세정보 팝업.
+                      if (_showFishingRating) Positioned(
                         top: 48, right: 30,
                         child: GestureDetector(
                           onTap: () => showGameRatingDialog(context),
