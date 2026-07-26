@@ -4099,37 +4099,27 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
           // 🚨 [핵심 패치] 좌우 방향 완벽 반전! (당기면 +, 도망가면 -)
           double change = 0.0;
+          // 🎣 [v216 상대힘 전투모델] change = 내당김(P) − 물고기힘(F)×상황배수.
+          //   압도적우위(F작음): 발악에도 안눌러도 양수→그냥 끌려옴 / 비슷(F≈P): 발악땐 음수, 받아치면(2·3단) 양수·0 → 밀당 / 압도적열위(F큼): 다 음수 → 차고나감.
+          //   P=basePullSpeed(제압력), F=baseFishSpeed(물고기힘).
+          final double P = basePullSpeed, F = baseFishSpeed;
           if (isPressing) {
             if (penaltyNotifier.value) {
-              change = -(baseFishSpeed * 1.5); // 도망!
+              change = P - (F * 1.5); // 🚫헛챔질(너무빨리 연타)=발악급 저항
+            } else if (fGear == 2) {
+              // 💥 강발악: 물고기 강하게(×2.2) 차고 나감. 3단(pGear3) 받아치면 P×2.2로 맞섬 → 비슷하면 제자리 멈춤.
+              change = (pGear >= 3) ? (P * 2.2) - (F * 2.2) : P - (F * 2.2);
+            } else if (fGear == 1) {
+              // 💢 약발악: 물고기 저항(×1.5). 2단(pGear2+) 받아치면 P×2.0으로 살살 끌어옴.
+              change = (pGear >= 2) ? (P * 2.0) - (F * 1.5) : P - (F * 1.5);
             } else {
-              if (fGear == 2) {
-                if (pGear < 3) {
-                  change = -(baseFishSpeed * 1.6); // 💥강발악 못버팀→도망
-                } else {
-                  change = (basePullSpeed * 0.7) - (baseFishSpeed * 1.1); // 💥강발악 최고제압으로 겨우 홀딩
-                }
-              } 
-              else if (fGear == 1) {
-                if (pGear < 2) {
-                  change = -(baseFishSpeed * 1.0); // 💢약발악 못받아침→도망
-                } else {
-                  double powerMult = (pGear == 3) ? 1.2 : 1.0; 
-                  change = (basePullSpeed * powerMult) - (baseFishSpeed * 0.85); // 💢약발악 받아침(잔잔보다 저항 큼)
-                }
-              } 
-              else {
-                // 🎣 [v196 밸런스핵심] 잔잔할 때(발악 아님)도 물고기가 '자기 힘(baseFishSpeed)'만큼 상시 저항!
-                //   이전엔 잔잔할 때 물고기 저항이 0이라, 약한 유저도 발악만 피하면 큰 고기를 야금야금 잡아버림.
-                //   (예: Lv2 제압120이 충주호 71잉어 잡던 버그) → 이제 대물은 잔잔해도 안 끌려옴(못잡음),
-                //   잡어는 baseFishSpeed 하한(0.0023)이라 저항 미미해서 여전히 쭉쭉 끌려옴(방해꾼).
-                double powerMult = (pGear == 3) ? 1.8 : (pGear == 2) ? 1.4 : 1.0;
-                change = (basePullSpeed * powerMult) - (baseFishSpeed * 0.6); // 🌊잔잔=주력 당김(저항 약함0.6, 발악보다 잘 딸려옴)
-              }
+              // 🌊 잔잔(1단): 주력 당김. 물고기 무게(×0.5)만 제하고 끌어옴. (우위=쭉쭉 / 열위=안끌려옴)
+              change = P - (F * 0.5);
             }
           } else {
-            double escapeMult = (fGear == 2) ? 2.0 : (fGear == 1) ? 1.5 : 1.0;
-            change = -(baseFishSpeed * escapeMult * 0.6); // 도망!
+            // ✋ 손 뗌(밀당용 순간): 물고기 상태만큼 도망. 발악 때 뗐다 다시 눌러 받아치는 흐름.
+            double escapeMult = (fGear == 2) ? 2.2 : (fGear == 1) ? 1.5 : 0.5;
+            change = -(F * escapeMult);
           }
 
           newGauge += (change + wildFactor); // 계산된 방향 적용!
