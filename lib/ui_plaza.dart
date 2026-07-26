@@ -240,7 +240,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 🎓 첫 목표 안내: 누구를 만나야 하는지 명확히 (광장이 넓어 ❗만으론 못 찾음)
     final first = _tutQuests.isNotEmpty ? _tutQuests[0] : null;
     if (first != null) {
-      _infoPopup('🎓 첫 번째 미션', '먼저 \'${first['name']}\' 조사님을 만나보세요!\n(${first['title']})\n\n조금 걸어가면 만날 수 있어요 🚶');
+      _infoPopup('🎓 첫 번째 미션', '먼저 \'${first['name']}\' 조사님을 만나보세요!\n(${first['title']})\n\n광장 왼쪽에 있어요 🚶');
     }
   }
 

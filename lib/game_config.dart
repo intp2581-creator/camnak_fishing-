@@ -173,6 +173,37 @@ List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
   return changed ? out : null;
 }
 
+// =========================================================================
+// 🎤 [GM 윤슬 공지 멘트] Firestore `config/gmnotice` 문서로 관리 → 콘솔에서 실시간 수정(재배포 불필요).
+//    문서 형식: config/gmnotice { messages: ["멘트1\n둘째줄", "멘트2", ...] }  (각 멘트 2~3줄 권장)
+//    낚시 중 GM 윤슬이 이 목록을 ~7초마다 순서대로 브리핑. messages 없거나 비면 아래 기본값 사용.
+// =========================================================================
+const List<String> kDefaultGmNotices = [
+  "지금은 오픈 베타 중입니다!\n낚시게임 결제 시스템 준비중\n홈페이지 공지사항 참조",
+  "캠피싱 오픈기념 할인판매\n품목 안내입니다.",
+  "와노와 낚시텐트 30% 할인\n1800, 2000 각 20동씩 한정",
+  "리얼프레임 전투텐트 10%\n1100 X 1500 10동 한정판매",
+];
+
+/// 현재 GM 윤슬 공지 멘트(전역). 낚시터 입장 시 loadGmNotice()로 최신화. 항상 1개 이상 보장.
+List<String> gmNoticeMessages = List<String>.from(kDefaultGmNotices);
+
+/// config/gmnotice 읽어 gmNoticeMessages 갱신. 문서 없거나 비면 기본값 유지(항상 비어있지 않게).
+Future<void> loadGmNotice() async {
+  try {
+    final d = (await FirebaseFirestore.instance.collection('config').doc('gmnotice').get()).data();
+    final raw = d?['messages'];
+    if (raw is List) {
+      final msgs = raw.map((e) => e.toString()).where((s) => s.trim().isNotEmpty).toList();
+      gmNoticeMessages = msgs.isNotEmpty ? msgs : List<String>.from(kDefaultGmNotices);
+    } else {
+      gmNoticeMessages = List<String>.from(kDefaultGmNotices);
+    }
+  } catch (_) {
+    gmNoticeMessages = List<String>.from(kDefaultGmNotices);
+  }
+}
+
 /// 현재 활성 이벤트(전역). 앱 시작 시 loadGameEvent()로 채움. 기본=이벤트 없음.
 GameEvent currentGameEvent = GameEvent.none;
 

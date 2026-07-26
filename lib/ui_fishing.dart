@@ -59,15 +59,8 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   DateTime? _lastGaramTime;
   Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
   Timer? _garamRotateTimer; // 🎤 등장 중 멘트 순차 회전 타이머(~7초마다 다음 멘트)
-  int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(0~3 순환)
-
-// 👇 여기 추가!
-final List<String> _garamMessages = [
-  "지금은 오픈 베타 중입니다!\n낚시게임 결제 시스템 준비중\n홈페이지 공지사항 참조",
-  "캠피싱 오픈기념 할인판매\n품목 안내입니다.",
-  "와노와 낚시텐트 30% 할인\n1800, 2000 각 20동씩 한정",
-  "리얼프레임 전투텐트 10%\n1100 X 1500 10동 한정판매",
-];
+  int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(순환)
+// 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
   void toggleFullScreen() {
     try {
@@ -502,6 +495,7 @@ Widget _buildChatTab(int index, String title) {
   super.initState();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
+    loadGmNotice(); // 🎤 GM 윤슬 공지 멘트 최신화(Firestore config/gmnotice)
     _lastGaramTime = null; // 🎤 낚시 시작 후 첫 체크에 GM 윤슬 등장, 이후 10분 쿨다운.
     // 🎤 GM 윤슬 공지: 낚시 중(찌 물에 있을 때)이면 20초마다 등장 조건 체크 → 되면 등장(10분 간격). 재캐스팅에만 의존하던 버그 해결.
     _garamTimer = Timer.periodic(const Duration(seconds: 20), (_) => _maybeShowGaram());
@@ -1985,7 +1979,7 @@ void _maybeShowGaram() {
   _garamRotateTimer?.cancel();
   _garamRotateTimer = Timer.periodic(const Duration(seconds: 7), (t) {
     if (!mounted || !gmNoticeVisible) { t.cancel(); return; }
-    setState(() => _garamMsgIdx = (_garamMsgIdx + 1) % _garamMessages.length);
+    setState(() => _garamMsgIdx = (_garamMsgIdx + 1) % gmNoticeMessages.length);
   });
   Future.delayed(const Duration(seconds: 30), () {
     _garamRotateTimer?.cancel();
@@ -2197,7 +2191,7 @@ void _recast() {  // 기존 코드
             ),
 
               if (gmNoticeVisible) GMNoticePopup(
-                message: _garamMessages[_garamMsgIdx % _garamMessages.length],
+                message: gmNoticeMessages[_garamMsgIdx % gmNoticeMessages.length],
                onClose: () {
                  setState(() {
               gmNoticeVisible = false;
