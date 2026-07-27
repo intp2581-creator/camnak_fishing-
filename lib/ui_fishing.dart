@@ -2973,9 +2973,8 @@ Positioned(
       final String waitImage = waitSfx.isEmpty ? 'assets/images/waiting_sea.png' : 'assets/images/waiting_sea_$waitSfx.png';
       return Positioned.fill(child: Stack(children: [Positioned(right: seaWaitingRightOffset, bottom: seaWaitingBottomOffset, child: Transform.rotate(angle: seaWaitingAngle, alignment: Alignment.bottomRight, child: Image.asset(waitImage, height: seaWaitingImageSize, fit: BoxFit.contain, errorBuilder: (c,e,s) => Image.asset('assets/images/waiting_sea.png', height: seaWaitingImageSize, fit: BoxFit.contain, errorBuilder: (c2,e2,s2) => const Icon(Icons.waves, size: 200, color: Colors.white10)))))]));
     }
-    // 🎣 장착 낚싯대별 민물 거치 실루엣 (파일 없으면 기본 자동 폴백)
-    final String depSfx = rodSceneSuffix(equippedRod);
-    final String deployedImage = depSfx.isEmpty ? 'assets/items/rod_fw_basic_equip.png' : 'assets/items/rod_fw_${depSfx}_equip.png'; // 🎣 거치 실루엣 = 실제 파일명(_equip)에 맞춤(기존 _deployed → 404)
+    // 🎣 민물 거치는 낚싯대 무관 '받침대' 고정 이미지 1개. 갯수만 selectedRodCount로 반복(아래 Row). (낚싯대별 대기 이미지는 바다만 — 위 isSea 분기)
+    const String deployedImage = 'assets/items/rod_fw_basic_deployed.png';
     return Positioned(
       bottom: 0, left: 0, right: 0,
       child: Stack(
@@ -2994,7 +2993,7 @@ Positioned(
                   child: Stack(
                     clipBehavior: Clip.none, alignment: Alignment.bottomCenter,
                     children: [
-                      Image.asset(deployedImage, height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter, errorBuilder: (c,e,s) => Image.asset('assets/items/rod_fw_basic_equip.png', height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter)),
+                      Image.asset(deployedImage, height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter, errorBuilder: (c,e,s) => const Icon(Icons.phishing, color: Colors.white24, size: 80)),
                       Positioned(
                         bottom: fieldFloatBottomOffset + fieldFloatDepthOffset, 
                         child: Transform.rotate(
