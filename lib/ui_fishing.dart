@@ -3979,6 +3979,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   
   final ValueNotifier<int> playerGearNotifier = ValueNotifier(1);
   final ValueNotifier<bool> penaltyNotifier = ValueNotifier(false);
+  Timer? _penaltyTimer; // 🎣 줄꼬임(광클 페널티) 1초 타이머
 
   // 🎣 [챔질 직후 UX] 챔질 버튼을 '당기기'까지 끌어놓으면 손가락이 이미 눌린 상태 → 그 누름을 그대로 이어받아
   //    전투 시작부터 isPressing=true. 손 떼지 않으면 계속 당겨지고, 저항 뜨면 손 뗐다 눌러 방향 전환(자연스러움).
@@ -4105,7 +4106,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           final double P = basePullSpeed, F = baseFishSpeed;
           if (isPressing) {
             if (penaltyNotifier.value) {
-              change = P - (F * 1.5); // 🚫헛챔질(너무빨리 연타)=발악급 저항
+              change = -(F * 1.5); // 🚫줄꼬임(광클 페널티) 1초 = 물고기 도망(후퇴)
             } else if (fGear == 2) {
               // 💥 강발악: 물고기 강하게(×2.2) 차고 나감. 3단(pGear3) 받아치면 P×2.2로 맞섬 → 비슷하면 제자리 멈춤.
               change = (pGear >= 3) ? (P * 2.2) - (F * 2.2) : P - (F * 2.2);
@@ -4160,8 +4161,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   @override
   void dispose() {
     gameTimer?.cancel();
+    _penaltyTimer?.cancel(); // 🎣 줄꼬임 페널티 타이머 정리
     _rodController.dispose();
-    gaugeNotifier.dispose(); 
+    gaugeNotifier.dispose();
     timeNotifier.dispose();
     fishGearNotifier.dispose();
     playerGearNotifier.dispose();
@@ -4214,12 +4216,25 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       try {
         setState(() {
           isPressing = true;
-          // 🎣 [v219] 탭할 때마다 제압 단계 +1 (최대 3단). 발악 때 0에서 시작 → 저항=2탭(→2단)·발악=3탭(→3단) 연타로 순차 상승 = 밀당 손맛↑
-          playerGearNotifier.value = (playerGearNotifier.value + 1).clamp(1, 3);
-          penaltyNotifier.value = false;
-          int pg = playerGearNotifier.value;
-          _rodController.duration = Duration(milliseconds: pg == 3 ? 60 : pg == 2 ? 120 : 250);
-          if (_rodController.isAnimating) _rodController.repeat(reverse: true);
+          if (penaltyNotifier.value) return; // 🎣 줄꼬임(페널티) 중엔 입력 무시(1초)
+          // 🎣 [v220] 물고기 상태별 목표 단계까지만 클릭으로 상승. 목표 초과 클릭(광클) = 줄꼬임 1초 페널티.
+          //   잔잔=1단(홀드) / 저항=2단(2탭) / 발악=3단(3탭). 발악·저항 시작 시 pGear는 0으로 리셋됨(타이머).
+          int target = (fishGearNotifier.value == 2) ? 3 : (fishGearNotifier.value == 1) ? 2 : 1;
+          int cur = playerGearNotifier.value;
+          if (cur < target) {
+            playerGearNotifier.value = cur + 1; // 목표까지 한 단계씩
+            int pg = playerGearNotifier.value;
+            _rodController.duration = Duration(milliseconds: pg == 3 ? 60 : pg == 2 ? 120 : 250);
+            if (_rodController.isAnimating) _rodController.repeat(reverse: true);
+          } else {
+            // 🚫 목표 도달 후 추가 클릭(광클) → 줄꼬임 1초 페널티 + 제압 리셋
+            penaltyNotifier.value = true;
+            playerGearNotifier.value = 1;
+            _penaltyTimer?.cancel();
+            _penaltyTimer = Timer(const Duration(seconds: 1), () {
+              if (mounted) setState(() => penaltyNotifier.value = false);
+            });
+          }
         });
       } catch (e) {}
     });
