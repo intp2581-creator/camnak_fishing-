@@ -700,9 +700,12 @@ final List<Map<String, dynamic>> storeAuxItems = [
   {'name': '소형 아이스박스', 'price': 10000, 'reqLevel': 5, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 5, 'C': 5, 'S': 5}, 'icon': 'cooler_s.png', 'desc': '잡은 고기를 신선하게 보관하는 휴대용 보냉 아이스박스 (민물·바다 공용)'},
   {'name': '중형 아이스박스', 'price': 50000, 'reqLevel': 20, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png', 'desc': '넉넉한 용량의 캠피싱 정품 아이스박스 (민물·바다 공용)'},
   {'name': '대형 아이스박스', 'price': 100000, 'reqLevel': 50, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
-  // 🎖️ 휘장(배지) — 포인트 상점 → 쇼핑몰 캐시(5,500원)로 전환(등급 승인 후, 2026-07-24). 'cash':true → 쇼핑몰 구매 플로우.
-  {'name': '민물 휘장', 'price': 5500, 'cash': true, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '캠피싱의 정예 민물 조사임을 증명하는 증표 (Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
-  {'name': '바다 휘장', 'price': 5500, 'cash': true, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '캠피싱의 정예 바다 조사임을 증명하는 증표 (Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
+  // 🎖️ 휘장(배지) — 민물/바다 통합 '범용(COMMON)' 5등급 체계. 'cash':true → 쇼핑몰 구매 플로우.
+  //    (2026-07-27 재구성) 지금은 1~3등급만 오픈, 4~5등급은 추후 공개. 능력치 P/C/S 동일값.
+  {'name': '캠피싱 뱃지',      'price': 2200,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_badge_1.png', 'desc': '캠피싱 조사임을 증명하는 입문 뱃지 (민물·바다 공용 · Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
+  {'name': '캠피싱 휘장',      'price': 5500,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'item_badge_2.png', 'desc': '한 단계 성장한 캠피싱 조사의 휘장 (민물·바다 공용 · Lv.30↑ · 쇼핑몰 전용)', 'reqLevel': 30},
+  {'name': 'KREFT 정예 휘장', 'price': 11000, 'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_3.png', 'desc': 'KREFT 정예 조사임을 증명하는 휘장 (민물·바다 공용 · Lv.50↑ · 쇼핑몰 전용)', 'reqLevel': 50},
+  // 🔒 [추후 공개] 4등급 KREFT 명장 휘장(22,000·Lv70·P/C/S 70) / 5등급 KREFT 명인 휘장(55,000·Lv100·P/C/S 100)
 ];
 
 // 👕 스킨/티켓 탭 — 조사 스킨 · 이용권 · 입장권

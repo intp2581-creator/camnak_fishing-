@@ -610,14 +610,14 @@ Widget _buildChatTab(int index, String title) {
         equippedReel = {'name': 'KF8000', 'price': 30000, 'category': 'SEA', 'type': 'REEL', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'reel_sea_kf8000.png', 'desc': '괴물과 싸우기 위한 마스터급 대형 릴'};
         equippedFloat = null; // 바다는 보통 릴+루어 위주!
         equippedBait = {'name': '에기', 'price': 500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_sea_egi.png', 'desc': '두족류(오징어, 문어 등) 전용 미끼 (집어력 30)'};
-        equippedBadge = {'name': '바다 휘장', 'price': 10000, 'category': 'SEA', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_sea.png', 'desc': '바다 낚시 명예의 증표'};
+        equippedBadge = {'name': 'KREFT 정예 휘장', 'price': 11000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_3.png', 'desc': '아레나 평준화용 휘장'};
       } else {
         // 🏞️ [민물 모드] 대물 붕어용 끝판왕 세팅
         equippedRod = {'name': 'KT-40T', 'price': 100000, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_kt40.png', 'desc': '민물 낚시의 정점, 마스터 민물대'};
         equippedFloat = {'name': 'KT 전자찌', 'price': 30000, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'float_fw_elec_kt.png', 'desc': '압도적인 시인성을 자랑하는 최고급 전자찌'};
         equippedReel = null; // 민물 대낚시는 릴 없음!
         equippedBait = {'name': '옥수수', 'price': 500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어를 노리기 위한 미끼 (집어력 30)'};
-        equippedBadge = {'name': '민물 휘장', 'price': 10000, 'category': 'FW', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_fw.png', 'desc': '민물 낚시 명예의 증표'};
+        equippedBadge = {'name': 'KREFT 정예 휘장', 'price': 11000, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_3.png', 'desc': '아레나 평준화용 휘장'};
       }
       
       isRodEquipped = true; // 낚싯대 강제 장착 완료!
@@ -2162,7 +2162,7 @@ void _recast() {  // 기존 코드
                         if (equippedSunglasses != null)
                           Positioned(bottom: 351, left:222, child: Image.asset('assets/items/${equippedSunglasses!['icon'] ?? 'item_sunglasses.png'}', width: 36, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
                         if (equippedBadge != null)
-                          Positioned(bottom: 290, left: 250, child: Image.asset(equippedBadge!['name'].toString().contains('민물') ? 'assets/items/item_badge_fw.png' : 'assets/items/item_badge_sea.png', width: 28, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
+                          Positioned(bottom: 290, left: 250, child: Image.asset('assets/items/${equippedBadge!['icon'] ?? 'item_badge_1.png'}', width: 28, errorBuilder: (c,e,s)=>const SizedBox.shrink())),
                         if (equippedRod != null)
                           Transform.translate(
                             offset: const Offset(76.0, -255.0), 
@@ -3413,7 +3413,11 @@ Positioned(
           else { if (!isSeaRod) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
         }
         else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; }
-        else if (name.contains('휘장')) { if (widget.isSea && name.contains('바다')) equippedBadge = item; if (!widget.isSea && name.contains('민물')) equippedBadge = item; }
+        else if (name.contains('휘장') || name.contains('뱃지')) { // 🎖️ 범용 휘장/뱃지(민물·바다 공용) → 능력치 가장 높은 등급 자동 장착
+          final int p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
+          final int bestP = (equippedBadge?['stats']?['P'] as num?)?.toInt() ?? -1;
+          if (equippedBadge == null || p > bestP) equippedBadge = item;
+        }
         else if (name.contains('뜰채') && equippedNet == null) { equippedNet = item; }
         else if (name.contains('벨트') && equippedBelt == null) { equippedBelt = item; }
         else if (name.contains('장갑') && equippedGloves == null) { equippedGloves = item; }
@@ -3521,7 +3525,7 @@ Positioned(
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = null; 
                   else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = null; isRodEquipped = false; } 
                   else if (cleanName.contains('선글라스')) equippedSunglasses = null;
-                  else if (cleanName.contains('휘장')) equippedBadge = null;
+                  else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) equippedBadge = null;
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = null;
                   else if (cleanName.contains('뜰채')) equippedNet = null;
                   else if (cleanName.contains('벨트')) equippedBelt = null;
@@ -3536,7 +3540,7 @@ Positioned(
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) { equippedReel = item; } 
                   else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; } 
                   else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
-                  else if (cleanName.contains('휘장')) { equippedBadge = item; }
+                  else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) { equippedBadge = item; }
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) { equippedCooler = item; }
                   else if (cleanName.contains('뜰채')) { equippedNet = item; }
                   else if (cleanName.contains('벨트')) { equippedBelt = item; }
@@ -3583,7 +3587,7 @@ Positioned(
       else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = item;
       else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; }
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
-      else if (cleanName.contains('휘장')) equippedBadge = item;
+      else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) equippedBadge = item;
       else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = item;
       else if (cleanName.contains('뜰채')) equippedNet = item;
       else if (cleanName.contains('벨트')) equippedBelt = item;

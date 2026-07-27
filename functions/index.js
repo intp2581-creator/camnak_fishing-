@@ -46,17 +46,24 @@ const itemDatabase = {
     category: "SKIN", type: "SKIN", icon: "../images/skin_master.jpg", stats: { P: 300, C: 300, S: 300 },
     limitType: "ONCE"
   },
-  // 🎖️ 휘장(배지) — 쇼핑몰 캐시 5,500원. 스킨과 달리 '승급(reqRank)' 없이 레벨 10만 요구. 계정당 1개.
-  "민물 휘장": {
-    name: "민물 휘장",
+  // 🎖️ 휘장(배지) — 민물/바다 통합 '범용(COMMON)' 5등급. 스킨과 달리 '승급(reqRank)' 없이 레벨만 요구. 등급별 계정당 1개.
+  //    (2026-07-27 재구성) 지금은 1~3등급만 오픈. 4~5등급(KREFT 명장/명인)은 상점 등록 시 추가.
+  "캠피싱 뱃지": {
+    name: "캠피싱 뱃지",
     reqLevel: 10, // 승급 불필요(reqRank 없음)
-    category: "FW", type: "ETC", icon: "item_badge_fw.png", stats: { P: 50, C: 50, S: 50 },
-    limitType: "ONCE"  // 계정당 1개 한정
+    category: "COMMON", type: "ETC", icon: "item_badge_1.png", stats: { P: 10, C: 10, S: 10 },
+    limitType: "ONCE"  // 등급당 계정당 1개 한정
   },
-  "바다 휘장": {
-    name: "바다 휘장",
-    reqLevel: 10,
-    category: "SEA", type: "ETC", icon: "item_badge_sea.png", stats: { P: 50, C: 50, S: 50 },
+  "캠피싱 휘장": {
+    name: "캠피싱 휘장",
+    reqLevel: 30,
+    category: "COMMON", type: "ETC", icon: "item_badge_2.png", stats: { P: 30, C: 30, S: 30 },
+    limitType: "ONCE"
+  },
+  "KREFT 정예 휘장": {
+    name: "KREFT 정예 휘장",
+    reqLevel: 50,
+    category: "COMMON", type: "ETC", icon: "item_badge_3.png", stats: { P: 50, C: 50, S: 50 },
     limitType: "ONCE"
   }
 };

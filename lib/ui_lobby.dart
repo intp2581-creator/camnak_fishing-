@@ -1409,7 +1409,7 @@ class _StoreScreenState extends State<StoreScreen> {
     }
     if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'rod';
     if (n.contains('선글라스')) return 'sun';
-    if (n.contains('휘장')) return 'badge';
+    if (n.contains('휘장') || n.contains('뱃지')) return 'badge';
     if (_isBaitItem(item)) return 'bait';
     return 'etc';
   }

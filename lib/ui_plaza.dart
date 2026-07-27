@@ -3410,7 +3410,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       globalEquippedRod = same(globalEquippedRod) ? null : item;
     } else if (n.contains('선글라스')) {
       globalEquippedSunglasses = same(globalEquippedSunglasses) ? null : item;
-    } else if (n.contains('휘장')) {
+    } else if (n.contains('휘장') || n.contains('뱃지')) {
       globalEquippedBadge = same(globalEquippedBadge) ? null : item;
     } else if (n.contains('뜰채')) {
       globalEquippedNet = same(globalEquippedNet) ? null : item;
