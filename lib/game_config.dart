@@ -370,57 +370,25 @@ bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 
 // =========================================================================
 // 📈 [경험치 & 레벨 밸런스 테이블]
-// 🆙 만렙 100레벨! 총 경험치(0~130만)는 그대로, 기존 30레벨 곡선을 100칸으로 잘게 보간.
-//    레벨업이 더 자주 일어나 성취감↑ (만렙 경험치/획득량/밸런스 불변)
+// 🆙 만렙 150레벨 (마스터100 → 전설120 → 낚시의 신150). 후반일수록 가팔라지는 '가속 곡선'.
+//    d(L)=레벨 L 도달에 필요한 경험치(직전 레벨 대비). d(2)=1400에서 시작해
+//    10레벨 구간마다 '레벨당 증가폭(step)'을 +50씩 키운다:
+//      Lv1~10 +200/lv, 11~20 +250, 21~30 +300 ... 141~150 +900.
+//    ⚠️ Lv1~50 확정 / Lv51~150은 임시 뼈대 — 오픈 후 유저 랩업속도(특히 Lv48 도달자) 보고 재튜닝 예정.
+//    누적: Lv50≈38만, Lv100(마스터)≈183만, Lv120(전설)≈285만, Lv150(신)≈498만. (신 도달 ≈ 3년 목표)
 // =========================================================================
-const int globalMaxLevel = 100;
-
-// 기존 30레벨 누적 경험치(곡선 원본). 이 곡선 모양을 그대로 100칸으로 보간한다.
-const List<int> _oldExpTable30 = [
-  0, 0, 5000, 10000, 20000, 30000, 50000, 70000, 90000, 110000, 130000,
-  160000, 190000, 210000, 240000, 270000, 310000, 350000, 390000, 430000, 500000,
-  550000, 600000, 650000, 700000, 800000, 900000, 1000000, 1100000, 1200000, 1300000,
-];
+const int globalMaxLevel = 150;
 
 List<int> _buildExpTable() {
   final M = globalMaxLevel;
-  // 1) 옛 30단계 곡선을 M단계로 보간
-  final raw = List<double>.filled(M + 1, 0);
-  for (int n = 1; n <= M; n++) {
-    final p = 1 + (n - 1) * 29 / (M - 1);
-    final lo = p.floor();
-    final hi = (lo + 1) > 30 ? 30 : (lo + 1);
-    final frac = p - lo;
-    raw[n] = _oldExpTable30[lo] + (_oldExpTable30[hi] - _oldExpTable30[lo]) * frac;
-  }
-  // 2) 레벨당 증가폭(delta)을 '비감소'로 보정 → 중간에 필요경험치 줄어드는 굴곡 제거
-  final delta = List<double>.filled(M + 1, 0);
-  for (int n = 2; n <= M; n++) {
-    delta[n] = raw[n] - raw[n - 1];
-  }
-  for (int n = 3; n <= M; n++) {
-    if (delta[n] < delta[n - 1]) delta[n] = delta[n - 1];
-  }
-  // 3) 보정된 delta로 재누적
-  final cum = List<double>.filled(M + 1, 0);
-  for (int n = 2; n <= M; n++) {
-    cum[n] = cum[n - 1] + delta[n];
-  }
-  // 4) 만렙이 정확히 1,300,000이 되도록 정규화 + 100단위 반올림
-  final scale = (cum[M] > 0) ? 1300000 / cum[M] : 1.0;
-  final table = List<int>.filled(M + 1, 0);
-  for (int n = 1; n <= M; n++) {
-    table[n] = (cum[n] * scale / 100).round() * 100;
-  }
-  for (int n = 2; n <= M; n++) {
-    if (table[n] <= table[n - 1]) table[n] = table[n - 1] + 100;
-  }
-  // 5) 레벨당 증가폭(delta)도 '비감소' — 100단위 반올림으로 생기는 ±100 흔들림까지 제거.
-  //    → 필요경험치가 중간에 줄어드는 일이 전혀 없음. (만렙 ≈ 1,300,800, 약 130만)
-  for (int n = 3; n <= M; n++) {
-    final pd = table[n - 1] - table[n - 2];
-    final td = table[n] - table[n - 1];
-    if (td < pd) table[n] = table[n - 1] + pd;
+  final table = List<int>.filled(M + 1, 0); // index 0·1 = 0 (누적 경험치)
+  int prevDelta = 0;
+  for (int L = 2; L <= M; L++) {
+    final int band = (L - 1) ~/ 10;                       // L=2~10→0, 11~20→1, 21~30→2 ...
+    final int step = 200 + 50 * band;                     // 그 구간의 '레벨당 증가폭'
+    final int delta = (L == 2) ? 1400 : prevDelta + step; // 이번 레벨업에 필요한 경험치
+    table[L] = table[L - 1] + delta;                      // 누적
+    prevDelta = delta;
   }
   return table;
 }

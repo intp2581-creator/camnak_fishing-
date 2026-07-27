@@ -80,47 +80,29 @@ function getTodayKST() {
   return kstTime.toISOString().substring(0, 10);
 }
 
-// 📈 1~30레벨 경험치 표 (⚠️ 게임 클라이언트 ui_lobby.dart의 _calcLevelFromExp 와 반드시 동일하게 유지!)
-const expTable = [
-  0,        // 인덱스 0 (안 씀)
-  0,        // Lv.1
-  5000,     // Lv.2
-  10000,    // Lv.3
-  20000,    // Lv.4
-  30000,    // Lv.5 (하수 스킨!)
-  50000,    // Lv.6
-  70000,    // Lv.7
-  90000,    // Lv.8
-  110000,   // Lv.9
-  130000,   // Lv.10 (중수 스킨!)
-  160000,   // Lv.11
-  190000,   // Lv.12
-  210000,   // Lv.13
-  240000,   // Lv.14
-  270000,   // Lv.15 (고수 스킨!)
-  310000,   // Lv.16
-  350000,   // Lv.17
-  390000,   // Lv.18
-  430000,   // Lv.19
-  500000,   // Lv.20 (프로 스킨!)
-  550000,   // Lv.21
-  600000,   // Lv.22
-  650000,   // Lv.23
-  700000,   // Lv.24
-  800000,   // Lv.25 (마스터 스킨!)
-  900000,   // Lv.26
-  1000000,  // Lv.27
-  1100000,  // Lv.28
-  1200000,  // Lv.29
-  1300000   // Lv.30 (현재 만렙!)
-];
+// 📈 경험치 표 (⚠️ 클라이언트 game_config.dart의 globalExpTable 와 '반드시 동일한 공식'으로 유지!)
+//    만렙 150. d(2)=1400, 10레벨 구간마다 레벨당 증가폭 +50 (Lv1~10 +200, 11~20 +250 ... 141~150 +900).
+//    누적: Lv50≈38만, Lv100≈183만, Lv120≈285만, Lv150≈498만.
+const GLOBAL_MAX_LEVEL = 150;
+const expTable = (() => {
+  const t = new Array(GLOBAL_MAX_LEVEL + 1).fill(0); // index 0·1 = 0
+  let prevDelta = 0;
+  for (let L = 2; L <= GLOBAL_MAX_LEVEL; L++) {
+    const band = Math.floor((L - 1) / 10);              // L=2~10→0, 11~20→1 ...
+    const step = 200 + 50 * band;                       // 구간별 레벨당 증가폭
+    const delta = (L === 2) ? 1400 : prevDelta + step;  // 이번 레벨업 필요 경험치
+    t[L] = t[L - 1] + delta;                            // 누적
+    prevDelta = delta;
+  }
+  return t;
+})();
 
-// 🧠 경험치 기반 레벨 계산기 (30레벨 확장판)
+// 🧠 경험치 기반 레벨 계산기 (클라이언트 calcLevelFromExp 와 동일)
 function calcLevel(exp) {
-  for (let i = 30; i >= 1; i--) {
+  for (let i = GLOBAL_MAX_LEVEL; i >= 1; i--) {
     if (exp >= expTable[i]) return i;
   }
-  return 1; 
+  return 1;
 }
 
 // 🔐 webhook 인증용 시크릿. functions/.env 파일에 IMWEB_WEBHOOK_SECRET=내가정한값 으로 설정.
