@@ -4073,10 +4073,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           } else if (fishSkillDuration < 0) {
             fishSkillDuration++; 
           } else {
-            if (random.nextInt(100) < 30) {  
-              fishGearNotifier.value = (random.nextInt(100) < 50) ? 2 : 1; 
-              fishSkillDuration = 50 + random.nextInt(40); 
-              playerGearNotifier.value = 1; 
+            if (random.nextInt(100) < 30) {
+              fishGearNotifier.value = (random.nextInt(100) < 50) ? 2 : 1;
+              fishSkillDuration = 50 + random.nextInt(40);
+              playerGearNotifier.value = 0; // 🎣 [v219] 발악 시작=제압 0 리셋 → 당기기 연타로 단계 쌓아올림(저항 2탭/발악 3탭)
             }
           }
 
@@ -4214,13 +4214,12 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       try {
         setState(() {
           isPressing = true;
-          if (lastReleaseTime != null) {
-            int diff = DateTime.now().difference(lastReleaseTime!).inMilliseconds;
-            _updatePlayerGear(diff);
-          } else {
-            playerGearNotifier.value = 1; 
-            penaltyNotifier.value = false;
-          }
+          // 🎣 [v219] 탭할 때마다 제압 단계 +1 (최대 3단). 발악 때 0에서 시작 → 저항=2탭(→2단)·발악=3탭(→3단) 연타로 순차 상승 = 밀당 손맛↑
+          playerGearNotifier.value = (playerGearNotifier.value + 1).clamp(1, 3);
+          penaltyNotifier.value = false;
+          int pg = playerGearNotifier.value;
+          _rodController.duration = Duration(milliseconds: pg == 3 ? 60 : pg == 2 ? 120 : 250);
+          if (_rodController.isAnimating) _rodController.repeat(reverse: true);
         });
       } catch (e) {}
     });
@@ -4333,7 +4332,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                         if (hasPenalty) const Text('⚠️ 줄 엉킴! (연타 금지)', style: TextStyle(color: Colors.redAccent, fontSize: 22, fontWeight: FontWeight.w900, shadows: [Shadow(color: Colors.black, blurRadius: 4)])),
                         if (!hasPenalty)
                           Text(
-                            pGear == 3 ? (isSea ? '🔥 3단 폭풍 릴링!!' : '🔥 3단 최고치 제압!!') : (isSea ? '$pGear단 릴링!' : '$pGear단 제압!'),
+                            pGear <= 0 ? '⚡ 당기기 연타!' : (pGear == 3 ? (isSea ? '🔥 3단 폭풍 릴링!!' : '🔥 3단 최고치 제압!!') : (isSea ? '$pGear단 릴링!' : '$pGear단 제압!')),
                             style: TextStyle(color: pGear == 3 ? Colors.redAccent : (pGear == 2 ? Colors.orangeAccent : Colors.yellow), fontSize: pGear == 3 ? 30 : 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: const [Shadow(color: Colors.black, blurRadius: 4)])
                           ),
                       ],
