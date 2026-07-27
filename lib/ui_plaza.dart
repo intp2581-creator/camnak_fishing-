@@ -1694,7 +1694,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _leavePlazaPresence(); // 접속정보(고스트) 정리
     if (!mounted) return;
     // 💾 첫 팝업에서 이미 "자동 저장됨" 안내 → 바로 홈페이지로 (추가 클릭 불필요)
-    html.window.location.href = 'https://camnak.com';
+    // ⚠️ camnak.com에 iframe으로 임베드된 경우, 자기 프레임(window)을 이동시키면
+    //    게임 박스 안에 홈페이지가 중첩돼 뜬다. → 최상위 창(top)을 이동시켜야 함.
+    //    (단독 실행이면 top == 자기 자신이라 동일하게 동작. 클릭=사용자활성화라 top 이동 허용됨)
+    const exitUrl = 'https://camnak.com';
+    try {
+      html.window.top?.location.href = exitUrl; // 임베드/단독 모두: 브라우저 전체를 홈으로
+    } catch (_) {
+      html.window.location.href = exitUrl;       // 폴백: 권한 문제 시 자기 프레임
+    }
   }
 
   // ---- 진입 액션들 (기존 화면 재활용) ----
