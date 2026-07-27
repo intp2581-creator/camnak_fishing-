@@ -2975,7 +2975,7 @@ Positioned(
     }
     // 🎣 장착 낚싯대별 민물 거치 실루엣 (파일 없으면 기본 자동 폴백)
     final String depSfx = rodSceneSuffix(equippedRod);
-    final String deployedImage = depSfx.isEmpty ? 'assets/items/rod_fw_basic_deployed.png' : 'assets/items/rod_fw_${depSfx}_deployed.png';
+    final String deployedImage = depSfx.isEmpty ? 'assets/items/rod_fw_basic_equip.png' : 'assets/items/rod_fw_${depSfx}_equip.png'; // 🎣 거치 실루엣 = 실제 파일명(_equip)에 맞춤(기존 _deployed → 404)
     return Positioned(
       bottom: 0, left: 0, right: 0,
       child: Stack(
@@ -2994,7 +2994,7 @@ Positioned(
                   child: Stack(
                     clipBehavior: Clip.none, alignment: Alignment.bottomCenter,
                     children: [
-                      Image.asset(deployedImage, height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter, errorBuilder: (c,e,s) => Image.asset('assets/items/rod_fw_basic_deployed.png', height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter)),
+                      Image.asset(deployedImage, height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter, errorBuilder: (c,e,s) => Image.asset('assets/items/rod_fw_basic_equip.png', height: fieldRodLength, fit: BoxFit.contain, alignment: Alignment.bottomCenter)),
                       Positioned(
                         bottom: fieldFloatBottomOffset + fieldFloatDepthOffset, 
                         child: Transform.rotate(
