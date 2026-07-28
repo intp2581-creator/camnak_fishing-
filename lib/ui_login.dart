@@ -318,7 +318,17 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
   Future<void> _checkDuplicate() async {
     String nick = _nickController.text.trim();
     if (nick.isEmpty || nick.length < 2) {
-      setState(() => checkMessage = "닉네임은 2글자 이상 입력해주세요.");
+      setState(() { checkMessage = "닉네임은 2글자 이상 입력해주세요."; isChecked = false; });
+      return;
+    }
+    if (nick.length > 8) {
+      setState(() { checkMessage = "닉네임은 8글자 이하로 입력해주세요."; isChecked = false; });
+      return;
+    }
+    // 🚫 닉네임은 Firestore 문서ID·RTDB 키(.doc(nickname)·status_nick/$nick 등)로 쓰이므로
+    //    경로 구분자·예약문자(/ . # $ [ ])가 있으면 게임 로딩이 깨진다 → 반드시 차단.
+    if (RegExp(r'[/.#$\[\]]').hasMatch(nick)) {
+      setState(() { checkMessage = "❌ 닉네임에 / . # \$ [ ] 문자는 쓸 수 없어요."; isChecked = false; });
       return;
     }
     var snapshot = await FirebaseFirestore.instance.collection('users').where('nickname', isEqualTo: nick).get();
@@ -339,9 +349,15 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
 
   Future<void> _realSaveAndStart() async {
     if (!isChecked) return;
-    
+    // 🚫 최종 방어: 중복확인 후 몰래 바꿨어도 특수문자·길이 위반이면 저장 금지(게임 크래시 방지)
+    final String nick = _nickController.text.trim();
+    if (nick.length < 2 || nick.length > 8 || RegExp(r'[/.#$\[\]]').hasMatch(nick)) {
+      setState(() { checkMessage = "❌ 닉네임을 다시 확인해주세요. (2~8자, / . # \$ [ ] 사용 불가)"; isChecked = false; });
+      return;
+    }
+
     await FirebaseFirestore.instance.collection('users').doc(widget.uid).set({
-      'nickname': _nickController.text.trim(),
+      'nickname': nick,
       'email': widget.email,
       'level': 1,
       'gold': 0, 
