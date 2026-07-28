@@ -265,6 +265,10 @@ const List<String> dailySeaFish = ['고등어', '우럭', '갈치', '참돔', '�
 const int dailyMissionCount = 3;   // 각 미션 목표 마릿수
 const int dailyMissionPrize = 500; // 각 미션 보상 포인트
 
+// ⚔️ 아레나 = '경험치 던전': 잡은 물고기 exp·포인트를 일반 낚시터의 이 배율로 지급(마스터 장비 10분 파밍).
+//    (오픈 후 레벨업 속도 보고 조정 가능. maxCatch 개인기록엔 반영 안 함=평준화 장비라 기록 오염 방지)
+const double arenaRewardMult = 1.5;
+
 // 오늘의 민물 일일 미션 (날짜 시드 → 전 유저 동일)
 Map<String, dynamic> getTodayFwMission() {
   final n = DateTime.now();
@@ -683,7 +687,7 @@ const String kGameStoreUrl = 'https://camnak.com/137';
 
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)',},
-  {'name': '아레나 입장권', 'price': 2000, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 2회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능)',},
+  {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
   {'name': '하수 조사', 'price': 2200, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 10},
   {'name': '중수 조사', 'price': 5500, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},

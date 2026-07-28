@@ -339,7 +339,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🥊 한별 아레나 일일 퀘스트: 오늘 승리 1회 → 보상. 2회 도전 다 지면 종료.
   bool _hanbyeolWon = false;     // 오늘 아레나 승리 기록
   bool _hanbyeolClaimed = false; // 오늘 한별 보상 수령
-  int _arenaCount = 0;           // 오늘 아레나 입장 횟수(0~2)
+  int _arenaCount = 0;           // 오늘 아레나 입장 횟수(0~1 무료)
   static const int hanbyeolExp = 200;
   static const int hanbyeolPts = 400;
   void _applyHanbyeol(Map<String, dynamic> d, String today) {
@@ -3077,7 +3077,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 🛍️ 서윤: 오늘 지정어 배달 일일이 아직 안 끝났으면 접속 시 ❗ (완료하면 사라짐)
     final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone;
     // 🥊 한별: 오늘 아레나 일일 미완료면 ❗ (승리해서 보상받을 게 있거나, 아직 도전 기회 남음)
-    final bool isHanbyeolQuest = name == '한별' && _tutQuestNow == null && !_hanbyeolClaimed && (_hanbyeolWon || _arenaCount < 2);
+    final bool isHanbyeolQuest = name == '한별' && _tutQuestNow == null && !_hanbyeolClaimed && (_hanbyeolWon || _arenaCount < 1);
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest || isHanbyeolQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
@@ -5222,10 +5222,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     String guide;
     if (_hanbyeolClaimed) {
       guide = '오늘 아레나 일일 보상은 받으셨어요!\n대회는 계속 참가할 수 있어요 😊';
-    } else if (_arenaCount >= 2) {
-      guide = '오늘 도전(2회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+    } else if (_arenaCount >= 1) {
+      guide = '오늘 도전(1회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
     } else {
-      guide = '오늘의 아레나 미션!\n대회에서 우승하면 보상을 드려요.\n(오늘 도전 $_arenaCount/2)\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+      guide = '오늘의 아레나 미션!\n대회에서 우승하면 보상을 드려요.\n(오늘 도전 $_arenaCount/1)\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
     }
     showDialog(
       context: context,
