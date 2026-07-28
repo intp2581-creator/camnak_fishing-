@@ -332,8 +332,16 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       return;
     }
     var snapshot = await FirebaseFirestore.instance.collection('users').where('nickname', isEqualTo: nick).get();
+    // 🌤️ [공유 users 컬렉션] users는 게임+캠낚웨더 공유. 게임에 접속 안 하는 '날씨앱 전용 회원'의
+    //    닉네임까지 중복 처리하면 게임 유저가 억울하게 막힘 → '게임 계정'만 중복 대상으로 본다.
+    //    게임 계정 판별 = 게임 전용 필드(inventory/tutStep/exp/level) 보유 여부. (나 자신 제외)
+    final bool takenByGamePlayer = snapshot.docs.any((d) {
+      if (d.id == widget.uid) return false;
+      final m = d.data();
+      return m.containsKey('inventory') || m.containsKey('tutStep') || m.containsKey('exp') || m.containsKey('level');
+    });
     setState(() {
-      if (snapshot.docs.isNotEmpty) {
+      if (takenByGamePlayer) {
         checkMessage = "❌ 이미 누군가 사용 중인 닉네임입니다.";
         isChecked = false;
       } else {
