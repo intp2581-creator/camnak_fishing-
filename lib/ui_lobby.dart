@@ -1453,8 +1453,10 @@ class _StoreScreenState extends State<StoreScreen> {
     if (currentTab == 'ROD') displayList = storeRodItems;
     if (currentTab == 'GEAR') displayList = storeGearItems;
     if (currentTab == 'BAIT') displayList = storeBaitItems;
-    if (currentTab == 'AUX') displayList = [...eventStoreItems(), ...storeAuxItems]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
-    if (currentTab == 'SKIN') displayList = storeSkinItems;
+    // 🛍️ 보조장비 = 포인트템만(캐시 아이템=뱃지/휘장은 '게임스토어' 탭으로 분리)
+    if (currentTab == 'AUX') displayList = [...eventStoreItems(), ...storeAuxItems.where((i) => i['cash'] != true)]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
+    // 💳 게임스토어 = 유료(캐시) 아이템 한곳에: 스킨·이용권·입장권 + 보조장비의 캐시템(뱃지/휘장)
+    if (currentTab == 'SKIN') displayList = [...storeSkinItems, ...storeAuxItems.where((i) => i['cash'] == true)];
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -1469,7 +1471,7 @@ class _StoreScreenState extends State<StoreScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.start, 
               children: ['ROD', 'GEAR', 'BAIT', 'AUX', 'SKIN', 'SELL'].map((tab) {
-                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : tab == 'AUX' ? '보조장비' : tab == 'SKIN' ? '스킨/티켓' : '💰 팔기';
+                String label = tab == 'ROD' ? '낚싯대' : tab == 'GEAR' ? '릴/찌' : tab == 'BAIT' ? '미끼' : tab == 'AUX' ? '보조장비' : tab == 'SKIN' ? '💳 게임스토어' : '💰 팔기';
                 bool isSelected = currentTab == tab;
                 return GestureDetector(
                   onTap: () { setState(() => currentTab = tab); },
