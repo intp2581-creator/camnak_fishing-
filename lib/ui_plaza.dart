@@ -5062,7 +5062,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           'bobae_progress': {'date': today, 'claimed': true},
         }, SetOptions(merge: true));
       });
-      if (mounted) _toast('🎁 정산 완료! 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp');
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (c) => NpcTutorialOverlay(
+            text: '🎁 정산 완료!\n\n💰 포인트 +${bobaePtsPerFish * bobaeCount}\n⭐ 경험치 +$bobaeExp\n\n잘 받으셨죠? 내일도 부탁해요, 조사님! 😊',
+            imagePath: 'assets/images/npc_shop.png',
+            onTap: () {},
+            action: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                  textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+              onPressed: () => Navigator.pop(c),
+              child: const Text('확인 👍'),
+            ),
+          ),
+        );
+      }
     } catch (e) {
       debugPrint('보배 정산 에러: $e');
     }
