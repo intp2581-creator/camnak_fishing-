@@ -3859,7 +3859,7 @@ void _showTodayMissionInfo() {
             Text('${caughtFish['name']}', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
             Text('${caughtFish['size']} ${caughtFish['unit']}', style: const TextStyle(color: Colors.cyanAccent, fontSize: 38, fontWeight: FontWeight.w900)),
             const SizedBox(height: 10),
-            // ⚔️ 아레나는 exp·포인트를 주지 않음(대회 상금이 보상) → 대회 기록만 표시
+            // ⚔️ 아레나 = 경험치 던전: 대회 기록 + 획득 경험치·포인트(일반 낚시터의 arenaRewardMult배) 표시
             if (widget.roomId != null)
               Builder(builder: (_) {
                 final bool isMax = widget.winCondition == '최대어';
@@ -3872,9 +3872,22 @@ void _showTodayMissionInfo() {
                     : (isMax
                         ? '🏆 최대어 기록! ${caughtFish['size']}${caughtFish['unit']}'
                         : '🏆 대회 기록 반영! (마릿수 +1)');
-                return Text(txt,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold));
+                final int aExp = (((caughtFish['exp'] ?? 0) as num) * arenaRewardMult).round();
+                final int aPts = (((caughtFish['pts'] ?? 0) as num) * arenaRewardMult).round();
+                return Column(children: [
+                  Text(txt, textAlign: TextAlign.center,
+                      style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text('+ $aExp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                    if (aPts > 0) ...[
+                      const SizedBox(width: 15),
+                      Text('+ $aPts Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                    ]
+                  ]),
+                  const SizedBox(height: 2),
+                  const Text('⚔️ 아레나 보너스 x1.5!', style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+                ]);
               })
             else
               Row(
