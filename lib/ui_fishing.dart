@@ -4080,6 +4080,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   // 🎣 [v236] 챔질 직후엔 물고기가 먼저 챔 → 노브 왼쪽·isPressing=false. 유저가 오른쪽으로 당겨야 1단 제압 시작.
   //    저항/발악 뜨면 노브가 왼쪽으로 팅김(물고기가 챔) → 유저가 다시 오른쪽으로 당겨 제압(저항 1회/발악 2회).
   bool isPressing = false;
+  Timer? _flingTimer; // 🎣 발악 때 목표단계까지 물고기가 한 번 더 채는 타이머
   Timer? gameTimer;
   DateTime? lastReleaseTime;
   DateTime? lastSoundTime;
@@ -4179,8 +4180,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
             if (random.nextInt(100) < 30) {
               fishGearNotifier.value = (random.nextInt(100) < 50) ? 2 : 1;
               fishSkillDuration = 50 + random.nextInt(40);
-              playerGearNotifier.value = 1; // 🎣 [v237] 저항/발악 시작=1단 리셋. 노브 팅김 없음 — 물고기 힘은 게이지로만(질질 끌림)
-              _armedRelease = false;
+              playerGearNotifier.value = 1; // 저항/발악 시작=1단 리셋
+              _flingLeft();                  // 🎣 [v237] 물고기가 왼쪽으로 챔(신호+장전) → 유저가 다시 당겨 제압
             }
           }
 
@@ -4280,6 +4281,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     HardwareKeyboard.instance.removeHandler(_onCombatKey); // 🎣 [v235] A/D 키 핸들러 해제
     gameTimer?.cancel();
     _penaltyTimer?.cancel(); // 🎣 줄꼬임 페널티 타이머 정리
+    _flingTimer?.cancel();   // 🎣 [v237] 물고기 챔 타이머 정리
     _rodController.dispose();
     gaugeNotifier.dispose();
     timeNotifier.dispose();
@@ -4409,11 +4411,30 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     } else if (_armedRelease) {
       playerGearNotifier.value = math.min(playerGearNotifier.value + 1, target); // 풀었다(왼쪽) 다시 당김(오른쪽) = +1단
       _armedRelease = false;
+      // 🎣 [v237] 발악(목표 3단): 아직 목표 못 미치면 잠시 뒤 물고기가 한 번 더 왼쪽으로 챔 → 다시 당겨야 3단
+      if (playerGearNotifier.value < target) {
+        _flingTimer?.cancel();
+        _flingTimer = Timer(const Duration(milliseconds: 500), () {
+          if (mounted && !_isGameOver && fishGearNotifier.value == fg && playerGearNotifier.value < target) {
+            _flingLeft();
+          }
+        });
+      }
     }
     // fg>0인데 안 챈 상태로 당김 → 단계 안 오름, 타이머에서 장력↑(줄 끊김 위험)
     int pg = playerGearNotifier.value;
     _rodController.duration = Duration(milliseconds: pg == 3 ? 60 : pg == 2 ? 120 : 250);
     if (_rodController.isAnimating) _rodController.repeat(reverse: true);
+  }
+
+  // 🎣 [v237] 물고기가 낚싯대를 왼쪽으로 챔 — 노브 왼쪽 + 장전. 유저가 다시 오른쪽으로 당기면 제압(펌핑).
+  void _flingLeft() {
+    if (_isGameOver || !mounted) return;
+    knobNotifier.value = -1.0;
+    _pullZone = -1;
+    _armedRelease = true;
+    isPressing = false;
+    try { HapticFeedback.heavyImpact(); } catch (e) {} // 📳 챔 진동
   }
 
   // 🎣 [v237] PC 키: D 하나로 밀당! D(또는 →) 누르면 당기기(오른쪽), 떼면 물고기가 당김(왼쪽)+장전.
@@ -4551,7 +4572,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                     onPanDown: (d) => handle(d.localPosition),
                     onPanStart: (d) => handle(d.localPosition),
                     onPanUpdate: (d) => handle(d.localPosition),
-                    // 튕김 없음: 손 떼도 마지막 위치/상태 그대로 유지(스냅백 X). 좌우는 유저가 직접 슬라이딩.
+                    onPanEnd: (_) => _applyPull(-1.0),   // 🎣 [v237] 손 떼면 물고기 쪽(왼쪽)으로 = 풀기+장전
+                    onPanCancel: () => _applyPull(-1.0),
                     child: SizedBox(
                       height: 112,
                       child: Stack(
