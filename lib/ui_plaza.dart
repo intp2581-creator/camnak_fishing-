@@ -147,7 +147,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
   final TextEditingController _chatCtrl = TextEditingController();
-  final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분)
+  final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분 + 엔터 전송 후 커서 유지)
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
@@ -717,7 +717,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
       _levelSynced = true;
       // 🆙 광장에서 레벨업 시 축하 팝업 (퀘스트 보상 등)
-      if (leveledUp && mounted) {
+      // ⚠️ 낚시터/아레나가 위에 push된 상태에선 광장 스트림도 렙업을 감지해 팝업이 중복으로 뜬다
+      //    (낚시화면 팝업 + 광장 팝업 = 2개). → 광장이 '현재 보이는 화면'일 때만 띄운다.
+      final bool plazaIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+      if (leveledUp && mounted && plazaIsCurrent) {
         WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _showPlazaLevelUp(newLevel); });
       }
       // 🛡️ #1: 레벨 바뀌면 길드원 목록의 내 레벨도 즉시 갱신
@@ -2064,6 +2067,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         'timestamp': FieldValue.serverTimestamp(),
       });
       _chatCtrl.clear();
+      _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
       return;
     }
     String type = 'global';
@@ -2090,6 +2094,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
     }
     _chatCtrl.clear();
+    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
   }
 
   // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
@@ -2381,13 +2386,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                     const SizedBox(width: 6),
                                     userLocByNick(fn, fontSize: 10), // 📍 접속 채널·위치(접속 중일 때만)
                                   ]),
-                                  trailing: IconButton(
-                                    icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
-                                    onPressed: () => setState(() {
-                                      _whisperTarget = fn;
-                                      _chatTab = 1;
-                                    }),
-                                  ),
+                                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
+                                      padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                      onPressed: () => setState(() {
+                                        _whisperTarget = fn;
+                                        _chatTab = 1;
+                                      }),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.person_remove, color: Colors.redAccent, size: 20),
+                                      tooltip: '친구 삭제',
+                                      padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                      onPressed: () => _confirmRemoveFriend(docs[i].reference, fn),
+                                    ),
+                                  ]),
                                 );
                               },
                             );
@@ -4931,6 +4945,32 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             side: const BorderSide(color: _kGold, width: 1.2)),
         elevation: 8,
         duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // 🤝 친구 삭제 (확인 후 my_list에서 제거)
+  void _confirmRemoveFriend(DocumentReference ref, String friendName) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('친구 삭제', style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: Text('[$friendName]님을\n친구 목록에서 삭제할까요?', style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(c);
+              try { await ref.delete(); } catch (_) {}
+              if (mounted) _infoPopup('친구 삭제', '[$friendName]님을 친구 목록에서 삭제했어요.');
+            },
+            child: const Text('삭제', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }

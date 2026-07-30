@@ -20,6 +20,7 @@ class ArenaWaitingRoomScreen extends StatefulWidget {
 
 class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   final TextEditingController _chatController = TextEditingController();
+  final FocusNode _chatFocus = FocusNode(); // 💬 엔터 전송 후 커서 유지(연속 채팅)
   bool _leftRoom = false; // 방 나가기 정리 중복 방지
   bool _charged = false;  // 대회 시작 차감 1회만
   String _status = 'waiting'; // 현재 대회 상태(뒤로가기 확인용)
@@ -39,6 +40,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   void dispose() {
     _leaveRoom(); // 🏠 화면 나갈 때 방 정리(방장이면 삭제/위임) — fire-and-forget
     _chatController.dispose();
+    _chatFocus.dispose();
     super.dispose();
   }
 
@@ -569,6 +571,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     if (_chatController.text.trim().isEmpty) return;
     String text = FishingLogic.cleanChat(_chatController.text.trim()); // 🛡️ 비속어 필터
     _chatController.clear();
+    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지
     await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('messages').add({'text': text, 'sender': myNickname, 'createdAt': FieldValue.serverTimestamp()});
   }
 
@@ -765,9 +768,10 @@ Container(
               Row(children: [
                 Expanded(
                   child: TextField(
-                    controller: _chatController, 
-                    style: const TextStyle(color: Colors.white), 
-                    textInputAction: TextInputAction.send, 
+                    controller: _chatController,
+                    focusNode: _chatFocus,
+                    style: const TextStyle(color: Colors.white),
+                    textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(), // 👈 엔터키 완벽 작동!
                     decoration: InputDecoration(
                       hintText: '메시지 입력...', 

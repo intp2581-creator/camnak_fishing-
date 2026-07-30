@@ -212,6 +212,35 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
     });
   }
 
+  // ✨ 친구 삭제 (확인 후 my_list에서 제거)
+  void _confirmRemoveFriend(DocumentReference ref, String friendName) {
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        title: const Text('친구 삭제', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 17, fontWeight: FontWeight.bold)),
+        content: Text('[$friendName]님을\n친구 목록에서 삭제할까요?', style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(c);
+              try { await ref.delete(); } catch (_) {}
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('[$friendName]님을 친구 목록에서 삭제했어요.'),
+                  backgroundColor: Colors.blueGrey, duration: const Duration(seconds: 2)));
+              }
+            },
+            child: const Text('삭제', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
 // 🎒 전체 인벤토리 팝업 (낚시 중 장비/미끼/스킨 보기·장착)
   void _showFullInventoryDialog() {
     audioManager.playSfx("sfx_click.mp3");
@@ -415,6 +444,7 @@ Widget _buildChatTab(int index, String title) {
   late AnimationController _castController; 
 
   final TextEditingController _chatController = TextEditingController();
+  final FocusNode _chatFocus = FocusNode(); // 💬 엔터 전송 후에도 커서 유지(연속 채팅)
 
   // 🛡️ 길드 버프 (길드 레벨 + 주간 리그 챔피언)
   String _guildId = '';
@@ -513,7 +543,10 @@ Widget _buildChatTab(int index, String title) {
 
     // 🛡️ 길드 버프 불러오기 (능력치 보너스)
     _loadGuildBuff();
-    final String presenceLoc = (widget.title != widget.locationName) ? '아레나' : '낚시터'; // 📍 접속 위치
+    // 📍 접속 위치: 아레나 / 실제 낚시터 이름(예: 예당지) — 친구·길드 목록에 표시됨
+    final String presenceLoc = (widget.title != widget.locationName)
+        ? '아레나'
+        : (widget.locationName.isNotEmpty ? widget.locationName : '낚시터');
     guildGoOnline(nick: widget.nickname, loc: presenceLoc); // 🟢 전역 접속표시(+위치)
     _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(nick: widget.nickname, loc: presenceLoc); }); // 💓 낚시 중에도 접속 유지
 
@@ -732,6 +765,7 @@ Widget _buildChatTab(int index, String title) {
     _clearAllBiteTimers();
     _rodController.dispose();
     _castController.dispose();
+    _chatFocus.dispose();
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
@@ -789,6 +823,7 @@ Widget _buildChatTab(int index, String title) {
         });
       }
       _chatController.clear();
+    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
       return; // 🚨 여기서 함수 종료! 전체 채팅으로 안 새어나가게 막음!
     }
 
@@ -810,6 +845,7 @@ Widget _buildChatTab(int index, String title) {
     });
 
     _chatController.clear();
+    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
   }
   
   // 📥 1. 파이어베이스에서 남은 시간 불러오기 
@@ -2564,16 +2600,30 @@ Positioned(
                                           visualDensity: VisualDensity.compact,
                                           leading: const Icon(Icons.person, color: Colors.greenAccent, size: 20),
                                           title: Text(friendName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                                          trailing: IconButton(
-                                            icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
-                                            tooltip: '귓속말 보내기',
-                                            onPressed: () {
-                                              // 💬 아이콘 누르면 바로 귓속말 모드로 전환!
-                                              setState(() {
-                                                _whisperTargetNickname = friendName;
-                                                _currentChatTab = 1;
-                                              });
-                                            },
+                                          // 📍 접속 중이면 채널·위치(광장/낚시터/로비) 뱃지, 오프라인이면 숨김
+                                          subtitle: Align(alignment: Alignment.centerLeft, child: userLocByNick(friendName, fontSize: 10)),
+                                          trailing: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
+                                                tooltip: '귓속말 보내기',
+                                                padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                onPressed: () {
+                                                  // 💬 아이콘 누르면 바로 귓속말 모드로 전환!
+                                                  setState(() {
+                                                    _whisperTargetNickname = friendName;
+                                                    _currentChatTab = 1;
+                                                  });
+                                                },
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.person_remove, color: Colors.redAccent, size: 20),
+                                                tooltip: '친구 삭제',
+                                                padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                                onPressed: () => _confirmRemoveFriend(docs[index].reference, friendName),
+                                              ),
+                                            ],
                                           ),
                                         );
                                       },
@@ -2671,6 +2721,7 @@ Positioned(
                           height: 35,
                           child: TextField(
                             controller: _chatController,
+                            focusNode: _chatFocus,
                             style: const TextStyle(color: Colors.white, fontSize: 13),
                             decoration: InputDecoration(
                               hintText: (_currentChatTab == 1 && _whisperTargetNickname != null)
@@ -4052,6 +4103,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     double refMax = (maxSize <= 30.0) ? 200.0 : maxSize; // 잡어는 절대200 기준(항상 약함)
     double r = ((size - 15.0) / (refMax - 15.0)).clamp(0.0, 1.0);
     fishBasePower = kMinPower + (kMaxPower - kMinPower) * math.pow(r, kCurve).toDouble();
+    // 🐟 참치 = '대물 중 대물' — 작은 개체도 강력하게. 힘 하한을 크게 올려 작아도 팽팽하게(1500~4000).
+    if (fishName == '참치') {
+      const double tunaMin = 1500.0;
+      fishBasePower = tunaMin + (kMaxPower - tunaMin) * math.pow(r, kCurve).toDouble();
+    }
 
   } catch (e) {
     fishBasePower = 1000.0;

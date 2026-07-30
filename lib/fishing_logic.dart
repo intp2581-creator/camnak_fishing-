@@ -241,7 +241,7 @@ for (var fish in availableFishes) {
     //   (작은어종=어디서든 방해꾼 유지, 큰어종이 도전. 실유저 데이터 보고 미세조정 가능)
     switch (currentStars) {
       case 1: minFactor = 0.0;  sizeCap = 0.32; break; // 잡어터: 최소어 ~ 최대어 32% (누구나)
-      case 2: minFactor = 0.40; sizeCap = 0.60; break; // 초보터: 40% ~ 60% (큰어종은 팽팽)
+      case 2: minFactor = 0.45; sizeCap = 0.65; break; // 초보터: 45% ~ 65% (난이도 살짝↑ · 큰어종은 팽팽)
       case 3: minFactor = 0.55; sizeCap = 0.78; break; // 중급터: 55% ~ 78% (초보만렙엔 벽)
       case 4: minFactor = 0.68; sizeCap = 0.90; break; // 고급터: 68% ~ 90%
       case 5:
