@@ -2258,6 +2258,7 @@ void _recast() {  // 기존 코드
             ),
 
               if (gmNoticeVisible) GMNoticePopup(
+                key: const ValueKey('gm_notice_popup'), // 🎣 [v237] 안정 key — 재캐스팅 중 재빌드에 등장 애니 반복(들락날락) 방지
                 message: gmNoticeMessages[_garamMsgIdx % gmNoticeMessages.length],
                onClose: () {
                  setState(() {
@@ -3156,20 +3157,20 @@ Positioned(
           feedback: Material(
             color: Colors.transparent,
             child: Container(
-              width: 120, height: 120,
-              decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 5), boxShadow: const [BoxShadow(blurRadius: 20, spreadRadius: 5, color: Colors.white70)]), 
+              width: 104, height: 104,
+              decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 5), boxShadow: const [BoxShadow(blurRadius: 20, spreadRadius: 5, color: Colors.white70)]),
               child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.catching_pokemon, size: 40, color: Colors.white), SizedBox(height: 5), Text('챔질!', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900))])
             ),
           ),
           childWhenDragging: Container(
-            width: 120, height: 120,
-            decoration: BoxDecoration(color: Colors.black26, shape: BoxShape.circle, border: Border.all(color: Colors.white38, width: 5)), 
+            width: 104, height: 104,
+            decoration: BoxDecoration(color: Colors.black26, shape: BoxShape.circle, border: Border.all(color: Colors.white38, width: 5)),
             child: const Icon(Icons.arrow_downward, color: Colors.white54, size: 40),
           ),
           child: Container(
-            width: 120, height: 120,
-            decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 5), boxShadow: const [BoxShadow(blurRadius: 15, spreadRadius: 2, color: Colors.black54)]), 
-            child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.catching_pokemon, size: 40, color: Colors.white), SizedBox(height: 5), Text('챔질!', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900))])
+            width: 104, height: 104,
+            decoration: BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 5), boxShadow: const [BoxShadow(blurRadius: 15, spreadRadius: 2, color: Colors.black54)]),
+            child: const Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.catching_pokemon, size: 34, color: Colors.white), SizedBox(height: 4), Text('챔질!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900))])
           ),
         ),
 
@@ -3207,8 +3208,8 @@ Positioned(
             
             return AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: isHovered ? 140 : 120, 
-              height: isHovered ? 140 : 120,
+              width: isHovered ? 120 : 104,
+              height: isHovered ? 120 : 104,
               decoration: BoxDecoration(
                 color: isHovered ? Colors.orangeAccent : const Color(0xFFD4AF37),
                 shape: BoxShape.circle,
@@ -4070,10 +4071,15 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   final ValueNotifier<bool> penaltyNotifier = ValueNotifier(false);
   Timer? _penaltyTimer; // 🎣 줄꼬임(광클 페널티) 1초 타이머
 
-  // 🎣 [챔질 직후 UX] 챔질 버튼을 '당기기'까지 끌어놓으면 손가락이 이미 눌린 상태 → 그 누름을 그대로 이어받아
-  //    전투 시작부터 isPressing=true. 손 떼지 않으면 계속 당겨지고, 저항 뜨면 손 뗐다 눌러 방향 전환(자연스러움).
-  //    (자동 당김은 오히려 헷갈려서 제거함)
-  bool isPressing = true;
+  // 🎣 [v235 슬라이드 전투] 좌우 슬라이드(펌핑) 입력 상태
+  final ValueNotifier<double> tensionNotifier = ValueNotifier(0.0); // 줄 장력(0~1). 1.0=끊김(놓침)
+  final ValueNotifier<double> knobNotifier = ValueNotifier(0.0);    // 노브 위치(-1 풀기 ~ +1 당기기)
+  bool _armedRelease = false; // 왼쪽 존에 손을 가져오면 장전 → 오른쪽 진입 때 제압단계 +1 (진짜 풀었다 당기기)
+  int _pullZone = 0;          // 현재 존(-1 풀기 / 0 중립 / +1 당기기)
+
+  // 🎣 [v236] 챔질 직후엔 물고기가 먼저 챔 → 노브 왼쪽·isPressing=false. 유저가 오른쪽으로 당겨야 1단 제압 시작.
+  //    저항/발악 뜨면 노브가 왼쪽으로 팅김(물고기가 챔) → 유저가 다시 오른쪽으로 당겨 제압(저항 1회/발악 2회).
+  bool isPressing = false;
   Timer? gameTimer;
   DateTime? lastReleaseTime;
   DateTime? lastSoundTime;
@@ -4089,6 +4095,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     super.initState();
     _rodController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250))..repeat(reverse: true);
     _prepareFishStats();
+    knobNotifier.value = -1.0; _pullZone = -1; _armedRelease = false; // 🎣 [v236] 물고기가 먼저 챔 — 노브 왼쪽에서 시작(유저가 당겨야 제압)
+    HardwareKeyboard.instance.addHandler(_onCombatKey); // 🎣 [v235] PC A(풀기)/D(당기기) 키
     _startGame();
   }
 
@@ -4171,7 +4179,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
             if (random.nextInt(100) < 30) {
               fishGearNotifier.value = (random.nextInt(100) < 50) ? 2 : 1;
               fishSkillDuration = 50 + random.nextInt(40);
-              playerGearNotifier.value = 0; // 🎣 [v219] 발악 시작=제압 0 리셋 → 당기기 연타로 단계 쌓아올림(저항 2탭/발악 3탭)
+              playerGearNotifier.value = 1; // 🎣 [v237] 저항/발악 시작=1단 리셋. 노브 팅김 없음 — 물고기 힘은 게이지로만(질질 끌림)
+              _armedRelease = false;
             }
           }
 
@@ -4191,6 +4200,16 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
           int pGear = playerGearNotifier.value;
           int fGear = fishGearNotifier.value;
+
+          // 🎣 [v235] 줄 장력: 저항·발악인데 제압단계를 못 맞추고(안 풀고) 계속 당기면 장력↑ → 1.0=줄 끊김(놓침).
+          //   올바르게 펌핑(풀기→당기기)해 목표 단계에 도달하면 장력이 빠르게 내려가 안전.
+          int tgt = (fGear == 2) ? 3 : (fGear == 1) ? 2 : 1;
+          if (fGear > 0 && isPressing && pGear < tgt) {
+            tensionNotifier.value = (tensionNotifier.value + 0.02).clamp(0.0, 1.0);
+            if (tensionNotifier.value >= 1.0) { isFinished = true; isWin = false; } // 줄 끊김 = 놓침
+          } else {
+            tensionNotifier.value = (tensionNotifier.value - 0.06).clamp(0.0, 1.0);
+          }
 
           // 🚨 [핵심 패치] 좌우 방향 완벽 반전! (당기면 +, 도망가면 -)
           double change = 0.0;
@@ -4217,6 +4236,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
             change = -(F * escapeMult);
           }
 
+          // 🎣 [v237] 속도전 → 힘싸움. 한 틱 이동량을 '좌우 대칭·저속'으로 캡.
+          //   → 발악이 떠도 휙 안 넘어가고 물고기 힘만큼 꾸준히 밀어붙임. 방향(누가 이기나)은 P vs F가 정하고
+          //     속도는 균일하게 느림 → 대물은 아무리 당겨도 결국 빨간쪽으로 '질질' 끌려가 놓침(무게감).
+          change = change.clamp(-0.008, 0.008);
           newGauge += (change + wildFactor); // 계산된 방향 적용!
           
           // 🚨 [추가!] 물고기가 이동하는 방향에 맞춰 고개 돌리기!
@@ -4254,6 +4277,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_onCombatKey); // 🎣 [v235] A/D 키 핸들러 해제
     gameTimer?.cancel();
     _penaltyTimer?.cancel(); // 🎣 줄꼬임 페널티 타이머 정리
     _rodController.dispose();
@@ -4262,6 +4286,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     fishGearNotifier.dispose();
     playerGearNotifier.dispose();
     penaltyNotifier.dispose();
+    tensionNotifier.dispose();
+    knobNotifier.dispose();
     super.dispose();
   }
 
@@ -4340,6 +4366,70 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       if (!mounted || _isGameOver) return;
       try { setState(() { isPressing = false; lastReleaseTime = DateTime.now(); }); } catch (e) {}
     });
+  }
+
+  // ============ 🎣 [v235] 좌우 슬라이드(펌핑) 전투 입력 ============
+  // 노브 x(-1 풀기 ~ +1 당기기)를 받아 존을 판정.
+  //  · 당기기 존 진입 = 제압 시도(펌핑). 풀기 존 진입 = 다음 당기기를 위한 '풀기' 장전.
+  //  · 당기기 존에 있는 동안 isPressing=true(게이지 우측=제압).
+  void _applyPull(double x) {
+    if (_isGameOver || !mounted) return;
+    double nx = x.isNaN ? 0.0 : x.clamp(-1.0, 1.0);
+    knobNotifier.value = nx;
+    int zone = nx > 0.3 ? 1 : (nx < -0.3 ? -1 : 0);
+    // 🎣 [v236] 장전은 오직 '유저가 실제로 왼쪽 존에 손을 가져올 때'만. 물고기 챔은 장전 안 함
+    //   → 오른쪽에 손 올린 채 트위치만으론 제압 불가(진짜 풀었다 당기기). D키(오른쪽)는 항상 반응.
+    if (zone == -1) {
+      _armedRelease = true;              // 왼쪽에 손이 왔다 = 재장전
+    } else if (zone == 1 && _pullZone != 1) {
+      _onEnterPull();                    // 오른쪽 진입: 장전됐으면 단계↑, 아니면 그냥 당김
+    }
+    _pullZone = zone;
+    bool nowPressing = (zone == 1);
+    if (nowPressing != isPressing) {
+      try { setState(() { isPressing = nowPressing; if (!nowPressing) lastReleaseTime = DateTime.now(); }); } catch (e) {}
+    }
+  }
+
+  void _onEnterPull() {
+    // 당기기 시작: 사운드 + 진동 + 제압단계 상승(펌핑)
+    try {
+      DateTime now = DateTime.now();
+      if (lastSoundTime == null || now.difference(lastSoundTime!).inMilliseconds > 250) {
+        bool isSea = widget.fish['img'].toString().contains('sea');
+        audioManager.playSfx(isSea ? "sfx_sea_landing.mp3" : "sfx_fresh_landing.mp3");
+        lastSoundTime = now;
+      }
+    } catch (e) {}
+    try { HapticFeedback.mediumImpact(); } catch (e) {} // 📳 당길 때 진동(안드로이드 웹)
+    int fg = fishGearNotifier.value;
+    int target = (fg == 2) ? 3 : (fg == 1) ? 2 : 1;
+    if (fg == 0) {
+      playerGearNotifier.value = 1; // 잔잔 = 그냥 당기기 1단
+    } else if (_armedRelease) {
+      playerGearNotifier.value = math.min(playerGearNotifier.value + 1, target); // 풀었다(왼쪽) 다시 당김(오른쪽) = +1단
+      _armedRelease = false;
+    }
+    // fg>0인데 안 챈 상태로 당김 → 단계 안 오름, 타이머에서 장력↑(줄 끊김 위험)
+    int pg = playerGearNotifier.value;
+    _rodController.duration = Duration(milliseconds: pg == 3 ? 60 : pg == 2 ? 120 : 250);
+    if (_rodController.isAnimating) _rodController.repeat(reverse: true);
+  }
+
+  // 🎣 [v237] PC 키: D 하나로 밀당! D(또는 →) 누르면 당기기(오른쪽), 떼면 물고기가 당김(왼쪽)+장전.
+  //    저항/발악 땐 D를 눌렀다 뗐다 하면 제압단계 상승(뗌=풀기, 다시 누름=당기기). A/←는 수동 풀기(옵션).
+  bool _onCombatKey(KeyEvent e) {
+    if (_isGameOver || !mounted) return false;
+    if (e.logicalKey == LogicalKeyboardKey.keyD || e.logicalKey == LogicalKeyboardKey.arrowRight) {
+      if (e is KeyDownEvent) { _applyPull(1.0); }        // 누름 = 당기기(오른쪽)
+      else if (e is KeyUpEvent) { _applyPull(-1.0); }     // 뗌 = 물고기가 당김(왼쪽)+장전
+      return true;
+    }
+    if (e.logicalKey == LogicalKeyboardKey.keyA || e.logicalKey == LogicalKeyboardKey.arrowLeft) {
+      if (e is KeyDownEvent) { _applyPull(-1.0); }        // 수동 풀기(옵션)
+      return true;
+    }
+    return false;
   }
 
   @override
@@ -4427,56 +4517,97 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
               ],
             ),
           ),
+          // 🎣 [v235] 제압 단계 표시 — 노브 위(기존 자리). 폰에서 손가락에 안 가리게 노브 밖에 크게 표시.
           Positioned(
             bottom: 200, right: 30,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: penaltyNotifier,
-              builder: (context, hasPenalty, child) {
+            child: ValueListenableBuilder<double>(
+              valueListenable: knobNotifier,
+              builder: (context, kx, _) {
                 return ValueListenableBuilder<int>(
                   valueListenable: playerGearNotifier,
-                  builder: (context, pGear, child) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (hasPenalty) const Text('⚠️ 줄 엉킴! (연타 금지)', style: TextStyle(color: Colors.redAccent, fontSize: 22, fontWeight: FontWeight.w900, shadows: [Shadow(color: Colors.black, blurRadius: 4)])),
-                        if (!hasPenalty)
-                          Text(
-                            pGear <= 0 ? '⚡ 당기기 연타!' : (pGear == 3 ? (isSea ? '🔥 3단 폭풍 릴링!!' : '🔥 3단 최고치 제압!!') : (isSea ? '$pGear단 릴링!' : '$pGear단 제압!')),
-                            style: TextStyle(color: pGear == 3 ? Colors.redAccent : (pGear == 2 ? Colors.orangeAccent : Colors.yellow), fontSize: pGear == 3 ? 30 : 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: const [Shadow(color: Colors.black, blurRadius: 4)])
-                          ),
-                      ],
-                    );
+                  builder: (context, pg, __) {
+                    if (kx < -0.3) {
+                      return const Text('오른쪽으로 당겨요! ▶', style: TextStyle(color: Colors.orangeAccent, fontSize: 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 4)]));
+                    }
+                    final String t = pg >= 3 ? '3단 최대제압!' : '$pg단 제압!';
+                    final Color c = pg >= 3 ? Colors.redAccent : (pg == 2 ? Colors.orangeAccent : Colors.yellow);
+                    return Text(t, style: TextStyle(color: c, fontSize: pg >= 3 ? 30 : 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: const [Shadow(color: Colors.black, blurRadius: 4)]));
                   }
                 );
               }
             ),
           ),
+          // 🎣 [v235] 당기기 노브 = 우하단 코너 '홈(당기기)'. 왼쪽으로 당겼다 놓으면 튕겨서 당기기(펌핑). 별도 버튼 없음.
           Positioned(
-            bottom: 50, right: 30,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: penaltyNotifier,
-              builder: (context, hasPenalty, child) {
-                return GestureDetector(
-                    onTapDown: (_) => _onPullDown(),
-                    onTapUp: (_) => _onPullUp(),
-                    onTapCancel: () => _onPullUp(),
-                    child: Container(
-                    width: 140, height: 140,
-                    // ✨ 당기기 버튼: 누르고 있을 때 파랑(당기는 중), 손 뗐을 때 노랑(대기)
-                    decoration: BoxDecoration(
-                      color: hasPenalty ? Colors.grey : (isPressing ? const Color(0xFF2E82FF) : const Color(0xFFF5C518)),
-                      shape: BoxShape.circle, 
-                      boxShadow: [
-                        if (isPressing && !hasPenalty) const BoxShadow(color: Colors.white54, blurRadius: 15, spreadRadius: 5),
-                        const BoxShadow(color: Colors.black45, blurRadius: 10, offset: Offset(0, 4))
-                      ], 
-                      border: Border.all(color: Colors.white, width: 3)
+            bottom: 45, right: 24,
+            child: SizedBox(
+              width: 300,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double w = constraints.maxWidth;
+                  void handle(Offset local) => _applyPull(w <= 0 ? 1.0 : (local.dx / w) * 2 - 1);
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onPanDown: (d) => handle(d.localPosition),
+                    onPanStart: (d) => handle(d.localPosition),
+                    onPanUpdate: (d) => handle(d.localPosition),
+                    // 튕김 없음: 손 떼도 마지막 위치/상태 그대로 유지(스냅백 X). 좌우는 유저가 직접 슬라이딩.
+                    child: SizedBox(
+                      height: 112,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        clipBehavior: Clip.none,
+                        children: [
+                          // 레일 (좌 주황=풀기 존 / 우=당기기 홈)
+                          Container(
+                            height: 46,
+                            margin: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(30),
+                              gradient: const LinearGradient(colors: [Color(0xFFE07A2E), Color(0xFF2B2B2B), Color(0xFF243B66)]),
+                              border: Border.all(color: Colors.white24, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 6)],
+                            ),
+                          ),
+                          const Positioned(left: 20, child: IgnorePointer(child: Text('◀ 풀기', style: TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)))),
+                          // 노브 = 당기기 버튼. 위치=knob / 색: 풀기=주황·당기기=파랑(장력↑ 빨강) / 글자: N단(당기기)·풀기
+                          ValueListenableBuilder<double>(
+                            valueListenable: knobNotifier,
+                            builder: (context, kx, _) {
+                              return ValueListenableBuilder<double>(
+                                valueListenable: tensionNotifier,
+                                builder: (context, tn, __) {
+                                  final bool releasing = kx < -0.3;
+                                  // 기존 당기기 버튼(금색·104) 그대로. 풀기=주황 / 당기기=금색(장력 오르면 빨강).
+                                  final Color knobColor = releasing
+                                      ? const Color(0xFFE07A2E)
+                                      : (Color.lerp(const Color(0xFFD4AF37), const Color(0xFFE53935), tn.clamp(0.0, 1.0)) ?? const Color(0xFFD4AF37));
+                                  return Align(
+                                    alignment: Alignment(kx.clamp(-1.0, 1.0), 0), // 손가락 위치 1:1 (튕김·애니 없음)
+                                    child: Container(
+                                      width: 104, height: 104,
+                                      decoration: BoxDecoration(
+                                        color: knobColor, shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white, width: 5),
+                                        boxShadow: [
+                                          if (tn > 0.5) BoxShadow(color: Colors.redAccent.withOpacity(tn.clamp(0.0, 1.0)), blurRadius: 22, spreadRadius: 5),
+                                          const BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+                                        ],
+                                      ),
+                                      alignment: Alignment.center,
+                                      child: const Text('당기기', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900, shadows: [Shadow(color: Colors.black45, blurRadius: 3)])),
+                                    ),
+                                  );
+                                }
+                              );
+                            }
+                          ),
+                        ],
+                      ),
                     ),
-                    alignment: Alignment.center,
-                    child: const Text('당기기', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-                  ),
-                );
-              }
+                  );
+                }
+              ),
             ),
           ),
         ],
