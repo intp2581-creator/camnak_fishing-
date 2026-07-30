@@ -4076,6 +4076,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   final ValueNotifier<double> knobNotifier = ValueNotifier(0.0);    // 노브 위치(-1 풀기 ~ +1 당기기)
   bool _armedRelease = false; // 왼쪽 존에 손을 가져오면 장전 → 오른쪽 진입 때 제압단계 +1 (진짜 풀었다 당기기)
   int _pullZone = 0;          // 현재 존(-1 풀기 / 0 중립 / +1 당기기)
+  bool _detached = false;     // 🎣 [v238] 물고기가 챈 직후 = 노브가 손가락에서 떨어짐. 새로 눌러야(onPanDown) 다시 잡음(가만있는 손가락 자동제압 방지)
 
   // 🎣 [v236] 챔질 직후엔 물고기가 먼저 챔 → 노브 왼쪽·isPressing=false. 유저가 오른쪽으로 당겨야 1단 제압 시작.
   //    저항/발악 뜨면 노브가 왼쪽으로 팅김(물고기가 챔) → 유저가 다시 오른쪽으로 당겨 제압(저항 1회/발악 2회).
@@ -4433,6 +4434,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     knobNotifier.value = -1.0;
     _pullZone = -1;
     _armedRelease = true;
+    _detached = true; // 🎣 [v238] 노브를 손가락에서 떼어놓음 — 새로 눌러야 다시 잡힘(가만있는 손가락 자동제압 방지)
     isPressing = false;
     try { HapticFeedback.heavyImpact(); } catch (e) {} // 📳 챔 진동
   }
@@ -4569,10 +4571,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                   void handle(Offset local) => _applyPull(w <= 0 ? 1.0 : (local.dx / w) * 2 - 1);
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onPanDown: (d) => handle(d.localPosition),
-                    onPanStart: (d) => handle(d.localPosition),
-                    onPanUpdate: (d) => handle(d.localPosition),
-                    onPanEnd: (_) => _applyPull(-1.0),   // 🎣 [v237] 손 떼면 물고기 쪽(왼쪽)으로 = 풀기+장전
+                    onPanDown: (d) { _detached = false; handle(d.localPosition); }, // 새로 누르면 노브 다시 잡음
+                    onPanStart: (d) { if (!_detached) handle(d.localPosition); },
+                    onPanUpdate: (d) { if (!_detached) handle(d.localPosition); },  // 🎣 [v238] 물고기가 챈 뒤(detached)엔 가만있는 손가락 무시 → 자동 제압 방지
+                    onPanEnd: (_) => _applyPull(-1.0),   // 🎣 손 떼면 물고기 쪽(왼쪽)으로 = 풀기+장전
                     onPanCancel: () => _applyPull(-1.0),
                     child: SizedBox(
                       height: 112,

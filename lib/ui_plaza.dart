@@ -2862,7 +2862,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showCombatGuide && !_showEventAra && !_showTutIntro && _tutStep != 0 && _tutQuestNow == null)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${widget.nickname} 조사님, 당기기 조작이 새로워졌어요! 🎣\n\n이제 노브를 좌우로 \'밀당\'하며 잡아요.\n• PC: D키 누르면 당기기 / 떼면 물고기가 당겨요\n• 저항·발악 땐 D를 눌렀다 뗐다 반복해서 제압!\n• 모바일: 노브를 좌우로 직접 드래그',
+                    text: '${widget.nickname} 조사님, 당기기 조작이 새로워졌어요! 🎣\n\n이제 노브로 물고기와 \'밀당\'하며 잡아요.\n• 오른쪽으로 당기면 제압! 손 떼면 물고기가 당겨가요\n• 저항·발악 땐 당겼다 놓았다 반복해서 제압!\n• PC는 D키 (누르면 당기기 · 떼면 놓기)',
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () {},
                     action: ElevatedButton(
