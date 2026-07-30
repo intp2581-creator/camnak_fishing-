@@ -2862,7 +2862,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showCombatGuide && !_showEventAra && !_showTutIntro && _tutStep != 0 && _tutQuestNow == null)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${widget.nickname} 조사님, 당기기 조작이 새로워졌어요! 🎣\n\n이제 노브로 물고기와 \'밀당\'하며 잡아요.\n• 오른쪽으로 당기면 제압! 손 떼면 물고기가 당겨가요\n• 저항·발악 땐 당겼다 놓았다 반복해서 제압!\n• PC는 D키 (누르면 당기기 · 떼면 놓기)',
+                    text: '${widget.nickname} 조사님, 당기기 조작이 새로워졌어요! 🎣\n\n이제 노브로 물고기와 \'밀당\'하며 잡아요.\n• 오른쪽으로 당기면 제압! 손 떼면 물고기가 당겨가요\n• 저항·발악 땐 당겼다 놓았다 반복해서 제압!\n• PC는 D키 (누르면 당기기 · 떼면 놓기)\n\n⚙️ 설정에서 자동/수동 제압을 고를 수 있어요! (아레나는 수동 고정)',
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () {},
                     action: ElevatedButton(
@@ -5568,7 +5568,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _miniBtn(Icons.logout, _confirmExitGame), // 🚪 게임 종료(저장 안내)
             const SizedBox(width: 8),
-            _miniBtn((audioManager.bgmOn || audioManager.sfxOn) ? Icons.volume_up : Icons.volume_off,
+            _miniBtn(Icons.settings, // ⚙️ 설정(볼륨 + 제압 방식)
                 () { audioManager.playSfx('sfx_click.mp3'); showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); }); }),
             const SizedBox(width: 8),
             _miniBtn(Icons.fullscreen, _toggleFullScreen),

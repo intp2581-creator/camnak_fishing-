@@ -620,6 +620,26 @@ Container(
   ),
 ),
 
+          // ⚔️ [v239] 아레나 자동제압 금지 안내(고정 배너)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(15, 0, 15, 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+            ),
+            child: const Row(
+              children: [
+                Icon(Icons.sports_kabaddi, color: Colors.redAccent, size: 20),
+                SizedBox(width: 8),
+                Expanded(child: Text('아레나는 자동제압 OFF! 순수 컨트롤 대결이에요 (놓았다 다시 당겨 제압)',
+                    style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))),
+              ],
+            ),
+          ),
+
           // 참가자 명단
           Container(
             height: 140, // 💡 전체 명단 칸 높이 대폭 확장!

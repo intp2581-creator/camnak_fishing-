@@ -1170,6 +1170,7 @@ Widget _buildChatTab(int index, String title) {
               playerTotalStats: totalStats,
               locationStars: _getLocationStars(),
               rodImageSuffix: rodSceneSuffix(equippedRod), // 🎣 장착 낚싯대별 파이팅 그림
+              isArena: widget.roomId != null, // ⚔️ 아레나면 자동제압 금지(수동 강제)
 
               onFinished: (bool isSuccess, double size) async { 
       Navigator.pop(context); 
@@ -2442,8 +2443,8 @@ Positioned(
                           children: [
                             // 🚀 [신규] 닉네임 바 왼쪽에 자리 잡을 황금 버튼 2인방!
               _buildTopMiniButton(
-                // 🔊 사운드 설정(배경음·효과음 개별 on/off + 볼륨)
-                icon: (audioManager.bgmOn || audioManager.sfxOn) ? Icons.volume_up : Icons.volume_off,
+                // ⚙️ 설정(배경음·효과음 볼륨 + 제압 방식)
+                icon: Icons.settings,
                 onPressed: () {
                   audioManager.playSfx('sfx_click.mp3');
                   showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); });
@@ -4053,10 +4054,12 @@ class FishingFightingOverlay extends StatefulWidget {
   final int locationStars;
   final Function(bool, double) onFinished;
   final String rodImageSuffix; // 🎣 장착 낚싯대별 파이팅 그림 접미사('' = 기본)
+  final bool isArena; // ⚔️ [v239] 아레나면 자동제압 금지(컨트롤 싸움) — 무조건 수동
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
     required this.locationStars, required this.onFinished,
     this.rodImageSuffix = '',
+    this.isArena = false,
   });
   @override
   State<FishingFightingOverlay> createState() => _FishingFightingOverlayState();
@@ -4077,6 +4080,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   bool _armedRelease = false; // 왼쪽 존에 손을 가져오면 장전 → 오른쪽 진입 때 제압단계 +1 (진짜 풀었다 당기기)
   int _pullZone = 0;          // 현재 존(-1 풀기 / 0 중립 / +1 당기기)
   bool _detached = false;     // 🎣 [v238] 물고기가 챈 직후 = 노브가 손가락에서 떨어짐. 새로 눌러야(onPanDown) 다시 잡음(가만있는 손가락 자동제압 방지)
+  int _assist = 0;            // ⚔️ [v239] 제압 방식 스냅샷(0수동/1자동/2완전자동) — 전투 시작 시 audioManager에서 읽음
+  bool _fingerDown = false;   // 손가락(마우스)이 노브를 누르고 있는지 — 자동(잡고) 판정용
+  Timer? _autoCounterTimer;   // 🤖 자동/완전자동: 물고기 챔에 자동으로 되받기
 
   // 🎣 [v236] 챔질 직후엔 물고기가 먼저 챔 → 노브 왼쪽·isPressing=false. 유저가 오른쪽으로 당겨야 1단 제압 시작.
   //    저항/발악 뜨면 노브가 왼쪽으로 팅김(물고기가 챔) → 유저가 다시 오른쪽으로 당겨 제압(저항 1회/발악 2회).
@@ -4097,7 +4103,12 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     super.initState();
     _rodController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250))..repeat(reverse: true);
     _prepareFishStats();
-    knobNotifier.value = -1.0; _pullZone = -1; _armedRelease = false; // 🎣 [v236] 물고기가 먼저 챔 — 노브 왼쪽에서 시작(유저가 당겨야 제압)
+    _assist = widget.isArena ? 0 : audioManager.combatAssist; // ⚔️ [v239] 아레나는 무조건 수동(컨트롤 싸움)
+    if (_assist == 2) {
+      knobNotifier.value = 1.0; _pullZone = 1; isPressing = true; _armedRelease = false; // 🤖 완전자동: 처음부터 당김
+    } else {
+      knobNotifier.value = -1.0; _pullZone = -1; _armedRelease = false; // 🎣 물고기가 먼저 챔 — 노브 왼쪽에서 시작
+    }
     HardwareKeyboard.instance.addHandler(_onCombatKey); // 🎣 [v235] PC A(풀기)/D(당기기) 키
     _startGame();
   }
@@ -4283,6 +4294,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     gameTimer?.cancel();
     _penaltyTimer?.cancel(); // 🎣 줄꼬임 페널티 타이머 정리
     _flingTimer?.cancel();   // 🎣 [v237] 물고기 챔 타이머 정리
+    _autoCounterTimer?.cancel(); // 🤖 [v239] 자동 되받기 타이머 정리
     _rodController.dispose();
     gaugeNotifier.dispose();
     timeNotifier.dispose();
@@ -4434,9 +4446,21 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     knobNotifier.value = -1.0;
     _pullZone = -1;
     _armedRelease = true;
-    _detached = true; // 🎣 [v238] 노브를 손가락에서 떼어놓음 — 새로 눌러야 다시 잡힘(가만있는 손가락 자동제압 방지)
+    _detached = (_assist == 0); // 🎣 [v239] 수동만 손가락에서 떼어놓음(자동제압 방지). 자동/완전자동은 유지
     isPressing = false;
     try { HapticFeedback.heavyImpact(); } catch (e) {} // 📳 챔 진동
+    // 🤖 [v239] 자동/완전자동: 잠시 뒤 자동으로 오른쪽으로 되받아 제압
+    if (_assist >= 1) {
+      _autoCounterTimer?.cancel();
+      _autoCounterTimer = Timer(const Duration(milliseconds: 450), _autoCounter);
+    }
+  }
+
+  // 🤖 [v239] 자동 되받기: 완전자동은 항상, 자동(잡고)은 손 대고 있을 때만.
+  void _autoCounter() {
+    if (_isGameOver || !mounted || _assist == 0) return;
+    if (_assist == 1 && !_fingerDown) return; // 자동(잡고): 손 떼면 물고기가 이김
+    _applyPull(1.0); // 오른쪽으로 되받아 제압(장전됐으면 단계↑)
   }
 
   // 🎣 [v237] PC 키: D 하나로 밀당! D(또는 →) 누르면 당기기(오른쪽), 떼면 물고기가 당김(왼쪽)+장전.
@@ -4571,11 +4595,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                   void handle(Offset local) => _applyPull(w <= 0 ? 1.0 : (local.dx / w) * 2 - 1);
                   return GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onPanDown: (d) { _detached = false; handle(d.localPosition); }, // 새로 누르면 노브 다시 잡음
+                    onPanDown: (d) { _detached = false; _fingerDown = true; handle(d.localPosition); }, // 새로 누르면 노브 다시 잡음
                     onPanStart: (d) { if (!_detached) handle(d.localPosition); },
                     onPanUpdate: (d) { if (!_detached) handle(d.localPosition); },  // 🎣 [v238] 물고기가 챈 뒤(detached)엔 가만있는 손가락 무시 → 자동 제압 방지
-                    onPanEnd: (_) => _applyPull(-1.0),   // 🎣 손 떼면 물고기 쪽(왼쪽)으로 = 풀기+장전
-                    onPanCancel: () => _applyPull(-1.0),
+                    onPanEnd: (_) { _fingerDown = false; _applyPull(_assist == 2 ? 1.0 : -1.0); },   // 🎣 손 떼면 물고기 쪽(왼쪽)으로 = 풀기+장전 (완전자동은 계속 당김 유지)
+                    onPanCancel: () { _fingerDown = false; _applyPull(_assist == 2 ? 1.0 : -1.0); },
                     child: SizedBox(
                       height: 112,
                       child: Stack(

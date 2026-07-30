@@ -22,6 +22,7 @@ class AudioManager {
   bool sfxOn = true;
   double bgmVol = 0.7;
   double sfxVol = 1.0;
+  int combatAssist = 0; // ⚔️ 제압 방식: 0 수동 / 1 자동(잡고) / 2 완전자동. localStorage 저장.
 
   void _loadSettings() {
     try {
@@ -30,6 +31,7 @@ class AudioManager {
       sfxOn = ls['snd_sfx'] != '0';
       bgmVol = double.tryParse(ls['snd_bgmv'] ?? '') ?? 0.7;
       sfxVol = double.tryParse(ls['snd_sfxv'] ?? '') ?? 1.0;
+      combatAssist = int.tryParse(ls['combat_assist'] ?? '') ?? 0;
     } catch (_) {}
   }
   void _saveSettings() {
@@ -39,8 +41,10 @@ class AudioManager {
       ls['snd_sfx'] = sfxOn ? '1' : '0';
       ls['snd_bgmv'] = bgmVol.toStringAsFixed(2);
       ls['snd_sfxv'] = sfxVol.toStringAsFixed(2);
+      ls['combat_assist'] = '$combatAssist';
     } catch (_) {}
   }
+  void setCombatAssist(int m) { combatAssist = m.clamp(0, 2); _saveSettings(); }
 
   // 🎚️ 설정 변경(즉시 반영 + 저장)
   Future<void> setBgmOn(bool on) async {
