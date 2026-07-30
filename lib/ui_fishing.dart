@@ -528,6 +528,7 @@ Widget _buildChatTab(int index, String title) {
   @override
   void initState() {
   super.initState();
+    HardwareKeyboard.instance.addHandler(_onEnterFocusChat); // ⏎ 엔터로 채팅창 활성화
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
     loadGmNotice(); // 🎤 GM 윤슬 공지 멘트 최신화(Firestore config/gmnotice)
@@ -764,6 +765,7 @@ Widget _buildChatTab(int index, String title) {
     
     fightTimer?.cancel();
     _clearAllBiteTimers();
+    HardwareKeyboard.instance.removeHandler(_onEnterFocusChat); // ⏎ 엔터 채팅 핸들러 해제
     _rodController.dispose();
     _castController.dispose();
     _chatFocus.dispose();
@@ -824,7 +826,7 @@ Widget _buildChatTab(int index, String title) {
         });
       }
       _chatController.clear();
-    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
+    _chatFocus.unfocus(); // 💬 보낸 뒤 포커스 해제 → 엔터로 다시 열기
       return; // 🚨 여기서 함수 종료! 전체 채팅으로 안 새어나가게 막음!
     }
 
@@ -846,9 +848,22 @@ Widget _buildChatTab(int index, String title) {
     });
 
     _chatController.clear();
-    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
+    _chatFocus.unfocus(); // 💬 보낸 뒤 포커스 해제 → 엔터로 다시 열기
   }
   
+  // ⏎ 엔터로 채팅창 활성화 (마우스 클릭 없이 바로 채팅). 채팅 미포커스 + 다른 입력창 없을 때만.
+  bool _onEnterFocusChat(KeyEvent e) {
+    if (e is! KeyDownEvent) return false;
+    if (e.logicalKey != LogicalKeyboardKey.enter && e.logicalKey != LogicalKeyboardKey.numpadEnter) return false;
+    if (_chatFocus.hasFocus) return false; // 이미 채팅 중이면 기본 전송(onSubmitted)에 맡김
+    final pf = FocusManager.instance.primaryFocus;
+    bool editing = pf?.context?.widget is EditableText;
+    pf?.context?.visitAncestorElements((el) { if (el.widget is EditableText) { editing = true; return false; } return true; });
+    if (editing) return false; // 다른 입력창(다이얼로그 등) 사용 중이면 무시
+    _chatFocus.requestFocus();
+    return true;
+  }
+
   // 📥 1. 파이어베이스에서 남은 시간 불러오기 
   Future<void> _loadDailyTimeFromFirebase() async {
     User? user = FirebaseAuth.instance.currentUser;

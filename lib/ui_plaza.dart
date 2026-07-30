@@ -485,6 +485,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // ⌨️ PC 키보드 이동 (WASD + 화살표). 채팅 입력 중엔 무시.
   final Set<LogicalKeyboardKey> _pressedKeys = {};
   bool _onHwKey(KeyEvent e) {
+    // ⏎ 엔터로 채팅창 활성화 (마우스 클릭 없이 바로 채팅 시작). 채팅 미포커스 + 다른 입력창 없을 때만.
+    if (e is KeyDownEvent &&
+        (e.logicalKey == LogicalKeyboardKey.enter || e.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      if (!_chatFocus.hasFocus) {
+        final pf0 = FocusManager.instance.primaryFocus;
+        bool editing0 = pf0?.context?.widget is EditableText;
+        pf0?.context?.visitAncestorElements((el) { if (el.widget is EditableText) { editing0 = true; return false; } return true; });
+        if (!editing0) { _chatFocus.requestFocus(); return true; }
+      }
+      return false; // 채팅 포커스 중이면 기본 전송(onSubmitted)에 맡김
+    }
     // 채팅/다이얼로그 등 텍스트 입력 중이면 이동 안 함(타이핑 우선)
     if (_chatFocus.hasFocus) return false;
     // 다이얼로그 등 다른 텍스트필드 입력 중이면 이동 안 함
@@ -2068,7 +2079,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         'timestamp': FieldValue.serverTimestamp(),
       });
       _chatCtrl.clear();
-      _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
+      _chatFocus.unfocus(); // 💬 보낸 뒤 포커스 해제 → 엔터로 다시 열기(WASD 이동과 안 꼬임)
       return;
     }
     String type = 'global';
@@ -2095,7 +2106,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
     }
     _chatCtrl.clear();
-    _chatFocus.requestFocus(); // 💬 보낸 뒤 커서 유지 → 엔터로 연속 채팅
+    _chatFocus.unfocus(); // 💬 보낸 뒤 포커스 해제 → 엔터로 다시 열기(WASD 이동과 안 꼬임)
   }
 
   // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
