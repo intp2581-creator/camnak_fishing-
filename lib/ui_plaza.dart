@@ -391,6 +391,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   static bool _eventPopupShownThisSession = false; // 🎉 이벤트 안내(아라) 세션당 1회 제한
   bool _showEventAra = false; // 🎉 아라 이벤트 안내 오버레이 표시
+  bool _showCombatGuide = false; // 🎣 [v235] 당기기 조작 변경 안내(아라) — 유저당 최초 1회
 
   // 🎉 아라 이벤트 안내 멘트 — 이벤트 내용(배율/기간제 아이템)에 따라 자동 구성
   String _buildEventAraText() {
@@ -444,6 +445,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     // 🔁 재접속 시 이 광장(민물/바다)으로 돌아오게 마지막 광장 기록
     try { html.window.localStorage['lastPlazaSea'] = widget.isSea ? '1' : '0'; } catch (_) {}
+    // 🎣 [v235] 당기기 조작 변경 안내 — 아라가 최초 1회 설명(localStorage로 유저당 1회). 실제 표시는 이벤트/튜토 팝업 없을 때.
+    try {
+      if (html.window.localStorage['combatGuideSeen_v235'] != '1') {
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (mounted) setState(() => _showCombatGuide = true);
+        });
+      }
+    } catch (_) {}
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600)); // 걷기 교차 주기(확 느리게 → 감잡고 조절)
     // 🚶 원격 캐릭터 걷기 프레임 클럭 (움직이는 유저가 있을 때만 다시 그림)
     _remoteWalkTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
@@ -2845,6 +2854,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
                       onPressed: () => setState(() => _showEventAra = false),
                       child: const Text('신난다! 🎣'),
+                    ),
+                  ),
+                ),
+
+              // 🎣 [v235] 당기기 조작 변경 안내 (아라) — 이벤트/튜토 팝업 없을 때만, 유저당 1회
+              if (_showCombatGuide && !_showEventAra && !_showTutIntro && _tutStep != 0 && _tutQuestNow == null)
+                Positioned.fill(
+                  child: NpcTutorialOverlay(
+                    text: '${widget.nickname} 조사님, 당기기 조작이 새로워졌어요! 🎣\n\n이제 노브를 좌우로 \'밀당\'하며 잡아요.\n• PC: D키 누르면 당기기 / 떼면 물고기가 당겨요\n• 저항·발악 땐 D를 눌렀다 뗐다 반복해서 제압!\n• 모바일: 노브를 좌우로 직접 드래그',
+                    imagePath: 'assets/images/npc_manager_quest.png',
+                    onTap: () {},
+                    action: ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14), textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                      onPressed: () {
+                        try { html.window.localStorage['combatGuideSeen_v235'] = '1'; } catch (_) {}
+                        setState(() => _showCombatGuide = false);
+                      },
+                      child: const Text('알겠어요! 🎣'),
                     ),
                   ),
                 ),
