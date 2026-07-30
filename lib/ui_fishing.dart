@@ -16,6 +16,7 @@ import 'ui_lobby.dart';
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
+import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 // 🎖️ 등급분류 표시 위젯(buildRatingMark/showGameRatingDialog/kGameRatingNumber)은 game_config.dart로 이동.
 
 
@@ -2425,11 +2426,11 @@ Positioned(
                           children: [
                             // 🚀 [신규] 닉네임 바 왼쪽에 자리 잡을 황금 버튼 2인방!
               _buildTopMiniButton(
-                icon: audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
+                // 🔊 사운드 설정(배경음·효과음 개별 on/off + 볼륨)
+                icon: (audioManager.bgmOn || audioManager.sfxOn) ? Icons.volume_up : Icons.volume_off,
                 onPressed: () {
-                  setState(() {
-                    audioManager.toggleMute();
-                  });
+                  audioManager.playSfx('sfx_click.mp3');
+                  showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); });
                 },
               ),
               const SizedBox(width: 8),

@@ -20,6 +20,7 @@ import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
 import 'ui_guild.dart'; // 길드 접속표시(presence) + 접속 점
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
+import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 import 'app_version.dart'; // 🔖 새 버전 알림(새로고침 안내)
 
 const Color _kGold = Color(0xFFD4AF37);
@@ -5529,8 +5530,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             _miniBtn(Icons.logout, _confirmExitGame), // 🚪 게임 종료(저장 안내)
             const SizedBox(width: 8),
-            _miniBtn(audioManager.isMuted ? Icons.volume_off : Icons.volume_up,
-                () => setState(() => audioManager.toggleMute())),
+            _miniBtn((audioManager.bgmOn || audioManager.sfxOn) ? Icons.volume_up : Icons.volume_off,
+                () { audioManager.playSfx('sfx_click.mp3'); showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); }); }),
             const SizedBox(width: 8),
             _miniBtn(Icons.fullscreen, _toggleFullScreen),
             const SizedBox(width: 12),

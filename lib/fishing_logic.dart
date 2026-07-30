@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:html' as html; // 🔊 사운드 설정 저장(localStorage)
 import 'package:audioplayers/audioplayers.dart';
 import 'game_config.dart'; // 1탄에서 만든 중앙 통제실 연결!
 
@@ -9,28 +10,80 @@ import 'game_config.dart'; // 1탄에서 만든 중앙 통제실 연결!
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
   factory AudioManager() { return _instance; }
-  AudioManager._internal();
+  AudioManager._internal() { _loadSettings(); }
 
   final AudioPlayer bgmPlayer = AudioPlayer();
   final AudioPlayer efxPlayer = AudioPlayer();
   final AudioPlayer ambientPlayer = AudioPlayer(); // 🌧️ 빗소리 등 앰비언트(BGM 위에 겹침)
   bool isMuted = false;
+
+  // 🔊 [사운드 설정] 배경음·효과음 개별 on/off + 볼륨(0~1). localStorage에 저장 → 새로고침 유지.
+  bool bgmOn = true;
+  bool sfxOn = true;
+  double bgmVol = 0.7;
+  double sfxVol = 1.0;
+
+  void _loadSettings() {
+    try {
+      final ls = html.window.localStorage;
+      bgmOn = ls['snd_bgm'] != '0';
+      sfxOn = ls['snd_sfx'] != '0';
+      bgmVol = double.tryParse(ls['snd_bgmv'] ?? '') ?? 0.7;
+      sfxVol = double.tryParse(ls['snd_sfxv'] ?? '') ?? 1.0;
+    } catch (_) {}
+  }
+  void _saveSettings() {
+    try {
+      final ls = html.window.localStorage;
+      ls['snd_bgm'] = bgmOn ? '1' : '0';
+      ls['snd_sfx'] = sfxOn ? '1' : '0';
+      ls['snd_bgmv'] = bgmVol.toStringAsFixed(2);
+      ls['snd_sfxv'] = sfxVol.toStringAsFixed(2);
+    } catch (_) {}
+  }
+
+  // 🎚️ 설정 변경(즉시 반영 + 저장)
+  Future<void> setBgmOn(bool on) async {
+    bgmOn = on; _saveSettings();
+    if (!on) {
+      try { await bgmPlayer.pause(); } catch (_) {}
+      try { await ambientPlayer.stop(); } catch (_) {} // 🌧️ 배경음 끄면 빗소리도 정지
+      return;
+    }
+    if (isMuted) return;
+    if (currentBgm.isNotEmpty) {
+      try {
+        await bgmPlayer.setVolume(bgmVol);
+        if (bgmPlayer.state != PlayerState.playing) {              // 재생 중이 아니면
+          await bgmPlayer.setReleaseMode(ReleaseMode.loop);
+          if (bgmPlayer.state == PlayerState.paused) { await bgmPlayer.resume(); }  // 일시정지 → 재개
+          else { await bgmPlayer.play(AssetSource('sound/$currentBgm')); }          // 처음 재생
+        }
+      } catch (_) {}
+    }
+    if (_rainRefs > 0) { await _startRain(); } // 🌧️ 비 오는 중이면 빗소리 재개
+  }
+  Future<void> setSfxOn(bool on) async { sfxOn = on; _saveSettings(); }
+  Future<void> setBgmVol(double v) async {
+    bgmVol = v.clamp(0.0, 1.0); _saveSettings();
+    try { await bgmPlayer.setVolume(bgmVol); } catch (_) {}
+  }
+  Future<void> setSfxVol(double v) async { sfxVol = v.clamp(0.0, 1.0); _saveSettings(); }
   String currentBgm = "";
   int _rainRefs = 0; // 🌧️ 빗소리를 원하는 화면 수(플라자·낚시터 겹침 대비 참조 카운트)
   bool _rainUnlocked = false; // 🌧️ 첫 사용자 조작으로 빗소리 재생을 한 번 강제로 열었는지
 
   Future<void> playBgm(String fileName) async {
-    if (isMuted) return;
-    if (currentBgm == fileName) return; 
-    
-    currentBgm = fileName;
+    if (currentBgm == fileName) return;
+    currentBgm = fileName; // 재생돼야 할 곡을 항상 기억(설정 켤 때 이 곡을 틀 수 있게)
+    if (isMuted || !bgmOn) return; // 배경음 꺼져있으면 곡만 기억하고 재생 안 함
     await bgmPlayer.setReleaseMode(ReleaseMode.loop);
-    await bgmPlayer.setVolume(0.7);
+    await bgmPlayer.setVolume(bgmVol);
     await bgmPlayer.play(AssetSource('sound/$fileName'));
   }
 
   Future<void> playSfx(String fileName) async {
-    if (isMuted) return;
+    if (isMuted || !sfxOn) return;
     if (fileName.contains('landing') && efxPlayer.state == PlayerState.playing) return;
 
     try {
@@ -39,9 +92,10 @@ class AudioManager {
         await efxPlayer.stop();
       }
       
-      // 소리 재생!
+      // 소리 재생! (효과음 볼륨 반영)
+      await efxPlayer.setVolume(sfxVol);
       await efxPlayer.play(AssetSource('sound/$fileName'));
-      
+
     } catch (e) {
       // 💡 2차 방어 (핵심): 연타 때문에 웹에서 AbortError가 터져도, 
       // 앱이 멈추지 않고 그냥 소리 하나 씹힌 걸로 자연스럽게 넘어가게 만듭니다!
@@ -64,14 +118,14 @@ class AudioManager {
   //   첫 조작 때는 상태와 무관하게 '정지→재생'으로 확실히 열고(차단됐던 재생이 상태만 남는 경우 대비),
   //   그 뒤엔 이미 재생 중이면 건너뜀(중복·끊김 방지).
   Future<void> ensureRainPlaying() async {
-    if (_rainRefs <= 0 || isMuted) return;
+    if (_rainRefs <= 0 || isMuted || !bgmOn) return;
     if (_rainUnlocked && ambientPlayer.state == PlayerState.playing) return;
     _rainUnlocked = true;
     try { await ambientPlayer.stop(); } catch (_) {}
     await _startRain();
   }
   Future<void> _startRain() async {
-    if (isMuted) return; // 음소거면 소리만 안 냄(참조는 유지 → 해제 시 정상 카운트)
+    if (isMuted || !bgmOn) return; // 음소거·배경음off면 소리만 안 냄(참조는 유지 → 켤 때 정상 카운트)
     try {
       await ambientPlayer.setReleaseMode(ReleaseMode.loop);
       await ambientPlayer.setVolume(0.85); // 🔊 빗소리 볼륨 업(BGM에 묻히지 않게)
