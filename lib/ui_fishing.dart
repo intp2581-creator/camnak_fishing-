@@ -4247,10 +4247,12 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
             change = -(F * escapeMult);
           }
 
-          // 🎣 [v237] 속도전 → 힘싸움. 한 틱 이동량을 '좌우 대칭·저속'으로 캡.
-          //   → 발악이 떠도 휙 안 넘어가고 물고기 힘만큼 꾸준히 밀어붙임. 방향(누가 이기나)은 P vs F가 정하고
-          //     속도는 균일하게 느림 → 대물은 아무리 당겨도 결국 빨간쪽으로 '질질' 끌려가 놓침(무게감).
-          change = change.clamp(-0.008, 0.008);
+          // 🎣 [v242] 게이지 속도 상한을 '물고기 크기에 반비례'로 → 걸리는 시간이 물고기 크기로 결정됨.
+          //   큰 물고기=상한↓=느리게(밀당·무게감) / 작은 고기=상한↑=금방. 고랩이 압도해도 큰 놈은 몇 초간 밀당(즉사 X).
+          //   승패(방향)는 P vs F(제압력 vs 물고기힘)가 그대로 정함 → landing%는 유지, '속도(손맛)'만 크기에 맞춤.
+          //   ⚙️튜닝: 큰 물고기 더 오래 끌게=2.0↑ (최대어 pwN=1은 상한 0.008→0.0027, 약 3배 느림 ≈ 12~15초 밀당).
+          double maxStep = 0.008 / (1.0 + pwN * 2.0);
+          change = change.clamp(-maxStep, maxStep);
           newGauge += (change + wildFactor); // 계산된 방향 적용!
           
           // 🚨 [추가!] 물고기가 이동하는 방향에 맞춰 고개 돌리기!
