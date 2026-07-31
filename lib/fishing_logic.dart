@@ -303,7 +303,7 @@ for (var fish in availableFishes) {
       case 3: minFactor = 0.55; sizeCap = 0.78; break; // 중급터: 55% ~ 78% (초보만렙엔 벽)
       case 4: minFactor = 0.68; sizeCap = 0.90; break; // 고급터: 68% ~ 90%
       case 5:
-      default: minFactor = 0.80; sizeCap = 1.00; break; // 최상급: 80% ~ 최대어
+      default: minFactor = 0.70; sizeCap = 1.00; break; // 최상급: 70% ~ 최대어 (하한 80→70 완화, 대물은 유지)
     }
 
     double baseMin = double.tryParse(selectedFish['min'].toString()) ?? 10.0;

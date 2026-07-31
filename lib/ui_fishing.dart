@@ -4201,15 +4201,13 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           double wildFactor = (random.nextDouble() - 0.3) * 0.002;
           double safeStats = (widget.playerTotalStats.isNaN || widget.playerTotalStats.isInfinite) ? 1000.0 : widget.playerTotalStats.toDouble();
           
-          // 🎣 [v195 신 밸런스 전투식] 물고기힘(fishBasePower)과 내 제압력(safeStats)만으로 속도 결정.
-          //   내당김(basePullSpeed): 제압력이 오를수록 빨라짐(0.0042→0.008).
-          //   물고기속도(baseFishSpeed): 힘이 클수록 빠르고, 제압력이 높을수록 일부 경감(대물일수록 경감폭도 큼).
-          //   → 배율 = 물고기/내당김. [힘4000 최대어 vs 제압2000 ≈ 1.5배 = 아주 어렵게 간신히]
-          //     [작은 고기·잡어는 제압력 무관 항상 <1 = 그냥 딸려옴]. 크기(힘)가 최소 난이도를 보장.
-          double basePullSpeed = 0.004 + safeStats / 500000.0;
-          double pwN = fishBasePower / 4000.0; // 힘 정규화(최대어=1.0)
-          double relief = math.min(safeStats / 2000.0, 1.0) * pwN * 0.010; // 제압력 경감
-          double baseFishSpeed = (0.002 + pwN * 0.020 - relief).clamp(0.0023, 0.05);
+          // 🎣 [v241 별점↔제압력 난이도] 브레이크이븐(발악3단에서 P=F): 필요제압력 ≈ 물고기힘×0.68 − 255.
+          //   → ★별 '평균 사이즈'가 그 별점 타겟 제압력에서 무난히 잡힘(★1=150/★2=300/★3=600/★4=1000/★5=1500).
+          //   최대어(100%힘=4000)는 ≈2460 제압력 필요 → 어느 별점서든 최대어는 벽. 잡챙이는 누구나(P 기준값 0.003).
+          //   속도는 ±0.008 클램프가 고정(손맛 유지). ⚙️튜닝: 전체 어렵게=0.032↑ / 제압력 더 세게=85000↓.
+          double basePullSpeed = 0.003 + safeStats / 85000.0;        // 내당김(P): 기준0.003(초보도 잡챙이 잡힘)+제압력
+          double pwN = fishBasePower / 4000.0;                        // 힘 정규화(최대어=1.0)
+          double baseFishSpeed = (pwN * 0.032).clamp(0.0023, 0.05);   // 물고기힘(F): 힘에 비례
 
           int pGear = playerGearNotifier.value;
           int fGear = fishGearNotifier.value;
