@@ -4055,22 +4055,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   icon: const Icon(Icons.close, color: Colors.white54),
                   onPressed: () => Navigator.pop(ctx)),
             ])),
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                  backgroundColor: _kGold,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 12)),
-              icon: const Icon(Icons.add),
-              label: const Text('길드 만들기 (Lv.5, 10,000 P)',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
-              onPressed: () => _createGuildDialog(uid),
+        if (myGid.isEmpty) // 🛡️ 이미 가입 중이면 '길드 만들기' 숨김
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kGold,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 12)),
+                icon: const Icon(Icons.add),
+                label: const Text('길드 만들기 (Lv.5, 10,000 P)',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                onPressed: () => _createGuildDialog(uid),
+              ),
             ),
           ),
-        ),
         const Divider(color: Colors.white12, height: 1),
         const Padding(
           padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
@@ -4863,6 +4864,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Future<void> _createGuild(BuildContext ctx, String uid, String name) async {
+    // 🛡️ [버그픽스] 이미 길드에 가입 중이면 생성 불가 (guildId 덮어써서 유령멤버 되는 문제)
+    if (_guildId.isNotEmpty) {
+      _toast('이미 길드에 가입되어 있어요. 먼저 탈퇴한 뒤 만들 수 있어요.');
+      return;
+    }
     if (name.isEmpty) {
       _toast('길드 이름을 입력해주세요.');
       return;
@@ -5201,8 +5207,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         batch.delete(m.reference);
       }
       batch.delete(guildRef);
-      await batch.commit();
-      _toast('길드를 해체했어요.');
+      try {
+        await batch.commit();
+        _toast('길드를 해체했어요.');
+      } catch (e) {
+        _toast('해체 실패: $e'); // 🐛 조용히 실패하던 것 → 원인 표시
+      }
     } else {
       final uref = fs.collection('users').doc(uid);
       final uexists = (await uref.get()).exists; // 👻 없는 문서에 안 써서 껍데기 방지
@@ -5211,8 +5221,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       batch.update(guildRef, {'memberCount': FieldValue.increment(-1)});
       if (uexists) batch.set(uref,
           {'guildId': '', 'guildName': '', 'leftGuildAt': FieldValue.serverTimestamp()}, SetOptions(merge: true)); // #9
-      await batch.commit();
-      _toast('길드를 탈퇴했어요.');
+      try {
+        await batch.commit();
+        _toast('길드를 탈퇴했어요.');
+      } catch (e) {
+        _toast('탈퇴 실패: $e');
+      }
     }
   }
 
