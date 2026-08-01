@@ -91,6 +91,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   int _currentChatTab = 0; // 0: 전체, 1: 귓속말, 2: 친구
   String? _whisperTargetNickname; // 귓속말 보낼 대상의 닉네임
   DateTime _readWhisperAt = DateTime.now(); // 🔴 귓속말 마지막 읽음(이후 도착=안읽음 뱃지)
+  DateTime _readGuildAt = DateTime.now();   // 🔴 길드챗 마지막 읽음
 
   int arenaTimeLeft = 600; // ⏱️ 아레나 전용 10분 타이머 (10분 = 600초) 추가!
 
@@ -368,6 +369,7 @@ Widget _buildChatTab(int index, String title) {
         // 전체 탭으로 돌아가면 귓속말 타겟 초기화 (선택 사항)
         if (index == 0) _whisperTargetNickname = null;
         if (index == 1) _readWhisperAt = DateTime.now(); // 귓속말 열면 읽음
+        if (index == 4) _readGuildAt = DateTime.now();   // 길드챗 열면 읽음
       });
     },
     child: Container(
@@ -387,14 +389,53 @@ Widget _buildChatTab(int index, String title) {
       ),
     ),
   );
-  // 🔴 안 읽은 귓속말 뱃지 — 귓속말 탭(1)을 보고 있지 않을 때만
+  // 🔴 안 읽은 귓속말(1)/길드(4) 뱃지 — 해당 탭을 보고 있지 않을 때만
   if (index == 1 && !isActive) {
     return Stack(clipBehavior: Clip.none, children: [
       btn,
       Positioned(top: -5, right: -1, child: _whisperUnreadBadge()),
     ]);
   }
+  if (index == 4 && !isActive) {
+    return Stack(clipBehavior: Clip.none, children: [
+      btn,
+      Positioned(top: -5, right: -1, child: _guildUnreadBadge()),
+    ]);
+  }
   return btn;
+}
+
+// 🔴 안 읽은 길드챗 개수 뱃지
+Widget _guildUnreadBadge() {
+  if (_guildId.isEmpty) return const SizedBox.shrink();
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('guilds').doc(_guildId).collection('chat')
+        .orderBy('timestamp', descending: true).limit(30).snapshots(),
+    builder: (c, snap) {
+      if (!snap.hasData) return const SizedBox.shrink();
+      final n = snap.data!.docs.where((d) {
+        final m = d.data() as Map<String, dynamic>;
+        final ts = m['timestamp'];
+        final t = ts is Timestamp ? ts.toDate() : null;
+        return t != null && t.isAfter(_readGuildAt) &&
+            (m['nickname']?.toString() ?? '') != widget.nickname;
+      }).length;
+      if (n <= 0) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        constraints: const BoxConstraints(minWidth: 16),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: Colors.white, width: 1),
+        ),
+        child: Text(n > 9 ? '9+' : '$n',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, height: 1.1)),
+      );
+    },
+  );
 }
 
 // 🔴 나에게 온 귓속말 중 마지막 읽음 이후 개수 뱃지
@@ -526,6 +567,7 @@ Widget _whisperUnreadBadge() {
       if (mounted) {
         setState(() {
           _guildId = gid;
+          if (gid.isEmpty && _currentChatTab == 4) _currentChatTab = 0; // 길드 없으면 길드탭→전체
           _guildLevel = FishingLogic.guildLevelFromExp(gexp);
           _isChampionGuild = champ;
         });
@@ -870,6 +912,22 @@ Widget _whisperUnreadBadge() {
       _chatController.clear();
     _chatFocus.unfocus(); // 💬 보낸 뒤 포커스 해제 → 엔터로 다시 열기
       return; // 🚨 여기서 함수 종료! 전체 채팅으로 안 새어나가게 막음!
+    }
+
+    // 🛡️ 1.5 길드 탭(4)일 때는 길드 채팅으로!
+    if (_currentChatTab == 4) {
+      if (_guildId.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('guilds').doc(_guildId).collection('chat')
+            .add({
+          'nickname': widget.nickname,
+          'message': text,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+      _chatController.clear();
+      _chatFocus.unfocus();
+      return;
     }
 
     // 💬 2. 그 외 탭(전체/귓속말)은 기존처럼 글로벌 채팅으로!
@@ -2617,7 +2675,8 @@ Positioned(
                       _buildChatTab(0, '전체'),
                       _buildChatTab(1, '귓속말'),
                       _buildChatTab(2, '친구'),
-                      _buildChatTab(3,'아레나'),
+                      if (widget.roomId != null) _buildChatTab(3, '아레나'),       // 아레나 매치 중일 때만
+                      if (widget.roomId == null && _guildId.isNotEmpty) _buildChatTab(4, '길드'), // 길드 가입 시(일반 낚시)
                     ],
                   ),
                   // ✨ 2. 메인 채팅창 컨테이너
@@ -2694,19 +2753,27 @@ Positioned(
                               : StreamBuilder<QuerySnapshot>(
                                   stream: _currentChatTab == 3
                               // 🏆 [아레나 탭]일 때 방 번호(roomId)가 진짜 있는지 안전하게 확인!
-                                   ? (widget.roomId != null 
+                                   ? (widget.roomId != null
                                    ? FirebaseFirestore.instance.collection('arenas').doc(widget.roomId!).collection('messages')
-                                     .where('createdAt', isGreaterThanOrEqualTo: _joinTime) 
+                                     .where('createdAt', isGreaterThanOrEqualTo: _joinTime)
                                      .orderBy('createdAt', descending: true).snapshots()
                                  : const Stream.empty()) // 🌟 방 번호가 없으면 에러 내지 말고 조용히 빈 화면 띄워!
+                              // 🛡️ [길드 탭]일 땐 길드 채팅!
+                                 : _currentChatTab == 4
+                                 ? (_guildId.isNotEmpty
+                                     ? FirebaseFirestore.instance.collection('guilds').doc(_guildId).collection('chat')
+                                         .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
+                                         .orderBy('timestamp', descending: true).limit(30).snapshots()
+                                     : const Stream.empty())
                               // 💬 [그 외 탭]일 땐 전체 채팅!
                                  : FirebaseFirestore.instance.collection('global_chat')
-                                     .where('timestamp', isGreaterThanOrEqualTo: _joinTime) 
+                                     .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
                                      .orderBy('timestamp', descending: true).limit(30).snapshots(),
                                      builder: (context, snapshot) {
                                     if (!snapshot.hasData) return const SizedBox.shrink();
                                     var docs = snapshot.data!.docs;
                                     if (_currentChatTab == 1) _readWhisperAt = DateTime.now(); // 귓속말 보는 중=읽음 처리
+                                    if (_currentChatTab == 4) _readGuildAt = DateTime.now();   // 길드챗 보는 중=읽음 처리
 
                                     return ListView.builder(
                                       reverse: true,
@@ -2722,6 +2789,11 @@ Positioned(
                                           receiver = '';
                                           sender = (data['nickname'] ?? data['sender'] ?? '조사님').toString();
                                           msg = (data['message'] ?? data['text'] ?? '').toString();
+                                        } else if (_currentChatTab == 4) {
+                                          type = 'guild';
+                                          receiver = '';
+                                          sender = (data['nickname'] ?? '길드원').toString();
+                                          msg = (data['message'] ?? '').toString();
                                         } else {
                                           type = data['type'] ?? 'global';
                                           receiver = data['receiver'] ?? '';
@@ -2749,6 +2821,9 @@ Positioned(
                                           else if (type == 'arena') {
                                           prefixColor = const Color(0xFFD4AF37); // 아레나 전용 골드 색상!
                                           prefixText = '아레나';
+                                        } else if (type == 'guild') {
+                                          prefixColor = const Color(0xFF7FD4FF); // 길드 하늘색
+                                          prefixText = '길드>';
                                         }
 
                                         return Padding(
