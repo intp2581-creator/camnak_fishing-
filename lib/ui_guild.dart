@@ -453,28 +453,45 @@ class _GuildInfoBody extends StatelessWidget {
           itemBuilder: (c, i) {
             final m = members[i];
             final mMaster = m['role'] == 'master';
+            final memo = (m['memo']?.toString() ?? '').trim();
             return Container(
               margin: const EdgeInsets.symmetric(vertical: 3),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                   color: const Color(0xFF2A2A2A), borderRadius: BorderRadius.circular(8)),
-              child: Row(children: [
-                guildOnlineDot(m['uid'].toString()),
-                const SizedBox(width: 8),
-                Icon(mMaster ? Icons.military_tech : Icons.person,
-                    color: mMaster ? _kGold : Colors.white38, size: 18),
-                const SizedBox(width: 6),
-                Text(m['nickname']?.toString() ?? '',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-                const SizedBox(width: 6),
-                Text('Lv.${m['level'] ?? 1}',
-                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
-                const Spacer(),
-                if (mMaster)
-                  const Text('길드장',
-                      style:
-                          TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  guildOnlineDot(m['uid'].toString()),
+                  const SizedBox(width: 8),
+                  Icon(mMaster ? Icons.military_tech : Icons.person,
+                      color: mMaster ? _kGold : Colors.white38, size: 18),
+                  const SizedBox(width: 6),
+                  Text(m['nickname']?.toString() ?? '',
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 6),
+                  Text('Lv.${m['level'] ?? 1}',
+                      style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                  const Spacer(),
+                  if (mMaster)
+                    const Text('길드장',
+                        style:
+                            TextStyle(color: _kGold, fontSize: 11, fontWeight: FontWeight.bold)),
+                ]),
+                // 📝 길드원 메모(있을 때만, 읽기전용)
+                if (memo.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    const SizedBox(width: 26),
+                    const Icon(Icons.sticky_note_2_outlined, color: Colors.white24, size: 12),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(memo,
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    ),
+                  ]),
+                ],
               ]),
             );
           },
