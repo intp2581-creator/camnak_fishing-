@@ -1020,37 +1020,40 @@ Widget _whisperUnreadBadge() {
       gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
         if (!mounted) { timer.cancel(); return; }
 
-        setState(() {
-          // 🌟 2. 1초씩 빼는 게 아니라, 목표 시간과 '지금 현실 시간'의 차이를 계산합니다!
-          int realRemaining = arenaEndTime.difference(DateTime.now()).inSeconds;
+        // 🌟 1초씩 빼는 게 아니라, 목표 시간과 '지금 현실 시간'의 차이를 계산!
+        final int realRemaining = arenaEndTime.difference(DateTime.now()).inSeconds;
 
-          if (realRemaining > 0) {
-            arenaTimeLeft = realRemaining; // 통화하느라 멈췄던 시간만큼 알아서 훅 건너뜁니다!
-          } else {
-            arenaTimeLeft = 0; // 마이너스로 떨어지는 것 방지
-            _arenaEndedNaturally = true; // ⚔️ 정상 종료(완주) — 실격 아님
-            // 🚨 10분 종료! 타이머들 싹 다 정지
+        if (realRemaining > 0) {
+          setState(() => arenaTimeLeft = realRemaining); // 멈췄던 시간만큼 알아서 건너뜀
+          return;
+        }
+
+        // 🚨 10분 종료! (딱 한 번만 처리 — 이중 실행 방지)
+        if (_arenaEndedNaturally) { timer.cancel(); return; }
         timer.cancel();
         _clearAllBiteTimers();
         fightTimer?.cancel();
+        setState(() {
+          arenaTimeLeft = 0;
+          _arenaEndedNaturally = true; // ⚔️ 정상 종료(완주) — 실격 아님
+        });
 
         // 파이팅 중이었다면 파이팅 팝업 강제 종료
         if (isFighting) {
-          isFighting = false;
-          if (Navigator.canPop(context)) Navigator.pop(context); 
+          setState(() => isFighting = false);
+          if (Navigator.canPop(context)) Navigator.pop(context);
         }
 
-        // 💡 [안전장치] 화면이 아직 살아있을 때만 종료 팝업 띄우기
-        if (!mounted) return; 
-
+        if (!mounted) return;
+        // 💡 종료 팝업 (setState '밖'에서 — 이전엔 setState 안이라 안 떠서 계속 낚시되던 버그)
         showDialog(
           context: context,
-          barrierDismissible: false, // 💡 바깥쪽 터치해서 꼼수로 못 닫게 막음!
+          barrierDismissible: false, // 바깥쪽 터치로 못 닫게
           builder: (dialogContext) => AlertDialog(
             backgroundColor: Colors.black87,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15), 
-              side: const BorderSide(color: Colors.amber, width: 2)
+              borderRadius: BorderRadius.circular(15),
+              side: const BorderSide(color: Colors.amber, width: 2),
             ),
             title: const Text('⏱️ 경기 종료!', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
             content: const Text('10분 경기가 모두 종료되었습니다.\n대기실로 돌아가 결과를 확인하세요!', style: TextStyle(color: Colors.white)),
@@ -1058,14 +1061,9 @@ Widget _whisperUnreadBadge() {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
                 onPressed: () {
-                  // 1. 경기 종료 팝업 먼저 닫기
-                  Navigator.of(dialogContext).pop();
-                  
-                  // 2. 0.1초 뒤에 낚시터 닫고 대기실로 강제 복귀! (안전한 화면 전환을 위해)
+                  Navigator.of(dialogContext).pop(); // 팝업 닫고
                   Future.delayed(const Duration(milliseconds: 100), () {
-                    if (mounted) {
-                      Navigator.of(context).pop(); 
-                    }
+                    if (mounted) Navigator.of(context).pop(); // 낚시터 닫고 대기실로
                   });
                 },
                 child: const Text('대기실로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -1073,8 +1071,6 @@ Widget _whisperUnreadBadge() {
             ],
           ),
         );
-      }
-        });
       });
       return; // 🚨 여기서 리턴시켜서 일반 60분 타이머가 안 돌아가게 막습니다!
     }
@@ -1283,8 +1279,10 @@ Widget _whisperUnreadBadge() {
         if (user != null) {
           // 1. [아레나 모드] 기록 로직
           if (widget.roomId != null) {
+            // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후 잡힌 건 미집계 — 점수·보상·메시지 전부 X
+            if (!(arenaTimeLeft <= 0 || _arenaEndedNaturally)) {
             await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('messages').add({
-              'text': '📢 ${widget.nickname}님이 ${fish['name']} (${fish['size']}${fish['unit']})를 낚았습니다!', 
+              'text': '📢 ${widget.nickname}님이 ${fish['name']} (${fish['size']}${fish['unit']})를 낚았습니다!',
               'sender': '캠피싱', 
               'createdAt': FieldValue.serverTimestamp()
             });
@@ -1315,6 +1313,7 @@ Widget _whisperUnreadBadge() {
             final int aPts = ((fish['pts'] as int) * arenaRewardMult).round();
             await FirebaseFirestore.instance.collection('users').doc(user.uid)
                 .set({'exp': FieldValue.increment(aExp), 'gold': FieldValue.increment(aPts)}, SetOptions(merge: true));
+            } // 🐛 아레나 종료 후 미집계 가드 닫기
           }
           // 2. [일반 낚시터 모드] 기록 로직
           else {
@@ -2158,6 +2157,8 @@ void _maybeShowGaram() {
 void _recast() {  // 기존 코드
     audioManager.ensureRainPlaying(); // 🌧️ 낚시터에서도 조작 시 빗소리 열기(자동재생 우회)
     if (!mounted || remainingTimeNotifier.value <= 0) return;
+    // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후엔 캐스팅 불가 (일일타이머와 별개라 이전엔 통과됐음)
+    if (widget.roomId != null && (arenaTimeLeft <= 0 || _arenaEndedNaturally)) return;
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
     // 🪱 미끼 없으면 캐스팅 불가
     if (equippedBait == null) {
