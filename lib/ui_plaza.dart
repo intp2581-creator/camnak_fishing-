@@ -147,6 +147,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 💬 채팅 (낚시터와 동일한 global_chat / friends 공유)
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
+  DateTime _readWhisperAt = DateTime.now(); // 🔴 귓속말 마지막 읽음(이후 도착=안읽음 뱃지)
+  DateTime _readGuildAt = DateTime.now();   // 🔴 길드챗 마지막 읽음
   final TextEditingController _chatCtrl = TextEditingController();
   final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분 + 엔터 전송 후 커서 유지)
   final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
@@ -2050,10 +2052,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // ===== 💬 채팅 =====
   Widget _chatTabBtn(int index, String title) {
     final active = _chatTab == index;
-    return GestureDetector(
+    final Widget btn = GestureDetector(
       onTap: () => setState(() {
         _chatTab = index;
         if (index == 0) _whisperTarget = null;
+        if (index == 1) _readWhisperAt = DateTime.now(); // 귓속말 열면 읽음
+        if (index == 3) _readGuildAt = DateTime.now();   // 길드챗 열면 읽음
       }),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
@@ -2068,6 +2072,70 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 fontSize: 12,
                 fontWeight: FontWeight.bold)),
       ),
+    );
+    // 🔴 안 읽은 귓속말(1)/길드(3) 뱃지 — 그 탭을 보고 있지 않을 때만
+    if ((index == 1 || index == 3) && !active) {
+      return Stack(clipBehavior: Clip.none, children: [
+        btn,
+        Positioned(top: -5, right: -1, child: _unreadBadge(index)),
+      ]);
+    }
+    return btn;
+  }
+
+  // 🔴 안 읽은 메시지 수 뱃지 (귓속말=receiver 나 / 길드=길드챗, 각 마지막 읽음 이후)
+  Widget _unreadBadge(int index) {
+    if (index == 3) {
+      if (_guildId.isEmpty) return const SizedBox.shrink();
+      return StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('guilds').doc(_guildId).collection('chat')
+            .orderBy('timestamp', descending: true).limit(30).snapshots(),
+        builder: (c, snap) {
+          if (!snap.hasData) return const SizedBox.shrink();
+          final n = snap.data!.docs.where((d) {
+            final m = d.data() as Map<String, dynamic>;
+            final ts = m['timestamp'];
+            final t = ts is Timestamp ? ts.toDate() : null;
+            return t != null && t.isAfter(_readGuildAt) &&
+                (m['nickname']?.toString() ?? '') != widget.nickname;
+          }).length;
+          return _badgeDot(n);
+        },
+      );
+    }
+    // 귓속말: 나에게 온 것 중 마지막 읽음 이후
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('global_chat')
+          .where('receiver', isEqualTo: widget.nickname)
+          .snapshots(),
+      builder: (c, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final n = snap.data!.docs.where((d) {
+          final m = d.data() as Map<String, dynamic>;
+          final ts = m['timestamp'];
+          final t = ts is Timestamp ? ts.toDate() : null;
+          return t != null && t.isAfter(_readWhisperAt);
+        }).length;
+        return _badgeDot(n);
+      },
+    );
+  }
+
+  Widget _badgeDot(int n) {
+    if (n <= 0) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      constraints: const BoxConstraints(minWidth: 16),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: Colors.white, width: 1),
+      ),
+      child: Text(n > 9 ? '9+' : '$n',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, height: 1.1)),
     );
   }
 
@@ -2305,6 +2373,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       builder: (c, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
         final docs = snap.data!.docs;
+        _readGuildAt = DateTime.now(); // 길드챗 보는 중=계속 읽음 처리
         if (docs.isEmpty) {
           return Center(
               child: Text('[$_guildName] 길드 채팅\n첫 인사를 남겨보세요!',
@@ -2440,6 +2509,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           builder: (c, snap) {
                             if (!snap.hasData) return const SizedBox.shrink();
                             final docs = snap.data!.docs;
+                            if (_chatTab == 1) _readWhisperAt = DateTime.now(); // 귓속말 보는 중=계속 읽음 처리
                             final me = widget.nickname;
                             return ListView.builder(
                               reverse: true,

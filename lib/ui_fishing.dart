@@ -90,6 +90,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
 // 💬 채팅 관련 상태 변수
   int _currentChatTab = 0; // 0: 전체, 1: 귓속말, 2: 친구
   String? _whisperTargetNickname; // 귓속말 보낼 대상의 닉네임
+  DateTime _readWhisperAt = DateTime.now(); // 🔴 귓속말 마지막 읽음(이후 도착=안읽음 뱃지)
 
   int arenaTimeLeft = 600; // ⏱️ 아레나 전용 10분 타이머 (10분 = 600초) 추가!
 
@@ -360,12 +361,13 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
 
 Widget _buildChatTab(int index, String title) {
   bool isActive = _currentChatTab == index;
-  return GestureDetector(
+  final Widget btn = GestureDetector(
     onTap: () {
       setState(() {
         _currentChatTab = index;
         // 전체 탭으로 돌아가면 귓속말 타겟 초기화 (선택 사항)
-        if (index == 0) _whisperTargetNickname = null; 
+        if (index == 0) _whisperTargetNickname = null;
+        if (index == 1) _readWhisperAt = DateTime.now(); // 귓속말 열면 읽음
       });
     },
     child: Container(
@@ -376,14 +378,54 @@ Widget _buildChatTab(int index, String title) {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
       ),
       child: Text(
-        title, 
+        title,
         style: TextStyle(
-          color: isActive ? Colors.black : Colors.white, 
-          fontSize: 12, 
+          color: isActive ? Colors.black : Colors.white,
+          fontSize: 12,
           fontWeight: FontWeight.bold
         )
       ),
     ),
+  );
+  // 🔴 안 읽은 귓속말 뱃지 — 귓속말 탭(1)을 보고 있지 않을 때만
+  if (index == 1 && !isActive) {
+    return Stack(clipBehavior: Clip.none, children: [
+      btn,
+      Positioned(top: -5, right: -1, child: _whisperUnreadBadge()),
+    ]);
+  }
+  return btn;
+}
+
+// 🔴 나에게 온 귓속말 중 마지막 읽음 이후 개수 뱃지
+Widget _whisperUnreadBadge() {
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection('global_chat')
+        .where('receiver', isEqualTo: widget.nickname)
+        .snapshots(),
+    builder: (c, snap) {
+      if (!snap.hasData) return const SizedBox.shrink();
+      final n = snap.data!.docs.where((d) {
+        final m = d.data() as Map<String, dynamic>;
+        final ts = m['timestamp'];
+        final t = ts is Timestamp ? ts.toDate() : null;
+        return t != null && t.isAfter(_readWhisperAt);
+      }).length;
+      if (n <= 0) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        constraints: const BoxConstraints(minWidth: 16),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: Colors.white, width: 1),
+        ),
+        child: Text(n > 9 ? '9+' : '$n',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, height: 1.1)),
+      );
+    },
   );
 }
   // 🏢 State: 상태 변수들
@@ -2664,6 +2706,7 @@ Positioned(
                                      builder: (context, snapshot) {
                                     if (!snapshot.hasData) return const SizedBox.shrink();
                                     var docs = snapshot.data!.docs;
+                                    if (_currentChatTab == 1) _readWhisperAt = DateTime.now(); // 귓속말 보는 중=읽음 처리
 
                                     return ListView.builder(
                                       reverse: true,
