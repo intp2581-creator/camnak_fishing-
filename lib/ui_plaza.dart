@@ -4912,12 +4912,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'guildName': name,
     });
     await batch.commit();
-    if (mounted) {
-      setState(() {
-        _gold -= 10000;
-        currentPoints = _gold;
-      });
-    }
+    // 🐛 [버그픽스] 로컬 _gold를 직접 차감하지 않음! (Firestore -10000은 위 batch가 처리)
+    //   user 문서 실시간 리스너가 await 도중 이미 차감된 값으로 _gold를 동기화하는데,
+    //   여기서 또 -10000 하면 이중차감(7408 → -2592)돼서 구매 불가 버그 발생. 리스너에만 맡김.
     if (ctx.mounted) Navigator.pop(ctx); // 생성 다이얼로그 닫기
     _toast('"$name" 길드를 만들었어요! 🎉');
   }
