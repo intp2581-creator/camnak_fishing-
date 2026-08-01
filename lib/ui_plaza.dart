@@ -3911,32 +3911,41 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       // (아래 builder) — 닫힌 뒤 아라 안내는 이 showDialog의 .then에서 처리
-      builder: (ctx) => Dialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: SizedBox(
-          width: 460,
-          height: 520,
-          child: StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
-            builder: (c, snap) {
-              if (!snap.hasData) {
-                return const Center(child: CircularProgressIndicator(color: _kGold));
-              }
-              final data = snap.data!.data() as Map<String, dynamic>? ?? {};
-              final gid = (data['guildId'] ?? '').toString();
-              if (gid.isEmpty) {
-                return _guildBrowse(ctx, uid);
-              }
-              return _guildHome(ctx, uid, gid);
-            },
+      builder: (ctx) {
+        // 🛡️ [탭 분리] 처음엔 누구나 '길드 목록'. 가입한 유저는 '내 길드' 버튼으로 내 길드창 전환.
+        bool showMine = false;
+        return StatefulBuilder(
+          builder: (ctx, setLocal) => Dialog(
+            backgroundColor: const Color(0xFF1A1A1A),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: SizedBox(
+              width: 460,
+              height: 520,
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+                builder: (c, snap) {
+                  if (!snap.hasData) {
+                    return const Center(child: CircularProgressIndicator(color: _kGold));
+                  }
+                  final data = snap.data!.data() as Map<String, dynamic>? ?? {};
+                  final gid = (data['guildId'] ?? '').toString();
+                  if (gid.isNotEmpty && showMine) {
+                    return _guildHome(ctx, uid, gid,
+                        onBackToList: () => setLocal(() => showMine = false));
+                  }
+                  return _guildBrowse(ctx, uid,
+                      myGid: gid,
+                      onMyGuild: gid.isEmpty ? null : () => setLocal(() => showMine = true));
+                },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     ).then((_) => _maybeShowAraGuide()); // 🎓 길드 닫힌 뒤 아라 안내(튜토리얼)
   }
 
-  Widget _guildDialogHeader(String title, {Widget? trailing}) {
+  Widget _guildDialogHeader(String title, {Widget? trailing, Widget? leading}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -3944,7 +3953,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       child: Row(children: [
-        const Icon(Icons.groups, color: _kGold, size: 22),
+        leading ?? const Icon(Icons.groups, color: _kGold, size: 22),
         const SizedBox(width: 8),
         Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900)),
         const Spacer(),
@@ -3953,13 +3962,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _guildBrowse(BuildContext ctx, String uid) {
+  Widget _guildBrowse(BuildContext ctx, String uid, {String myGid = '', VoidCallback? onMyGuild}) {
     return Column(
       children: [
-        _guildDialogHeader('길드',
-            trailing: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white54),
-                onPressed: () => Navigator.pop(ctx))),
+        _guildDialogHeader('길드 목록',
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (onMyGuild != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                        backgroundColor: _kGold, foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                    icon: const Icon(Icons.shield, size: 15),
+                    label: const Text('내 길드', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                    onPressed: onMyGuild,
+                  ),
+                ),
+              IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white54),
+                  onPressed: () => Navigator.pop(ctx)),
+            ])),
         Padding(
           padding: const EdgeInsets.all(12),
           child: SizedBox(
@@ -4035,6 +4060,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             Text(g['name']?.toString() ?? '',
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                            if ((g['slogan']?.toString() ?? '').trim().isNotEmpty) ...[
+                              const SizedBox(height: 1),
+                              Text(g['slogan'].toString().trim(),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Color(0xFFE7C86A), fontSize: 11, fontStyle: FontStyle.italic)),
+                            ],
                             const SizedBox(height: 2),
                             Row(children: [
                               Text('길드장 ${g['master'] ?? '-'}  ·  멤버 $mc/$cap명',
@@ -4054,16 +4086,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           ],
                         ),
                       ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: full ? Colors.grey.shade700 : _kGold,
-                            foregroundColor: full ? Colors.white54 : Colors.black,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            minimumSize: const Size(0, 0),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                        onPressed: full ? null : () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
-                        child: Text(full ? '만원' : (((g['joinPolicy'] ?? 'approval') == 'open') ? '바로가입' : '가입신청'), style: const TextStyle(fontWeight: FontWeight.bold)),
-                      ),
+                      Builder(builder: (_) {
+                        final bool inGuild = myGid.isNotEmpty;   // 이미 어떤 길드 소속
+                        final bool isMine = gid == myGid;         // 이 카드가 내 길드
+                        final bool disabled = full || inGuild;
+                        final String label = isMine
+                            ? '내 길드'
+                            : (inGuild ? '가입중' : (full ? '만원' : (((g['joinPolicy'] ?? 'approval') == 'open') ? '바로가입' : '가입신청')));
+                        return ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: disabled ? Colors.grey.shade700 : _kGold,
+                              foregroundColor: disabled ? Colors.white54 : Colors.black,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                          onPressed: disabled ? null : () => _joinGuild(uid, gid, g['name']?.toString() ?? ''),
+                          child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        );
+                      }),
                     ]),
                   );
                 },
@@ -4077,7 +4117,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   int _guildTab = 0; // 0 길드원 / 1 혜택 / 2 설정
 
-  Widget _guildHome(BuildContext ctx, String uid, String gid) {
+  Widget _guildHome(BuildContext ctx, String uid, String gid, {VoidCallback? onBackToList}) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('guilds').doc(gid).snapshots(),
       builder: (c, gsnap) {
@@ -4117,6 +4157,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             return Column(
               children: [
                 _guildDialogHeader(g['name']?.toString() ?? '길드',
+                    leading: onBackToList == null
+                        ? null
+                        : IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            icon: const Icon(Icons.arrow_back, color: _kGold, size: 22),
+                            onPressed: onBackToList),
                     trailing: IconButton(
                         icon: const Icon(Icons.close, color: Colors.white54),
                         onPressed: () => Navigator.pop(ctx))),
@@ -4288,11 +4335,113 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   const SizedBox(width: 3),
                   guildLastSeen(mUid),
                 ]),
+                // 📝 길드원 메모(상태·소개) — 본인은 탭해서 편집, 남은 있을 때만 표시
+                if ((m['memo']?.toString() ?? '').trim().isNotEmpty || mUid == myUid) ...[
+                  const SizedBox(height: 4),
+                  GestureDetector(
+                    onTap: mUid == myUid
+                        ? () => _editMemberMemo(gid, myUid, (m['memo'] ?? '').toString())
+                        : null,
+                    child: Row(children: [
+                      const SizedBox(width: 26),
+                      const Icon(Icons.sticky_note_2_outlined, color: Colors.white24, size: 12),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          (m['memo']?.toString() ?? '').trim().isEmpty ? '메모 추가...' : m['memo'].toString().trim(),
+                          maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: (m['memo']?.toString() ?? '').trim().isEmpty ? Colors.white24 : Colors.white70,
+                              fontSize: 11,
+                              fontStyle: (m['memo']?.toString() ?? '').trim().isEmpty ? FontStyle.italic : FontStyle.normal),
+                        ),
+                      ),
+                      if (mUid == myUid) const Icon(Icons.edit, color: Colors.white38, size: 12),
+                    ]),
+                  ),
+                ],
               ]),
             );
           },
         );
       },
+    );
+  }
+
+  // 📣 [길드장] 홍보문구 편집 (15자) — 길드 목록에 표시
+  void _editGuildSlogan(String gid, String current) {
+    final ctrl = TextEditingController(text: current.trim());
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1)),
+        title: const Text('길드 홍보문구', style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          maxLength: 15,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: '예) 친목 길드입니다 / 길드전 환영',
+            hintStyle: TextStyle(color: Colors.white38),
+            counterStyle: TextStyle(color: Colors.white38),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _kGold)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () {
+              FirebaseFirestore.instance.collection('guilds').doc(gid)
+                  .set({'slogan': ctrl.text.trim()}, SetOptions(merge: true));
+              Navigator.pop(dctx);
+            },
+            child: const Text('저장', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 📝 [길드원] 본인 메모 편집 (30자) — 길드원 목록에 표시
+  void _editMemberMemo(String gid, String myUid, String current) {
+    final ctrl = TextEditingController(text: current.trim());
+    showDialog(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1)),
+        title: const Text('내 메모', style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: ctrl,
+          maxLength: 30,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            hintText: '예) 매일 저녁 8시에 접속합니다',
+            hintStyle: TextStyle(color: Colors.white38),
+            counterStyle: TextStyle(color: Colors.white38),
+            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: _kGold)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () {
+              FirebaseFirestore.instance.collection('guilds').doc(gid)
+                  .collection('members').doc(myUid)
+                  .set({'memo': ctrl.text.trim()}, SetOptions(merge: true));
+              Navigator.pop(dctx);
+            },
+            child: const Text('저장', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -4434,6 +4583,36 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         children: [
           // 🚪 가입 방식 설정 (길드장만)
           if (isMaster) ...[
+            // 📣 길드 홍보문구 (길드 목록에 표시, 15자)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('길드 홍보문구', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 8),
+            GestureDetector(
+              onTap: () => _editGuildSlogan(gid, (g['slogan'] ?? '').toString()),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                decoration: BoxDecoration(
+                    color: Colors.white10, borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.white24)),
+                child: Row(children: [
+                  Expanded(
+                    child: Text(
+                      (g['slogan'] ?? '').toString().trim().isEmpty
+                          ? '길드 목록에 보일 한 줄 소개를 적어보세요 (15자)'
+                          : (g['slogan']).toString().trim(),
+                      style: TextStyle(
+                          color: (g['slogan'] ?? '').toString().trim().isEmpty ? Colors.white38 : Colors.white,
+                          fontSize: 13),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.edit, color: _kGold, size: 16),
+                ]),
+              ),
+            ),
+            const Divider(color: Colors.white12, height: 28),
             const Align(
               alignment: Alignment.centerLeft,
               child: Text('가입 방식', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
