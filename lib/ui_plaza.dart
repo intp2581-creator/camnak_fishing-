@@ -468,6 +468,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     _loadUser();
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
+    // 📍 위치 권한 거부한 유저 재허용 안내(거부 상태일 때만, '다시 안 볼게요' 전까지 1회)
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (mounted) showLocationGuideIfDenied(context);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) => checkAppUpdate(context)); // 🔖 새 버전 알림
     _maybeShowRankNotice(); // 🔰 초반: 랭킹 시스템 안내 1회
     // 🤝 나를 친구로 등록한 사람 알림(B안) — 접속 중 실시간 + 재접속 시 밀린 알림

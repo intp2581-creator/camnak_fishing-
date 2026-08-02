@@ -124,6 +124,72 @@ class WeatherService {
   }
 }
 
+// 📍 위치 권한 상태 조회 ('granted' / 'denied' / 'prompt' / 'unsupported')
+Future<String> geoPermissionState() async {
+  try {
+    final perms = html.window.navigator.permissions;
+    if (perms == null) return 'unsupported';
+    final status = await perms.query({'name': 'geolocation'});
+    return status.state ?? 'unknown';
+  } catch (_) {
+    return 'unsupported';
+  }
+}
+
+// 📍 위치 권한이 '거부' 상태면 재허용 안내 팝업 (유저가 '다시 안 볼게요' 누르기 전까지).
+//    허용/미정/미지원이면 아무것도 안 함. 게임 진입(광장)에서 1회 호출.
+Future<void> showLocationGuideIfDenied(BuildContext context) async {
+  try { if (html.window.localStorage['geoGuideOff'] == '1') return; } catch (_) {}
+  final state = await geoPermissionState();
+  if (state != 'denied') return; // 허용/미정/미지원이면 안내 불필요
+  if (!context.mounted) return;
+  _showLocationGuide(context);
+}
+
+void _showLocationGuide(BuildContext context) {
+  const gold = Color(0xFFD4AF37);
+  showDialog(
+    context: context,
+    builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14), side: const BorderSide(color: gold, width: 1.2)),
+      title: const Text('📍 위치 권한을 켜주세요',
+          style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.bold)),
+      content: const SingleChildScrollView(
+        child: Text(
+          '실시간 날씨(비·눈)를 게임에 반영하려면 위치 권한이 필요해요. 지금은 꺼져 있어요.\n\n'
+          '켜는 방법\n'
+          '• PC·안드로이드: 주소창 자물쇠🔒(또는 ⓘ) → 사이트 설정/권한 → 위치 → "허용" → 새로고침\n'
+          '• 아이폰: 설정 앱 → Safari → 위치 → 허용\n\n'
+          '위치를 안 켜도 게임은 정상 작동하고, 날씨만 기본값으로 나와요. 🙂',
+          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.55),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            try { html.window.localStorage['geoGuideOff'] = '1'; } catch (_) {}
+            Navigator.pop(dctx);
+          },
+          child: const Text('다시 안 볼게요', style: TextStyle(color: Colors.white38, fontSize: 13)),
+        ),
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('닫기', style: TextStyle(color: Colors.white54))),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: gold, foregroundColor: Colors.black),
+          onPressed: () async {
+            Navigator.pop(dctx);
+            await WeatherService.instance.refresh(force: true); // 위치 재요청(미정이면 프롬프트 재등장)
+            final s = await geoPermissionState();
+            if (context.mounted && s == 'denied') _showLocationGuide(context); // 여전히 거부면 다시 안내
+          },
+          child: const Text('다시 시도', style: TextStyle(fontWeight: FontWeight.bold)),
+        ),
+      ],
+    ),
+  );
+}
+
 /// 화면 위에 얹는 비/눈 오버레이.
 /// 사용: Positioned.fill(child: IgnorePointer(child: WeatherOverlay()))
 class WeatherOverlay extends StatefulWidget {
