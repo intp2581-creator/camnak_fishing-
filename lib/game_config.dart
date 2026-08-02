@@ -319,10 +319,8 @@ Map<String, dynamic> getTodayBobaeFish() {
 const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];
 const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치'];
 int garamRankBonus(int rank) {
-  if (rank == 1) return 10;
-  if (rank >= 2 && rank <= 4) return 8;
-  if (rank >= 5 && rank <= 7) return 5;
-  if (rank >= 8 && rank <= 10) return 2;
+  // 🎖️ 종합순위별 P/C/S 각 보너스(선형): 1위+10, 2위+9, 3위+8 ... 10위+1
+  if (rank >= 1 && rank <= 10) return 11 - rank;
   return 0;
 }
 

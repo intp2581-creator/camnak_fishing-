@@ -533,7 +533,8 @@ Widget _whisperUnreadBadge() {
   // 🛡️ 길드 버프 (길드 레벨 + 주간 리그 챔피언)
   String _guildId = '';
   int _guildLevel = 0;
-  bool _isChampionGuild = false; // 지난주 길드 리그 1위 → 이번주 추가 버프
+  bool _isChampionGuild = false; // 지난주 길드 리그 1위(👑 표시용)
+  int _myLeagueRank = 0;         // 지난주 길드 리그 내 길드 순위(0=없음/1~3=보상) → PCS 보너스
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
   bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
   bool _arenaWalkoverWin = false;    // 🏳️ 상대 전원 기권 → 혼자 남아 나감(기권승) → dispose에서 실격 처리 안 함
@@ -562,19 +563,21 @@ Widget _whisperUnreadBadge() {
       if (gid.isEmpty) return;
       final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
       final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
-      // 🏆 주간 리그 챔피언 여부
-      bool champ = false;
+      // 🏆 주간 리그 내 길드 순위(top3 보상)
+      int leagueRank = 0;
       try {
         final st = await FirebaseFirestore.instance.collection('guild_league').doc('state').get();
-        champ = (st.data()?['championGuildId'] ?? '') == gid &&
-            (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
+        final active = (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
+        final lr = st.data()?['leagueRanks'];
+        if (active && lr is Map && lr[gid] is num) leagueRank = (lr[gid] as num).toInt();
       } catch (_) {}
       if (mounted) {
         setState(() {
           _guildId = gid;
           if (gid.isEmpty && _currentChatTab == 4) _currentChatTab = 0; // 길드 없으면 길드탭→전체
           _guildLevel = FishingLogic.guildLevelFromExp(gexp);
-          _isChampionGuild = champ;
+          _myLeagueRank = leagueRank;
+          _isChampionGuild = leagueRank == 1;
         });
       }
     } catch (_) {}
@@ -600,7 +603,7 @@ Widget _whisperUnreadBadge() {
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;
     int b = FishingLogic.guildStatBonus(_guildLevel);
-    if (_isChampionGuild) b += FishingLogic.guildChampionBonus;
+    b += FishingLogic.guildLeagueBonus(_myLeagueRank); // 🏆 주간 길드 리그 top3 보너스(1위+10/2위+5/3위+2)
     b += garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
     final evB = eventItemBonus(_latestInventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 적용)
     if (b <= 0 && (evB['P'] ?? 0) == 0 && (evB['C'] ?? 0) == 0 && (evB['S'] ?? 0) == 0) return s;

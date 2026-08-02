@@ -162,6 +162,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🏆 주간 길드 리그 (1위 길드 챔피언 → 머리 위 👑 + 추가 버프)
   bool _isChampionGuild = false;
   String _champGuildId = '';
+  Map<String, dynamic> _leagueRanks = {}; // {guildId: 순위} top3
+  int _myLeagueRank = 0;                  // 내 길드 리그 순위(0/1~3) → PCS 보너스
   String _champWeek = '';
   StreamSubscription<DocumentSnapshot>? _leagueSub;
   // 🎖️ 가람 주간 개인 종합 랭킹 (top10 = 1주일 PCS 보너스 + 머리 위 순위마크)
@@ -772,6 +774,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         .listen((doc) {
       _champGuildId = (doc.data()?['championGuildId'] ?? '').toString();
       _champWeek = (doc.data()?['activeWeek'] ?? '').toString();
+      final lr = doc.data()?['leagueRanks'];
+      _leagueRanks = (lr is Map) ? Map<String, dynamic>.from(lr) : {};
       _recomputeChampion();
     });
     // 🎖️ 가람 개인랭킹 상태 구독 → 내 순위(마크·보너스) 실시간 반영
@@ -951,12 +955,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   void _recomputeChampion() {
-    final isChamp = _guildId.isNotEmpty &&
-        _champGuildId == _guildId &&
-        _champWeek == FishingLogic.weekKey(DateTime.now());
-    if (isChamp != _isChampionGuild) {
-      if (mounted) setState(() => _isChampionGuild = isChamp);
-      _writeMe(); // 👑 머리 위 왕관 갱신
+    final weekOk = _champWeek == FishingLogic.weekKey(DateTime.now());
+    final rank = (_guildId.isNotEmpty && weekOk && _leagueRanks[_guildId] is num)
+        ? (_leagueRanks[_guildId] as num).toInt()
+        : 0;
+    final isChamp = rank == 1;
+    if (rank != _myLeagueRank || isChamp != _isChampionGuild) {
+      if (mounted) setState(() { _myLeagueRank = rank; _isChampionGuild = isChamp; });
+      _writeMe(); // 👑 머리 위 왕관 갱신(1위만)
     }
   }
 
@@ -970,20 +976,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final activeWeek = (snap.data()?['activeWeek'] ?? '').toString();
       if (activeWeek == cur) return; // 이미 이번 주
       String champId = '', champName = '';
+      final Map<String, dynamic> leagueRanks = {}; // {guildId: 순위(1~3)} — top3 보상
       if (activeWeek.isNotEmpty) {
-        // 지난주(activeWeek) 최고 점수 길드 = 챔피언
+        // 지난주(activeWeek) 마릿수 순 top3 길드 확정
         final q = await fs
             .collection('guilds')
             .orderBy('weeklyScore', descending: true)
-            .limit(10)
+            .limit(20)
             .get();
+        int placed = 0;
         for (final d in q.docs) {
           final dd = d.data();
           final ws = (dd['weeklyScore'] is num) ? (dd['weeklyScore'] as num).toInt() : 0;
           if ((dd['weekKey'] ?? '') == activeWeek && ws > 0) {
-            champId = d.id;
-            champName = (dd['name'] ?? '').toString();
-            break;
+            placed++;
+            leagueRanks[d.id] = placed;
+            if (placed == 1) { champId = d.id; champName = (dd['name'] ?? '').toString(); }
+            if (placed >= 3) break; // top3만 보상
           }
         }
       }
@@ -995,6 +1004,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           'championGuildId': champId,
           'championGuildName': champName,
           'championWeek': cur,
+          'leagueRanks': leagueRanks, // 🏆 top3 순위별 보상
           'settledAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       });
@@ -3404,7 +3414,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
             if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
-            if (champV != 0) chip('👑 +$champV', _kGold),
+            if (champV != 0) chip('🏆 +$champV', _kGold),
             if (rankV != 0) chip('🏆 +$rankV', const Color(0xFFFFE082)),
             if (eventV != 0) chip('🎁 이벤트 +$eventV', const Color(0xFFFFAB91)),
           ]),
@@ -3443,7 +3453,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     Widget body(int gLevel) {
       final lvB = (_level - 1) < 0 ? 0 : (_level - 1); // 🆙 레벨 보너스(각 +1/레벨) — 낚시 전투력과 동일
       final gB = FishingLogic.guildStatBonus(gLevel);
-      final cB = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
+      final cB = FishingLogic.guildLeagueBonus(_myLeagueRank);
       final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
       final evB = eventItemBonus(_inventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 자동)
       final evP = evB['P'] ?? 0, evC = evB['C'] ?? 0, evS = evB['S'] ?? 0;
@@ -4595,8 +4605,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   Widget _guildPerksTab(int gLevel, int guildExp) {
     final levelBonus = FishingLogic.guildStatBonus(gLevel);
-    final champBonus = _isChampionGuild ? FishingLogic.guildChampionBonus : 0;
+    final champBonus = FishingLogic.guildLeagueBonus(_myLeagueRank); // 🏆 리그 top3 순위별
     final bonus = levelBonus + champBonus;
+    final bool inLeague = _myLeagueRank >= 1 && _myLeagueRank <= 3;
+    final String leagueMark = _myLeagueRank == 1 ? '👑' : _myLeagueRank == 2 ? '🥈' : '🥉';
     final isMax = gLevel >= FishingLogic.guildMaxLevel;
     final curBase = FishingLogic.guildExpTable[gLevel];
     final nextBase = isMax
@@ -4649,7 +4661,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           const SizedBox(height: 4),
           Text(isMax ? '최고 레벨 달성!' : '길드 경험치 $guildExp / $nextBase',
               style: const TextStyle(color: Colors.white54, fontSize: 11)),
-          if (_isChampionGuild) ...[
+          if (inLeague) ...[
             const SizedBox(height: 14),
             Container(
               width: double.infinity,
@@ -4658,14 +4670,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   color: const Color(0xCC4A3A00),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: _kGold)),
-              child: Text('👑 이번 주 길드 리그 챔피언!  전 능력치 +$champBonus (1주일)',
+              child: Text('$leagueMark 이번 주 길드 리그 $_myLeagueRank위!  전 능력치 +$champBonus (1주일)',
                   style: const TextStyle(color: _kGold, fontSize: 13, fontWeight: FontWeight.w900)),
             ),
           ],
           const SizedBox(height: 16),
           Text(
-              _isChampionGuild
-                  ? '길드원 전체 능력치 보너스 (레벨 +$levelBonus, 챔피언 +$champBonus)'
+              inLeague
+                  ? '길드원 전체 능력치 보너스 (레벨 +$levelBonus, 리그 $_myLeagueRank위 +$champBonus)'
                   : '길드원 전체 능력치 보너스',
               style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),

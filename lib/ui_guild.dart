@@ -364,10 +364,12 @@ class _GuildInfoBody extends StatelessWidget {
         return StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance.collection('guild_league').doc('state').snapshots(),
           builder: (c2, st) {
-            final champId =
-                ((st.data?.data() as Map<String, dynamic>?)?['championGuildId'] ?? '').toString();
+            final stData = st.data?.data() as Map<String, dynamic>?;
+            final champId = (stData?['championGuildId'] ?? '').toString();
             final isChamp = champId == gid;
-            final bonus = levelBonus + (isChamp ? FishingLogic.guildChampionBonus : 0);
+            final lr = stData?['leagueRanks'];
+            final gRank = (lr is Map && lr[gid] is num) ? (lr[gid] as num).toInt() : 0;
+            final bonus = levelBonus + FishingLogic.guildLeagueBonus(gRank); // 🏆 리그 top3 순위별
             return Column(
               children: [
                 _header(context, name, champ: isChamp),

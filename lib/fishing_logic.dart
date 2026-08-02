@@ -655,8 +655,14 @@ for (var fish in availableFishes) {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
-  // 주간 리그 1위 길드가 다음 한 주 동안 받는 추가 능력치 보너스(힘/컨트롤/감도 각각)
-  static const int guildChampionBonus = 5;
+  // 주간 리그 top3 길드가 다음 한 주 동안 소속원 전원에게 주는 P/C/S 각 보너스.
+  //   1위+10(제압력+30) / 2위+5(+15) / 3위+2(+6). 전원 적용이라 개인랭킹보다 보수적으로.
+  static int guildLeagueBonus(int rank) {
+    if (rank == 1) return 10;
+    if (rank == 2) return 5;
+    if (rank == 3) return 2;
+    return 0;
+  }
 
   // 👤 3. 스킨(호칭)에 맞는 투명 캐릭터 이미지 찾아주기
   static String getLobbyCharacterImage(String skinName) {
