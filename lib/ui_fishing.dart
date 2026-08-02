@@ -537,6 +537,11 @@ Widget _whisperUnreadBadge() {
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
   bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
   bool _arenaWalkoverWin = false;    // 🏳️ 상대 전원 기권 → 혼자 남아 나감(기권승) → dispose에서 실격 처리 안 함
+  bool _arenaExitDone = false;       // 🚪 종료 후 대기실 복귀 1회만(버튼·자동 이동 중복 방지)
+  VoidCallback? _arenaEndClose;      // 🚪 종료 팝업 닫고 대기실로(버튼/자동타이머 공유)
+
+  // ⚔️ 아레나 시간 종료 상태? → true면 챔질·입질·재캐스팅 전부 차단(뭘 하든 정지)
+  bool get _arenaOver => widget.roomId != null && (_arenaEndedNaturally || arenaTimeLeft <= 0);
 
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -1045,32 +1050,39 @@ Widget _whisperUnreadBadge() {
         }
 
         if (!mounted) return;
-        // 💡 종료 팝업 (setState '밖'에서 — 이전엔 setState 안이라 안 떠서 계속 낚시되던 버그)
+        // 💡 종료 → 무조건 자동으로 대기실 복귀+정산. 유저가 뭘 하든(파이팅 중이든 방치든)
+        //    2초 뒤 자동 이동, 버튼으로 즉시 이동도 가능. 방을 닫으면 dispose에서 정산됨.
         showDialog(
           context: context,
           barrierDismissible: false, // 바깥쪽 터치로 못 닫게
-          builder: (dialogContext) => AlertDialog(
-            backgroundColor: Colors.black87,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
-              side: const BorderSide(color: Colors.amber, width: 2),
-            ),
-            title: const Text('⏱️ 경기 종료!', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
-            content: const Text('10분 경기가 모두 종료되었습니다.\n대기실로 돌아가 결과를 확인하세요!', style: TextStyle(color: Colors.white)),
-            actions: [
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
-                onPressed: () {
-                  Navigator.of(dialogContext).pop(); // 팝업 닫고
-                  Future.delayed(const Duration(milliseconds: 100), () {
-                    if (mounted) Navigator.of(context).pop(); // 낚시터 닫고 대기실로
-                  });
-                },
-                child: const Text('대기실로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
-              )
-            ],
-          ),
+          builder: (dialogContext) {
+            // 🚪 이 팝업만 정확히 닫고 → 낚시방 닫기(대기실 복귀). 버튼/자동타이머가 공유(1회만).
+            _arenaEndClose = () {
+              if (_arenaExitDone) return;
+              _arenaExitDone = true;
+              if (Navigator.canPop(dialogContext)) Navigator.of(dialogContext).pop(); // 종료 팝업 닫기
+              if (mounted && Navigator.canPop(context)) Navigator.of(context).pop();   // 낚시방→대기실(dispose 정산)
+            };
+            return AlertDialog(
+              backgroundColor: Colors.black87,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+                side: const BorderSide(color: Colors.amber, width: 2),
+              ),
+              title: const Text('⏱️ 경기 종료!', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+              content: const Text('10분 경기가 모두 종료되었습니다.\n대기실로 돌아가 결과를 정산합니다!', style: TextStyle(color: Colors.white)),
+              actions: [
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                  onPressed: () => _arenaEndClose?.call(),
+                  child: const Text('대기실로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
+                )
+              ],
+            );
+          },
         );
+        // ⏱️ 버튼 안 눌러도 2초 뒤 무조건 자동으로 대기실 이동(정산)
+        Future.delayed(const Duration(seconds: 2), () => _arenaEndClose?.call());
       });
       return; // 🚨 여기서 리턴시켜서 일반 60분 타이머가 안 돌아가게 막습니다!
     }
@@ -1142,6 +1154,7 @@ Widget _whisperUnreadBadge() {
     _biteTimer?.cancel();
     _escapeTimer?.cancel();
     if (!mounted || !isFloatInWater) return;
+    if (_arenaOver) return; // ⚔️ 아레나 종료 후엔 다음 입질 예약 안 함(찌 안 올라옴)
 
     // 🎣 대수 무관, 바다와 동일한 입질 간격(기본 10~20초)
     const int baseMin = 10;
@@ -1193,8 +1206,9 @@ Widget _whisperUnreadBadge() {
   }
 
   void _handleMainActionButton() {
+    if (_arenaOver) return; // ⚔️ 아레나 종료(0:00) 후엔 챔질/당기기 금지
     // 🚨 1. 자물쇠 확인 및 잠그기 (더블클릭 완벽 차단!)
-    if (_isStrikeLocked) return; 
+    if (_isStrikeLocked) return;
     _isStrikeLocked = true;
 
     if (isFloatInWater && !isFighting) {
@@ -4150,7 +4164,8 @@ void _showTodayMissionInfo() {
                   });
                   
                   // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
-                  if (fightingRodIndex != null) {
+                  //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)
+                  if (fightingRodIndex != null && !_arenaOver) {
                     fightingRodIndex = null;
                     _scheduleNextBite();
                   }
