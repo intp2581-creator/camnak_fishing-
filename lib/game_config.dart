@@ -94,6 +94,7 @@ class GameEvent {
   final double expMult;
   final double ptsMult;
   final double bossMult;
+  final String tickerMsg; // 📢 낚시화면 자막용 서술형 안내(비면 name 사용). 예: "캠피싱 오픈기념 이벤트 중! 상점에서 기념 뱃지를 구매하세요"
   // 🎁 기간제 이벤트 아이템 (상점 100P 등으로 판매 → 가방에 보유하면 효과 자동 적용 → 만료 시 자동 소멸)
   //    config/event 에 itemName/itemIcon/itemStats{P,C,S}/itemPrice/itemExpire("yyyy-MM-dd HH:mm") 추가하면 상점에 등장.
   final String itemName;
@@ -107,6 +108,7 @@ class GameEvent {
     this.expMult = 1.0,
     this.ptsMult = 1.0,
     this.bossMult = 1.0,
+    this.tickerMsg = '',
     this.itemName = '',
     this.itemIcon = '',
     this.itemStats = const {},
@@ -207,6 +209,12 @@ Future<void> loadGmNotice() async {
 /// 현재 활성 이벤트(전역). 앱 시작 시 loadGameEvent()로 채움. 기본=이벤트 없음.
 GameEvent currentGameEvent = GameEvent.none;
 
+/// 💎 보물상자 이벤트(명절 한정) 스위치. 메인 이벤트(active)와 '독립' —
+///    지금 오픈기념 배지 때문에 active가 켜져 있어도 여기 영향 안 받음.
+///    config/event 문서에 boxEvent:true 넣으면 켜짐. boxEventEnd("yyyy-MM-dd HH:mm")
+///    지정하면 그 시각 지나 자동 종료(켜는 건 수동). 수상한 상자는 상시라 이 값과 무관.
+bool gTreasureBoxOn = false;
+
 /// "yyyy-MM-dd HH:mm"(KST) 또는 "yyyy-MM-dd" 문자열 → DateTime(로컬=KST). 실패 시 null.
 DateTime? _parseKst(dynamic v) {
   if (v == null) return null;
@@ -223,6 +231,12 @@ Future<void> loadGameEvent() async {
   try {
     final doc = await FirebaseFirestore.instance.collection('config').doc('event').get();
     final d = doc.data();
+    // 💎 보물상자 이벤트는 메인 이벤트(active)와 독립 → active 판정 '전에' 먼저 결정.
+    {
+      final bool boxOn = (d?['boxEvent'] == true);
+      final DateTime? boxEnd = _parseKst(d?['boxEventEnd']);
+      gTreasureBoxOn = boxOn && (boxEnd == null || DateTime.now().isBefore(boxEnd));
+    }
     if (d == null || d['active'] != true) { currentGameEvent = GameEvent.none; return; }
     final now = DateTime.now();
     final start = _parseKst(d['start']);
@@ -246,6 +260,7 @@ Future<void> loadGameEvent() async {
       expMult: mult(d['expMult']),
       ptsMult: mult(d['ptsMult']),
       bossMult: mult(d['bossMult']),
+      tickerMsg: (d['tickerMsg'] ?? '').toString(),
       itemName: (d['itemName'] ?? '').toString(),
       itemIcon: (d['itemIcon'] ?? '').toString(),
       itemStats: iStats,
@@ -254,6 +269,7 @@ Future<void> loadGameEvent() async {
     );
   } catch (_) {
     currentGameEvent = GameEvent.none;
+    gTreasureBoxOn = false;
   }
 }
 

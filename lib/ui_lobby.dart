@@ -1359,6 +1359,7 @@ class _StoreScreenState extends State<StoreScreen> {
   late int myDisplayGold;
   late List<dynamic> myInventory; // 판매 탭에서 쓰는 내 인벤토리(상태로 관리)
   String _sellTab = '장비'; // 💰 판매 탭 안의 서브탭: 장비 / 물고기
+  final Set<String> _fishExcluded = <String>{}; // 🐟 선택판매에서 뺀 어종(체크 해제 = 안 팜)
   String currentTab = 'ROD';
 
   @override
@@ -1496,7 +1497,9 @@ class _StoreScreenState extends State<StoreScreen> {
     final fishes = all.where((i) => (i['type'] ?? '') == 'FISH').toList();
     final showFish = _sellTab == '물고기';
     final list = showFish ? fishes : gear;
-    final fishTotal = fishes.fold<int>(0, (s, i) => s + _sellPrice(i)); // 물고기 일괄판매 총액
+    // 🐟 체크된(=제외 안 된) 어종만 선택 판매
+    final selectedFishes = fishes.where((f) => !_fishExcluded.contains(f['name'].toString())).toList();
+    final selTotal = selectedFishes.fold<int>(0, (s, i) => s + _sellPrice(i));
 
     Widget subTab(String label, int count) {
       final active = _sellTab == label;
@@ -1529,13 +1532,27 @@ class _StoreScreenState extends State<StoreScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         child: showFish
             ? Row(children: [
-                const Expanded(child: Text('🐟 잡은 고기를 팔아 포인트로! (마리당 가격)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold))),
-                if (fishes.isNotEmpty)
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-                    onPressed: () => _confirmSellAllFish(fishes, fishTotal),
-                    child: Text('전부 팔기 (+$fishTotal P)', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                const Expanded(child: Text('🐟 팔 고기만 체크! (오른쪽 ✓ 해제=보관)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold))),
+                if (fishes.isNotEmpty) ...[
+                  // 전체 선택/해제 토글
+                  TextButton(
+                    style: TextButton.styleFrom(foregroundColor: Colors.white70, padding: const EdgeInsets.symmetric(horizontal: 8)),
+                    onPressed: () => setState(() {
+                      if (_fishExcluded.isEmpty) {
+                        _fishExcluded.addAll(fishes.map((f) => f['name'].toString())); // 전체 해제
+                      } else {
+                        _fishExcluded.clear(); // 전체 선택
+                      }
+                    }),
+                    child: Text(_fishExcluded.isEmpty ? '전체 해제' : '전체 선택', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   ),
+                  const SizedBox(width: 6),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: selectedFishes.isEmpty ? Colors.grey.shade700 : const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
+                    onPressed: selectedFishes.isEmpty ? null : () => _confirmSellSelectedFish(selectedFishes, selTotal),
+                    child: Text('선택 판매 (+$selTotal P)', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
+                  ),
+                ],
               ])
             : const Text('💡 필요 없는 장비를 팔아 포인트로! (판매가 = 정가의 30%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
       ),
@@ -1553,43 +1570,46 @@ class _StoreScreenState extends State<StoreScreen> {
     ]);
   }
 
-  // 🐟 물고기 일괄판매 (모든 어종)
-  void _confirmSellAllFish(List<Map<String, dynamic>> fishes, int total) {
+  // 🐟 물고기 선택 판매 (체크된 어종만 — 고등어 등은 해제해서 보관 가능)
+  void _confirmSellSelectedFish(List<Map<String, dynamic>> selected, int total) {
     audioManager.playSfx("sfx_click.mp3");
-    final totalCount = fishes.fold<int>(0, (s, i) => s + ((i['quantity'] is num) ? (i['quantity'] as num).toInt() : 1));
+    if (selected.isEmpty) return;
+    final totalCount = selected.fold<int>(0, (s, i) => s + ((i['quantity'] is num) ? (i['quantity'] as num).toInt() : 1));
+    final names = selected.map((f) => f['name'].toString()).toSet();
+    final kinds = names.length;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey.shade900,
-        title: const Text('🐟 물고기 전부 팔기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
-        content: Text('가방의 물고기 $totalCount마리를 모두 팔고\n$total P를 받습니다.\n판매하시겠습니까?', style: const TextStyle(color: Colors.white70)),
+        title: const Text('🐟 선택 물고기 팔기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        content: Text('체크한 $kinds종 · $totalCount마리를 팔고\n$total P를 받습니다.\n(체크 해제한 물고기는 그대로 보관돼요)', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
-          TextButton(onPressed: () { Navigator.pop(ctx); _sellAllFish(total); }, child: const Text('전부 판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
+          TextButton(onPressed: () { Navigator.pop(ctx); _sellSelectedFish(names, total); }, child: const Text('판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
         ],
       ),
     );
   }
 
-  void _sellAllFish(int total) async {
+  void _sellSelectedFish(Set<String> names, int total) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      inventory.removeWhere((i) => (i['type'] ?? '') == 'FISH'); // 모든 물고기 제거
+      inventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString())); // 선택 어종만 제거
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
         'gold': FieldValue.increment(total),
         'inventory': inventory,
       });
       if (!mounted) return;
       setState(() {
-        myInventory.removeWhere((i) => (i['type'] ?? '') == 'FISH');
+        myInventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString()));
         myDisplayGold += total;
       });
-      _showNotificationPopup('🎉 일괄 판매 완료', '물고기를 모두 팔고\n$total P를 받았습니다!', const Color(0xFF7FFFB0));
+      _showNotificationPopup('🎉 판매 완료', '선택한 물고기를 팔고\n$total P를 받았습니다!', const Color(0xFF7FFFB0));
     } catch (e) {
-      debugPrint('일괄판매 에러: $e');
+      debugPrint('선택판매 에러: $e');
     }
   }
 
@@ -1605,11 +1625,15 @@ class _StoreScreenState extends State<StoreScreen> {
       if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
     }
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
+    final bool isFish = (item['type'] ?? '') == 'FISH';
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
     final isBeginner = itemName.contains('초보');
-    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급 → 판매 완전 차단
-    final sellable = !isBeginner && !isTop;
+    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급
+    final bool isGear = ['rod', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
+    // ⭐ 최상급은 잠금하되, 중복(2개+)이면 '여분'은 판매 허용 → 마지막 1개(=쓰는 것)만 보호
+    final bool topLocked = isTop && !(isGear && qty > 1);
+    final sellable = !isBeginner && !topLocked;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
@@ -1623,7 +1647,7 @@ class _StoreScreenState extends State<StoreScreen> {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis),
               const SizedBox(height: 6),
-              if (isTop)
+              if (topLocked)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -1635,6 +1659,8 @@ class _StoreScreenState extends State<StoreScreen> {
                 )
               else if ((item['type'] ?? '') == 'FISH')
                 Text('보유 수량: $qty마리  (마리당 ${fishSellPrice(itemName)}P)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
+              else if (isGear && qty > 1)
+                Text(isTop ? '보유 수량: $qty개  (쓰는 1개 보호 · 여분만 판매)' : '보유 수량: $qty개  (한 개씩 판매돼요)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
               else if (bait)
                 Text('보유 수량: x$qty개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold)),
             ]),
@@ -1660,6 +1686,22 @@ class _StoreScreenState extends State<StoreScreen> {
             ]),
           ),
         ),
+        // 🐟 물고기 선택판매 체크박스(오른쪽 끝) — 체크=판매, 해제=보관
+        if (isFish)
+          GestureDetector(
+            onTap: () => setState(() {
+              if (_fishExcluded.contains(itemName)) { _fishExcluded.remove(itemName); }
+              else { _fishExcluded.add(itemName); }
+            }),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6, right: 14),
+              child: Icon(
+                _fishExcluded.contains(itemName) ? Icons.check_box_outline_blank : Icons.check_box,
+                color: _fishExcluded.contains(itemName) ? Colors.white38 : const Color(0xFF7FFFB0),
+                size: 32,
+              ),
+            ),
+          ),
       ]),
     );
   }
@@ -1694,28 +1736,44 @@ class _StoreScreenState extends State<StoreScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final name = item['name'].toString();
+    // 🎣 낚싯대/릴/찌는 한 개씩 판매(중복이어도 장착/보유분 보호 — 실수로 둘 다 안 팔리게)
+    final bool isGear = ['rod', 'reel', 'float'].contains(_slotType(item));
+    final int curQty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
+    final bool sellOne = isGear && curQty > 1;
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      inventory.removeWhere((i) => i['name'] == name); // 묶음 전체 판매
+      if (sellOne) {
+        final idx = inventory.indexWhere((i) => i['name'] == name);
+        if (idx >= 0) inventory[idx]['quantity'] = curQty - 1; // 중복분 1개만 차감(장착분 보존)
+      } else {
+        inventory.removeWhere((i) => i['name'] == name); // 묶음 전체(미끼) 또는 단일 장비
+      }
 
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
         'gold': FieldValue.increment(price),
         'inventory': inventory,
       });
 
-      // 장착 중이던 장비면 장착 해제(이미지/스텟 꼬임 방지)
-      if (globalEquippedRod?['name'] == name) globalEquippedRod = null;
-      if (globalEquippedReel?['name'] == name) globalEquippedReel = null;
-      if (globalEquippedFloat?['name'] == name) globalEquippedFloat = null;
-      if (globalEquippedBait?['name'] == name) globalEquippedBait = null;
-      if (globalEquippedSkin?['name'] == name) globalEquippedSkin = null;
-      if (globalEquippedSunglasses?['name'] == name) globalEquippedSunglasses = null;
-      if (globalEquippedBadge?['name'] == name) globalEquippedBadge = null;
+      // 장착 해제는 '완전히 처분(마지막 1개)'했을 때만 — 중복 1개 판매는 장착 유지
+      if (!sellOne) {
+        if (globalEquippedRod?['name'] == name) globalEquippedRod = null;
+        if (globalEquippedReel?['name'] == name) globalEquippedReel = null;
+        if (globalEquippedFloat?['name'] == name) globalEquippedFloat = null;
+        if (globalEquippedBait?['name'] == name) globalEquippedBait = null;
+        if (globalEquippedSkin?['name'] == name) globalEquippedSkin = null;
+        if (globalEquippedSunglasses?['name'] == name) globalEquippedSunglasses = null;
+        if (globalEquippedBadge?['name'] == name) globalEquippedBadge = null;
+      }
 
       if (!mounted) return;
       setState(() {
-        myInventory.removeWhere((i) => i['name'] == name);
+        if (sellOne) {
+          final idx = myInventory.indexWhere((i) => i['name'] == name);
+          if (idx >= 0) myInventory[idx]['quantity'] = curQty - 1;
+        } else {
+          myInventory.removeWhere((i) => i['name'] == name);
+        }
         myDisplayGold += price;
       });
       _showNotificationPopup('🎉 판매 완료', '$name 을(를) 팔고\n$price P를 받았습니다!', const Color(0xFF7FFFB0));

@@ -183,10 +183,123 @@ class FishingLogic {
   };
 
   // 🐟 1. 물고기 생성기 (입질 왔을 때 어떤 고기인지, 사이즈는 몇인지 계산)
+  // ═══════════════════════════════════════════════════════════════════
+  // 📦 랜덤 상자 보상 (인벤토리에서 '열기' 시 호출). 실제 아이템 정의와 필드 일치.
+  //    되팔기(30%)·레벨제한 동작 위해 gear는 price·reqLevel 포함.
+  // ═══════════════════════════════════════════════════════════════════
+  static const List<Map<String, dynamic>> _boxBaits = [
+    {'name': '글루텐', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png'},
+    {'name': '옥수수', 'price': 1500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png'},
+    {'name': '지렁이', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png'},
+    {'name': '루어', 'price': 1000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png'},
+    {'name': '크릴', 'price': 1500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png'},
+    {'name': '에기', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png'},
+    {'name': '갯지렁이', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_worm.png'},
+  ];
+  static const List<Map<String, dynamic>> _boxChum = [
+    {'name': '민물 밑밥', 'price': 3000, 'reqLevel': 10, 'category': 'FW', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_fw.png'},
+    {'name': '바다 밑밥', 'price': 3000, 'reqLevel': 10, 'category': 'SEA', 'type': 'GROUNDBAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'chum_sea.png'},
+  ];
+  static const List<Map<String, dynamic>> _boxLines = [
+    {'name': '민물 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png'},
+    {'name': '바다 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png'},
+  ];
+  static const List<Map<String, dynamic>> _boxFloatReel = [
+    {'name': '수제찌', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'FLOAT', 'quantity': 1, 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'float_fw_handmade.png'},
+    {'name': '나노카본찌', 'price': 50000, 'reqLevel': 30, 'category': 'FW', 'type': 'FLOAT', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'float_fw_nano.png'},
+    {'name': 'CF5000', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'REEL', 'quantity': 1, 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'reel_sea_cf5000.png'},
+    {'name': 'KF5000', 'price': 50000, 'reqLevel': 30, 'category': 'SEA', 'type': 'REEL', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'reel_sea_kf5000.png'},
+  ];
+  static const List<Map<String, dynamic>> _boxRods = [
+    {'name': 'KT-20T', 'price': 100000, 'reqLevel': 30, 'category': 'FW', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_kt20.png'},
+    {'name': 'KT-30T', 'price': 300000, 'reqLevel': 50, 'category': 'FW', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_fw_kt30.png'},
+    {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 10}, 'icon': 'rod_sea_cf500.png'},
+    {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 30, 'C': 20, 'S': 10}, 'icon': 'rod_sea_kt250.png'},
+  ];
+  static const Map<String, dynamic> _boxArenaTicket = {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png'};
+  static const Map<String, dynamic> _boxHourTicket = {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'item_ticket_1h.png'};
+
+  /// 📦 상자 하나를 열었을 때의 보상 1건.
+  ///   반환: {'kind':'exp'|'point'|'item', 'amount':int, 'item':Map, 'gear':bool, 'label':String}
+  ///   - exp/point: amount 만큼 지급.  item: 해당 아이템(gear=true면 rod/reel/float=중복 시 되팔기 처리 대상).
+  static Map<String, dynamic> rollBoxReward(String boxType) {
+    final r = math.Random();
+    Map<String, dynamic> pick(List<Map<String, dynamic>> pool) =>
+        Map<String, dynamic>.from(pool[r.nextInt(pool.length)]);
+    if (boxType == 'mystery') {
+      final k = r.nextInt(100);
+      if (k < 45) { // 경험치 45%
+        final v = const [100, 200, 300, 400, 500][r.nextInt(5)];
+        return {'kind': 'exp', 'amount': v, 'label': '경험치 +$v'};
+      } else if (k < 90) { // 포인트 45%
+        final v = const [200, 400, 600, 800, 1000][r.nextInt(5)];
+        return {'kind': 'point', 'amount': v, 'label': '$v 포인트'};
+      } else { // 미끼 10%
+        final b = pick(_boxBaits);
+        return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'};
+      }
+    }
+    // 보물상자
+    final k = r.nextInt(100);
+    if (k < 40) { final b = pick(_boxBaits); return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'}; }
+    if (k < 65) { final g = pick(_boxChum); return {'kind': 'item', 'item': g, 'gear': false, 'label': '${g['name']} 50개'}; }
+    if (k < 80) { final l = pick(_boxLines); return {'kind': 'item', 'item': l, 'gear': false, 'label': l['name']}; }
+    if (k < 90) { final f = pick(_boxFloatReel); return {'kind': 'item', 'item': f, 'gear': true, 'label': f['name']}; }
+    if (k < 95) { final rod = pick(_boxRods); return {'kind': 'item', 'item': rod, 'gear': true, 'label': rod['name']}; }
+    if (k < 98) { return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxArenaTicket), 'gear': false, 'label': '아레나 입장권'}; }
+    return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxHourTicket), 'gear': false, 'label': '낚시 1시간 이용권'};
+  }
+
+  /// 📦 인벤토리에서 상자 count개 개봉(집계). inventory를 복사·수정한 결과 + 보상 합계 반환.
+  ///   낚시터·광장 공용. 반환: {'inv':List, 'opened':int, 'exp':int, 'gold':int, 'sellback':int, 'items':Map<String,int>}
+  ///   - gold = 포인트 보상 + 중복장비 되팔기(30%) 합산.  items = 표시용(아이템만) 카운트.
+  static Map<String, dynamic> openBoxes(List<dynamic> inventory, String boxName, int count) {
+    final inv = List<dynamic>.from(inventory.map((e) => e is Map ? Map<String, dynamic>.from(e) : e));
+    final bi = inv.indexWhere((i) => (i is Map) && (i['name'] ?? '') == boxName);
+    if (bi < 0 || count <= 0) {
+      return {'inv': inv, 'opened': 0, 'exp': 0, 'gold': 0, 'sellback': 0, 'items': <String, int>{}};
+    }
+    final int owned = ((inv[bi]['quantity'] ?? 0) as num).toInt();
+    count = count.clamp(1, owned);
+    final String boxType = boxName == '수상한 상자' ? 'mystery' : 'treasure';
+    int expDelta = 0, goldDelta = 0, sellbackGold = 0;
+    final Map<String, int> itemCounts = {};
+    void addStack(Map<String, dynamic> item) {
+      final idx = inv.indexWhere((i) => (i is Map) && (i['name'] ?? '') == item['name']);
+      final int addQ = ((item['quantity'] ?? 1) as num).toInt();
+      if (idx >= 0) {
+        inv[idx]['quantity'] = (((inv[idx]['quantity'] ?? 0) as num).toInt()) + addQ;
+      } else {
+        inv.add(Map<String, dynamic>.from(item));
+      }
+    }
+    for (int n = 0; n < count; n++) {
+      final rw = rollBoxReward(boxType);
+      final kind = rw['kind'];
+      if (kind == 'exp') {
+        expDelta += (rw['amount'] as int);
+      } else if (kind == 'point') {
+        goldDelta += (rw['amount'] as int);
+      } else {
+        // 🎁 미끼·밑밥·낚시줄·찌·릴·낚싯대·이용권 모두 인벤토리에 지급.
+        //   (장비도 자동 판매 안 함 — 중복이면 유저가 직접 상점에서 되팔기)
+        final item = Map<String, dynamic>.from(rw['item']);
+        addStack(item);
+        final int q = ((item['quantity'] ?? 1) as num).toInt();
+        final key = q > 1 ? '${item['name']} $q개' : '${item['name']}';
+        itemCounts[key] = (itemCounts[key] ?? 0) + 1;
+      }
+    }
+    final int remain = owned - count;
+    if (remain <= 0) { inv.removeAt(bi); } else { inv[bi]['quantity'] = remain; }
+    return {'inv': inv, 'opened': count, 'exp': expDelta, 'gold': goldDelta, 'sellback': sellbackGold, 'items': itemCounts};
+  }
+
   static Map<String, dynamic>? generateFish({
-    required bool isSea, 
-    required String locationName, 
-    required String currentBaitName
+    required bool isSea,
+    required String locationName,
+    required String currentBaitName,
+    bool allowBoxes = false, // 📦 상자 드랍 허용(아레나·튜토리얼은 false로 제외)
   }) {
     List<Map<String, dynamic>> pool = isSea ? seaFishPool : fwFishPool;
     List<String> allowedFishes = locationFishMap[locationName] ?? [];
@@ -262,8 +375,28 @@ for (var fish in availableFishes) {
   totalWeight += w;
 }
 
+// 📦 상자 드랍: 자라(weight 5)보다 살짝 낮은 weight 4로 물고기 룰렛에 얹음.
+//    수상한 상자=상시, 보물상자=이벤트(gTreasureBoxOn)일 때만. 아레나·튜토리얼은 allowBoxes=false로 제외.
+// 🧪 kBoxTestMode=true 면 상자 자주 드랍 + 보물상자 강제 ON (테스트용, 배포 전 false로!)
+const bool kBoxTestMode = false;
+if (totalWeight < 1) totalWeight = 1;
+final int mysteryW = allowBoxes ? (kBoxTestMode ? 300 : 4) : 0;
+final int treasureW = (allowBoxes && (gTreasureBoxOn || kBoxTestMode)) ? (kBoxTestMode ? 300 : 4) : 0;
+final int grandTotal = totalWeight + mysteryW + treasureW;
+final int boxRoll = math.Random().nextInt(grandTotal);
+if (boxRoll >= totalWeight) {
+  final bool isMystery = boxRoll < totalWeight + mysteryW;
+  return {
+    'name': isMystery ? '수상한 상자' : '보물상자',
+    'isBox': true,
+    'boxType': isMystery ? 'mystery' : 'treasure',
+    'icon': isMystery ? '수상한 상자.png' : '보물상자.png',
+    'img': isMystery ? 'assets/items/수상한 상자.png' : 'assets/items/보물상자.png',
+    'unit': '개', 'size': 0.0, 'min': 0.0, 'max': 1.0, 'weightKg': 0.0, 'exp': 0, 'pts': 0,
+  };
+}
 
-    int randomWeight = math.Random().nextInt(totalWeight);
+    int randomWeight = boxRoll; // 물고기 구간(0~totalWeight-1)에 떨어진 값 재사용
 Map<String, dynamic>? selectedFish;
 int currentWeight = 0;
 for (var fish in availableFishes) {

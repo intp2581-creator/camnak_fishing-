@@ -1229,9 +1229,10 @@ Widget _whisperUnreadBadge() {
         var caughtFish = FishingLogic.generateFish(
           isSea: widget.isSea,
           locationName: widget.locationName,
-          currentBaitName: equippedBait != null ? equippedBait!['name'].toString() : ''
+          currentBaitName: equippedBait != null ? equippedBait!['name'].toString() : '',
+          allowBoxes: widget.roomId == null && !widget.isFirstTime, // 📦 아레나·튜토리얼 제외
         );
-        if (caughtFish != null) _startFight(caughtFish);
+        if (caughtFish != null) _startFight(caughtFish); // 📦 상자도 파이팅(슬로우)로 태움
       } else {
       audioManager.playSfx("sfx_click.mp3");
       _showNotificationPopup('헛챔질!', '타이밍이 맞지 않았습니다.\n찌가 변하며 올라올 때 챔질하세요.', Colors.orangeAccent);
@@ -1281,12 +1282,20 @@ Widget _whisperUnreadBadge() {
               locationStars: _getLocationStars(),
               rodImageSuffix: rodSceneSuffix(equippedRod), // 🎣 장착 낚싯대별 파이팅 그림
               isArena: widget.roomId != null, // ⚔️ 아레나면 자동제압 금지(수동 강제)
+              isBox: fish['isBox'] == true, // 📦 상자면 슬로우 파이팅
+              isSea: widget.isSea, // 🌊 낚싯대 그림·물소리 판정(상자는 img로 못 가림)
 
-              onFinished: (bool isSuccess, double size) async { 
-      Navigator.pop(context); 
+              onFinished: (bool isSuccess, double size) async {
+      Navigator.pop(context);
       await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;
       setState(() { isFighting = false; });
+
+      // 📦 상자는 항상 성공 → 인벤토리에 담고 종료(일반 보상 로직 건너뜀)
+      if (fish['isBox'] == true) {
+        await _catchBox(fish);
+        return;
+      }
 
       if (isSuccess) {
         final user = FirebaseAuth.instance.currentUser;
@@ -1341,9 +1350,13 @@ Widget _whisperUnreadBadge() {
               }
               double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
               if (caughtSize > currentMaxSize) {
+                // 🏆 내 새 기록을 쓰기 '전'에 전체 1위와 비교 → 역대 최대어 갱신이면 실시간 자막 방송
+                //    (운영/테스트 계정은 data['hideFromRank']로 즉시 제외 — 추가 읽기 없음)
+                await _maybeBroadcastRecord(fish['name'].toString(), caughtSize,
+                    (fish['unit'] ?? 'Cm').toString(), data['hideFromRank'] == true);
                 await docRef.set({
-                  'exp': FieldValue.increment(fish['exp'] as int), 
-                  'gold': FieldValue.increment(fish['pts'] as int), 
+                  'exp': FieldValue.increment(fish['exp'] as int),
+                  'gold': FieldValue.increment(fish['pts'] as int),
                   'maxCatch': {fish['name']: {'size': caughtSize, 'date': DateTime.now().toIso8601String().substring(0, 10)}}
                 }, SetOptions(merge: true));
               } else {
@@ -2108,6 +2121,185 @@ Widget _whisperUnreadBadge() {
     _scheduleNextBite();                 // 입질 체인 재개
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // 📦 랜덤 상자 — 건지면 인벤에 쌓고, 인벤토리에서 열어 보상 확인(두근두근!)
+  // ═══════════════════════════════════════════════════════════════════
+
+  // 🏆 방금 잡은 물고기가 그 어종 '전체 1위(역대 최대어)'를 갱신했으면 실시간 자막 방송.
+  //    ticker_news 컬렉션에 기록 → 모든 유저 낚시화면 자막이 실시간 구독.
+  //    ⛔ 제외: 튜토리얼 · 아레나(호출 자체가 일반 낚시터에서만) · 운영/테스트 계정(hideFromRank) · 가람 랭킹 밖 어종.
+  Future<void> _maybeBroadcastRecord(String fishName, double caughtSize, String unit, bool iAmHidden) async {
+    if (widget.isFirstTime) return;   // 🎓 튜토리얼 제외
+    if (iAmHidden) return;            // 🙈 운영/테스트 계정(캠피싱 등 hideFromRank=true) 제외
+    // 🎣 가람 랭킹 대상 어종만 방송 (그 외 어종·상자는 방송 안 함)
+    if (!garamFwFish.contains(fishName) && !garamSeaFish.contains(fishName)) return;
+    try {
+      final q = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('maxCatch.$fishName.size', descending: true)
+          .limit(30)
+          .get();
+      // 🙈 숨김계정(운영/테스트) 제외한 '실제 보이는 랭킹'의 최고 크기와 비교
+      double topSize = 0.0;
+      for (final d in q.docs) {
+        final dd = d.data();
+        if (dd['hideFromRank'] == true) continue;
+        final s = (dd['maxCatch'] is Map && dd['maxCatch'][fishName] is Map)
+            ? dd['maxCatch'][fishName]['size']
+            : null;
+        final sv = (s is num) ? s.toDouble() : 0.0;
+        if (sv > topSize) topSize = sv;
+      }
+      // 기존 전체 1위 기록을 넘어섰을 때만(첫 기록·소물은 방송 안 함)
+      if (topSize > 0 && caughtSize > topSize) {
+        final sizeStr = caughtSize == caughtSize.roundToDouble()
+            ? caughtSize.toStringAsFixed(0)
+            : caughtSize.toStringAsFixed(1);
+        await FirebaseFirestore.instance.collection('ticker_news').add({
+          'text': '🎉 축하합니다! ${widget.nickname}님이 ${widget.locationName}에서 '
+              '$fishName $sizeStr$unit를 잡아 최대어 랭킹 1위를 갱신했습니다!',
+          'nickname': widget.nickname,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {}
+  }
+
+  // 📦 상자를 건짐 → 인벤토리에 +1 후, 물고기처럼 멋진 획득 팝업.
+  Future<void> _catchBox(Map<String, dynamic> box) async {
+    audioManager.playSfx('sfx_hit.mp3');
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      try {
+        final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        final snap = await ref.get();
+        List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        final idx = inv.indexWhere((i) => (i['name'] ?? '') == box['name']);
+        if (idx >= 0) {
+          inv[idx]['quantity'] = ((inv[idx]['quantity'] ?? 0) as num).toInt() + 1;
+        } else {
+          inv.add({'name': box['name'], 'category': 'BOX', 'type': 'BOX', 'icon': box['icon'], 'quantity': 1});
+        }
+        await ref.update({'inventory': inv});
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    _showBoxCatchPopup(box); // 🎁 물고기 HIT 팝업처럼 → 캐스팅으로 이어감
+  }
+
+  // 📦 상자 획득 팝업(물고기 결과창과 동일 톤). 확인 시 캐스팅으로 이어짐.
+  void _showBoxCatchPopup(Map<String, dynamic> box) {
+    final bool mystery = box['boxType'] == 'mystery';
+    final String img = box['img']?.toString() ?? '';
+    showDialog(
+      context: context, barrierDismissible: false,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: Colors.black.withOpacity(0.95),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Color(0xFFD4AF37), width: 2.5)),
+        contentPadding: const EdgeInsets.all(25),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(mystery ? '📦 GET !!!' : '💎 GET !!!',
+              style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 42, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 10, offset: Offset(2, 2))])),
+          const SizedBox(height: 15),
+          Container(decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white24)), padding: const EdgeInsets.all(10),
+              child: Image.asset(img, height: 160, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.card_giftcard, color: Colors.white54, size: 100))),
+          const SizedBox(height: 15),
+          Text(box['name'].toString(), style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          const Text('🎁 인벤토리에서 열어보세요!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
+        ]),
+        actions: [
+          Center(child: ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+            onPressed: () { Navigator.pop(dctx); audioManager.playSfx('sfx_click.mp3'); _recast(); },
+            child: const Text('캐스팅', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          )),
+        ],
+      ),
+    );
+  }
+
+  // 📦 인벤토리에서 상자 탭 → 1개 / 모두 열기 선택
+  void _openBoxDialog(Map<String, dynamic> box) {
+    final int qty = ((box['quantity'] ?? 0) as num).toInt();
+    if (qty <= 0) return;
+    final bool mystery = box['name'] == '수상한 상자';
+    showDialog(context: context, barrierDismissible: true, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.4)),
+      title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  ($qty개)', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
+      content: Text(mystery
+          ? '경험치 · 포인트 · 미끼가 들어있어요.\n몇 개 열어볼까요?'
+          : '미끼 · 밑밥 · 낚시줄 · 찌 · 릴 · 낚싯대\n· 이용권이 들어있어요!\n몇 개 열어볼까요?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('닫기', style: TextStyle(color: Colors.white38))),
+        TextButton(onPressed: () { Navigator.pop(dctx); _openBoxes(box['name'], 1); }, child: const Text('1개 열기', style: TextStyle(color: Colors.white))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+          onPressed: () { Navigator.pop(dctx); _openBoxes(box['name'], qty); },
+          child: Text('모두 열기 ($qty)', style: const TextStyle(fontWeight: FontWeight.bold))),
+      ],
+    ));
+  }
+
+  // 📦 상자 count개 개봉 → 보상 집계(공용 로직) → Firestore 반영 → 결과 팝업.
+  Future<void> _openBoxes(String boxName, int count) async {
+    if (count <= 0) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    List<dynamic> inv;
+    try {
+      final snap = await ref.get();
+      inv = List.from(snap.data()?['inventory'] ?? []);
+    } catch (_) { return; }
+
+    final res = FishingLogic.openBoxes(inv, boxName, count);
+    final int opened = res['opened'] as int;
+    if (opened <= 0) return;
+    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int, sellback = res['sellback'] as int;
+    final items = Map<String, int>.from(res['items'] as Map);
+
+    try {
+      await ref.update({
+        'inventory': res['inv'],
+        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
+        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      });
+    } catch (_) {}
+
+    if (!mounted) return;
+    audioManager.playSfx('sfx_hit.mp3');
+    _showBoxResult(boxName, opened, expDelta, goldDelta, sellback, items);
+  }
+
+  void _showBoxResult(String boxName, int count, int exp, int gold, int sellback, Map<String, int> items) {
+    final bool mystery = boxName == '수상한 상자';
+    final lines = <Widget>[];
+    if (exp > 0) lines.add(_boxResultLine('🎣 경험치', '+$exp'));
+    if (gold > 0) lines.add(_boxResultLine('💰 포인트', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
+    items.forEach((k, v) => lines.add(_boxResultLine('🎁 $k', '×$v')));
+    showDialog(context: context, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.4)),
+      title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  $count개 개봉!',
+          style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 17, fontWeight: FontWeight.bold)),
+      content: SizedBox(width: 320, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min,
+          children: lines.isEmpty ? [const Text('...', style: TextStyle(color: Colors.white54))] : lines))),
+      actions: [ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+          onPressed: () => Navigator.pop(dctx), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)))],
+    ));
+  }
+
+  Widget _boxResultLine(String left, String right) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+      Flexible(child: Text(left, style: const TextStyle(color: Colors.white, fontSize: 14))),
+      const SizedBox(width: 10),
+      Text(right, style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 14, fontWeight: FontWeight.bold)),
+    ]),
+  );
+
   // 🦐 1분마다 민물새우 +2 적립
   Future<void> _collectShrimp() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -2304,19 +2496,12 @@ void _recast() {  // 기존 코드
           Positioned.fill(child: IgnorePointer(child: WeatherOverlay(isSea: widget.isSea))),
           // 🌦️ 날씨 뱃지(지역·기온) — 타이머 바로 아래에 딱 붙임
           const Positioned(top: 78, left: 0, right: 0, child: IgnorePointer(child: Center(child: WeatherBadge()))),
-          // 🎉 이벤트 배너 (활성 이벤트일 때만) — 날씨뱃지 아래
-          if (currentGameEvent.active && currentGameEvent.name.isNotEmpty)
-            Positioned(top: 112, left: 0, right: 0, child: IgnorePointer(child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4AF37).withOpacity(0.92),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
-                ),
-                child: Text(currentGameEvent.name, style: const TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w900)),
-              ),
-            ))),
+          // 📢 실시간 자막(뉴스 티커): 진행 중 이벤트 + 최대어 랭킹 갱신을 한 줄로 흐르게.
+          //    (기존 이벤트 배너 자리. 경험치 뒤 ~ 인벤토리 앞 가운데 폭으로 제한해 HUD와 안 겹침)
+          const Positioned(
+            top: 112, left: 260, right: 180,
+            child: IgnorePointer(child: RankingTicker()),
+          ),
           if (isCasting) _buildCastingScene(),
           if (isSettingUp)
             Positioned(
@@ -3510,9 +3695,13 @@ Positioned(
                           
                           return GestureDetector(
                             onTap: () {
+                              if (itemToShow != null && itemToShow['type'] == 'BOX') {
+                                _openBoxDialog(itemToShow!); // 📦 상자 열기
+                                return;
+                              }
                               if (itemToShow != null && itemToShow['category'] == 'TICKET') {
-                                _useTicket(itemToShow!); 
-                                return; 
+                                _useTicket(itemToShow!);
+                                return;
                               }
                               _showEquipPopup(itemToShow!);
                             },
@@ -3531,7 +3720,7 @@ Positioned(
                                   ]
                                 ), 
                                 if (isCurrentlyEquipped) const Positioned(top: 4, right: 4, child: Icon(Icons.check_circle, color: Color(0xFFD4AF37), size: 18)),
-                                if (itemToShow['quantity'] != null && (itemToShow['type'] == 'BAIT' || itemToShow['type'] == 'FISH'))
+                                if (itemToShow['quantity'] != null && (itemToShow['type'] == 'BAIT' || itemToShow['type'] == 'FISH' || itemToShow['type'] == 'BOX' || ((itemToShow['quantity'] ?? 0) as num) > 1))
                                   Positioned(bottom: 4, right: 4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white54, width: 0.5)), child: Text('${itemToShow['quantity']}${itemToShow['type'] == 'FISH' ? '마리' : '개'}', style: const TextStyle(color: Colors.yellowAccent, fontSize: 10, fontWeight: FontWeight.bold))))
                               ])
                             )
@@ -4189,11 +4378,15 @@ class FishingFightingOverlay extends StatefulWidget {
   final Function(bool, double) onFinished;
   final String rodImageSuffix; // 🎣 장착 낚싯대별 파이팅 그림 접미사('' = 기본)
   final bool isArena; // ⚔️ [v239] 아레나면 자동제압 금지(컨트롤 싸움) — 무조건 수동
+  final bool isBox;   // 📦 상자면 저항·발악 없이 천천히 끌려옴(~30초)·절대 안 놓침
+  final bool isSea;   // 🌊 바다 낚시터 여부 — 낚싯대 그림·물소리 판정(상자는 img로 못 가려서 명시 전달)
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
     required this.locationStars, required this.onFinished,
     this.rodImageSuffix = '',
     this.isArena = false,
+    this.isBox = false,
+    this.isSea = false,
   });
   @override
   State<FishingFightingOverlay> createState() => _FishingFightingOverlayState();
@@ -4307,11 +4500,25 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
         // 🔊 [사운드 패치] 버튼을 꾹 누르고(당기고) 있을 때 0.4초마다 물 튀기는 소리 반복 재생!
         if (isPressing && timer.tick % 8 == 0) {
-          bool isSea = widget.fish['img'].toString().contains('sea');
+          bool isSea = widget.isSea;
           audioManager.playSfx(isSea ? "sfx_sea_landing.mp3" : "sfx_fresh_landing.mp3");
         }
 
         if (!isFinished) {
+          if (widget.isBox) {
+            // 📦 [상자 전용] 저항·발악 없음. 당기고 있으면 천천히(~30초) 끌려옴. 절대 안 놓침(감소 없음).
+            //   0.5→1.0(0.5칸)을 0.00083/틱로 채움 → 연속 당김 시 약 30초. 안 당기면 제자리(놓침 X).
+            //   틱마다 시간 감소는 위 timer.tick 블록이 처리 → 30초 되면 gauge≥0.5라 무조건 승리.
+            fishGearNotifier.value = 0;
+            playerGearNotifier.value = 1;
+            tensionNotifier.value = 0.0;
+            double ngBox = gaugeNotifier.value + (isPressing ? 0.00083 : 0.0);
+            if (ngBox.isNaN || ngBox.isInfinite) ngBox = 0.5;
+            ngBox = ngBox.clamp(0.0, 1.0);
+            gaugeNotifier.value = ngBox;
+            if (isPressing) _isFishFacingRight = true;
+            if (ngBox >= 1.0) { gaugeNotifier.value = 1.0; isFinished = true; isWin = true; }
+          } else {
           // 🐟 [리듬 패치] 밀당 패턴은 그대로 유지!
           if (fishSkillDuration > 0) {
             fishSkillDuration--;
@@ -4403,6 +4610,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           // 🚨 [승리 조건 반전] 1.0 (오른쪽 끝)이 승리, 0.0 (왼쪽 끝)이 패배!
           if (newGauge <= 0.0) { gaugeNotifier.value = 0.0; isFinished = true; isWin = false; }
           else if (newGauge >= 1.0) { gaugeNotifier.value = 1.0; isFinished = true; isWin = true; }
+          } // 📦 else(일반 물고기 물리) 끝
         }
 
         if (isFinished) {
@@ -4472,7 +4680,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     try {
       DateTime now = DateTime.now();
       if (lastSoundTime == null || now.difference(lastSoundTime!).inMilliseconds > 300) {
-        bool isSea = widget.fish['img'].toString().contains('sea');
+        bool isSea = widget.isSea;
         audioManager.playSfx(isSea ? "sfx_sea_landing.mp3" : "sfx_fresh_landing.mp3");
         lastSoundTime = now;
       }
@@ -4545,7 +4753,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     try {
       DateTime now = DateTime.now();
       if (lastSoundTime == null || now.difference(lastSoundTime!).inMilliseconds > 250) {
-        bool isSea = widget.fish['img'].toString().contains('sea');
+        bool isSea = widget.isSea;
         audioManager.playSfx(isSea ? "sfx_sea_landing.mp3" : "sfx_fresh_landing.mp3");
         lastSoundTime = now;
       }
@@ -4615,7 +4823,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
   @override
   Widget build(BuildContext context) {
-    bool isSea = widget.fish['img'].toString().contains('sea');
+    bool isSea = widget.isSea;
     // 🎣 장착 낚싯대별 파이팅 그림 (파일 없으면 기본 그림 자동 폴백)
     final String fightBase = isSea ? 'assets/images/hand_rod_sea' : 'assets/images/hand_rod_fw';
     final String fightRodImage = widget.rodImageSuffix.isEmpty ? '$fightBase.png' : '${fightBase}_${widget.rodImageSuffix}.png';
@@ -4687,9 +4895,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                         alignment: Alignment.center,
                         transform: Matrix4.rotationY(_isFishFacingRight ? 0 : math.pi),
                         child: Image.asset(
-                          'assets/images/fighting_fish.png',
+                          widget.isBox ? (widget.fish['img']?.toString() ?? 'assets/images/fighting_fish.png') : 'assets/images/fighting_fish.png',
                           width: 64,
                           fit: BoxFit.contain,
+                          errorBuilder: (c, e, s) => Image.asset('assets/images/fighting_fish.png', width: 64, fit: BoxFit.contain),
                         ),
                       ),
                     );
@@ -4708,7 +4917,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                   valueListenable: playerGearNotifier,
                   builder: (context, pg, __) {
                     if (kx < -0.3) {
-                      return const Text('오른쪽으로 당겨요! ▶', style: TextStyle(color: Colors.orangeAccent, fontSize: 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 4)]));
+                      return Text(widget.isBox ? '오른쪽으로 감아요! ▶' : '오른쪽으로 당겨요! ▶', style: const TextStyle(color: Colors.orangeAccent, fontSize: 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 4)]));
+                    }
+                    // 📦 상자는 제압 단계 없음 → 천천히 감는 안내만
+                    if (widget.isBox) {
+                      return const Text('천천히 감아요~ 🎁', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 26, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 4)]));
                     }
                     final String t = pg >= 3 ? '3단 최대제압!' : '$pg단 제압!';
                     final Color c = pg >= 3 ? Colors.redAccent : (pg == 2 ? Colors.orangeAccent : Colors.yellow);
@@ -5250,7 +5463,151 @@ Widget _buildTopMiniButton({required IconData icon, required VoidCallback onPres
         border: Border.all(color: const Color(0xFFD4AF37), width: 1.5),
         boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
       ),
-      child: Icon(icon, color: const Color(0xFFD4AF37), size: 26), 
+      child: Icon(icon, color: const Color(0xFFD4AF37), size: 26),
     ),
   );
+}
+
+// 📢 실시간 랭킹 갱신 자막(뉴스 티커). ticker_news 컬렉션을 구독해 오른쪽→왼쪽으로 흐름.
+//    기록(전체 최대어 1위 갱신)이 하나도 없으면 아무것도 안 보임.
+class RankingTicker extends StatefulWidget {
+  const RankingTicker({super.key});
+  @override
+  State<RankingTicker> createState() => _RankingTickerState();
+}
+
+class _RankingTickerState extends State<RankingTicker> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  final List<String> _queue = [];   // 재생 대기 메시지(한 번씩만 지나감)
+  final Set<String> _shown = {};     // 이미 처리한 ticker_news 문서 id
+  bool _inited = false;              // 최초 스트림 로드 완료(이전 기록은 재생 안 함)
+  String? _current;                  // 지금 흐르는 메시지
+  double _textW = 0;
+  double _lastW = 0;
+  Timer? _eventCycle;
+  static const double _pxPerSec = 85; // 자막 속도(px/초)
+  static const Duration _eventEvery = Duration(minutes: 5); // 이벤트 안내 주기
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 12));
+    _ctrl.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted) {
+        setState(() => _current = null);
+        // 다음 메시지까지 살짝 텀
+        Future.delayed(const Duration(milliseconds: 600), () { if (mounted) _tryNext(); });
+      }
+    });
+    // 이벤트 안내: 진입 시 1회 + 5분마다 큐에 넣음
+    WidgetsBinding.instance.addPostFrameCallback((_) => _enqueueEvent());
+    _eventCycle = Timer.periodic(_eventEvery, (_) => _enqueueEvent());
+  }
+
+  @override
+  void dispose() {
+    _eventCycle?.cancel();
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  // 이벤트 자막 문구(서술형 tickerMsg 우선, 없으면 이벤트명)
+  String _eventLine() {
+    if (!currentGameEvent.active) return '';
+    final msg = currentGameEvent.tickerMsg.trim();
+    if (msg.isNotEmpty) return '🎪 $msg';
+    if (currentGameEvent.name.isNotEmpty) return '🎪 ${currentGameEvent.name} 진행 중!';
+    return '';
+  }
+
+  void _enqueueEvent() {
+    final e = _eventLine();
+    if (e.isEmpty || !mounted) return;
+    _queue.add(e);
+    _tryNext();
+  }
+
+  // 스트림에서 '새로 들어온' 기록만 큐에 추가(최초 로드분·과거분은 재생 안 함)
+  void _ingest(AsyncSnapshot<QuerySnapshot> snap) {
+    if (!snap.hasData) return;
+    final now = DateTime.now();
+    final first = !_inited;
+    for (final d in snap.data!.docs.toList().reversed) { // 오래된→최신 순
+      if (_shown.contains(d.id)) continue;
+      _shown.add(d.id);
+      if (first) continue; // 최초 로드분은 표시만 하고 재생 안 함
+      final data = d.data() as Map<String, dynamic>;
+      final ts = data['timestamp'];
+      if (ts is Timestamp && now.difference(ts.toDate()).inMinutes >= 10) continue; // 과거 기록 스킵
+      final t = (data['text'] ?? '').toString();
+      if (t.isNotEmpty) _queue.add(t);
+    }
+    _inited = true;
+  }
+
+  void _tryNext() {
+    if (!mounted || _current != null || _queue.isEmpty) return;
+    final msg = _queue.removeAt(0);
+    _startScroll(msg);
+    setState(() => _current = msg);
+  }
+
+  void _startScroll(String msg) {
+    final w = _lastW > 0 ? _lastW : 760;
+    _textW = msg.characters.length * 18.0 + 60; // 글자 커진 만큼 폭 추정 상향
+    final totalPx = w + _textW;
+    _ctrl.duration = Duration(milliseconds: (totalPx / _pxPerSec * 1000).round().clamp(4000, 60000));
+    _ctrl.forward(from: 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('ticker_news')
+          .orderBy('timestamp', descending: true)
+          .limit(6)
+          .snapshots(),
+      builder: (context, snap) {
+        _ingest(snap); // 새 기록 큐잉
+        return ClipRect(
+          child: SizedBox(
+            height: 34,
+            child: LayoutBuilder(builder: (context, cons) {
+              _lastW = cons.maxWidth;
+              if (_current == null && _queue.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _tryNext(); });
+              }
+              if (_current == null) return const SizedBox.shrink();
+              final msg = _current!;
+              return AnimatedBuilder(
+                animation: _ctrl,
+                builder: (context, _) {
+                  final dx = cons.maxWidth - _ctrl.value * (cons.maxWidth + _textW);
+                  return Stack(clipBehavior: Clip.hardEdge, children: [
+                    Positioned(
+                      left: dx, top: 0, bottom: 0,
+                      child: Center(
+                        child: Text(msg,
+                            maxLines: 1, softWrap: false,
+                            // 어두운 띠 없이도 읽히게 그림자 두 겹
+                            style: const TextStyle(
+                                color: Color(0xFFFFE08A),
+                                fontSize: 19,
+                                fontWeight: FontWeight.w900,
+                                shadows: [
+                                  Shadow(color: Colors.black, blurRadius: 4),
+                                  Shadow(color: Colors.black, blurRadius: 10),
+                                ])),
+                      ),
+                    ),
+                  ]);
+                },
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
 }

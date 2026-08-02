@@ -3108,19 +3108,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 top: 8, left: 0, right: 0,
                 child: IgnorePointer(child: Center(child: WeatherBadge())),
               ),
-              // 🎉 이벤트 배너 (활성 이벤트일 때만) — 날씨뱃지 아래
-              if (currentGameEvent.active && currentGameEvent.name.isNotEmpty)
-                Positioned(top: 44, left: 0, right: 0, child: IgnorePointer(child: Center(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFD4AF37).withOpacity(0.94),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
-                    ),
-                    child: Text(currentGameEvent.name, style: const TextStyle(color: Colors.black, fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                ))),
+              // 📢 실시간 자막(뉴스 티커): 이벤트 안내 + 최대어 랭킹 갱신 (기존 이벤트 배너 대체)
+              //    광장은 상단 HUD(내정보/채널바) 바로 아래로 화면 끝~끝 전체 폭으로 흐름
+              //    (전체이용가 마크가 사라져도 배열 맞게 글자 한 줄만큼 위로)
+              const Positioned(
+                top: 105, left: 0, right: 0,
+                child: IgnorePointer(child: RankingTicker()),
+              ),
             ],
           );
         },
@@ -3512,9 +3506,83 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 인벤토리 아이템 클릭 → 장착/해제 토글 (광장에선 민물·바다 다 착용 가능 — 미리보기)
+  // 📦 광장 인벤에서 상자 탭 → 1개/모두 열기 (낚시터와 동일 로직·공용 FishingLogic.openBoxes)
+  void _openBoxDialogPlaza(Map<String, dynamic> box, void Function(void Function()) setD) {
+    final int qty = ((box['quantity'] ?? 0) as num).toInt();
+    if (qty <= 0) return;
+    final bool mystery = box['name'] == '수상한 상자';
+    showDialog(context: context, barrierDismissible: true, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
+      title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  ($qty개)', style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.bold)),
+      content: Text(mystery
+          ? '경험치 · 포인트 · 미끼가 들어있어요.\n몇 개 열어볼까요?'
+          : '미끼 · 밑밥 · 낚시줄 · 찌 · 릴 · 낚싯대\n· 이용권이 들어있어요!\n몇 개 열어볼까요?',
+          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('닫기', style: TextStyle(color: Colors.white38))),
+        TextButton(onPressed: () { Navigator.pop(dctx); _openBoxesPlaza(box['name'].toString(), 1, setD); }, child: const Text('1개 열기', style: TextStyle(color: Colors.white))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+          onPressed: () { Navigator.pop(dctx); _openBoxesPlaza(box['name'].toString(), qty, setD); },
+          child: Text('모두 열기 ($qty)', style: const TextStyle(fontWeight: FontWeight.bold))),
+      ],
+    ));
+  }
+
+  Future<void> _openBoxesPlaza(String boxName, int count, void Function(void Function()) setD) async {
+    if (count <= 0) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    List<dynamic> inv;
+    try { final snap = await ref.get(); inv = List.from(snap.data()?['inventory'] ?? []); } catch (_) { return; }
+    final res = FishingLogic.openBoxes(inv, boxName, count);
+    final int opened = res['opened'] as int;
+    if (opened <= 0) return;
+    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int, sellback = res['sellback'] as int;
+    final items = Map<String, int>.from(res['items'] as Map);
+    final List<dynamic> newInv = res['inv'] as List<dynamic>;
+    try {
+      await ref.update({
+        'inventory': newInv,
+        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
+        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      });
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() { _inventory = newInv; if (goldDelta > 0) { _gold += goldDelta; currentPoints = _gold; } });
+    setD(() {});
+    _showBoxResultPlaza(boxName, opened, expDelta, goldDelta, sellback, items);
+  }
+
+  void _showBoxResultPlaza(String boxName, int count, int exp, int gold, int sellback, Map<String, int> items) {
+    final bool mystery = boxName == '수상한 상자';
+    Widget line(String l, String r) => Padding(padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Flexible(child: Text(l, style: const TextStyle(color: Colors.white, fontSize: 14))),
+          const SizedBox(width: 10),
+          Text(r, style: const TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.bold)),
+        ]));
+    final lines = <Widget>[];
+    if (exp > 0) lines.add(line('🎣 경험치', '+$exp'));
+    if (gold > 0) lines.add(line('💰 포인트', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
+    items.forEach((k, v) => lines.add(line('🎁 $k', '×$v')));
+    showDialog(context: context, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
+      title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  $count개 개봉!', style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+      content: SizedBox(width: 320, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min,
+          children: lines.isEmpty ? [const Text('...', style: TextStyle(color: Colors.white54))] : lines))),
+      actions: [ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+          onPressed: () => Navigator.pop(dctx), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)))],
+    ));
+  }
+
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
     final t = (item['type'] ?? '').toString().toUpperCase();
+    // 📦 상자는 장착 대상이 아님(열기는 onTap에서 처리) — 마지막 else(미끼) catch-all 방지
+    if (t == 'BOX') return;
     // 🎁 기간제 이벤트 아이템은 장착 불가 — 가방에 있으면 효과 자동 적용(보유 버프)
     if (t == 'EVENT') {
       _infoPopup('🎁 이벤트 아이템', '이 아이템은 가방에 있으면\n효과가 자동으로 적용돼요!\n장착할 필요 없어요 😊');
@@ -3798,6 +3866,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 itemCount: items.length,
                                 itemBuilder: (c, i) => GestureDetector(
                                   onTap: () {
+                                    // 📦 상자는 장착 대신 열기
+                                    if ((items[i]['type'] ?? '') == 'BOX') {
+                                      _openBoxDialogPlaza(items[i], setD);
+                                      return;
+                                    }
                                     _equipFromStatus(items[i], setD);
                                     // 모드 전용 장비를 착용하면 미리보기 모드도 그 모드로 전환
                                     final cc = (items[i]['category'] ?? '').toString().toUpperCase();
