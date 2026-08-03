@@ -1135,11 +1135,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final snap = await _db.ref('plaza/$_roomKey').get();
       final val = snap.value;
       if (val is Map) {
+        final now = DateTime.now().millisecondsSinceEpoch;
         val.forEach((k, v) {
           final ks = k.toString();
           if (ks.startsWith('ch') && v is Map) {
             final n = int.tryParse(ks.substring(2));
-            if (n != null) counts[n] = v.length;
+            if (n != null) {
+              // 🧹 45초 이상 갱신 없는 고스트 제외(렌더링과 동일 기준) — 카운트만 부풀던 문제 수정
+              int live = 0;
+              v.forEach((_, pv) {
+                if (pv is Map) {
+                  final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
+                  if (now - t < 45000) live++;
+                }
+              });
+              counts[n] = live;
+            }
           }
         });
       }
