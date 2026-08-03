@@ -1035,7 +1035,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             _channelNum = n;
             return '$mode/ch$n'; // 재접속이면 같은 채널 유지
           }
-          if (ch.length < _plazaChannelCap) {
+          // 🧩 정원: 유령(45초+) 제외한 라이브 인원으로 판정. 낚시 중(away) 노드는 신선하게 유지돼 슬롯 차지 → 초과 방지.
+          final now = DateTime.now().millisecondsSinceEpoch;
+          int live = 0;
+          ch.forEach((_, v) {
+            if (v is Map) {
+              final t = (v['t'] is num) ? (v['t'] as num).toInt() : 0;
+              if (now - t < 45000) live++;
+            }
+          });
+          if (live < _plazaChannelCap) {
             _channelNum = n;
             return '$mode/ch$n';
           }
@@ -1067,7 +1076,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     // 💓 하트비트: 닉/이미지/접속상태를 12초마다 재기록 → 닉 누락("조사")·미표시·접속불 깜빡임 자가복구
     _heartbeatTimer ??= Timer.periodic(const Duration(seconds: 12), (_) {
-      if (!mounted || _awayFromPlaza || _bgHidden) return; // 낚시터/아레나·백그라운드면 광장 presence 재기록 안 함
+      if (!mounted || _bgHidden) return; // 🌙 백그라운드면 재기록 안 함(조용히 사라짐)
+      if (_awayFromPlaza) {
+        // 🎣 낚시/아레나 중: 슬롯 유지용 keepalive만(광장엔 안 그림). t 갱신으로 유령필터 방지.
+        _myRef?.update({'away': true, 't': ServerValue.timestamp}).catchError((Object e) => debugPrint('🌐 away keepalive: $e'));
+        return;
+      }
       _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
       guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 접속 초록불 + 채널 위치 재확인
     });
@@ -1107,6 +1121,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'face': v['face'] == true,
             'dir': (v['dir'] ?? 'down').toString(), // 🚶 이동방향 스프라이트
             't': (v['t'] is num) ? (v['t'] as num).toInt() : 0, // 마지막 갱신 시각(고스트 필터용)
+            'away': v['away'] == true, // 🎣 낚시/아레나 중(광장 렌더 제외)
           };
           final mt = (v['msgT'] is num) ? (v['msgT'] as num).toInt() : 0;
           final mmsg = v['msg']?.toString() ?? '';
@@ -1302,6 +1317,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'y': _charPos.dy,
       'face': _facingRight,
       'dir': _moveDir, // 🚶 이동방향(remote 스프라이트용)
+      'away': _awayFromPlaza, // 🎣 낚시/아레나 중이면 true(자리는 잡되 광장엔 안 그림)
       't': ServerValue.timestamp,
     }).catchError((Object e) {
       debugPrint('🌐 RTDB WRITE ERR: $e');
@@ -1767,7 +1783,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🚪 낚시터/아레나 등 다른 화면으로 나갈 때: 광장 presence 제거(고스트 방지) + 하트비트 정지
   void _leavePlazaPresence() {
     _awayFromPlaza = true;
-    _myRef?.remove().catchError((Object e) => debugPrint('🌐 광장 presence 제거 실패: $e'));
+    // 🎣 낚시/아레나 이동: 노드를 지우지 않고 'away' 표시만 → 채널 정원 슬롯은 유지(광장엔 안 그림).
+    //    돌아올 때 정원 초과 방지. (실제 접속 끊기면 onDisconnect가 지움)
+    _myRef?.update({'away': true, 't': ServerValue.timestamp})
+        .catchError((Object e) => debugPrint('🌐 광장 away 표시 실패: $e'));
   }
 
   // 🌙 탭 백그라운드/포그라운드 전환 처리(깜빡임 방지).
@@ -2839,8 +2858,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                               ),
                             ),
                           )));
-                          // 🌐 다른 유저들 (45초 이상 갱신 없는 고스트 숨김)
+                          // 🌐 다른 유저들 (45초 이상 갱신 없는 고스트 숨김 + 🎣 낚시 중(away) 숨김)
                           for (final e in _others.entries.where((e) =>
+                              e.value['away'] != true &&
                               DateTime.now().millisecondsSinceEpoch - ((e.value['t'] as int?) ?? 0) < 45000)) {
                             final ry = (e.value['y'] is num) ? (e.value['y'] as num).toDouble() : 0.9;
                             sprites.add(MapEntry(ry, _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)));
