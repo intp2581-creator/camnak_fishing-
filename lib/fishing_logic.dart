@@ -375,13 +375,14 @@ for (var fish in availableFishes) {
   totalWeight += w;
 }
 
-// 📦 상자 드랍: 자라(weight 5)보다 살짝 낮은 weight 4로 물고기 룰렛에 얹음.
+// 📦 상자 드랍: 물고기 룰렛에 상자 weight를 얹음. ⚠️ 일반 물고기 weight=50이라 총합 ~300-400 →
+//    상자 weight로 확률 조절(예: mystery 20 ≈ 5%, treasure 12 ≈ 3%). 낮으면 거의 안 나옴!
 //    수상한 상자=상시, 보물상자=이벤트(gTreasureBoxOn)일 때만. 아레나·튜토리얼은 allowBoxes=false로 제외.
 // 🧪 kBoxTestMode=true 면 상자 자주 드랍 + 보물상자 강제 ON (테스트용, 배포 전 false로!)
 const bool kBoxTestMode = false;
 if (totalWeight < 1) totalWeight = 1;
-final int mysteryW = allowBoxes ? (kBoxTestMode ? 300 : 4) : 0;
-final int treasureW = (allowBoxes && (gTreasureBoxOn || kBoxTestMode)) ? (kBoxTestMode ? 300 : 4) : 0;
+final int mysteryW = allowBoxes ? (kBoxTestMode ? 300 : 20) : 0;   // 수상한 상자 ≈ 5%
+final int treasureW = (allowBoxes && (gTreasureBoxOn || kBoxTestMode)) ? (kBoxTestMode ? 300 : 12) : 0; // 보물상자 ≈ 3%(이벤트 중만)
 final int grandTotal = totalWeight + mysteryW + treasureW;
 final int boxRoll = math.Random().nextInt(grandTotal);
 if (boxRoll >= totalWeight) {
