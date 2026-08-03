@@ -118,6 +118,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _remoteWalkTick = 0;      // 걷기 프레임 카운터(150ms마다 +1)
   bool _remoteWalkDirty = false; // 멈춘 직후 한 프레임 더 그려 정지자세로
   bool _awayFromPlaza = false;  // 🚪 낚시터/아레나 등 다른 화면에 가 있음(고스트 방지: presence 재기록 중지)
+  bool _bgHidden = false;       // 🌙 앱이 백그라운드(탭 숨김) 상태 → 광장에서 조용히 사라짐(깜빡임 방지)
+  StreamSubscription? _visSub;  // 🌙 브라우저 탭 표시/숨김 감지(visibilitychange)
 
   // 🕹️ 가상 조이스틱 (우하단, 드래그 방향으로 연속 이동)
   static const double _joyRadius = 55;
@@ -431,6 +433,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _level = widget.level;
+    // 🌙 백그라운드(탭 숨김) 감지 → 광장에서 조용히 사라졌다가 복귀 시 다시 등장(깜빡임 방지)
+    _visSub = html.document.onVisibilityChange.listen((_) => _onVisibilityChange());
     // 🎖️ 등급 표시 30초 뒤 자동 숨김
     _ratingHideTimer = Timer(const Duration(seconds: 30), () {
       if (mounted) setState(() => _showRatingBadge = false);
@@ -620,6 +624,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     _leagueSub?.cancel();
     _garamSub?.cancel();
     _sessionSub?.cancel();
+    _visSub?.cancel(); // 🌙 백그라운드 감지 해제
     _myRef?.remove();
     _chatCtrl.dispose();
     _chatFocus.dispose();
@@ -1062,7 +1067,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
     // 💓 하트비트: 닉/이미지/접속상태를 12초마다 재기록 → 닉 누락("조사")·미표시·접속불 깜빡임 자가복구
     _heartbeatTimer ??= Timer.periodic(const Duration(seconds: 12), (_) {
-      if (!mounted || _awayFromPlaza) return; // 낚시터/아레나 가 있으면 광장 presence 재기록 안 함
+      if (!mounted || _awayFromPlaza || _bgHidden) return; // 낚시터/아레나·백그라운드면 광장 presence 재기록 안 함
       _writeMe(); // presence 전체(닉·이미지·길드·위치) 재기록
       guildGoOnline(nick: widget.nickname, loc: _plazaLoc); // 접속 초록불 + 채널 위치 재확인
     });
@@ -1763,6 +1768,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void _leavePlazaPresence() {
     _awayFromPlaza = true;
     _myRef?.remove().catchError((Object e) => debugPrint('🌐 광장 presence 제거 실패: $e'));
+  }
+
+  // 🌙 탭 백그라운드/포그라운드 전환 처리(깜빡임 방지).
+  //    낚시터·아레나에 가 있으면(_awayFromPlaza) 광장 presence는 이미 없으니 무시.
+  void _onVisibilityChange() {
+    if (!mounted || _awayFromPlaza) return;
+    final hidden = html.document.hidden ?? false;
+    if (hidden && !_bgHidden) {
+      _bgHidden = true; // 하트비트 재기록 중지(아래 가드) → 유령처럼 깜빡이지 않게
+      _myRef?.remove().catchError((Object e) => debugPrint('🌙 백그라운드 presence 제거: $e')); // 조용히 사라짐
+    } else if (!hidden && _bgHidden) {
+      _bgHidden = false;
+      _writeMe(); // 복귀 → 다시 등장
+      guildGoOnline(nick: widget.nickname, loc: _plazaLoc);
+    }
   }
 
   // 🚪 광장으로 복귀: presence 재등록 + 하트비트 재개
