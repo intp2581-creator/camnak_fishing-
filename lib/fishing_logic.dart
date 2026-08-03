@@ -222,8 +222,9 @@ class FishingLogic {
   /// 📦 상자 하나를 열었을 때의 보상 1건.
   ///   반환: {'kind':'exp'|'point'|'item', 'amount':int, 'item':Map, 'gear':bool, 'label':String}
   ///   - exp/point: amount 만큼 지급.  item: 해당 아이템(gear=true면 rod/reel/float=중복 시 되팔기 처리 대상).
+  static final math.Random _boxRng = math.Random(); // 🎲 공용 시드(매번 new Random()하면 웹에서 같은 ms=같은 결과 버그)
   static Map<String, dynamic> rollBoxReward(String boxType) {
-    final r = math.Random();
+    final r = _boxRng;
     Map<String, dynamic> pick(List<Map<String, dynamic>> pool) =>
         Map<String, dynamic>.from(pool[r.nextInt(pool.length)]);
     if (boxType == 'mystery') {

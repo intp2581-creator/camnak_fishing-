@@ -3878,6 +3878,8 @@ Positioned(
       _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
       return;
     }
+    // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
+    if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
     audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -3975,6 +3977,8 @@ Positioned(
       _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
       return;
     }
+    // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
+    if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
