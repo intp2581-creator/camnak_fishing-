@@ -1230,9 +1230,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool isFull = !isNew && count >= _plazaChannelCap;
     final bool canTap = !isCurrent && !isFull;
     final String label = isNew ? '➕ 새 채널 (CH$n)' : 'CH$n';
-    final String sub = isCurrent
-        ? '현재 채널'
-        : (isNew ? '새로 열기' : (isFull ? '가득 참' : '$count/$_plazaChannelCap명'));
+    final String sub = isNew
+        ? '새로 열기'
+        : isCurrent
+            ? '$count/$_plazaChannelCap명 · 현재'  // 현재 채널도 인원 표시
+            : (isFull ? '가득 참' : '$count/$_plazaChannelCap명');
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Material(
