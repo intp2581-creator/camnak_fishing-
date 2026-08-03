@@ -163,7 +163,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🏆 주간 길드 리그 (1위 길드 챔피언 → 머리 위 👑 + 추가 버프)
   bool _isChampionGuild = false;
-  String _champGuildId = '';
   Map<String, dynamic> _leagueRanks = {}; // {guildId: 순위} top3
   int _myLeagueRank = 0;                  // 내 길드 리그 순위(0/1~3) → PCS 보너스
   String _champWeek = '';
@@ -777,7 +776,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         .doc('state')
         .snapshots()
         .listen((doc) {
-      _champGuildId = (doc.data()?['championGuildId'] ?? '').toString();
       _champWeek = (doc.data()?['activeWeek'] ?? '').toString();
       final lr = doc.data()?['leagueRanks'];
       _leagueRanks = (lr is Map) ? Map<String, dynamic>.from(lr) : {};
@@ -1148,34 +1146,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }, onError: (Object e) => debugPrint('🌐 RTDB READ ERR: $e')));
   }
 
-  // 🧩 채널 목록 조회: {채널번호: 인원수} (선택 다이얼로그용)
-  Future<Map<int, int>> _fetchChannelCounts() async {
+  // 🧩 RTDB plaza/{room} 스냅샷 값 → {채널번호: 라이브 인원}
+  //    45초 이상 갱신 없는 고스트 제외(렌더링과 동일 기준). 낚시 중(away) 노드는 신선하게 유지돼 포함됨.
+  Map<int, int> _liveCountsFromSnap(Object? val) {
     final counts = <int, int>{};
-    try {
-      final snap = await _db.ref('plaza/$_roomKey').get();
-      final val = snap.value;
-      if (val is Map) {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        val.forEach((k, v) {
-          final ks = k.toString();
-          if (ks.startsWith('ch') && v is Map) {
-            final n = int.tryParse(ks.substring(2));
-            if (n != null) {
-              // 🧹 45초 이상 갱신 없는 고스트 제외(렌더링과 동일 기준) — 카운트만 부풀던 문제 수정
-              int live = 0;
-              v.forEach((_, pv) {
-                if (pv is Map) {
-                  final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
-                  if (now - t < 45000) live++;
-                }
-              });
-              counts[n] = live;
-            }
+    if (val is Map) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      val.forEach((k, v) {
+        final ks = k.toString();
+        if (ks.startsWith('ch') && v is Map) {
+          final n = int.tryParse(ks.substring(2));
+          if (n != null) {
+            int live = 0;
+            v.forEach((_, pv) {
+              if (pv is Map) {
+                final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
+                if (now - t < 45000) live++;
+              }
+            });
+            counts[n] = live;
           }
-        });
-      }
-    } catch (e) {
-      debugPrint('🌐 채널 목록 조회 실패: $e');
+        }
+      });
     }
     return counts;
   }
@@ -1213,11 +1205,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🧩 채널 선택 다이얼로그 (자동배정 유지 + 원하면 이동)
   Future<void> _openChannelPicker() async {
-    final counts = await _fetchChannelCounts();
-    if (!mounted) return;
-    int maxN = _channelNum;
-    counts.forEach((n, _) { if (n > maxN) maxN = n; });
-    final int nextNew = maxN + 1; // '새 채널' 번호
     await showDialog(
       context: context,
       builder: (c) => AlertDialog(
@@ -1236,12 +1223,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.4)),
               const SizedBox(height: 10),
               Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (int n = 1; n <= maxN; n++) _channelRow(c, n, counts[n] ?? 0),
-                    _channelRow(c, nextNew, 0, isNew: true),
-                  ],
+                child: StreamBuilder<DatabaseEvent>(
+                  stream: _db.ref('plaza/$_roomKey').onValue, // 🔴 실시간 채널 인원(열어둔 채로 갱신)
+                  builder: (ctx, snap) {
+                    final counts = _liveCountsFromSnap(snap.data?.snapshot.value);
+                    int maxN = _channelNum;
+                    counts.forEach((n, _) { if (n > maxN) maxN = n; });
+                    final int nextNew = maxN + 1; // '새 채널' 번호
+                    return ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (int n = 1; n <= maxN; n++) _channelRow(c, n, counts[n] ?? 0),
+                        _channelRow(c, nextNew, 0, isNew: true),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
