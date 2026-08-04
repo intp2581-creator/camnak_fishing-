@@ -70,6 +70,7 @@ class PlazaScreen extends StatefulWidget {
 class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStateMixin {
   bool _loading = true;
   int _gold = 0;
+  int _remainingSec = 3600; // ⏱️ 오늘 남은 낚시 시간(초) — 광장에도 표시(유저 요청)
   int _level = 1;
   List<dynamic> _inventory = [];
 
@@ -632,6 +633,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     super.dispose();
   }
 
+  // ⏱️ 유저 doc에서 오늘 남은 낚시 시간(초) 계산. 마지막 플레이 날짜가 오늘이면 저장값, 아니면 풀(3600).
+  int _remainingFromDoc(Map<String, dynamic> data) {
+    final today = DateTime.now().toString().substring(0, 10);
+    if ((data['lastPlayedDate'] ?? '').toString() == today) {
+      final r = data['remainingTime'];
+      return (r is num) ? r.toInt().clamp(0, 3600) : 3600;
+    }
+    return 3600; // 새 날 → 풀시간
+  }
+
   Future<void> _loadUser() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -651,6 +662,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         _tutCleared = data['tutCleared'] == true;
       }
       _gold = (data['gold'] ?? 0) is int ? (data['gold'] ?? 0) as int : 0;
+      _remainingSec = _remainingFromDoc(data); // ⏱️ 남은 낚시 시간
       _inventory = (data['inventory'] ?? []) as List<dynamic>;
       final exp = (data['exp'] ?? 0) is int ? (data['exp'] ?? 0) as int : 0;
       currentExp = exp;
@@ -730,6 +742,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       setState(() {
         _gold = newGold;
         currentPoints = newGold;
+        _remainingSec = _remainingFromDoc(d); // ⏱️ 남은 낚시 시간(낚시 갔다오면 갱신)
         currentExp = newExp;
         _level = newLevel;
         _questDone = questDone;
@@ -3166,6 +3179,32 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               const Positioned(
                 top: 8, left: 0, right: 0,
                 child: IgnorePointer(child: Center(child: WeatherBadge())),
+              ),
+              // ⏱️ 오늘 남은 낚시 시간 (유저 요청: 광장에서도 시간 확인)
+              Positioned(
+                top: 44, left: 0, right: 0,
+                child: IgnorePointer(child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _kGold.withOpacity(0.7), width: 1),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.timer, color: _remainingSec <= 300 ? Colors.redAccent : _kGold, size: 15),
+                      const SizedBox(width: 5),
+                      Text(
+                        _remainingSec <= 0
+                            ? '오늘 시간 종료 (밤 12시 초기화)'
+                            : '남은 시간 ${_remainingSec ~/ 60}:${(_remainingSec % 60).toString().padLeft(2, '0')}',
+                        style: TextStyle(
+                            color: _remainingSec <= 300 ? Colors.redAccent : Colors.white,
+                            fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                    ]),
+                  ),
+                )),
               ),
               // 📢 실시간 자막(뉴스 티커): 이벤트 안내 + 최대어 랭킹 갱신 (기존 이벤트 배너 대체)
               //    광장은 상단 HUD(내정보/채널바) 바로 아래로 화면 끝~끝 전체 폭으로 흐름

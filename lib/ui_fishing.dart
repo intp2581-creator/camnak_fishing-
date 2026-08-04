@@ -19,6 +19,16 @@ import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 // 🎖️ 등급분류 표시 위젯(buildRatingMark/showGameRatingDialog/kGameRatingNumber)은 game_config.dart로 이동.
 
+// 📳 강한 진동 — HapticFeedback은 웹(안드로이드 크롬)에서 약하거나 무반응이라 Vibration API 직접 사용.
+//    pattern: int(ms) 또는 List<int>([대기,진동,대기,진동...]). 세기 = 지속시간·패턴으로 조절(진폭은 OS 고정).
+void strongVibrate(Object pattern) {
+  try {
+    final nav = html.window.navigator;
+    // ignore: avoid_dynamic_calls
+    (nav as dynamic).vibrate(pattern);
+  } catch (_) {}
+}
+
 
 // 🎣 [메인 낚시터 화면]
 // 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -1187,6 +1197,7 @@ Widget _whisperUnreadBadge() {
       final int rodIndex = math.Random().nextInt(rods);
       setState(() { bitingRods.add(rodIndex); });
       HapticFeedback.lightImpact();
+      strongVibrate(90); // 📳 입질! (강하게)
 
       // 찌가 올라가 정점 찍고 약 4.5초 대기 → 못 채면 놓치고 다음 입질 예약
       _escapeTimer = Timer(const Duration(milliseconds: 4500), () {
@@ -1226,6 +1237,7 @@ Widget _whisperUnreadBadge() {
         _biteTimer?.cancel();
         _escapeTimer?.cancel();
         HapticFeedback.heavyImpact();
+        strongVibrate([0, 120, 60, 120]); // 📳 챔질! (강하게 두 번)
         audioManager.playSfx("sfx_hit.mp3");
 
         // 👉 [2탄] 게임 두뇌(FishingLogic)에 일 시키기!
@@ -4766,6 +4778,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       }
     } catch (e) {}
     try { HapticFeedback.mediumImpact(); } catch (e) {} // 📳 당길 때 진동(안드로이드 웹)
+    strongVibrate(70); // 📳 당기기 (강하게)
     int fg = fishGearNotifier.value;
     int target = (fg == 2) ? 3 : (fg == 1) ? 2 : 1;
     if (fg == 0) {
@@ -4798,6 +4811,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     _detached = (_assist == 0); // 🎣 [v239] 수동만 손가락에서 떼어놓음(자동제압 방지). 자동/완전자동은 유지
     isPressing = false;
     try { HapticFeedback.heavyImpact(); } catch (e) {} // 📳 챔 진동
+    strongVibrate([0, 110, 50, 110]); // 📳 물고기 챔! (강하게)
     // 🤖 [v239] 자동/완전자동: 잠시 뒤 자동으로 오른쪽으로 되받아 제압
     if (_assist >= 1) {
       _autoCounterTimer?.cancel();
