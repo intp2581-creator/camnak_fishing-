@@ -191,7 +191,10 @@ class _ArenaScreenState extends State<ArenaScreen> {
                             var userData = docSnap.data()!;
                             // 🏆 아레나는 완전 평준화(장비 마스터 지급 + 레벨 보너스 0)라 등급 제한 없이 누구나 입장 가능
                             int myGold = userData['gold'] ?? 0;
-                            int myTime = userData['remainingTime'] ?? 3600;
+                            // 📅 오늘 처음이면(lastPlayedDate≠오늘) 시간은 풀(3600)로 리셋 — 낚시터 입장 전이라도 daily reset 반영
+                    int myTime = (userData['lastPlayedDate'] == DateTime.now().toString().substring(0, 10))
+                        ? (userData['remainingTime'] ?? 3600)
+                        : 3600;
                             String lastArenaDate = userData['lastArenaDate'] ?? '';
                             int arenaCount = userData['arenaCount'] ?? 0;
 
@@ -516,7 +519,10 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
                     var userData = docSnap.data() as Map<String, dynamic>;
                     int myGold = userData['gold'] ?? 0;
-                    int myTime = userData['remainingTime'] ?? 3600;
+                    // 📅 오늘 처음이면(lastPlayedDate≠오늘) 시간은 풀(3600)로 리셋 — 낚시터 입장 전이라도 daily reset 반영
+                    int myTime = (userData['lastPlayedDate'] == DateTime.now().toString().substring(0, 10))
+                        ? (userData['remainingTime'] ?? 3600)
+                        : 3600;
                     String myName = userData['nickname'] ?? '이름없음'; 
                     
                     String today = DateTime.now().toString().substring(0, 10);

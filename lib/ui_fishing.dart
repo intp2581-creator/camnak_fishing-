@@ -839,9 +839,14 @@ Widget _whisperUnreadBadge() {
         final ref = FirebaseFirestore.instance.collection('users').doc(uid);
         // 음수 방지 위해 read→clamp→write (fire-and-forget)
         ref.get().then((snap) {
-          final int cur = ((snap.data()?['remainingTime'] ?? 0) as num).toInt();
+          final data = snap.data();
+          final today = DateTime.now().toString().substring(0, 10);
+          // 📅 오늘 처음이면(lastPlayedDate≠오늘) 풀시간(3600)에서 차감 — daily reset 반영(신선한 날 시간 오차감 방지)
+          final int cur = (data?['lastPlayedDate'] == today)
+              ? ((data?['remainingTime'] ?? 3600) as num).toInt()
+              : 3600;
           final int next = (cur - elapsed) < 0 ? 0 : (cur - elapsed);
-          ref.set({'remainingTime': next}, SetOptions(merge: true)).catchError((Object _) {});
+          ref.set({'remainingTime': next, 'lastPlayedDate': today}, SetOptions(merge: true)).catchError((Object _) {});
         }).catchError((Object _) {});
       }
     }
