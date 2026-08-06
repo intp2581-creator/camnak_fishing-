@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'ui_arena_waiting.dart';
+import 'game_config.dart';
 
 class ArenaScreen extends StatefulWidget {
   const ArenaScreen({super.key});
@@ -354,7 +355,17 @@ class _ArenaScreenState extends State<ArenaScreen> {
                                   dropdownColor: Colors.grey.shade900,
                                   style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
                                   items: (selectedType == '민물' ? freshwaterLocations : saltwaterLocations)
-                                      .map((String value) => DropdownMenuItem(value: value, child: Text(value))).toList(),
+                                      .map((String value) => DropdownMenuItem(
+                                            value: value,
+                                            child: Row(
+                                              children: [
+                                                Expanded(child: Text(value, overflow: TextOverflow.ellipsis)),
+                                                const SizedBox(width: 8),
+                                                Text(spotStarStr(value),
+                                                    style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, letterSpacing: 1)),
+                                              ],
+                                            ),
+                                          )).toList(),
                                   onChanged: (String? newValue) => setState(() => selectedLocation = newValue!),
                                 ),
                               ],

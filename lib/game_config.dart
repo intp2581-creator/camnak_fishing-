@@ -753,6 +753,21 @@ bool isSkinItem(Map<String, dynamic> item) =>
     item['category'] == 'SKIN' ||
     skinTierByName((item['name'] ?? '').toString()) > 0;
 
+// ⭐ 낚시터 이름 → 난이도 별점(1~5). locations 데이터의 stars와 동일 값.
+//    (아레나 방생성 낚시터 선택 등 이름만으로 별점을 붙일 때 사용)
+const Map<String, int> kSpotStars = {
+  '예산 예당지': 1, '안성 고삼지': 2, '진천 백곡지': 3, '춘천 파로호': 4, '충주 충주호': 5,
+  '예산 신양수로': 1, '청양 지천': 2, '인천 청라수로': 3, '해남 금자천': 4, '충주 달천': 5,
+  '통영 척포 갯바위': 1, '신안 가거도': 2, '완도 청산도': 3, '여수 거문도': 4, '제주 섶섬': 5,
+  '거제 선상': 1, '오천항 선상': 2, '대천 선상': 3, '통영 선상': 4, '완도 선상': 5,
+};
+int spotStars(String name) => kSpotStars[name] ?? 0;
+/// 별점 문자열: 채운 별(★)만큼 + 빈 별(☆)로 5칸 채움 (예: 2 → "★★☆☆☆")
+String spotStarStr(String name) {
+  final int s = spotStars(name);
+  return s <= 0 ? '' : '★' * s + '☆' * (5 - s);
+}
+
 // 👕 스킨 이름 → 능력치(P/C/S). 상점 목록에 정의된 값을 우선 사용하고,
 //    아직 미공개(레전드·낚시의 신)는 진행 패턴에 맞춘 임시 미리보기 값을 반환.
 Map<String, int> skinStatsByName(String name) {
