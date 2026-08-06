@@ -626,6 +626,7 @@ Widget _whisperUnreadBadge() {
 
   // 🌟 1. initState() 바로 위에 이 줄을 추가해서 타이머 변수를 만듭니다.
   DateTime? _joinTime;
+  String _timerDayKey = ''; // 📅 낚시 타이머의 '현재 날짜'(yyyy-MM-dd). 게임 중 자정 넘김 감지용.
 
   @override
   void initState() {
@@ -1116,8 +1117,24 @@ Widget _whisperUnreadBadge() {
 
     // 🏞️ [일반 낚시터 모드] 사장님 기존 로직 그대로! (60분 깎기)
     _loadDailyTimeFromFirebase();
+    _timerDayKey = DateTime.now().toString().substring(0, 10); // 📅 자정 넘김 감지 기준일
     gameTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) { timer.cancel(); return; }
+
+      // 📅 게임 중 자정이 지나 날짜가 바뀌면 → 오늘 이용시간(3600) 새로 충전 + 새 날짜로 저장.
+      //    (예전엔 리셋 판정이 '입장 시' 한 번뿐이라, 자정을 넘기면 어제 잔여시간이 계속 깎이고
+      //     10초 자동저장이 '새 날짜 + 적은 시간'으로 덮어써 새 날의 1시간을 통째로 날렸음)
+      final String nowDay = DateTime.now().toString().substring(0, 10);
+      if (_timerDayKey.isNotEmpty && nowDay != _timerDayKey) {
+        _timerDayKey = nowDay;
+        remainingTimeNotifier.value = 3600;
+        _saveDailyTimeToFirebase(3600);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('📅 자정이 지나 오늘 낚시 이용시간(1시간)이 새로 충전됐어요! 🎣'),
+          duration: Duration(seconds: 4),
+        ));
+        return; // 이번 틱은 차감 없이 넘어감(리셋 직후 바로 -1 방지)
+      }
 
       if (remainingTimeNotifier.value > 0) {
         remainingTimeNotifier.value--;
