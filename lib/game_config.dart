@@ -694,9 +694,9 @@ final List<Map<String, dynamic>> storeAuxItems = [
   {'name': '대형 아이스박스', 'price': 100000, 'reqLevel': 50, 'category': 'COMMON', 'type': 'COOLER', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'cooler_l.png', 'desc': '바퀴까지 달린 프로 앵글러용 대형 아이스박스 (민물·바다 공용)'},
   // 🎖️ 휘장(배지) — 민물/바다 통합 '범용(COMMON)' 5등급 체계. 'cash':true → 쇼핑몰 구매 플로우.
   //    (2026-07-27 재구성) 지금은 1~3등급만 오픈, 4~5등급은 추후 공개. 능력치 P/C/S 동일값.
-  {'name': '캠피싱 뱃지',      'price': 2200,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_badge_1.png', 'desc': '캠피싱 조사임을 증명하는 입문 뱃지 (민물·바다 공용 · Lv.10↑ · 쇼핑몰 전용)', 'reqLevel': 10},
-  {'name': '캠피싱 휘장',      'price': 5500,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'item_badge_2.png', 'desc': '한 단계 성장한 캠피싱 조사의 휘장 (민물·바다 공용 · Lv.30↑ · 쇼핑몰 전용)', 'reqLevel': 30},
-  {'name': 'KREFT 정예 휘장', 'price': 11000, 'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_3.png', 'desc': 'KREFT 정예 조사임을 증명하는 휘장 (민물·바다 공용 · Lv.50↑ · 쇼핑몰 전용)', 'reqLevel': 50},
+  {'name': '캠피싱 뱃지',      'price': 2200,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'item_badge_1.png', 'desc': '캠피싱 조사임을 증명하는 입문 뱃지 (민물·바다 공용 · Lv.10↑ · 쇼핑몰 전용)\n\n💳 2,200원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.10↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 10},
+  {'name': '캠피싱 휘장',      'price': 5500,  'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'item_badge_2.png', 'desc': '한 단계 성장한 캠피싱 조사의 휘장 (민물·바다 공용 · Lv.30↑ · 쇼핑몰 전용)\n\n💳 5,500원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.30↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 30},
+  {'name': 'KREFT 정예 휘장', 'price': 11000, 'cash': true, 'category': 'COMMON', 'type': 'ETC', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'item_badge_3.png', 'desc': 'KREFT 정예 조사임을 증명하는 휘장 (민물·바다 공용 · Lv.50↑ · 쇼핑몰 전용)\n\n💳 11,000원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.50↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 50},
   // 🔒 [추후 공개] 4등급 KREFT 명장 휘장(22,000·Lv70·P/C/S 70) / 5등급 KREFT 명인 휘장(55,000·Lv100·P/C/S 100)
 ];
 
@@ -706,14 +706,14 @@ final List<Map<String, dynamic>> storeAuxItems = [
 const String kGameStoreUrl = 'https://camnak.com/137';
 
 final List<Map<String, dynamic>> storeSkinItems = [
-  {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)',},
-  {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)',},
+  {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)\n\n💳 1,100원(VAT포함) · 1회분 지급 · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사 · 제공기간: 결제 즉시 지급(소모성) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
+  {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)\n\n💳 1,100원(VAT포함) · 1장 지급 · 사용처: 게임 내 아레나 · 판매 (주)안테모사 · 제공기간: 결제 즉시 지급(소모성) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
-  {'name': '하수 조사', 'price': 2200, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)', 'reqLevel': 10},
-  {'name': '중수 조사', 'price': 5500, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)', 'reqLevel': 30},
-  {'name': '고수 조사', 'price': 11000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)', 'reqLevel': 50},
-  {'name': '프로 조사', 'price': 22000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)', 'reqLevel': 70},
-  {'name': '마스터 조사', 'price': 55000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 100},
+  {'name': '하수 조사', 'price': 2200, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)\n\n💳 2,200원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.10↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 10},
+  {'name': '중수 조사', 'price': 5500, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)\n\n💳 5,500원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.30↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 30},
+  {'name': '고수 조사', 'price': 11000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': '../images/skin_expert.jpg', 'desc': '어디서든 한 마리는 낚아내는 고수 (쇼핑몰 전용)\n\n💳 11,000원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.50↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 50},
+  {'name': '프로 조사', 'price': 22000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 200, 'C': 200, 'S': 200}, 'icon': '../images/skin_pro.jpg', 'desc': '스폰서를 받는 프로 앵글러 (쇼핑몰 전용)\n\n💳 22,000원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.70↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 70},
+  {'name': '마스터 조사', 'price': 55000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)\n\n💳 55,000원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.100↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 100},
 ];
 
 // 👕 스킨 판정/등급 통합 헬퍼.
