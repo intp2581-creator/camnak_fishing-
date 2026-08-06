@@ -957,7 +957,15 @@ Widget _whisperUnreadBadge() {
     String type = 'global';
     String receiver = '';
 
-    if (_currentChatTab == 1 && _whisperTargetNickname != null) {
+    if (_currentChatTab == 1) {
+      // 🛡️ 귓속말 탭인데 대상이 없으면 전체채팅으로 새어나가지 않게 막고 안내
+      if (_whisperTargetNickname == null || _whisperTargetNickname!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('귓속말할 대상을 먼저 선택하세요. (전체채팅에서 상대 닉네임을 눌러요)'),
+          duration: Duration(seconds: 2),
+        ));
+        return;
+      }
       type = 'whisper';
       receiver = _whisperTargetNickname!;
     }
@@ -967,6 +975,7 @@ Widget _whisperUnreadBadge() {
       'message': text,
       'type': type,
       'receiver': receiver,
+      'channel': '', // 🧩 낚시터 전체채팅은 채널 무관(모든 광장 채널·낚시터에 노출)
       'timestamp': FieldValue.serverTimestamp(),
     });
 

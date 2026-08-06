@@ -2235,7 +2235,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     String type = 'global';
     String receiver = '';
-    if (_chatTab == 1 && _whisperTarget != null) {
+    if (_chatTab == 1) {
+      // 🛡️ 귓속말 탭인데 대상이 없으면 전체채팅으로 새어나가지 않게 막고 안내
+      if (_whisperTarget == null || _whisperTarget!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('귓속말할 대상을 먼저 선택하세요. (전체채팅에서 상대 닉네임을 눌러요)'),
+          duration: Duration(seconds: 2),
+        ));
+        return;
+      }
       type = 'whisper';
       receiver = _whisperTarget!;
     }
@@ -2598,10 +2606,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                   if (type != 'whisper') return const SizedBox.shrink();
                                   if (sender != me && receiver != me) return const SizedBox.shrink();
                                 } else {
-                                  // 전체 탭: 귓속말은 아예 숨김 + 같은 채널 전체채팅만 (공지는 전 채널)
+                                  // 전체 탭: 귓속말은 아예 숨김.
+                                  // 같은 채널 글 + 공지 + 낚시터발 전체글(channel 비어있음)은 전 채널에 노출.
                                   if (type == 'whisper') return const SizedBox.shrink();
+                                  final ch = (d['channel'] ?? '').toString();
                                   if (type != 'notice' &&
-                                      (d['channel'] ?? '') != (_channelKey ?? '')) {
+                                      ch.isNotEmpty && ch != (_channelKey ?? '')) {
                                     return const SizedBox.shrink();
                                   }
                                 }
