@@ -2038,9 +2038,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                 ),
                                 const SizedBox(width: 8),
                                 ...List.generate(
-                                  5,
+                                  (s['stars'] as int),
                                   (k) => Icon(
-                                      k < (s['stars'] as int) ? Icons.star : Icons.star_border,
+                                      Icons.star,
                                       color: _kGold,
                                       size: 13),
                                 ),

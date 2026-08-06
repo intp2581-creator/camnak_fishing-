@@ -1265,12 +1265,12 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                   const Text('난이도', style: TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.bold)), // 📈 기존 14 -> 18!
                   const SizedBox(height: 6), 
                   Row(
-                    children: List.generate(5, (index) { 
+                    children: List.generate((loc['stars'] as int), (index) {
                       return Icon(
-                        index < (loc['stars'] as int) ? Icons.star : Icons.star_border, 
-                        color: const Color(0xFFD4AF37), 
-                        size: 30 // 📈 별 크기 기존 22 -> 26!
-                      ); 
+                        Icons.star,
+                        color: const Color(0xFFD4AF37),
+                        size: 30
+                      );
                     })
                   ),
                 ],

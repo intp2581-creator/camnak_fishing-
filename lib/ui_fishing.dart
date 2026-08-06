@@ -2094,8 +2094,8 @@ Widget _whisperUnreadBadge() {
                           ),
                           const SizedBox(width: 8),
                           ...List.generate(
-                              5,
-                              (k) => Icon(k < ((s['stars'] ?? 0) as int) ? Icons.star : Icons.star_border,
+                              ((s['stars'] ?? 0) as int),
+                              (k) => Icon(Icons.star,
                                   color: const Color(0xFFD4AF37), size: 13)),
                         ]),
                         subtitle: (s['target'] ?? '').toString().isNotEmpty
