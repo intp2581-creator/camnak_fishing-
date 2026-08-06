@@ -51,7 +51,6 @@ class AudioManager {
     bgmOn = on; _saveSettings();
     if (!on) {
       try { await bgmPlayer.pause(); } catch (_) {}
-      try { await ambientPlayer.stop(); } catch (_) {} // 🌧️ 배경음 끄면 빗소리도 정지
       return;
     }
     if (isMuted) return;
@@ -65,14 +64,21 @@ class AudioManager {
         }
       } catch (_) {}
     }
-    if (_rainRefs > 0) { await _startRain(); } // 🌧️ 비 오는 중이면 빗소리 재개
   }
-  Future<void> setSfxOn(bool on) async { sfxOn = on; _saveSettings(); }
+  Future<void> setSfxOn(bool on) async {
+    sfxOn = on; _saveSettings();
+    // 🌧️ 빗소리를 효과음에 묶음: 효과음 끄면 정지, 켜면 비 오는 중이면 재개
+    if (!on) { try { await ambientPlayer.stop(); } catch (_) {} }
+    else if (_rainRefs > 0 && !isMuted) { await _startRain(); }
+  }
   Future<void> setBgmVol(double v) async {
     bgmVol = v.clamp(0.0, 1.0); _saveSettings();
     try { await bgmPlayer.setVolume(bgmVol); } catch (_) {}
   }
-  Future<void> setSfxVol(double v) async { sfxVol = v.clamp(0.0, 1.0); _saveSettings(); }
+  Future<void> setSfxVol(double v) async {
+    sfxVol = v.clamp(0.0, 1.0); _saveSettings();
+    try { await ambientPlayer.setVolume(sfxVol * 0.85); } catch (_) {} // 🌧️ 빗소리도 효과음 볼륨 따라감
+  }
   String currentBgm = "";
   int _rainRefs = 0; // 🌧️ 빗소리를 원하는 화면 수(플라자·낚시터 겹침 대비 참조 카운트)
   bool _rainUnlocked = false; // 🌧️ 첫 사용자 조작으로 빗소리 재생을 한 번 강제로 열었는지
@@ -122,17 +128,17 @@ class AudioManager {
   //   첫 조작 때는 상태와 무관하게 '정지→재생'으로 확실히 열고(차단됐던 재생이 상태만 남는 경우 대비),
   //   그 뒤엔 이미 재생 중이면 건너뜀(중복·끊김 방지).
   Future<void> ensureRainPlaying() async {
-    if (_rainRefs <= 0 || isMuted || !bgmOn) return;
+    if (_rainRefs <= 0 || isMuted || !sfxOn) return;
     if (_rainUnlocked && ambientPlayer.state == PlayerState.playing) return;
     _rainUnlocked = true;
     try { await ambientPlayer.stop(); } catch (_) {}
     await _startRain();
   }
   Future<void> _startRain() async {
-    if (isMuted || !bgmOn) return; // 음소거·배경음off면 소리만 안 냄(참조는 유지 → 켤 때 정상 카운트)
+    if (isMuted || !sfxOn) return; // 🌧️ 음소거·효과음off면 소리만 안 냄(참조는 유지 → 켤 때 정상 카운트)
     try {
       await ambientPlayer.setReleaseMode(ReleaseMode.loop);
-      await ambientPlayer.setVolume(0.85); // 🔊 빗소리 볼륨 업(BGM에 묻히지 않게)
+      await ambientPlayer.setVolume(sfxVol * 0.85); // 🔊 빗소리 = 효과음 볼륨 따라감
       await ambientPlayer.play(AssetSource('sound/rain_sound.mp3'));
     } catch (_) {} // 파일 없거나 웹 오디오 에러여도 게임엔 지장 없음
   }
