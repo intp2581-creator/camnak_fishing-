@@ -80,31 +80,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _moveDir = 'down'; // 'down'(앞) / 'up'(뒤) / 'side'(옆) — 걷기 방향 스프라이트
   Duration _moveDuration = const Duration(milliseconds: 500);
 
-  // 🔧 운영자 전용 스킨 미리보기 (가방/상점 안 건드리고 캐릭터만 바꿔봄)
-  bool get _isOperator =>
-      ['intp2581@gmail.com', 'test_admin@camnak.com']
-          .contains(FirebaseAuth.instance.currentUser?.email);
-  static const List<String> _previewSkins = [
-    '초보 조사', '하수 조사', '중수 조사', '고수 조사', '프로 조사', '마스터 조사', '레전드 조사', '낚시의 신'
-  ];
   // 🎇 광장 중앙 시즌 조형물 — 시즌/이벤트마다 이 파일만 교체(그랜드오픈→크리스마스트리→벚꽃→야자수 등).
   //    민물·바다 광장 양쪽 중앙에 동일하게 표시. (assets/plaza/ 폴더)
   static const String kCenterpieceFile = 'center_monument_fw.png';
   static const double kCenterpieceHFrac = 0.48;
-  int _skinPreviewIdx = 0;
-  void _cycleSkinPreview() {
-    setState(() {
-      _skinPreviewIdx = (_skinPreviewIdx + 1) % _previewSkins.length;
-      final nm = _previewSkins[_skinPreviewIdx];
-      final st = skinStatsByName(nm); // 👕 스킨별 능력치도 함께 적용(낚시터별 확인용)
-      globalEquippedSkin = {
-        'name': nm, 'category': 'SKIN', 'type': 'SKIN', 'stats': st,
-        'icon': skinIconByName(nm), // 🖼️ 슬롯 아이콘(없으면 낚시대 기본값으로 잘못 뜨는 버그 방지)
-      };
-    });
-    final st = skinStatsByName(_previewSkins[_skinPreviewIdx]);
-    _toast('스킨 미리보기 → ${_previewSkins[_skinPreviewIdx]} (💪${st['P']} 🎯${st['C']} 📡${st['S']})');
-  }
 
   // 🚶 걷기 바운스용
   late final AnimationController _walkCtrl;
@@ -1465,7 +1444,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
-  static const bool _devCoords = false; // 🔧 좌표 수집 모드. 다시 켜려면 => _isOperator
+  static const bool _devCoords = false; // 🔧 좌표 수집 모드(개발용). 필요 시 true로.
   Offset? _lastTapWorld;
 
   // 🗺️ 걷기 구역(섬 경계) 다각형 — 사용자 탭 좌표(시계방향 한 바퀴). 바다·민물 동일 구도라 공유.
@@ -2943,31 +2922,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               _topHud(),
               // 💬 채팅 패널
               _chatPanel(),
-
-              // 🔧 운영자 전용: 스킨 미리보기 버튼
-              if (_isOperator)
-                Positioned(
-                  left: 14,
-                  top: 92,
-                  child: GestureDetector(
-                    onTap: _cycleSkinPreview,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kGold, width: 1.2),
-                      ),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.checkroom, color: _kGold, size: 16),
-                        const SizedBox(width: 6),
-                        Text('스킨 미리보기 (${_previewSkins[_skinPreviewIdx]})',
-                            style: const TextStyle(
-                                color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ]),
-                    ),
-                  ),
-                ),
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),

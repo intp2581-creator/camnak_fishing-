@@ -59,9 +59,12 @@ class MyApp extends StatelessWidget {
           // 🌐 실제 운영 환경에서는 kDebugMode 조건을 지우고 URL 파라미터만 확인합니다.
           String? urlUid = Uri.base.queryParameters['uid'];
 
-          // 🛡️ 사장님 컴퓨터(개발 테스트 중)에서만 몰래 실행되는 무적 방패!
+          // 🛡️ 개발(디버그) 중 로컬 테스트용 자동 uid — 코드에 계정 이메일을 남기지 않도록 환경변수로 받음.
+          //    로컬 실행 시 지정: flutter run -d chrome --dart-define=DEV_UID=<접속할 이메일>
+          //    (release 빌드엔 포함 안 됨 = 배포본에 운영자 이메일 노출 없음)
           assert(() {
-            urlUid ??= 'test_admin@camnak.com';
+            const devUid = String.fromEnvironment('DEV_UID');
+            if (devUid.isNotEmpty) urlUid ??= devUid;
             return true;
           }());
 
