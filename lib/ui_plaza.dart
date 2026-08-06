@@ -154,7 +154,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   DateTime _readGuildAt = DateTime.now();   // 🔴 길드챗 마지막 읽음
   final TextEditingController _chatCtrl = TextEditingController();
   final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분 + 엔터 전송 후 커서 유지)
-  final DateTime _joinTime = DateTime.now(); // 입장 이후 메시지만 표시
 
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
   String _guildId = '';
@@ -2441,7 +2440,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           .collection('guilds')
           .doc(_guildId)
           .collection('chat')
-          .where('timestamp', isGreaterThanOrEqualTo: _joinTime) // 입장 이후만 (재접속 시 클리어)
+          .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart()) // 이번 접속 내내 유지(화면 이동해도 안 사라짐)
           .orderBy('timestamp', descending: true)
           .limit(30)
           .snapshots(),
@@ -2577,7 +2576,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       : StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('global_chat')
-                              .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
+                              .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
                               .orderBy('timestamp', descending: true)
                               .limit(20)
                               .snapshots(),

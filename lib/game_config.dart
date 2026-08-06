@@ -215,6 +215,12 @@ GameEvent currentGameEvent = GameEvent.none;
 ///    지정하면 그 시각 지나 자동 종료(켜는 건 수동). 수상한 상자는 상시라 이 값과 무관.
 bool gTreasureBoxOn = false;
 
+/// 💬 채팅 세션 시작 시각(로그인~로그아웃/새로고침 동안 고정).
+///    광장↔낚시터를 오가도 화면마다 리셋되지 않고 '이번 접속' 내내 채팅이 유지되게 하는 공용 기준.
+///    페이지 새로고침(=재접속) 하면 전역이 초기화돼 자동으로 다시 세팅된다.
+DateTime? _chatSessionStart;
+DateTime chatSessionStart() => _chatSessionStart ??= DateTime.now();
+
 /// "yyyy-MM-dd HH:mm"(KST) 또는 "yyyy-MM-dd" 문자열 → DateTime(로컬=KST). 실패 시 null.
 DateTime? _parseKst(dynamic v) {
   if (v == null) return null;

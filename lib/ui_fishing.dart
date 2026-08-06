@@ -2982,12 +2982,12 @@ Positioned(
                                  : _currentChatTab == 4
                                  ? (_guildId.isNotEmpty
                                      ? FirebaseFirestore.instance.collection('guilds').doc(_guildId).collection('chat')
-                                         .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
+                                         .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
                                          .orderBy('timestamp', descending: true).limit(30).snapshots()
                                      : const Stream.empty())
                               // 💬 [그 외 탭]일 땐 전체 채팅!
                                  : FirebaseFirestore.instance.collection('global_chat')
-                                     .where('timestamp', isGreaterThanOrEqualTo: _joinTime)
+                                     .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
                                      .orderBy('timestamp', descending: true).limit(30).snapshots(),
                                      builder: (context, snapshot) {
                                     if (!snapshot.hasData) return const SizedBox.shrink();
@@ -3026,6 +3026,9 @@ Positioned(
                                         if (_currentChatTab == 1) {
                                           if (type != 'whisper') return const SizedBox.shrink();
                                           if (sender != myNickname && receiver != myNickname) return const SizedBox.shrink();
+                                         } else {
+                                          // 전체 탭: 귓속말은 아예 숨김(광장과 동일하게 남에게 안 보이도록)
+                                          if (type == 'whisper') return const SizedBox.shrink();
                                          }
 
                                         Color prefixColor = Colors.white;
