@@ -716,6 +716,43 @@ final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '마스터 조사', 'price': 55000, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 300, 'C': 300, 'S': 300}, 'icon': '../images/skin_master.jpg', 'desc': '낚시계의 살아있는 전설 (쇼핑몰 전용)', 'reqLevel': 100},
 ];
 
+// 👕 스킨 판정/등급 통합 헬퍼.
+//    ⚠️ '낚시의 신'은 이름에 '조사'가 없어서, 예전 이름검사(contains '조사'/'마스터' 등)에서
+//    통째로 누락돼 장착·자동장착이 안 됐음. 앞으로 스킨 판정·등급은 반드시 이 헬퍼로 한다.
+int skinTierByName(String name) {
+  if (name.contains('낚시의') || name.contains('낚시의신')) return 8; // 낚시의 신(최상)
+  if (name.contains('레전드')) return 7;
+  if (name.contains('마스터')) return 6;
+  if (name.contains('프로')) return 5;
+  if (name.contains('고수')) return 4;
+  if (name.contains('중수')) return 3;
+  if (name.contains('하수')) return 2;
+  if (name.contains('초보')) return 1;
+  return 0; // 스킨 아님
+}
+
+/// 👕 스킨 이름 → 목록/썸네일용 에셋(assets/images/skin_*.jpg).
+///    ⚠️ 레전드 실제 파일명은 오타 있는 skin_regend.jpg. 예전 코드가 skin_legend.jpg(없음)를
+///    가리켜 레전드 아이콘이 깨졌고, '전설' 문자로 검사해 '레전드 조사'가 매칭 안 됐음.
+String skinListIconAsset(String name) {
+  switch (skinTierByName(name)) {
+    case 8: return 'assets/images/skin_god.jpg';
+    case 7: return 'assets/images/skin_regend.jpg';
+    case 6: return 'assets/images/skin_master.jpg';
+    case 5: return 'assets/images/skin_pro.jpg';
+    case 4: return 'assets/images/skin_expert.jpg';
+    case 3: return 'assets/images/skin_intermediate.jpg';
+    case 2: return 'assets/images/skin_novice.jpg';
+    default: return 'assets/images/skin_beginner.jpg';
+  }
+}
+
+/// 이 아이템이 스킨인가? (type/category='SKIN' 우선, 이름등급은 보조)
+bool isSkinItem(Map<String, dynamic> item) =>
+    item['type'] == 'SKIN' ||
+    item['category'] == 'SKIN' ||
+    skinTierByName((item['name'] ?? '').toString()) > 0;
+
 // 👕 스킨 이름 → 능력치(P/C/S). 상점 목록에 정의된 값을 우선 사용하고,
 //    아직 미공개(레전드·낚시의 신)는 진행 패턴에 맞춘 임시 미리보기 값을 반환.
 Map<String, int> skinStatsByName(String name) {

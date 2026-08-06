@@ -3659,7 +3659,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         globalEquippedFloat = item;
         globalEquippedReel = null; // 릴/찌 한 슬롯
       }
-    } else if (n.contains('스킨') || n.contains('조사') || n.contains('초보') || n.contains('마스터')) {
+    } else if (isSkinItem(item)) {
       globalEquippedSkin = same(globalEquippedSkin) ? null : item;
     } else if ((n.contains('릴') && !n.contains('크릴')) ||
         n.contains('2000') || n.contains('3000') || n.contains('5000') ||

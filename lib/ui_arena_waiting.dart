@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ui_fishing.dart';
 import 'fishing_logic.dart';
+import 'game_config.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // 👑 KREFT 아레나 공식 찐 황금색 (눈 아픈 샛노란색 컷!)
@@ -664,21 +665,7 @@ Container(
                       var skin = u['equippedSkin'];
                       String skinName = (skin is Map) ? (skin['name'] ?? '').toString() : skin.toString();
                       
-                      if (skinName.contains('신')) {
-                        userSkinImagePath = 'assets/images/skin_god.jpg';
-                      } else if (skinName.contains('전설')) {
-                        userSkinImagePath = 'assets/images/skin_legend.jpg';
-                      } else if (skinName.contains('마스터')) {
-                        userSkinImagePath = 'assets/images/skin_master.jpg';
-                      } else if (skinName.contains('프로')) {
-                        userSkinImagePath = 'assets/images/skin_pro.jpg';
-                      } else if (skinName.contains('전문') || skinName.contains('고수')) {
-                        userSkinImagePath = 'assets/images/skin_expert.jpg';
-                      } else if (skinName.contains('중수')) {
-                        userSkinImagePath = 'assets/images/skin_intermediate.jpg';
-                      } else if (skinName.contains('하수')) {
-                        userSkinImagePath = 'assets/images/skin_novice.jpg';
-                      }
+                      userSkinImagePath = skinListIconAsset(skinName); // 👕 레전드·낚시의 신 포함 통합 매핑
                     }
 
                     return Container(

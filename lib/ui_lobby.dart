@@ -305,21 +305,7 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
           var skin = data['equippedSkin'];
           String skinName = (skin is Map) ? (skin['name'] ?? '').toString() : skin.toString();
           
-          if (skinName.contains('신')) {
-            userSkinImagePath = 'assets/images/skin_god.jpg';
-          } else if (skinName.contains('전설')) {
-            userSkinImagePath = 'assets/images/skin_legend.jpg';
-          } else if (skinName.contains('마스터')) {
-            userSkinImagePath = 'assets/images/skin_master.jpg';
-          } else if (skinName.contains('프로')) {
-            userSkinImagePath = 'assets/images/skin_pro.jpg';
-          } else if (skinName.contains('전문') || skinName.contains('고수')) {
-            userSkinImagePath = 'assets/images/skin_expert.jpg';
-          } else if (skinName.contains('중수')) {
-            userSkinImagePath = 'assets/images/skin_intermediate.jpg';
-          } else if (skinName.contains('하수')) {
-            userSkinImagePath = 'assets/images/skin_novice.jpg';
-          }
+          userSkinImagePath = skinListIconAsset(skinName); // 👕 레전드·낚시의 신 포함 통합 매핑
         }
                     return _buildRankItem(index + 1, name, displayVal, isMe, userSkinImagePath);
                   },
@@ -604,7 +590,7 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
 
                     List<dynamic> filteredItems = inventory.where((item) {
                       String cat = item['category'] ?? '';
-                      bool isSkin = item['name'].toString().contains('조사') || item['name'].toString().contains('마스터') || item['name'].toString().contains('프로') || item['name'].toString().contains('세트');
+                      bool isSkin = isSkinItem(item);
                       if (currentFilter == 'ALL') return true;
                       if (currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
                       if (currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
@@ -629,7 +615,7 @@ filteredItems.sort((a, b) {
     if (n.contains('릴') || c == 'REEL') return 'REEL';
     if (n.contains('찌') || c == 'FLOAT') return 'FLOAT';
     if (n.contains('지렁이') || n.contains('글루텐') || n.contains('옥수수') || n.contains('미끼') || n.contains('에기')) return 'BAIT';
-    if (n.contains('스킨') || n.contains('조사')) return 'SKIN';
+    if (n.contains('스킨') || skinTierByName(n) > 0) return 'SKIN';
     return 'ETC';
   }
 
@@ -1402,7 +1388,7 @@ class _StoreScreenState extends State<StoreScreen> {
   String _slotType(Map<String, dynamic> item) {
     final n = (item['name'] ?? '').toString().replaceAll(' ', '').toUpperCase();
     if (n.contains('찌')) return 'float';
-    if (n.contains('스킨') || n.contains('조사') || n.contains('초보') || n.contains('마스터')) return 'skin';
+    if (n.contains('스킨') || skinTierByName(n) > 0) return 'skin';
     if ((n.contains('릴') && !n.contains('크릴')) ||
         n.contains('2000') || n.contains('3000') || n.contains('5000') ||
         n.contains('6000') || n.contains('8000')) {

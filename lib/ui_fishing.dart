@@ -3275,11 +3275,12 @@ Positioned(
     int maxRods = widget.isSea ? 1 : 2; 
     if (!widget.isSea) {
      String skinName = equippedSkin != null ? equippedSkin!['name'].toString() : '초보';
-      if (skinName.contains('마스터')) maxRods = 14;
-      else if (skinName.contains('프로')) maxRods = 10;
-      else if (skinName.contains('고수')) maxRods = 8;
-      else if (skinName.contains('중수')) maxRods = 6;
-      else if (skinName.contains('하수')) maxRods = 4;
+      final int st = skinTierByName(skinName);
+      if (st >= 6) maxRods = 14;       // 마스터·레전드·낚시의 신
+      else if (st == 5) maxRods = 10;  // 프로
+      else if (st == 4) maxRods = 8;   // 고수
+      else if (st == 3) maxRods = 6;   // 중수
+      else if (st == 2) maxRods = 4;   // 하수
     }
     if (selectedRodCount > maxRods) selectedRodCount = maxRods;
 
@@ -3656,7 +3657,7 @@ Positioned(
             bool hasShrimp = inventory.any((i) => (i['name']?.toString() ?? '') == '민물새우' && ((i['quantity'] ?? 0) as num) > 0);
             List<dynamic> filteredItems = inventory.where((item) {
               String cat = item['category'] ?? '';
-              bool isSkin = item['name'].toString().contains('조사') || item['name'].toString().contains('마스터') || item['name'].toString().contains('프로') || item['name'].toString().contains('세트');
+              bool isSkin = isSkinItem(item);
               // 🦐 새우 있으면 민물새우(미끼) 표시·채집망 숨김 / 새우 없으면 채집망만 표시
               if (item['name'].toString() == '민물새우' && !hasShrimp) return false;
               if (item['name'].toString() == '새우 채집망' && hasShrimp) return false;
@@ -3841,7 +3842,7 @@ Positioned(
       int maxBaitQty = -1;
       int getCoolerTier(String name) { if (name.contains('대형')) return 3; if (name.contains('중형')) return 2; if (name.contains('소형')) return 1; return 1; }
 
-      int getSkinTier(String name) { if (name.contains('마스터')) return 5; if (name.contains('프로') || name.contains('고수')) return 4; if (name.contains('중수')) return 3; if (name.contains('하수') || name.contains('초보')) return 2; return 1; }
+      int getSkinTier(String name) => skinTierByName(name); // 👕 레전드·낚시의 신 포함 통합 등급
       int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
       int getFloatTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40; if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
       int getSeaRodTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40; if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
@@ -3849,7 +3850,7 @@ Positioned(
 
       for (var item in validItems) {
         String name = item['name'].toString();
-        if (name.contains('스킨') || name.contains('조사') || name.contains('마스터')) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
+        if (isSkinItem(item)) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
         else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) { if (bestCooler == null || getCoolerTier(name) > getCoolerTier(bestCooler!['name'].toString())) { bestCooler = item; } }
         else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
@@ -3887,12 +3888,12 @@ Positioned(
       } else {
         int autoMaxRods = 2;
         String skinName = equippedSkin != null ? equippedSkin!['name'].toString() : '초보';
-
-        if (skinName.contains('마스터')) autoMaxRods = 14;
-        else if (skinName.contains('프로')) autoMaxRods = 10;
-        else if (skinName.contains('고수')) autoMaxRods = 8;
-        else if (skinName.contains('중수')) autoMaxRods = 6;
-        else if (skinName.contains('하수')) autoMaxRods = 4;
+        final int st = skinTierByName(skinName);
+        if (st >= 6) autoMaxRods = 14;       // 마스터·레전드·낚시의 신
+        else if (st == 5) autoMaxRods = 10;  // 프로
+        else if (st == 4) autoMaxRods = 8;   // 고수
+        else if (st == 3) autoMaxRods = 6;   // 중수
+        else if (st == 2) autoMaxRods = 4;   // 하수
 
         selectedRodCount = autoMaxRods;
       }
@@ -3969,7 +3970,7 @@ Positioned(
                 if (isEquipped) {
                   // 🗑️ [벗기] 장착 해제 로직
                   if (cleanName.contains('찌')) equippedFloat = null; 
-                  else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) equippedSkin = null; 
+                  else if (isSkinItem(item)) equippedSkin = null;
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = null; 
                   else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = null; isRodEquipped = false; } 
                   else if (cleanName.contains('선글라스')) equippedSunglasses = null;
@@ -3984,7 +3985,7 @@ Positioned(
                 } else {
                   // 🎒 [입기] 기존 장착 로직
                   if (cleanName.contains('찌')) { equippedFloat = item; } 
-                  else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) { equippedSkin = item; } 
+                  else if (isSkinItem(item)) { equippedSkin = item; }
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) { equippedReel = item; } 
                   else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; } 
                   else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
@@ -4033,7 +4034,7 @@ Positioned(
     setState(() {
       String cleanName = item['name'].toString().replaceAll(' ', '').toUpperCase();
       if (cleanName.contains('찌')) equippedFloat = item;
-      else if (cleanName.contains('스킨') || cleanName.contains('조사') || cleanName.contains('초보') || cleanName.contains('마스터')) equippedSkin = item;
+      else if (isSkinItem(item)) equippedSkin = item;
       else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = item;
       else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; }
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
@@ -5444,13 +5445,7 @@ class _CirclingSeagullState extends State<_CirclingSeagull> with SingleTickerPro
                                 var skin = data['equippedSkin'];
                                 String skinName = (skin is Map) ? (skin['name'] ?? '').toString() : skin.toString();
                                 
-                                if (skinName.contains('신')) userSkinImagePath = 'assets/images/skin_god.jpg';
-                                else if (skinName.contains('전설')) userSkinImagePath = 'assets/images/skin_legend.jpg';
-                                else if (skinName.contains('마스터')) userSkinImagePath = 'assets/images/skin_master.jpg';
-                                else if (skinName.contains('프로')) userSkinImagePath = 'assets/images/skin_pro.jpg';
-                                else if (skinName.contains('전문') || skinName.contains('고수')) userSkinImagePath = 'assets/images/skin_expert.jpg';
-                                else if (skinName.contains('중수')) userSkinImagePath = 'assets/images/skin_intermediate.jpg';
-                                else if (skinName.contains('하수')) userSkinImagePath = 'assets/images/skin_novice.jpg';
+                                userSkinImagePath = skinListIconAsset(skinName); // 👕 레전드·낚시의 신 포함 통합 매핑
                               }
 
                               return Container(
