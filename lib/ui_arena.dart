@@ -359,6 +359,16 @@ class _ArenaScreenState extends State<ArenaScreen> {
                                             value: value,
                                             child: Row(
                                               children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white.withOpacity(0.12),
+                                                    borderRadius: BorderRadius.circular(6),
+                                                  ),
+                                                  child: Text(spotCategory(value),
+                                                      style: const TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600)),
+                                                ),
+                                                const SizedBox(width: 6),
                                                 Expanded(child: Text(value, overflow: TextOverflow.ellipsis)),
                                                 const SizedBox(width: 8),
                                                 Text(spotStarStr(value),
