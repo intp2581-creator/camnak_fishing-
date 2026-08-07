@@ -1200,19 +1200,15 @@ Widget _whisperUnreadBadge() {
     if (!mounted || !isFloatInWater) return;
     if (_arenaOver) return; // ⚔️ 아레나 종료 후엔 다음 입질 예약 안 함(찌 안 올라옴)
 
-    // 🎣 대수 무관, 바다와 동일한 입질 간격(기본 10~20초)
-    const int baseMin = 10;
-    const int baseMax = 20;
-    // 🪝 [센서 감도 보정] 감도(S)가 높을수록 입질이 빨리 옴.
-    //   초보 기준(S≈30) 0% → 감도가 높을수록 최대 30%까지 대기시간 단축.
-    const int kSensBase = 30;    // 초보 기준 감도(보정 0%)
-    const int kSensFull = 300;   // 이 이상이면 최대 단축
-    const double kMaxCut = 0.30; // 최대 단축 비율(30%)
+    // 🎣 대수 무관, 바다와 동일한 입질 간격. 감도(S) 구간별 계단식 단축.
+    //   ~199: 10~20초 / 200~499: 9~18 / 500~799: 8~16 / 800~999: 7~14 / 1000+: 6~13
     final int sens = getMyTotalStats()['sensitivity'] ?? 0;
-    final double cut =
-        (((sens - kSensBase) / (kSensFull - kSensBase)).clamp(0.0, 1.0)) * kMaxCut;
-    final int minWait = (baseMin * (1 - cut)).round();
-    final int maxWait = (baseMax * (1 - cut)).round();
+    int minWait, maxWait;
+    if (sens >= 1000)      { minWait = 6;  maxWait = 13; }
+    else if (sens >= 800)  { minWait = 7;  maxWait = 14; }
+    else if (sens >= 500)  { minWait = 8;  maxWait = 16; }
+    else if (sens >= 200)  { minWait = 9;  maxWait = 18; }
+    else                   { minWait = 10; maxWait = 20; }
     final int waitTime = minWait + math.Random().nextInt(maxWait - minWait + 1);
 
     _biteTimer = Timer(Duration(seconds: waitTime), () {
