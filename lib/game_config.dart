@@ -705,6 +705,10 @@ final List<Map<String, dynamic>> storeAuxItems = [
 //    정확한 게임스토어 페이지 URL이 있으면 여기만 바꾸면 됨.
 const String kGameStoreUrl = 'https://camnak.com/137';
 
+// 💳 게임아이템 결제 오픈 스위치. 토스페이먼츠 승인되면 true로 바꿔 배포하면
+//    상점 버튼이 "🔜 결제 오픈 예정"(구매 막힘) → "🛒 쇼핑몰 구매"로 전환된다.
+const bool kPaymentOpen = false;
+
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)\n\n💳 1,100원(VAT포함) · 1회분 지급 · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
   {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)\n\n💳 1,100원(VAT포함) · 1장 지급 · 사용처: 게임 내 아레나 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},

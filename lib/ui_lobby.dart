@@ -1823,19 +1823,22 @@ class _StoreScreenState extends State<StoreScreen> {
                             textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
                       else if (!rankOk)
                         Center(child: Text('🔒 \'$reqRank\' 승급 후 구매 가능\n(아라 NPC 승급 퀘스트)',
-                            textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
+                            textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
+                      else if (!kPaymentOpen)
+                        const Center(child: Text('🔜 결제 준비 중이에요. 곧 오픈됩니다!',
+                            textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFD4AF37), fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
                       const SizedBox(height: 6),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (buyOk && !alreadyOwned) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
-                          foregroundColor: (buyOk && !alreadyOwned) ? Colors.black : Colors.white38,
+                          backgroundColor: (buyOk && !alreadyOwned && kPaymentOpen) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+                          foregroundColor: (buyOk && !alreadyOwned && kPaymentOpen) ? Colors.black : Colors.white38,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: (buyOk && !alreadyOwned)
+                        onPressed: (buyOk && !alreadyOwned && kPaymentOpen)
                             ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName); }
                             : null,
-                        child: Text(alreadyOwned ? '구매 완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : '🛒 쇼핑몰 구매')),
+                        child: Text(alreadyOwned ? '구매 완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (!kPaymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매'))),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ]);
