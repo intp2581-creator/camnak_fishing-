@@ -654,8 +654,8 @@ final List<Map<String, dynamic>> storeRodItems = [
   {'name': 'KT-40T', 'price': 600000, 'reqLevel': 70, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_kt40.png', 'desc': '민물 낚시의 정점, 마스터 민물대'},
   {'name': 'CF250', 'price': 0, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_sea_cf250.png', 'desc': '바다 낚시 입문용 기본대'},
   {'name': 'CF350', 'price': 20000, 'reqLevel': 5, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_sea_cf350.png', 'desc': '연안 방파제용 전천후 바다대'},
-  {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 10}, 'icon': 'rod_sea_cf500.png', 'desc': '원투 낚시에 최적화된 바다대'},
-  {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 30, 'C': 20, 'S': 10}, 'icon': 'rod_sea_kt250.png', 'desc': '선상 낚시의 표준, KREFT 바다대'},
+  {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_sea_cf500.png', 'desc': '원투 낚시에 최적화된 바다대'},
+  {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_sea_kt250.png', 'desc': '선상 낚시의 표준, KREFT 바다대'},
   {'name': 'KT350', 'price': 300000, 'reqLevel': 50, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_sea_kt350.png', 'desc': '프로 앵글러를 위한 고강도 바다대'},
   {'name': 'KT500', 'price': 600000, 'reqLevel': 70, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_sea_kt500.png', 'desc': '심해 대물 제압용 마스터 바다대'},
 ];
