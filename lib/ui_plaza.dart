@@ -313,6 +313,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
+  bool _isGm = false;    // 🛡️ 운영자(GM) 계정 여부 → 머리 위 GM 배지
   Map<String, int> _daejangCatch = {}; // #13 6대장 누적 카운트
   bool _fwDone = false; // 📋 오늘 민물 일일 완료
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
@@ -641,6 +642,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
+      _isGm = data['isGm'] == true; // 🛡️ 운영자 GM 배지
       // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비)
       if (widget.startTutorial && !data.containsKey('tutStep')) {
         await doc.reference.set({'tutStep': 0, 'tutCleared': false}, SetOptions(merge: true));
@@ -1115,6 +1117,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
             'rank': v['rank']?.toString() ?? '초보', // 🎨 등급색용
+            'gm': v['gm'] == true, // 🛡️ 운영자 GM 배지
 
             'champ': v['champ'] == true,
             'garam': (v['garam'] is num) ? (v['garam'] as num).toInt() : 0, // 🎖️ 순위마크
@@ -1312,6 +1315,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'img': _charImage,
       'guild': _guildName,
       'rank': _rank, // 🎨 등급(칭호) — 닉네임 색용
+      'gm': _isGm, // 🛡️ 운영자 GM 배지
       'champ': _isChampionGuild,
       'garam': _myGaramRank, // 🎖️ 주간 개인랭킹 순위마크(0=없음)
       'x': _charPos.dx,
@@ -1396,7 +1400,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 child: _nameTag(nick, (d['guild'] ?? '') as String,
                     champ: d['champ'] == true,
                     garamRank: (d['garam'] ?? 0) as int,
-                    rank: (d['rank'] ?? '초보').toString()),
+                    rank: (d['rank'] ?? '초보').toString(),
+                    gm: d['gm'] == true),
               ),
             ),
           ),
@@ -2264,10 +2269,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
-  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0, String rank = '초보'}) {
+  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0, String rank = '초보', bool gm = false}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // 🛡️ 운영자(GM) 배지 — 공식 운영자 계정 표식(제일 위)
+        if (gm)
+          Container(
+            margin: const EdgeInsets.only(bottom: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFF7B2FF7), Color(0xFFC04BF3)]),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white70, width: 1.0),
+              boxShadow: [BoxShadow(color: const Color(0xFF9B30FF).withOpacity(0.6), blurRadius: 6, spreadRadius: 1)],
+            ),
+            child: const Text('🛡️ GM 운영자',
+                maxLines: 1,
+                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+          ),
         // 🎖️ 가람 주간 개인랭킹 순위마크 (top10, 1주일 유지)
         if (garamRank >= 1 && garamRank <= 10)
           Container(
@@ -2853,7 +2873,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         child: Center(
                                           child: _nameTag(widget.nickname, _guildName,
                                               isMe: true, champ: _isChampionGuild,
-                                              garamRank: _myGaramRank, rank: _rank),
+                                              garamRank: _myGaramRank, rank: _rank, gm: _isGm),
                                         ),
                                       ),
                                       if (_myBubble != null &&
