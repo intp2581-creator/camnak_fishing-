@@ -321,14 +321,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _bobaeCaught = 0; // 🛍️ 오늘 새로 잡은 지정 어종 수(퀘스트 진행도)
   int _bobaeCaughtFrom(dynamic bp, String today) =>
       (bp is Map && bp['date'] == today && bp['caught'] is num) ? (bp['caught'] as num).toInt() : 0;
-  // 🥊 한별 아레나 일일 퀘스트: 오늘 승리 1회 → 보상. 2회 도전 다 지면 종료.
-  bool _hanbyeolWon = false;     // 오늘 아레나 승리 기록
+  // 🥊 한별 아레나 일일 퀘스트: 오늘 10분 완주하면 참가보상(승리 더 많이). 하루 1회.
+  String _hanbyeolResult = '';   // 오늘 완주 결과: 'win' / 'lose' / '' (미완주)
   bool _hanbyeolClaimed = false; // 오늘 한별 보상 수령
   int _arenaCount = 0;           // 오늘 아레나 입장 횟수(0~1 무료)
-  static const int hanbyeolExp = 200;
-  static const int hanbyeolPts = 400;
+  bool get _hanbyeolDone => _hanbyeolResult.isNotEmpty; // 오늘 완주(승/패)해서 받을 보상 있음
+  // 🎁 완주 참가보상: 승리 200/400 · 패배 100/200
+  static const int hanbyeolExpWin = 200, hanbyeolPtsWin = 400;
+  static const int hanbyeolExpLose = 100, hanbyeolPtsLose = 200;
+  int get _hanbyeolExp => _hanbyeolResult == 'win' ? hanbyeolExpWin : hanbyeolExpLose;
+  int get _hanbyeolPts => _hanbyeolResult == 'win' ? hanbyeolPtsWin : hanbyeolPtsLose;
   void _applyHanbyeol(Map<String, dynamic> d, String today) {
-    _hanbyeolWon = d['hanbyeol_won_date'] == today;
+    // 신 필드(hanbyeol_result_date/result) 우선, 없으면 구 필드(hanbyeol_won_date=승리)로 호환
+    if (d['hanbyeol_result_date'] == today) {
+      _hanbyeolResult = (d['hanbyeol_result'] ?? 'lose').toString();
+    } else if (d['hanbyeol_won_date'] == today) {
+      _hanbyeolResult = 'win';
+    } else {
+      _hanbyeolResult = '';
+    }
     _hanbyeolClaimed = d['hanbyeol_reward_date'] == today;
     final ac = (d['arenaCount'] is num) ? (d['arenaCount'] as num).toInt() : 0;
     _arenaCount = (d['lastArenaDate'] == today) ? ac : 0;
@@ -3259,7 +3270,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 🛍️ 서윤: 오늘 지정어 배달 일일이 아직 안 끝났으면 접속 시 ❗ (완료하면 사라짐)
     final bool isBobaeQuest = name == '서윤' && _tutQuestNow == null && !_bobaeDone;
     // 🥊 한별: 오늘 아레나 일일 미완료면 ❗ (승리해서 보상받을 게 있거나, 아직 도전 기회 남음)
-    final bool isHanbyeolQuest = name == '한별' && _tutQuestNow == null && !_hanbyeolClaimed && (_hanbyeolWon || _arenaCount < 1);
+    final bool isHanbyeolQuest = name == '한별' && _tutQuestNow == null && !_hanbyeolClaimed && (_hanbyeolDone || _arenaCount < 1);
     final bool bang = isTutTarget || isJoinQuest || isBobaeQuest || isHanbyeolQuest;
     return Positioned(
       left: cx * worldW - figW / 2,
@@ -5696,15 +5707,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return;
     }
     // 오늘 승리 + 보상 미수령 → 보상 정산 팝업
-    if (_hanbyeolWon && !_hanbyeolClaimed) { _showHanbyeolClaim(); return; }
+    if (_hanbyeolDone && !_hanbyeolClaimed) { _showHanbyeolClaim(); return; }
     // 일일 안내
     String guide;
     if (_hanbyeolClaimed) {
       guide = '오늘 아레나 일일 보상은 받으셨어요!\n대회는 계속 참가할 수 있어요 😊';
     } else if (_arenaCount >= 1) {
-      guide = '오늘 도전(1회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+      guide = '오늘 도전(1회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🎁 완주 보상: 승리 경험치+$hanbyeolExpWin·포인트+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·포인트+$hanbyeolPtsLose';
     } else {
-      guide = '오늘의 아레나 미션!\n대회에서 우승하면 보상을 드려요.\n(오늘 도전 $_arenaCount/1)\n\n🏆 우승 보상: 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts';
+      guide = '오늘의 아레나 미션!\n대회 10분을 완주하면 참가 보상을 드려요.\n(오늘 도전 $_arenaCount/1)\n\n🏆 승리 경험치+$hanbyeolExpWin·포인트+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·포인트+$hanbyeolPtsLose';
     }
     showDialog(
       context: context,
@@ -5730,7 +5741,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     showDialog(
       context: context,
       builder: (c) => NpcTutorialOverlay(
-        text: '⚔️ 우승 축하해요!! 🏆\n오늘 아레나에서 이기셨네요.\n약속한 보상을 드릴게요!\n\n🎁 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts',
+        text: (_hanbyeolResult == 'win'
+                ? '⚔️ 우승 축하해요!! 🏆\n오늘 아레나에서 이기셨네요.\n약속한 보상을 드릴게요!'
+                : '⚔️ 완주 수고하셨어요! 💪\n이번엔 아쉬웠지만, 끝까지 뛴 참가 보상을 드릴게요.')
+            + '\n\n🎁 경험치 +$_hanbyeolExp · 포인트 +$_hanbyeolPts',
         imagePath: 'assets/images/npc_arena.png',
         onTap: () {},
         action: ElevatedButton(
@@ -5742,7 +5756,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 🥊 한별 보상 정산 — 오늘 승리했고 미수령이면 경험치/포인트 지급
+  // 🥊 한별 보상 정산 — 오늘 완주(승/패)했고 미수령이면 결과별 경험치/포인트 지급
   Future<void> _claimHanbyeol() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
@@ -5752,16 +5766,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       await FirebaseFirestore.instance.runTransaction((tx) async {
         final data = (await tx.get(ref)).data() ?? {};
         if (data['hanbyeol_reward_date'] == today) return; // 중복 방지
-        if (data['hanbyeol_won_date'] != today) return;    // 오늘 승리 안 함
+        // 오늘 완주 결과 확인(신 필드 우선, 구 필드 호환). 미완주면 지급 안 함.
+        String result;
+        if (data['hanbyeol_result_date'] == today) { result = (data['hanbyeol_result'] ?? 'lose').toString(); }
+        else if (data['hanbyeol_won_date'] == today) { result = 'win'; }
+        else { return; }
+        final int exp = result == 'win' ? hanbyeolExpWin : hanbyeolExpLose;
+        final int pts = result == 'win' ? hanbyeolPtsWin : hanbyeolPtsLose;
         tx.set(ref, {
-          'gold': FieldValue.increment(hanbyeolPts),
-          'exp': FieldValue.increment(hanbyeolExp),
+          'gold': FieldValue.increment(pts),
+          'exp': FieldValue.increment(exp),
           'hanbyeol_reward_date': today,
         }, SetOptions(merge: true));
       });
       if (mounted) {
         setState(() { _hanbyeolClaimed = true; }); // 낙관적 ❗ 제거
-        _toast('🎁 아레나 보상! 경험치 +$hanbyeolExp · 포인트 +$hanbyeolPts');
+        _toast('🎁 아레나 보상! 경험치 +$_hanbyeolExp · 포인트 +$_hanbyeolPts');
       }
     } catch (e) {
       debugPrint('한별 정산 에러: $e');

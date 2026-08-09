@@ -2209,7 +2209,7 @@ Widget _whisperUnreadBadge() {
 
   // 📦 상자를 건짐 → 인벤토리에 +1 후, 물고기처럼 멋진 획득 팝업.
   Future<void> _catchBox(Map<String, dynamic> box) async {
-    audioManager.playSfx('sfx_hit.mp3');
+    audioManager.playTada(); // 🎉 짜잔~ (상자 공개 — sfx_landing_success)
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
@@ -5261,7 +5261,9 @@ class _NatureAmbientEffectsState extends State<NatureAmbientEffects> {
   Widget build(BuildContext context) {
     // 🚨 IgnorePointer: 이 애니메이션들을 터치해도 챔질 버튼 등 뒤쪽 버튼이 눌리도록 방해를 막아줌!
     return IgnorePointer(
-      child: Stack(children: _effects.toList()),
+      // 🦅 clipBehavior: Clip.none — 이 Stack이 (종횡비/폴더블에 따라) 화면보다 작게 잡혀
+      //    위쪽·좌상단 갈매기가 길드버튼 근처에서 잘려 나타나던 문제 제거. 화면 끝까지 자연스럽게 비행.
+      child: Stack(clipBehavior: Clip.none, children: _effects.toList()),
     );
   }
 }

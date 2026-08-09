@@ -515,12 +515,15 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       //    ⚠️ 이 체크를 '기권승'보다 먼저! 혼자 남았어도(상대 기권) 목표어를 못 잡았으면 기권승이 아니라 무승부.
       if (topMetric <= 0) {
         final refund = fee - (fee * 0.1).toInt(); // 💸 무승부도 운영 수수료 10%는 징수, 90% 환불
+        final todayKst = DateTime.now().toIso8601String().substring(0, 10);
         await FirebaseFirestore.instance.runTransaction((tx) async {
           tx.update(arenaRef, {'status': 'finished', 'draw': true, 'winnerNick': '', 'totalPrize': 0});
-          if (refund > 0) {
-            for (final d in valid) {
-              tx.update(FirebaseFirestore.instance.collection('users').doc(d.id), {'gold': FieldValue.increment(refund)});
-            }
+          // 🥊 완주자 전원 = 참가보상 대상(무승부는 '패배' 티어) + 환불
+          for (final d in valid) {
+            tx.set(FirebaseFirestore.instance.collection('users').doc(d.id), {
+              if (refund > 0) 'gold': FieldValue.increment(refund),
+              'hanbyeol_result_date': todayKst, 'hanbyeol_result': 'lose',
+            }, SetOptions(merge: true));
           }
         });
         await arenaRef.collection('messages').add({'text': '🤝 아무도 목표어를 못 잡아 무승부! 참가비의 90%(운영 수수료 10% 제외)를 환불했어요.', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
@@ -537,6 +540,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           tx.update(FirebaseFirestore.instance.collection('users').doc(winner.id), {
             'gold': FieldValue.increment(finalPrize),
             'hanbyeol_won_date': todayKst,
+            'hanbyeol_result_date': todayKst, 'hanbyeol_result': 'win',
           });
           tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize, 'walkover': true});
         });
@@ -556,8 +560,15 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         tx.update(FirebaseFirestore.instance.collection('users').doc(winner.id), {
           'gold': FieldValue.increment(finalPrize),
           'hanbyeol_won_date': todayKst,
+          'hanbyeol_result_date': todayKst, 'hanbyeol_result': 'win',
         });
-        
+        // 🥊 완주한 나머지 참가자(패자)도 참가보상 대상 → 결과 'lose' 기록
+        for (final d in valid) {
+          if (d.id == winner.id) continue;
+          tx.set(FirebaseFirestore.instance.collection('users').doc(d.id), {
+            'hanbyeol_result_date': todayKst, 'hanbyeol_result': 'lose',
+          }, SetOptions(merge: true));
+        }
         // 2. 대회 기록(arenas)에는 '원래 총상금(prize)'을 적어둬야 아까 만든 영수증 팝업이 세금 명세서를 예쁘게 그립니다.
         tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize});
       });

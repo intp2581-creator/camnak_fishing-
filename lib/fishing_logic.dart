@@ -112,6 +112,16 @@ class AudioManager {
    }
   }
 
+  // 🎉 짜잔~ (상자 공개 등) — 'landing' 가드 무시하고 확실히 재생(직전 소리 끊고 재생)
+  Future<void> playTada() async {
+    if (isMuted || !sfxOn) return;
+    try {
+      if (efxPlayer.state == PlayerState.playing) await efxPlayer.stop();
+      await efxPlayer.setVolume(sfxVol);
+      await efxPlayer.play(AssetSource('sound/sfx_landing_success.mp3'));
+    } catch (_) {}
+  }
+
   void stopEfx() { efxPlayer.stop(); }
   Future<void> stopBgm() async { currentBgm = ""; await bgmPlayer.stop(); }
 
