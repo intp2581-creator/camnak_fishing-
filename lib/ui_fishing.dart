@@ -977,6 +977,7 @@ Widget _whisperUnreadBadge() {
       'type': type,
       'receiver': receiver,
       'channel': '', // 🧩 낚시터 전체채팅은 채널 무관(모든 광장 채널·낚시터에 노출)
+      'rank': _myRank, // 🎨 등급색용
       'timestamp': FieldValue.serverTimestamp(),
     });
 
@@ -3079,10 +3080,10 @@ Positioned(
                                                 TextSpan(text: '$prefixText ', style: TextStyle(color: prefixColor)),
                                                 TextSpan(
                                                   text: '$sender: ',
-                                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                                  style: TextStyle(color: rankColor((data['rank'] ?? '초보').toString()), fontWeight: FontWeight.bold),
                                                   recognizer: TapGestureRecognizer()..onTap = () {
-                                                    if (sender == myNickname) return; 
-                                                    _showUserMenu(sender); 
+                                                    if (sender == myNickname) return;
+                                                    _showUserMenu(sender);
                                                   }
                                                 ),
                                                 TextSpan(text: msg, style: TextStyle(color: type == 'notice' ? Colors.amber : Colors.white)),

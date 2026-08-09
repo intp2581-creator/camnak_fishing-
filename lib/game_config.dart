@@ -442,6 +442,20 @@ String rodSceneSuffix(Map<String, dynamic>? rod) {
 
 // 🏅 승급 칭호 순서 (스킨 구매 자격 판정 — 웹훅 RANK_ORDER와 동일하게 유지!)
 const List<String> kRankOrder = ['초보', '하수', '중수', '고수', '프로', '마스터', '레전드', '낚시의 신'];
+
+// 🎨 등급(칭호)별 닉네임 색 — 초보 흰 → 마스터 금색으로 서열이 한눈에 보이게.
+Color rankColor(String? rank) {
+  switch (rank) {
+    case '하수': return const Color(0xFF7CE38B);      // 연두
+    case '중수': return const Color(0xFF56C7F5);      // 하늘
+    case '고수': return const Color(0xFFB98BFF);      // 보라
+    case '프로': return const Color(0xFFFF9E5A);      // 주황
+    case '마스터': return const Color(0xFFFFD54A);    // 금색
+    case '레전드': return const Color(0xFFFF6B6B);    // 붉은금(발표 후)
+    case '낚시의 신': return const Color(0xFFFF4FD8); // 마젠타(발표 후)
+    default: return Colors.white;                     // 초보
+  }
+}
 // 칭호 → 순서 인덱스 (미등록/알 수 없으면 0=초보 취급)
 int rankIndex(String rank) {
   final i = kRankOrder.indexOf(rank);

@@ -1114,6 +1114,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
+            'rank': v['rank']?.toString() ?? '초보', // 🎨 등급색용
+
             'champ': v['champ'] == true,
             'garam': (v['garam'] is num) ? (v['garam'] as num).toInt() : 0, // 🎖️ 순위마크
             'x': nx,
@@ -1309,6 +1311,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'nick': widget.nickname,
       'img': _charImage,
       'guild': _guildName,
+      'rank': _rank, // 🎨 등급(칭호) — 닉네임 색용
       'champ': _isChampionGuild,
       'garam': _myGaramRank, // 🎖️ 주간 개인랭킹 순위마크(0=없음)
       'x': _charPos.dx,
@@ -1392,7 +1395,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               child: Center(
                 child: _nameTag(nick, (d['guild'] ?? '') as String,
                     champ: d['champ'] == true,
-                    garamRank: (d['garam'] ?? 0) as int),
+                    garamRank: (d['garam'] ?? 0) as int,
+                    rank: (d['rank'] ?? '초보').toString()),
               ),
             ),
           ),
@@ -2243,6 +2247,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'type': type,
       'receiver': receiver,
       'channel': _channelKey ?? '', // 🧩 전체 채팅은 같은 채널끼리만
+      'rank': _rank, // 🎨 등급색용
       'timestamp': FieldValue.serverTimestamp(),
     });
     // 💬 전체 채팅(탭0)만 머리 위 말풍선 — 귓속말/길드챗/친구는 말풍선 X
@@ -2259,7 +2264,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
-  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0}) {
+  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0, String rank = '초보'}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2304,7 +2309,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           ),
           child: Text(nick,
               maxLines: 1,
-              style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+              style: TextStyle(color: rankColor(rank), fontSize: 12, fontWeight: FontWeight.bold)),
         ),
       ],
     );
@@ -2621,8 +2626,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                       TextSpan(text: '$pt ', style: TextStyle(color: pc, fontSize: 13)),
                                       TextSpan(
                                         text: '$sender: ',
-                                        style: const TextStyle(
-                                            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        style: TextStyle(
+                                            color: rankColor((d['rank'] ?? '초보').toString()), fontWeight: FontWeight.bold, fontSize: 13),
                                         recognizer: TapGestureRecognizer()
                                           ..onTap = () {
                                             if (sender != me) _showUserMenu(sender);
@@ -2848,7 +2853,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         child: Center(
                                           child: _nameTag(widget.nickname, _guildName,
                                               isMe: true, champ: _isChampionGuild,
-                                              garamRank: _myGaramRank),
+                                              garamRank: _myGaramRank, rank: _rank),
                                         ),
                                       ),
                                       if (_myBubble != null &&
