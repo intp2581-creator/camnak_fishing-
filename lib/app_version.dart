@@ -10,10 +10,11 @@
 //       다르면 = 새 버전이 배포된 것 → 유저에게 새로고침 안내.
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:js_util' as js_util;
 import 'package:flutter/material.dart';
 
 /// ⚠️ 배포마다 올리는 빌드 식별자 (web/appver.json 과 같은 값으로 유지)
-const String kBuildId = '20260701-281';
+const String kBuildId = '20260701-295';
 
 bool _updateChecked = false;
 
@@ -73,7 +74,7 @@ Future<void> checkAppUpdate(BuildContext context) async {
 /// 새로고침해도 여전히 옛 버전이면(전파 지연) 루프 방지를 위해 시도한 버전을 기록해둔다.
 Future<void> forceReloadLatest(String serverBuild) async {
   try { html.window.localStorage['reloadedFor'] = serverBuild; } catch (_) {}
-  // 서비스워커 해제
+  // 1) 서비스워커 해제
   try {
     final sw = html.window.navigator.serviceWorker;
     if (sw != null) {
@@ -83,5 +84,16 @@ Future<void> forceReloadLatest(String serverBuild) async {
       }
     }
   } catch (_) {}
+  // 2) CacheStorage 전부 삭제 — SW가 캐싱한 옛 main.dart.js/에셋 제거(새로고침해도 옛 버전 뜨던 원인)
+  try {
+    final caches = js_util.getProperty(html.window, 'caches');
+    if (caches != null) {
+      final keys = await js_util.promiseToFuture<dynamic>(js_util.callMethod(caches, 'keys', []));
+      for (final k in (keys as List)) {
+        try { await js_util.promiseToFuture(js_util.callMethod(caches, 'delete', [k])); } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  // 3) 새로고침(네트워크에서 최신 부팅파일 받음 — no-cache 헤더와 함께 동작)
   html.window.location.reload();
 }

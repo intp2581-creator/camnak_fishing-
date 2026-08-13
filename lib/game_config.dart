@@ -214,6 +214,8 @@ GameEvent currentGameEvent = GameEvent.none;
 ///    config/event 문서에 boxEvent:true 넣으면 켜짐. boxEventEnd("yyyy-MM-dd HH:mm")
 ///    지정하면 그 시각 지나 자동 종료(켜는 건 수동). 수상한 상자는 상시라 이 값과 무관.
 bool gTreasureBoxOn = false;
+// 📢 상단 자막 상시 안내(오픈베타 버그제보 등) — 이벤트 active/기간과 무관하게 항상 표시. config/event 의 betaNotice.
+String gBetaNotice = '';
 
 /// 💬 채팅 세션 시작 시각(로그인~로그아웃/새로고침 동안 고정).
 ///    광장↔낚시터를 오가도 화면마다 리셋되지 않고 '이번 접속' 내내 채팅이 유지되게 하는 공용 기준.
@@ -243,6 +245,7 @@ Future<void> loadGameEvent() async {
       final DateTime? boxEnd = _parseKst(d?['boxEventEnd']);
       gTreasureBoxOn = boxOn && (boxEnd == null || DateTime.now().isBefore(boxEnd));
     }
+    gBetaNotice = (d?['betaNotice'] ?? '').toString(); // 📢 이벤트 active와 무관하게 항상 읽음
     if (d == null || d['active'] != true) { currentGameEvent = GameEvent.none; return; }
     final now = DateTime.now();
     final start = _parseKst(d['start']);
@@ -322,8 +325,8 @@ Map<String, dynamic> getTodayBobaeFish() {
 
 // 🎖️ 가람 주간 개인 종합 랭킹 (레벨 + 어종별 최대어 보드 합산, 매주 월요일 정산)
 //    각 보드 1위=10점 ... 10위=1점. 종합 top10이 1주일 동안 P/C/S 보너스 + 머리 위 순위마크.
-const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];
-const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치'];
+const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어'];
+const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치'];
 int garamRankBonus(int rank) {
   // 🎖️ 종합순위별 P/C/S 각 보너스(선형): 1위+10, 2위+9, 3위+8 ... 10위+1
   if (rank >= 1 && rank <= 10) return 11 - rank;
@@ -500,15 +503,16 @@ const Map<String, String> spotTypeByName = {
 //   나머지 어종은 1.0(변화 없음). 특정 낚시터가 아니라 '종류' 기준으로 통일.
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
-  // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치
-  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost},
-  // 🌊 수로형 (대장: 가물치): 가물치·베스·블루길·강준치·자라
-  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '블루길': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost},
-  // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어
-  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost},
-  // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·주꾸미·참치
-  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '참치': _spotBoost},
+  // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost},
+  // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지 (루어어종 쏘가리·꺽지 배치)
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost},
+  // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치
+  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost},
+  // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·볼락·참치
+  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '볼락': _spotBoost, '참치': _spotBoost},
 };
+// ℹ️ 무지개송어는 특정 낚시터 편중 없이 민물 전역에서 루어에 물림(spot 부스트 없음=중립).
 double spotFishMult(String locationName, String fishName) {
   final type = spotTypeByName[locationName];
   if (type == null) return 1.0;
@@ -561,14 +565,18 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
 final List<Map<String, dynamic>> fwFishPool = [
   {'name': '붕어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 1, 'img': 'assets/images/fish_fw_01_crucian_carp.png'}, // 👑 6대장
   {'name': '떡붕어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_04_herabuna.png'},
-  {'name': '블루길', 'weight': 50, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/images/fish_fw_07_bluegill.png'},
-  {'name': '살치', 'weight': 50, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/images/fish_fw_05_pale_chub.png'},
+  {'name': '블루길', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/images/fish_fw_07_bluegill.png'},
+  {'name': '살치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/images/fish_fw_05_pale_chub.png'},
   {'name': '베스', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_08_bass.png'},
   {'name': '강준치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_09_skygazer.png'},
   {'name': '잉어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 1, 'img': 'assets/images/fish_fw_02_carp.png'}, // 👑 6대장
-  {'name': '자라', 'weight': 5, 'unit': 'Cm', 'min': 15.0, 'max': 25.0, 'pts': 0, 'img': 'assets/images/fish_fw_10_turtle.png'},
+  {'name': '자라', 'weight': 5, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/images/fish_fw_10_turtle.png'},
   {'name': '메기', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 150.0, 'pts': 0, 'img': 'assets/images/fish_fw_03_catfish.png'},
   {'name': '가물치', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 120.0, 'pts': 1, 'img': 'assets/images/fish_fw_06_snakehead.png'}, // 👑 6대장
+  // 🎣 [루어 신규] 쏘가리·꺽지·무지개송어 — 루어 미끼(스푼/웜/플라이)에만 물림(baitAffinity 0.0으로 제한)
+  {'name': '쏘가리', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_12_mandarin.png'},
+  {'name': '꺽지', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_11_kkeokji.png'},
+  {'name': '무지개송어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_13_rainbow_trout.png'},
 ];
 
 // 🌊 바다 물고기
@@ -579,11 +587,14 @@ final List<Map<String, dynamic>> seaFishPool = [
   {'name': '참돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 1, 'img': 'assets/images/fish_sea_02_red_seabream.png'}, // 👑 6대장
   {'name': '벵에돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 60.0, 'pts': 0, 'img': 'assets/images/fish_sea_03_girella.png'},
   {'name': '갑오징어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'reqBait': '에기', 'img': 'assets/images/fish_sea_07_cuttlefish.png'},
-  {'name': '주꾸미', 'weight': 50, 'unit': 'Cm', 'min': 10.0, 'max': 30.0, 'pts': 0, 'reqBait': '에기', 'img': 'assets/images/fish_sea_06_webfoot_octopus.png'},
+  {'name': '주꾸미', 'weight': 50, 'unit': 'Cm', 'min': 5.0, 'max': 15.0, 'pts': 0, 'reqBait': '에기', 'img': 'assets/images/fish_sea_06_webfoot_octopus.png'},
   {'name': '광어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 0, 'img': 'assets/images/fish_sea_10_halibut.png'},
   {'name': '감성돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 80.0, 'pts': 1, 'img': 'assets/images/fish_sea_01_black_porgy.png'}, // 👑 6대장
-  {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 20, 'max': 120, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장
+  {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 1, 'max': 70, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장 (기존 최대어 69kg 보존 위해 max 70)
   {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 30.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
+  // 🎣 [루어/신규] 볼락(갯지렁이·웜에 강함) · 학꽁치(크릴에 강함)
+  {'name': '볼락', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_12_mebaru.png'},
+  {'name': '학꽁치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 45.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_13_halfbeak.png'},
 ];
 
 
@@ -652,6 +663,10 @@ final List<Map<String, dynamic>> storeRodItems = [
   {'name': 'KT-20T', 'price': 100000, 'reqLevel': 30, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_kt20.png', 'desc': '프리미엄 KREFT 민물대'},
   {'name': 'KT-30T', 'price': 300000, 'reqLevel': 50, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_fw_kt30.png', 'desc': '대물 붕어 제압용 프로 민물대'},
   {'name': 'KT-40T', 'price': 600000, 'reqLevel': 70, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_kt40.png', 'desc': '민물 낚시의 정점, 마스터 민물대'},
+  // 🎣 루어 베이트캐스팅 세트(릴+대 일체형) — 쏘가리·꺽지·무지개송어 공략용. 루어 미끼(스푼/웜/플라이)와 함께.
+  {'name': 'BC-200', 'price': 20000, 'reqLevel': 5, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_fw_lure_01.png', 'desc': '루어 입문용 베이트캐스팅 세트 (릴+대 일체형)'},
+  {'name': 'BC-400', 'price': 100000, 'reqLevel': 30, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_lure_02.png', 'desc': '중급 루어 앵글러용 베이트캐스팅 세트'},
+  {'name': 'BC-600', 'price': 600000, 'reqLevel': 70, 'category': 'FW', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_fw_lure_03.png', 'desc': '루어 낚시의 정점, 프로 베이트캐스팅 세트'},
   {'name': 'CF250', 'price': 0, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'rod_sea_cf250.png', 'desc': '바다 낚시 입문용 기본대'},
   {'name': 'CF350', 'price': 20000, 'reqLevel': 5, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'rod_sea_cf350.png', 'desc': '연안 방파제용 전천후 바다대'},
   {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_sea_cf500.png', 'desc': '원투 낚시에 최적화된 바다대'},
@@ -681,6 +696,10 @@ final List<Map<String, dynamic>> storeBaitItems = [
   {'name': '글루텐', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png', 'desc': '붕어 집어에 탁월한 미끼 (감도 +10)'},
   {'name': '옥수수', 'price': 1500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png', 'desc': '대물 붕어를 노리기 위한 미끼 (감도 +15)'},
   {'name': '지렁이', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png', 'desc': '민물 잡어부터 붕어까지 만능 미끼 (감도 +20)'},
+  // 🎣 루어 미끼 — 쏘가리·꺽지·무지개송어 등 루어어종 전용. 웜은 민물·바다 공용(COMMON).
+  {'name': '플라이', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_lure_fly.png', 'desc': '꺽지·계류어에 강한 루어 미끼 (감도 +10)'},
+  {'name': '웜', 'price': 1500, 'category': 'COMMON', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_lure_worm.png', 'desc': '민물·바다 공용 소프트웜 루어 (감도 +15)'},
+  {'name': '스푼', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_lure_spoon.png', 'desc': '쏘가리·배스에 강한 스푼 루어 (감도 +20)'},
   {'name': '루어', 'price': 1000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종을 노리는 가짜 미끼 (감도 +10)'},
   {'name': '크릴', 'price': 1500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '다양한 어종을 유혹하는 미끼 (감도 +15)'},
   {'name': '에기', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류(오징어, 문어 등) 전용 미끼 (감도 +20)'},

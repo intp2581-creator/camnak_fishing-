@@ -16,6 +16,9 @@ import 'fishing_logic.dart';
 import 'ui_fishing.dart';
 import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
+import 'ui_boss_raid.dart'; // 🐋 길드 보스 레이드(1단계 테스트)
+import 'raid_overlay.dart'; // 🐋 아마존 모임터(광장 재활용) 위 레디/시작 오버레이
+import 'ui_guild_shop.dart'; // 🏪 길드 전용 아이템 상점
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
 import 'ui_guild.dart'; // 길드 접속표시(presence) + 접속 점
@@ -33,6 +36,12 @@ class PlazaScreen extends StatefulWidget {
   final bool isFirstTime;
   final bool startTutorial; // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 강제 시작
 
+  // 🐋 [보스레이드] 아마존 모임터 모드 — 이 값이 비어있지 않으면 광장을 '길드 레이드 모임터'로 렌더.
+  //    같은 길드원끼리만 모이고(presence: raidlobby/{길드ID}), 시설NPC·포털 없이 아마존 배경 + 길드채팅 + 레디/입장 오버레이.
+  final String raidGuildId;
+  final String raidGuildName;
+  final bool raidIsLeader; // 길드장/부길드장 = 레이드 시작 권한
+
   const PlazaScreen({
     super.key,
     required this.nickname,
@@ -41,6 +50,9 @@ class PlazaScreen extends StatefulWidget {
     this.isSea = false,
     this.isFirstTime = false,
     this.startTutorial = false,
+    this.raidGuildId = '',
+    this.raidGuildName = '',
+    this.raidIsLeader = false,
   });
 
   // 🚪 기본 진입 광장 — 재접속 시 마지막에 있던 광장(민물/바다)으로
@@ -116,7 +128,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   DatabaseReference? _myRef;
   final List<StreamSubscription<DatabaseEvent>> _presenceSubs = []; // 채널 child 이벤트 구독들
   final Map<String, Map<String, dynamic>> _others = {};
-  String get _roomKey => widget.isSea ? 'sea' : 'fresh';
+  // 🏛️ 길드홀(공용 허브) 모드 여부 — raidGuildId가 곧 길드홀ID
+  bool get _isGuildHall => widget.raidGuildId.isNotEmpty;
+  bool _raidPanelOpen = false; // 🐋 관리NPC에서 '보스 레이드' 선택 시 레디/시작 패널 표시
+  // 🏛️ 길드홀은 같은 길드원끼리 한 방(raidlobby/{길드ID}) — 채널 분할 없음
+  String get _roomKey => _isGuildHall ? 'raidlobby' : (widget.isSea ? 'sea' : 'fresh');
   // 📍 친구·길드 목록에 표시할 내 접속 위치 (예: 'CH2·민물광장')
   String get _plazaLoc => 'CH$_channelNum·${widget.isSea ? '바다' : '민물'}광장';
 
@@ -137,6 +153,23 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🛡️ 길드 (users 문서 실시간 구독으로 가입 상태 추적)
   String _guildId = '';
   String _guildName = '';
+  // 🎨 길드명 색상 — 길드장이 지정(guilds/{gid}.guildColor). presence로 실어 머리 위·명패에 반영.
+  static const int _kGuildDefaultColor = 0xFF7FD4FF; // 기본 하늘색
+  int _guildColor = _kGuildDefaultColor;
+  StreamSubscription<DocumentSnapshot>? _guildDocSub; // 길드doc 실시간 구독(색상 등)
+  // 🎨 길드명 프리셋 팔레트(어두운 배경서 잘 보이는 색만)
+  static const List<int> kGuildColorPalette = [
+    0xFF7FD4FF, // 하늘(기본)
+    0xFF7FFFB0, // 민트
+    0xFFFFD54A, // 골드
+    0xFFFF9E5A, // 주황
+    0xFFFF6B6B, // 빨강
+    0xFFFF4FD8, // 마젠타
+    0xFFB98BFF, // 보라
+    0xFF56C7F5, // 파랑
+    0xFF9BE15D, // 연두
+    0xFFFFFFFF, // 흰색
+  ];
   StreamSubscription<DocumentSnapshot>? _userSub;
   StreamSubscription<QuerySnapshot>? _incomingSub; // 🤝 나를 친구로 등록한 사람 알림(B안)
 
@@ -423,6 +456,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _level = widget.level;
+    // 🐋 모임터 채팅은 '전체' 탭 그대로 — 이 광장의 전체채팅은 raidlobby/{길드ID} 채널로 필터되어
+    //    자동으로 '모임터 참가자끼리'만 보인다(별도 길드탭 강제 불필요 + 길드 없는 계정 크래시 방지).
+
     // 🌙 백그라운드(탭 숨김) 감지 → 광장에서 조용히 사라졌다가 복귀 시 다시 등장(깜빡임 방지)
     _visSub = html.document.onVisibilityChange.listen((_) => _onVisibilityChange());
     // 🎖️ 등급 표시 30초 뒤 자동 숨김
@@ -610,6 +646,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     _presenceSubs.clear();
     _userSub?.cancel();
+    _guildDocSub?.cancel(); // 🎨 길드색 구독 해제
     _incomingSub?.cancel();
     _leagueSub?.cancel();
     _garamSub?.cancel();
@@ -752,6 +789,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           if (gid.isEmpty && _chatTab == 3) _chatTab = 0;
         }
       });
+      if (guildChanged) _subGuildColor(gid); // 🎨 길드 바뀌면 길드색 구독 갱신
       _levelSynced = true;
       // 🆙 광장에서 레벨업 시 축하 팝업 (퀘스트 보상 등)
       // ⚠️ 낚시터/아레나가 위에 push된 상태에선 광장 스트림도 렙업을 감지해 팝업이 중복으로 뜬다
@@ -985,35 +1023,45 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       String champId = '', champName = '';
       final Map<String, dynamic> leagueRanks = {}; // {guildId: 순위(1~3)} — top3 보상
       if (activeWeek.isNotEmpty) {
-        // 지난주(activeWeek) 마릿수 순 top3 길드 확정
-        final q = await fs
-            .collection('guilds')
-            .orderBy('weeklyScore', descending: true)
-            .limit(20)
-            .get();
-        int placed = 0;
+        // 지난주(activeWeek) 각 길드 점수 확정 — ⚠️ 롤오버 주의:
+        //   길드가 아직 새 주 낚시를 안 했으면 weekKey==activeWeek 라 weeklyScore가 지난주 점수,
+        //   이미 새 주로 넘어갔으면 그 점수가 lastWeekScore(lastWeekKey==activeWeek)에 보존돼 있음.
+        //   (예전엔 weeklyScore만 봐서, 먼저 새 주 낚은 강팀이 정산에서 빠져 챔피언이 틀렸음)
+        final q = await fs.collection('guilds').limit(200).get();
+        final scored = <MapEntry<String, int>>[];
+        final names = <String, String>{};
         for (final d in q.docs) {
           final dd = d.data();
-          final ws = (dd['weeklyScore'] is num) ? (dd['weeklyScore'] as num).toInt() : 0;
-          if ((dd['weekKey'] ?? '') == activeWeek && ws > 0) {
-            placed++;
-            leagueRanks[d.id] = placed;
-            if (placed == 1) { champId = d.id; champName = (dd['name'] ?? '').toString(); }
-            if (placed >= 3) break; // top3만 보상
+          int s = 0;
+          if ((dd['weekKey'] ?? '') == activeWeek) {
+            s = (dd['weeklyScore'] is num) ? (dd['weeklyScore'] as num).toInt() : 0;
+          } else if ((dd['lastWeekKey'] ?? '') == activeWeek) {
+            s = (dd['lastWeekScore'] is num) ? (dd['lastWeekScore'] as num).toInt() : 0;
           }
+          if (s > 0) { scored.add(MapEntry(d.id, s)); names[d.id] = (dd['name'] ?? '').toString(); }
+        }
+        scored.sort((a, b) => b.value.compareTo(a.value)); // 마릿수 내림차순
+        int placed = 0;
+        for (final e in scored) {
+          placed++;
+          leagueRanks[e.key] = placed;
+          if (placed == 1) { champId = e.key; champName = names[e.key] ?? ''; }
+          if (placed >= 3) break; // top3만 보상
         }
       }
       await fs.runTransaction((tx) async {
         final s = await tx.get(stateRef);
         if ((s.data()?['activeWeek'] ?? '') == cur) return; // 다른 클라가 먼저 정산함
+        // ⚠️ merge:true 금지 — leagueRanks(맵)가 지난 주차 순위와 병합돼 누적되던 버그.
+        //    state 문서는 정산 필드만 있으므로 매 정산 시 전체 교체(덮어쓰기)해야 순위가 깨끗함.
         tx.set(stateRef, {
           'activeWeek': cur,
           'championGuildId': champId,
           'championGuildName': champName,
           'championWeek': cur,
-          'leagueRanks': leagueRanks, // 🏆 top3 순위별 보상
+          'leagueRanks': leagueRanks, // 🏆 top3 순위별 보상 (지난주 기준, 매주 새로 확정)
           'settledAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        });
       });
     } catch (e) {
       debugPrint('🏆 길드 리그 정산 실패: $e');
@@ -1064,8 +1112,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final uid = user.uid;
-    // 🧩 채널 배정 (정원 차면 자동 분할)
-    _channelKey = await _pickChannel(_roomKey, uid);
+    // 🐋 레이드 모임터: 채널 분할 없이 길드ID 단일 방
+    if (_isGuildHall) {
+      _channelNum = 0;
+      _channelKey = 'raidlobby/${widget.raidGuildId}';
+    } else {
+      // 🧩 채널 배정 (정원 차면 자동 분할)
+      _channelKey = await _pickChannel(_roomKey, uid);
+    }
     if (!mounted) return;
     setState(() {}); // 채널 표시 갱신
     _myRef = _db.ref('plaza/$_channelKey/$uid');
@@ -1167,6 +1221,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             int live = 0;
             v.forEach((_, pv) {
               if (pv is Map) {
+                if (pv['away'] == true) return; // 🎣 낚시/아레나 간 유저(keepalive 슬롯)는 광장 인원에서 제외
                 final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
                 if (now - t < 45000) live++;
               }
@@ -1309,11 +1364,27 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 🎨 길드 색상 실시간 구독 — 길드장이 색 바꾸면 모든 멤버 머리 위 태그도 갱신됨
+  void _subGuildColor(String gid) {
+    _guildDocSub?.cancel();
+    if (gid.isEmpty) {
+      if (_guildColor != _kGuildDefaultColor && mounted) { setState(() => _guildColor = _kGuildDefaultColor); _writeMe(); }
+      return;
+    }
+    _guildDocSub = FirebaseFirestore.instance.collection('guilds').doc(gid).snapshots().listen((s) {
+      if (!mounted) return;
+      final c = s.data()?['guildColor'];
+      final int col = (c is num) ? c.toInt() : _kGuildDefaultColor;
+      if (col != _guildColor) { setState(() => _guildColor = col); _writeMe(); } // presence 재기록 → 남들에게도 반영
+    });
+  }
+
   void _writeMe() {
     _myRef?.set({
       'nick': widget.nickname,
       'img': _charImage,
       'guild': _guildName,
+      'gcolor': _guildColor, // 🎨 길드명 색상(머리 위 태그용)
       'rank': _rank, // 🎨 등급(칭호) — 닉네임 색용
       'gm': _isGm, // 🛡️ 운영자 GM 배지
       'champ': _isChampionGuild,
@@ -1401,6 +1472,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     champ: d['champ'] == true,
                     garamRank: (d['garam'] ?? 0) as int,
                     rank: (d['rank'] ?? '초보').toString(),
+                    guildColorVal: (d['gcolor'] is num) ? (d['gcolor'] as num).toInt() : _kGuildDefaultColor,
                     gm: d['gm'] == true),
               ),
             ),
@@ -1420,9 +1492,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
 
   // 광장 배경: 타입별 공용 1장 (민물=plaza_fw, 바다=plaza_sea). 파일 없으면 build에서 낚시 배경으로 폴백.
-  String get _plazaBg => widget.isSea
-      ? 'assets/plaza/plaza_sea.jpg'
-      : 'assets/plaza/plaza_fw.jpg';
+  String get _plazaBg => _isGuildHall
+      ? 'assets/fields/bg_guild_lobby.jpg'
+      : (widget.isSea
+          ? 'assets/plaza/plaza_sea.jpg'
+          : 'assets/plaza/plaza_fw.jpg');
 
   String get _charImage {
     if (globalEquippedSkin != null) {
@@ -1460,8 +1534,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🗺️ 카메라/월드: 큰 광장 그림(3296x1700)을 두고 카메라가 캐릭터를 따라 스크롤
   // 월드 가로:세로 비율. 바다광장은 실제 이미지 비율(2760×1504)로 → 하단 안 잘림. 민물은 기존값 유지(배치 보존).
-  double get _imgAspect => widget.isSea ? (2760 / 1504) : (3296 / 1700);
-  static const double _baseFrac = 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
+  double get _imgAspect => _isGuildHall ? (2772 / 1504) : (widget.isSea ? (2760 / 1504) : (3296 / 1700));
+  // 🏛️ 길드홀은 실내라 거의 화면에 꽉 차게(줌 축소=스크롤 최소). 광장은 0.72(와이드).
+  double get _baseFrac => _isGuildHall ? 0.95 : 0.72; // 기본 줌(=캐릭터/NPC 크기 기준). 화면이 보여주는 월드 세로 비율
   double _zoomScale = 1.0; // 🔍 줌 배율 (1.0=기본 와이드 ~ 2.6=확대). Transform.scale 중앙 확대
   double _zoomStartScale = 1.0; // 핀치 시작 배율
   static const bool _devCoords = false; // 🔧 좌표 수집 모드(개발용). 필요 시 true로.
@@ -1489,7 +1564,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     Offset(0.431, 0.786), Offset(0.315, 0.802), Offset(0.205, 0.876), Offset(0.133, 0.995),
     Offset(0.003, 0.986),
   ];
-  List<Offset> get _activePoly => widget.isSea ? _seaPoly : _freshPoly;
+  // 🏛️ 길드홀 바닥(원목마루) 걷기 영역 — 뒤쪽(위) 좁고 앞쪽(아래) 넓은 사다리꼴(원근).
+  //    벽·천장으로 못 올라가게 바닥만. (필요시 _devCoords=true로 네 손으로 코너 찍어 미세조정)
+  static const List<Offset> _guildHallPoly = [
+    Offset(0.320, 0.691), Offset(0.704, 0.697), Offset(0.990, 0.990), Offset(0.005, 0.990),
+  ];
+  List<Offset> get _activePoly => _isGuildHall ? _guildHallPoly : (widget.isSea ? _seaPoly : _freshPoly);
 
   // 🚫 못 가는 구역(화단·구조물) — 바깥 폴리곤 안에서도 여기 안이면 못 감
   static const List<List<Offset>> _freshObstacles = [
@@ -1499,8 +1579,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     [Offset(0.535, 0.867), Offset(0.535, 0.918), Offset(0.457, 0.916), Offset(0.445, 0.864)],
     // 🏆 랭킹 트로피
     [Offset(0.166, 0.663), Offset(0.060, 0.664), Offset(0.059, 0.599), Offset(0.166, 0.581)],
-    // 🛡️ 길드 방패
-    [Offset(0.325, 0.405), Offset(0.256, 0.405), Offset(0.256, 0.370), Offset(0.321, 0.370)],
+    // 🏛️ 길드 아지트 건물 발자국(외곽) — 안으로 못 걸어들어가게
+    [Offset(0.191, 0.411), Offset(0.425, 0.411), Offset(0.425, 0.338), Offset(0.250, 0.338)],
     // 🏛️ 아레나 탑 (외곽 경계 틈 보강)
     [Offset(0.779, 0.391), Offset(0.743, 0.392), Offset(0.705, 0.395), Offset(0.705, 0.302),
      Offset(0.807, 0.334), Offset(0.804, 0.390)],
@@ -1514,10 +1594,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     [Offset(0.705, 0.862), Offset(0.798, 0.897), Offset(0.782, 0.921), Offset(0.706, 0.912)],
     // 🏆 랭킹 트로피
     [Offset(0.234, 0.902), Offset(0.334, 0.856), Offset(0.348, 0.916), Offset(0.245, 0.941)],
-    // 🛡️ 길드 방패
-    [Offset(0.112, 0.416), Offset(0.120, 0.387), Offset(0.188, 0.379), Offset(0.191, 0.413)],
+    // 🏛️ 길드 아지트 건물 발자국(외곽) — 안으로 못 걸어들어가게
+    [Offset(0.010, 0.505), Offset(0.265, 0.505), Offset(0.280, 0.435), Offset(0.090, 0.435)],
   ];
-  List<List<Offset>> get _activeObstacles => widget.isSea ? _seaObstacles : _freshObstacles;
+  List<List<Offset>> get _activeObstacles => _isGuildHall ? const [] : (widget.isSea ? _seaObstacles : _freshObstacles);
 
   // 점이 다각형 안인지 (ray casting)
   bool _inPolyOf(Offset p, List<Offset> poly) {
@@ -2269,7 +2349,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏷️ 머리 위 이름표 (길드명 + 닉네임, 챔피언이면 👑, 주간랭커면 🏆N위)
-  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0, String rank = '초보', bool gm = false}) {
+  Widget _nameTag(String nick, String guild, {bool isMe = false, bool champ = false, int garamRank = 0, String rank = '초보', bool gm = false, int guildColorVal = _kGuildDefaultColor}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -2308,15 +2388,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             margin: const EdgeInsets.only(bottom: 2),
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
             decoration: BoxDecoration(
-              color: champ ? const Color(0xCC4A3A00) : const Color(0xCC123A52),
+              // 챔피언=금색 고정, 그 외=길드 지정색(어두운 틴트 배경)
+              color: champ ? const Color(0xCC4A3A00) : Color.lerp(Color(guildColorVal), Colors.black, 0.74)!.withOpacity(0.85),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                  color: champ ? _kGold : const Color(0xFF7FD4FF), width: champ ? 1.0 : 0.8),
+                  color: champ ? _kGold : Color(guildColorVal), width: champ ? 1.0 : 0.8),
             ),
             child: Text(champ ? '👑〈$guild〉' : '〈$guild〉',
                 maxLines: 1,
                 style: TextStyle(
-                    color: champ ? _kGold : const Color(0xFF9FE0FF),
+                    color: champ ? _kGold : Color(guildColorVal),
                     fontSize: 10,
                     fontWeight: FontWeight.bold)),
           ),
@@ -2763,6 +2844,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             ),
                           ),
                         ),
+                        // 🏛️ 길드홀 중앙 명패에 길드 이름 (벽에 붙은 월드 요소 · 좌표 미세조정 가능)
+                        if (_isGuildHall)
+                          Positioned(
+                            left: 0.440 * worldW, top: 0.393 * worldH,
+                            width: 0.142 * worldW, height: 0.056 * worldH,
+                            child: IgnorePointer(child: Center(child: FittedBox(
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                // 🏆 리그 순위 훈장 (1위 👑금관 / 2위 🏆금트로피 / 3위 🥈은트로피)
+                                if (_myLeagueRank >= 1 && _myLeagueRank <= 3) ...[
+                                  Text(_myLeagueRank == 1 ? '👑' : _myLeagueRank == 2 ? '🏆' : '🥈',
+                                      style: const TextStyle(fontSize: 40)),
+                                  const SizedBox(width: 12),
+                                ],
+                                Text(
+                                  widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName,
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    color: Color(0xFFF3D98B), fontSize: 44, fontWeight: FontWeight.w900,
+                                    letterSpacing: 1.5,
+                                    shadows: [Shadow(color: Color(0xFF3A2410), blurRadius: 2, offset: Offset(1, 1))],
+                                  ),
+                                ),
+                              ]),
+                            ))),
+                          ),
                         // 바닥 탭 → 캐릭터 이동 (월드 좌표) + 두 손가락 핀치 줌
                         Positioned.fill(
                           child: GestureDetector(
@@ -2801,11 +2907,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         ...(() {
                           final sprites = <MapEntry<double, Widget>>[];
                           // 🎇 중앙 시즌 조형물 — 민물/바다 양쪽 (kCenterpieceFile — 시즌마다 파일만 교체)
-                          if (!widget.isSea) {
+                          // 🐋 레이드 모임터는 시설 포털/조형물/소나무 없이 아마존 맵에 캐릭터만.
+                          if (_isGuildHall) {
+                            // 🛡️ 여울 관리인 — 홀 뒤쪽 낚싯대 진열 옆(월드 고정·깊이정렬). 좌표는 미세조정 가능.
+                            sprites.add(MapEntry(0.698, _guildManagerNpc(worldW, worldH, sizeRef, 0.603, 0.698)));
+                          } else if (!widget.isSea) {
                             // 🏞️ 민물광장 시설 포털
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'portal_guild_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'house_guild_fw.png', 0.51))); // 🏛️ 길드 아지트(아쿠아 헌터스) 건물
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.390, _plazaPortal(worldW, worldH, sizeRef, 0.760, 0.390, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
@@ -2821,7 +2931,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.910, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.910, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.411, _plazaPortal(worldW, worldH, sizeRef, 0.154, 0.411, 'portal_guild_fw.png', 0.40)));
+                            sprites.add(MapEntry(0.500, _plazaPortal(worldW, worldH, sizeRef, 0.140, 0.500, 'house_guild_fw.png', 0.48))); // 🏛️ 길드 아지트 건물(바다)
                             sprites.add(MapEntry(0.330, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.330, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
@@ -2873,7 +2983,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         child: Center(
                                           child: _nameTag(widget.nickname, _guildName,
                                               isMe: true, champ: _isChampionGuild,
-                                              garamRank: _myGaramRank, rank: _rank, gm: _isGm),
+                                              garamRank: _myGaramRank, rank: _rank, gm: _isGm,
+                                              guildColorVal: _guildColor),
                                         ),
                                       ),
                                       if (_myBubble != null &&
@@ -2903,13 +3014,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           return sprites.map((e) => e.value).toList();
                         })(),
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
+                        //    🐋 레이드 모임터에선 시설 NPC/아라 없음(캐릭터만 모임).
+                        if (!_isGuildHall) ...[
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.307 : 0.146,
                             widget.isSea ? 0.930 : 0.662, 'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹',
                             _onGaramTap,
                             scale: 1.0),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.134 : 0.294,
-                            widget.isSea ? 0.451 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🛡️ 길드',
-                            () => _openNpcIntro('npc_guild.png', 'guild', '길드 보기', _openGuild),
+                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.120 : 0.294,
+                            widget.isSea ? 0.540 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드 아지트',
+                            () => _openNpcIntro('npc_guild.png', 'guild', '길드 아지트 입장', _enterGuildHall),
                             scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.350 : 0.500,
                             widget.isSea ? 0.340 : 0.270, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
@@ -2925,6 +3038,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             scale: 1.1),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, sizeRef),
+                        ],
                       ],
                     ),
               ),
@@ -2954,13 +3068,39 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
               ),
 
-              // 5) 상단 HUD
-              _topHud(),
-              // 💬 채팅 패널
+              // 5) 상단 HUD — 레이드 모임터에선 숨김(채널바/내정보 불필요, 오버레이가 대체)
+              if (!_isGuildHall) _topHud(),
+              // 💬 채팅 패널 (레이드 모임터는 길드 채팅으로 소통)
               _chatPanel(),
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),
+
+              // 🏛️ [GM 전용] 길드 아지트 바로가기 — 캠피싱(isGm)만 보임. (길드홀 안에선 숨김)
+              if (_isGm && !_isGuildHall)
+                Positioned(
+                  left: 12,
+                  top: 132,
+                  child: GestureDetector(
+                    onTap: () => _enterGuildHall(),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [Color(0xFF7B2FF7), Color(0xFFC04BF3)]),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white70, width: 1.0),
+                        boxShadow: [BoxShadow(color: const Color(0xFF9B30FF).withOpacity(0.5), blurRadius: 6)],
+                      ),
+                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text('🐋', style: TextStyle(fontSize: 16)),
+                        SizedBox(width: 6),
+                        Text('보스 레이드', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+                        SizedBox(width: 4),
+                        Text('GM', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ]),
+                    ),
+                  ),
+                ),
 
               // 🔧 좌표 수집 표시 (개발용 — 좌표 다 받으면 _devCoords=false)
               if (_devCoords)
@@ -3212,12 +3352,77 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 top: 105, left: 0, right: 0,
                 child: IgnorePointer(child: RankingTicker()),
               ),
+              // 🏛️ 길드홀(공용 허브) — 상단바 + 관리NPC(텔레포터). 보스레이드 레디/시작은 NPC에서 연다.
+              if (_isGuildHall) ...[
+                // 상단: 길드명 + 나가기
+                Positioned(top: 12, left: 12, right: 12, child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _kGold, width: 1.2),
+                    ),
+                    child: Text('🏛️ ${widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName} 길드홀',
+                        style: const TextStyle(color: _kGold, fontSize: 15, fontWeight: FontWeight.w900)),
+                  ),
+                  const Spacer(),
+                  // 🧾 우측 HUD(나가기·설정·전체화면·내정보) — 나가기 버튼 포함
+                  _guildHallHudRight(),
+                ])),
+                // (🛡️ 여울 관리인 NPC는 월드 스프라이트로 홀 안에 고정 — 위 sprites 블록 참고)
+                // 🐋 보스레이드 레디/시작 패널 (관리NPC에서 열림)
+                if (_raidPanelOpen)
+                  Positioned.fill(
+                    child: RaidOverlay(
+                      guildId: widget.raidGuildId,
+                      guildName: widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName,
+                      isLeader: widget.raidIsLeader,
+                      myNick: widget.nickname,
+                      myRank: _rank,
+                      isSea: widget.isSea,
+                      onStart: _enterBossRaid,
+                      onClose: () => setState(() => _raidPanelOpen = false),
+                    ),
+                  ),
+              ],
             ],
           );
         },
         ),
       ),
     );
+  }
+
+  // 🐋 status=raiding 감지 → 전원 보스전 입장. presence 정리 후 보스전으로 교체(뒤로가면 모임터로 복귀).
+  Future<void> _enterBossRaid(int endAt) async {
+    if (!mounted) return;
+    _awayFromPlaza = true; // 광장 하트비트 중지(고스트 방지)
+    try { await _myRef?.remove(); } catch (_) {}
+    if (!mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => BossRaidScreen(
+        guildId: widget.raidGuildId,
+        guildName: widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName,
+        nickname: widget.nickname,
+        isSea: widget.isSea,
+        endAt: endAt > 0 ? endAt : DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
+      ),
+    ));
+    // 보스전에서 복귀 → 모임터 presence 재등록
+    _awayFromPlaza = false;
+    if (mounted) { _writeMe(); }
+    // 🐋 길드장이 복귀하면 방을 대기 상태로 리셋(다음 판 준비) + 전원 레디 해제
+    if (widget.raidIsLeader) {
+      try {
+        final roomRef = FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId);
+        final ps = await roomRef.collection('participants').get();
+        for (final p in ps.docs) {
+          await p.reference.set({'isReady': false}, SetOptions(merge: true));
+        }
+        await roomRef.set({'status': 'waiting', 'endAt': FieldValue.delete()}, SetOptions(merge: true));
+      } catch (_) {}
+    }
   }
 
   // 📋 일일퀘스트 매니저 '아라' (클릭하면 오늘의 미션 안내) — 위치=월드, 크기=뷰포트
@@ -3578,7 +3783,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             const SizedBox(width: 10),
             if (_guildName.isNotEmpty)
               Text(_isChampionGuild ? '👑〈$_guildName〉Lv.$gLevel' : '〈$_guildName〉Lv.$gLevel',
-                  style: const TextStyle(color: Color(0xFF9FE0FF), fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: TextStyle(color: _isChampionGuild ? _kGold : Color(_guildColor), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
           const Divider(color: Colors.white12, height: 18),
           const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언 + 주간랭킹 + 이벤트)',
@@ -4258,13 +4463,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('guilds')
-                .orderBy('memberCount', descending: true)
                 .snapshots(),
             builder: (c, snap) {
               if (!snap.hasData) {
                 return const Center(child: CircularProgressIndicator(color: _kGold));
               }
-              final docs = snap.data!.docs;
+              // 🏆 길드 레벨(=guildExp) 높은 순 정렬. 동일하면 멤버수 많은 순.
+              int gexp(QueryDocumentSnapshot d) {
+                final m = d.data() as Map<String, dynamic>;
+                return (m['guildExp'] is num) ? (m['guildExp'] as num).toInt() : 0;
+              }
+              int mcnt(QueryDocumentSnapshot d) {
+                final m = d.data() as Map<String, dynamic>;
+                return (m['memberCount'] is num) ? (m['memberCount'] as num).toInt() : 0;
+              }
+              final docs = snap.data!.docs.toList()
+                ..sort((a, b) {
+                  final c = gexp(b).compareTo(gexp(a));
+                  return c != 0 ? c : mcnt(b).compareTo(mcnt(a));
+                });
               if (docs.isEmpty) {
                 return const Center(
                     child: Text('아직 길드가 없어요.\n첫 길드를 만들어보세요!',
@@ -4860,6 +5077,43 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             const Divider(color: Colors.white12, height: 28),
+            // 🎨 길드명 색상 (길드장만) — 프리셋 팔레트
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text('길드명 색상', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(height: 10),
+            Builder(builder: (_) {
+              final int cur = (g['guildColor'] is num) ? (g['guildColor'] as num).toInt() : _kGuildDefaultColor;
+              return Wrap(
+                spacing: 12, runSpacing: 12,
+                children: kGuildColorPalette.map((col) {
+                  final bool sel = col == cur;
+                  return GestureDetector(
+                    onTap: () async {
+                      try {
+                        await FirebaseFirestore.instance.collection('guilds').doc(gid).update({'guildColor': col});
+                        if (mounted) { setState(() => _guildColor = col); _writeMe(); } // 즉시 반영(구독도 곧 따라옴)
+                      } catch (e) { debugPrint('길드색 저장 오류: $e'); }
+                    },
+                    child: Container(
+                      width: 34, height: 34,
+                      decoration: BoxDecoration(
+                        color: Color(col),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: sel ? Colors.white : Colors.black26, width: sel ? 3 : 1),
+                        boxShadow: sel ? [BoxShadow(color: Color(col).withOpacity(0.7), blurRadius: 8, spreadRadius: 1)] : null,
+                      ),
+                      child: sel ? const Icon(Icons.check, color: Colors.black, size: 18) : null,
+                    ),
+                  );
+                }).toList(),
+              );
+            }),
+            const SizedBox(height: 8),
+            const Text('길드명(머리 위 이름표·길드홀 명패·길드 목록)에 적용돼요.',
+                style: TextStyle(color: Colors.white38, fontSize: 11)),
+            const Divider(color: Colors.white12, height: 28),
             const Align(
               alignment: Alignment.centerLeft,
               child: Text('가입 방식', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
@@ -5413,8 +5667,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold, height: 1.4)),
         backgroundColor: const Color(0xF21A1A1A),
         behavior: SnackBarBehavior.floating,
-        // 채팅창·하단 잘림 피해서 화면 중앙 하단쯤에 잘 보이게 띄움
-        margin: const EdgeInsets.only(bottom: 160, left: 60, right: 60),
+        // 🧩 좌우 여백 크게 → 가운데 작게(컴팩트). 하단 채팅창 위로 띄움(bottom 160).
+        margin: const EdgeInsets.only(bottom: 160, left: 460, right: 460),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: const BorderSide(color: _kGold, width: 1.2)),
@@ -5451,6 +5705,155 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 모달(길드창 등) 위에서도 잘 보이는 안내 팝업 — 토스트가 모달 뒤로 가려지는 문제 대응
+  // 🐋 [GM 전용] 길드 보스 레이드 테스트 진입 → 아마존 모임터(2a). 캠피싱은 무소속이라 테스트 길드로.
+  // 🏛️ 길드 아지트(길드홀) 입장 — 길드원 공용 허브. 미가입자는 길드 가입부터.
+  Future<void> _enterGuildHall() async {
+    if (_guildId.isEmpty && !_isGm) {
+      _infoPopup('길드 아지트', '아직 소속 길드가 없어요.\n먼저 길드에 가입하거나 길드를 만들어 주세요! 🛡️');
+      _openGuild();
+      return;
+    }
+    final gid = _guildId.isNotEmpty ? _guildId : 'gm_test';
+    final gname = _guildName.isNotEmpty ? _guildName : '테스트 길드';
+    // 🎖️ 길드장/부길드장 판정 → 보스 레이드 시작 권한 (GM은 테스트로 리더)
+    bool isLeader = _isGm;
+    if (!isLeader && _guildId.isNotEmpty) {
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+        final g = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
+        if ((g.data()?['masterUid'] ?? '') == uid) {
+          isLeader = true;
+        } else {
+          final me = await FirebaseFirestore.instance
+              .collection('guilds').doc(gid).collection('members').doc(uid).get();
+          if ((me.data()?['role'] ?? '') == 'vice') isLeader = true;
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    _leavePlazaPresence(); // 🚪 길드홀 입장 = 광장에서 사라짐(유령 방지, 낚시터·아레나와 동일)
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => PlazaScreen(
+      nickname: widget.nickname,
+      level: _level,
+      spot: widget.spot,
+      isSea: widget.isSea,
+      raidGuildId: gid,
+      raidGuildName: gname,
+      raidIsLeader: isLeader,
+    )));
+    _returnPlazaPresence(); // 🚪 길드홀에서 복귀 → 광장에 다시 등장
+  }
+
+  // 🛡️ 여울 관리인 — 길드홀 월드 스프라이트(발=cy, 바닥중앙 앵커). 탭 → 텔레포터 메뉴.
+  Widget _guildManagerNpc(double worldW, double worldH, double sizeRef, double cx, double cy) {
+    final figH = sizeRef * 0.30; // 캐릭터와 비슷한 키
+    final figW = figH * 0.55;
+    return Positioned(
+      left: cx * worldW - figW / 2,
+      top: cy * worldH - figH, // 발이 cy에 오도록(그림 bottomCenter)
+      width: figW,
+      height: figH,
+      child: GestureDetector(
+        onTap: _openGuildManager,
+        behavior: HitTestBehavior.opaque,
+        child: Stack(clipBehavior: Clip.none, children: [
+          Positioned.fill(child: Image.asset('assets/images/npc_guildhall.png',
+              fit: BoxFit.contain, alignment: Alignment.bottomCenter,
+              errorBuilder: (a, b, c) => Image.asset('assets/images/npc_manager.png',
+                  fit: BoxFit.contain, alignment: Alignment.bottomCenter,
+                  errorBuilder: (a2, b2, c2) => const SizedBox.shrink()))),
+          // 이름표(머리 바로 위) — 2단: 길드 관리인 / 여울
+          Positioned(bottom: figH * 0.66, left: -70, right: -70, child: Center(child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+            decoration: BoxDecoration(color: _kGold, borderRadius: BorderRadius.circular(8)),
+            child: const Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('💬 길드 관리인',
+                  style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w700, height: 1.05)),
+              Text('여울',
+                  style: TextStyle(color: Colors.black, fontSize: 13, fontWeight: FontWeight.w900, height: 1.1)),
+            ])))),
+        ]),
+      ),
+    );
+  }
+
+  // 🛡️ 길드 관리인 — 텔레포터 메뉴(보스 레이드 / 길드 상점 / 길드 정보)
+  void _openGuildManager() {
+    final gname = widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName;
+    showDialog(
+      context: context,
+      builder: (c) => Dialog(
+        backgroundColor: const Color(0xFF17130B),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18), side: const BorderSide(color: _kGold, width: 1.4)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🛡️ 길드 관리인', style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
+            const Text('어디로 안내해 드릴까요?', style: TextStyle(color: Colors.white60, fontSize: 13)),
+            const SizedBox(height: 18),
+            // 🐋 보스 레이드 — 정식 오픈 전까지 GM만. 유저는 '곧 오픈' 안내.
+            _guildMenuBtn('🐋 보스 레이드', _isGm ? '길드원과 함께 대물 보스 사냥' : '곧 오픈 예정 🔧',
+                () {
+                  Navigator.pop(c);
+                  if (_isGm) {
+                    setState(() => _raidPanelOpen = true);
+                  } else {
+                    _infoPopup('🐋 보스 레이드', '길드원 전원이 힘을 합쳐 대물 보스를 잡는\n길드 레이드를 준비 중이에요!\n\n조금만 기다려 주세요. 🎣');
+                  }
+                }),
+            const SizedBox(height: 10),
+            _guildMenuBtn('🏪 길드 상점', '길드 전용 아이템 · 곧 오픈 예정 🔧',
+                () { Navigator.pop(c); Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => GuildShopScreen(guildName: gname))); }),
+            const SizedBox(height: 10),
+            _guildMenuBtn('🛡️ 길드 정보', '길드원 · 가입신청 · 관리',
+                () { Navigator.pop(c); _openGuild(); }),
+            const SizedBox(height: 14),
+            Row(mainAxisSize: MainAxisSize.min, mainAxisAlignment: MainAxisAlignment.center, children: [
+              // 닫기 (금색)
+              SizedBox(width: 130, height: 44, child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kGold, foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () => Navigator.pop(c),
+                child: const Text('닫기', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+              )),
+              const SizedBox(width: 12),
+              // 광장 나가기 (금색)
+              SizedBox(width: 150, height: 44, child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: _kGold, foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () { Navigator.pop(c); Navigator.of(context).maybePop(); },
+                child: const Text('🚪 광장 나가기', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+              )),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _guildMenuBtn(String title, String sub, VoidCallback onTap) => SizedBox(
+        width: 320,
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black45, foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12), side: BorderSide(color: _kGold.withOpacity(0.5))),
+          ),
+          onPressed: onTap,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 2),
+            Text(sub, style: const TextStyle(fontSize: 11, color: Colors.white54)),
+          ]),
+        ),
+      );
+
   void _infoPopup(String title, String msg) {
     if (!mounted) return;
     showDialog(
@@ -5806,7 +6209,39 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
       if (mounted) {
         setState(() { _hanbyeolClaimed = true; }); // 낙관적 ❗ 제거
-        _toast('🎁 아레나 보상! 경험치 +$_hanbyeolExp · 포인트 +$_hanbyeolPts');
+        // 🎁 아레나 보상 — 스낵바 대신 팝업으로 보상내용 표시
+        showDialog(
+          context: context,
+          builder: (c) => AlertDialog(
+            backgroundColor: const Color(0xFF1A1A1A),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: const BorderSide(color: _kGold, width: 1.5)),
+            title: const Text('🎁 아레나 보상',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 20)),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('오늘의 아레나 참가 보상이 지급됐어요!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4)),
+              const SizedBox(height: 16),
+              Text('⭐ 경험치   +$_hanbyeolExp',
+                  style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text('💰 포인트   +$_hanbyeolPts',
+                  style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+            ]),
+            actions: [
+              Center(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+                  onPressed: () => Navigator.pop(c),
+                  child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
       debugPrint('한별 정산 에러: $e');
@@ -5922,6 +6357,58 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     } catch (e) {
       _toast('승급 처리 실패: $e');
     }
+  }
+
+  // 🏛️ 길드홀 우측 HUD — 설정·전체화면·내정보(레벨/포인트). 광장 전용 좌측 배지는 제외.
+  Widget _guildHallHudRight() {
+    final lv = _level.clamp(1, globalMaxLevel);
+    final curBase = globalExpTable[lv];
+    final nextBase = lv < globalMaxLevel ? globalExpTable[lv + 1] : globalExpTable[globalMaxLevel];
+    final span = nextBase - curBase;
+    final prog = (lv >= globalMaxLevel || span <= 0) ? 1.0 : ((currentExp - curBase) / span).clamp(0.0, 1.0);
+    return IntrinsicHeight(child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      _miniBtn(Icons.exit_to_app, () => Navigator.of(context).maybePop()), // 🚪 광장 나가기(설정버튼 크기)
+      const SizedBox(width: 8),
+      _miniBtn(Icons.settings,
+          () { audioManager.playSfx('sfx_click.mp3'); showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); }); }),
+      const SizedBox(width: 8),
+      _miniBtn(Icons.fullscreen, _toggleFullScreen),
+      const SizedBox(width: 10),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kGold.withOpacity(0.6)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Text('Lv.$_level', style: const TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 15)),
+              const SizedBox(width: 6),
+              Text(widget.nickname, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            ]),
+            const SizedBox(height: 4),
+            SizedBox(width: 150, child: Stack(children: [
+              Container(height: 9, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(5))),
+              FractionallySizedBox(widthFactor: prog,
+                  child: Container(height: 9, decoration: BoxDecoration(color: _kGold, borderRadius: BorderRadius.circular(5)))),
+            ])),
+            const SizedBox(height: 2),
+            Text(lv >= globalMaxLevel ? 'MAX LEVEL' : '$currentExp / $nextBase EXP',
+                style: const TextStyle(color: Colors.white70, fontSize: 10)),
+            const SizedBox(height: 3),
+            Row(children: [
+              const Text('포인트', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12)),
+              const SizedBox(width: 6),
+              Text('$_gold', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+            ]),
+          ]),
+          const SizedBox(width: 10),
+          _iconBtn(Icons.person, '내정보', _openStatusWindow),
+        ]),
+      ),
+    ]));
   }
 
   Widget _topHud() {

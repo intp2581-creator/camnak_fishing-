@@ -27,6 +27,25 @@
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
       }
+    },
+    "raid_lobby": {
+      "$guild": {
+        ".read": "auth != null",
+        "members": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "state": {
+          ".write": "auth != null"
+        }
+      }
+    },
+    "raid_battle": {
+      "$guild": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
     }
   }
 }

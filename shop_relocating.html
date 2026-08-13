@@ -1,0 +1,75 @@
+<!-- 캠피싱 낚시 쇼핑몰 이전 안내 페이지 -->
+<!-- 아임웹: 페이지/섹션에 'HTML 코드' 위젯 추가 후 아래 전체를 붙여넣기 -->
+<!-- ⚠️ 이 페이지엔 상품/가격/장바구니 없음 (심사용: 실물 판매 아님, 순수 안내) -->
+<div class="cf-relocate">
+  <div class="cf-relocate__inner">
+    <div class="cf-relocate__icon">🛒</div>
+    <div class="cf-relocate__badge">SHOP RENEWAL</div>
+    <h1 class="cf-relocate__title">캠피싱 낚시 쇼핑몰<br>이전 안내</h1>
+    <p class="cf-relocate__lead">
+      더 나은 쇼핑 경험을 위해<br>
+      <b>캠피싱 낚시 쇼핑몰(실물 낚시용품)</b>을<br>
+      <b>별도 전문 쇼핑몰</b>로 이전 준비 중입니다.
+    </p>
+    <div class="cf-relocate__soon">COMING&nbsp;SOON</div>
+    <p class="cf-relocate__sub">
+      곧 새로운 전용 쇼핑몰에서<br>더 다양한 낚시용품으로 찾아뵙겠습니다.<br><br>
+      그동안 <b>낚시게임 · 출조정보 · 실시간 조황 · 커뮤니티</b>는<br>캠피싱에서 그대로 이용하실 수 있어요.
+    </p>
+    <div class="cf-relocate__btns">
+      <a class="cf-relocate__btn cf-relocate__btn--gold" href="/">캠피싱 홈으로</a>
+      <a class="cf-relocate__btn" href="/30">🎮 낚시게임 하러가기</a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .cf-relocate{
+    box-sizing:border-box; width:100%; min-height:70vh;
+    display:flex; align-items:center; justify-content:center;
+    padding:64px 20px; background:#0d100e;
+    font-family:'Noto Sans KR','Malgun Gothic',sans-serif;
+  }
+  .cf-relocate *{box-sizing:border-box;}
+  .cf-relocate__inner{
+    width:100%; max-width:560px; text-align:center;
+    background:rgba(255,255,255,0.03);
+    border:1px solid rgba(212,175,55,0.35);
+    border-radius:20px; padding:48px 28px;
+  }
+  .cf-relocate__icon{font-size:60px; line-height:1; margin-bottom:14px;}
+  .cf-relocate__badge{
+    display:inline-block; letter-spacing:3px; font-size:12px; font-weight:800;
+    color:#0d100e; background:#D4AF37; padding:5px 14px; border-radius:20px; margin-bottom:18px;
+  }
+  .cf-relocate__title{
+    color:#fff; font-size:30px; font-weight:900; line-height:1.35; margin:0 0 20px;
+  }
+  .cf-relocate__lead{
+    color:#e8e8e8; font-size:17px; line-height:1.8; margin:0 0 24px;
+  }
+  .cf-relocate__lead b{color:#D4AF37;}
+  .cf-relocate__soon{
+    color:#D4AF37; font-size:22px; font-weight:900; letter-spacing:4px;
+    padding:12px 0; margin:0 auto 24px; max-width:280px;
+    border-top:1px solid rgba(212,175,55,0.3); border-bottom:1px solid rgba(212,175,55,0.3);
+  }
+  .cf-relocate__sub{color:#b9b9b9; font-size:14px; line-height:1.85; margin:0 0 30px;}
+  .cf-relocate__sub b{color:#e8e8e8;}
+  .cf-relocate__btns{display:flex; flex-wrap:wrap; gap:12px; justify-content:center;}
+  .cf-relocate__btn{
+    display:inline-block; text-decoration:none; font-size:15px; font-weight:800;
+    padding:13px 24px; border-radius:12px; color:#fff;
+    border:1px solid rgba(255,255,255,0.35); background:rgba(255,255,255,0.05);
+    transition:all .15s ease;
+  }
+  .cf-relocate__btn:hover{background:rgba(255,255,255,0.12);}
+  .cf-relocate__btn--gold{background:#D4AF37; color:#0d100e; border-color:#D4AF37;}
+  .cf-relocate__btn--gold:hover{filter:brightness(1.08);}
+  @media (max-width:480px){
+    .cf-relocate{padding:40px 14px;}
+    .cf-relocate__inner{padding:36px 20px;}
+    .cf-relocate__title{font-size:24px;}
+    .cf-relocate__lead{font-size:15px;}
+  }
+</style>

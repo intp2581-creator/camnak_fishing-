@@ -320,7 +320,15 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
                             (item['category'] ?? '').toString().toUpperCase() == 'BAIT';
                 if (!isB) return false;
                 final c = (item['category'] ?? '').toString().toUpperCase();
-                return c == wantCat || c == 'COMMON'; // 위치 카테고리 일치만 (에기 등 타지역 미끼 숨김)
+                if (!(c == wantCat || c == 'COMMON')) return false; // 위치 카테고리 일치만 (에기 등 타지역 미끼 숨김)
+                // 🎣 민물: 루어모드=루어미끼만 노출 / 일반·아레나=루어미끼 제외. (바다는 웜 등 정상 미끼라 그대로)
+                if (!widget.isSea) {
+                  final nm = item['name'].toString();
+                  final isLureBait = nm.contains('스푼') || nm.contains('웜') || nm.contains('플라이');
+                  if (_lureMode && !isLureBait) return false;
+                  if (!_lureMode && isLureBait) return false;
+                }
+                return true;
               }).toList();
 
               if (baitList.isEmpty) return Center(child: Text('${widget.isSea ? '바다' : '민물'} 미끼가 없습니다.\n상점에서 구매하세요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white)));
@@ -480,10 +488,12 @@ Widget _whisperUnreadBadge() {
   );
 }
   // 🏢 State: 상태 변수들
-  bool isSettingUp = true;    
+  bool isSettingUp = true;
   int _currentLevel = 0;
-  int selectedRodCount = 2;   
-  Color selectedChemiColor = Colors.green; 
+  int selectedRodCount = 2;
+  // 🎣 [루어 모드] 민물 낚시터에서 '루어낚시' 버튼으로 진입 → 화면은 바다식(손 낚싯대·좌대 없음), 물고기는 민물(루어 어종은 루어미끼 상성으로).
+  bool _lureMode = false;
+  Color selectedChemiColor = Colors.green;
   String selectedBait = '지렁이'; 
 
   bool isCasting = false; 
@@ -822,6 +832,7 @@ Widget _whisperUnreadBadge() {
   
   @override
   void dispose() {
+    try { _baitNoticeEntry?.remove(); } catch (_) {} _baitNoticeEntry = null; // 🍞 미끼 알림 오버레이 정리
     // ⚔️ 아레나 경기 도중(시간 종료 전) 이탈 → 실격 기록 (실수든 고의든 종료 전 이탈 = 실격)
     //    단, 기권승(_arenaWalkoverWin)으로 나가는 사람은 실격 아님(유일 완주자로 정산받아야 함)
     if (widget.roomId != null && !_arenaEndedNaturally && !_arenaWalkoverWin) {
@@ -1324,6 +1335,7 @@ Widget _whisperUnreadBadge() {
               playerTotalStats: totalStats,
               locationStars: _getLocationStars(),
               rodImageSuffix: rodSceneSuffix(equippedRod), // 🎣 장착 낚싯대별 파이팅 그림
+              lureRodKey: _lureMode ? _lureRodKey() : '', // 🎣 루어모드면 루어 손낚싯대 이미지
               isArena: widget.roomId != null, // ⚔️ 아레나면 자동제압 금지(수동 강제)
               isBox: fish['isBox'] == true, // 📦 상자면 슬로우 파이팅
               isSea: widget.isSea, // 🌊 낚싯대 그림·물소리 판정(상자는 img로 못 가림)
@@ -1448,12 +1460,19 @@ Widget _whisperUnreadBadge() {
                     final prevWs = (gs.data()?['weeklyScore'] is num)
                         ? (gs.data()!['weeklyScore'] as num).toInt()
                         : 0;
-                    final ws = (wk == curWeek) ? prevWs + 1 : 1; // 새 주면 1부터
-                    tx.update(guildRef, {
+                    final bool newWeek = wk != curWeek;
+                    final ws = newWeek ? 1 : prevWs + 1; // 새 주면 1부터
+                    final Map<String, dynamic> gUpdate = {
                       'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
                       'weeklyScore': ws,
                       'weekKey': curWeek,
-                    });
+                    };
+                    // 🏆 새 주 첫 낚시 → 지난주 최종 점수 보존(리그 정산이 롤오버 뒤에도 정확하게 읽도록)
+                    if (newWeek && wk.isNotEmpty && prevWs > 0) {
+                      gUpdate['lastWeekScore'] = prevWs;
+                      gUpdate['lastWeekKey'] = wk;
+                    }
+                    tx.update(guildRef, gUpdate);
                     // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화
                     final myUid = FirebaseAuth.instance.currentUser?.uid;
                     if (myUid != null) {
@@ -1619,20 +1638,29 @@ Widget _whisperUnreadBadge() {
     setState(() { tension -= totalPull; });
   }
 
-  // 🍞 미끼 알림은 전투 중에도 안전하게 — 모달(다이얼로그) 금지, 비차단 스낵바 사용
-  //    (전투 오버레이도 다이얼로그라, 위에 모달을 또 띄우면 Navigator.pop이 꼬여 전투가 멈춤)
+  // 🍞 미끼 알림 — 전투 오버레이(다이얼로그) '위'에도 확실히 보이게 OverlayEntry로 띄움.
+  //    (스낵바는 Scaffold 레벨이라 전투 다이얼로그 뒤에 깔려 안 보였음. 모달 다이얼로그는 전투 pop 꼬임 → 금지)
+  OverlayEntry? _baitNoticeEntry;
   void _baitToast(String msg, Color color) {
     if (!mounted) return;
-    final m = ScaffoldMessenger.maybeOf(context);
-    if (m == null) return;
-    m.hideCurrentSnackBar();
-    m.showSnackBar(SnackBar(
-      content: Text(msg, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black)),
-      backgroundColor: color,
-      duration: const Duration(seconds: 2),
-      behavior: SnackBarBehavior.floating,
-      margin: const EdgeInsets.only(bottom: 120, left: 60, right: 60),
-    ));
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+    _baitNoticeEntry?.remove(); _baitNoticeEntry = null;
+    final entry = OverlayEntry(builder: (ctx) => Positioned(
+      top: MediaQuery.of(ctx).size.height * 0.20, left: 24, right: 24,
+      child: IgnorePointer(child: Center(child: Material(color: Colors.transparent, child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(18),
+            boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 14, offset: Offset(0, 4))]),
+        child: Text(msg, textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w900, height: 1.35)),
+      ))))),
+    );
+    _baitNoticeEntry = entry;
+    overlay.insert(entry);
+    Future.delayed(const Duration(milliseconds: 2800), () {
+      if (_baitNoticeEntry == entry) { entry.remove(); _baitNoticeEntry = null; }
+    });
   }
 
   Future<void> _useBaitOne() async {
@@ -2469,6 +2497,10 @@ void _recast() {  // 기존 코드
       else if (rawName == 'KT20T') equipRodFileName = 'rod_fw_kt20_equip.png';
       else if (rawName == 'KT30T') equipRodFileName = 'rod_fw_kt30_equip.png';
       else if (rawName == 'KT40T') equipRodFileName = 'rod_fw_kt40_equip.png';
+      // 🎣 루어 베이트캐스팅 세트(BC) — 전용 웨이팅/파이팅 이미지 나오기 전까진 equip 이미지 공용
+      else if (rawName == 'BC200') equipRodFileName = 'rod_fw_lure_equip_01.png';
+      else if (rawName == 'BC400') equipRodFileName = 'rod_fw_lure_equip_02.png';
+      else if (rawName == 'BC600') equipRodFileName = 'rod_fw_lure_equip_03.png';
 
       else if (rawName.contains('KT') && rawName.contains('500')) equipRodFileName = 'rod_sea_kt500_equip.png';
       else if (rawName.contains('KT') && rawName.contains('350')) equipRodFileName = 'rod_sea_kt350_equip.png';
@@ -2586,6 +2618,9 @@ void _recast() {  // 기존 코드
                                   else if (rName.contains('CF') && rName.contains('40')) rFile = 'rod_fw_cf40_equip.png';
                                   else if (rName.contains('CF') && rName.contains('30')) rFile = 'rod_fw_cf30_equip.png';
                                   else if (rName.contains('CF') && rName.contains('20')) rFile = 'rod_fw_cf20_equip.png';
+                                  else if (rName.contains('BC') && rName.contains('200')) rFile = 'rod_fw_lure_equip_01.png';
+                                  else if (rName.contains('BC') && rName.contains('400')) rFile = 'rod_fw_lure_equip_02.png';
+                                  else if (rName.contains('BC') && rName.contains('600')) rFile = 'rod_fw_lure_equip_03.png';
 
                                   if (rFile.isEmpty) return const SizedBox.shrink();
                                   return Image.asset('assets/items/$rFile', fit: BoxFit.contain, errorBuilder: (c,e,s) => Container(color: Colors.red, child: Text('파일없음:\n$rFile', style: const TextStyle(color: Colors.white, fontSize: 10))));
@@ -2612,9 +2647,10 @@ void _recast() {  // 기존 코드
           ),
 
             if (!isSettingUp) ...[
-            if (!widget.isSea || (!isCasting && !isFighting)) _buildFieldRods(),
+            // 🎣 루어모드는 바다처럼 손낚싯대(좌대 항시표시 아님) — 캐스팅/파이팅 중엔 대기그림 숨김
+            if ((!widget.isSea && !_lureMode) || (!isCasting && !isFighting)) _buildFieldRods(),
             if (isCasting) _buildCastingScene(), // 👈 파이팅 장면 중복 렌더링 방지 (오버레이가 알아서 함)
-            if (widget.isSea && isFloatInWater && bitingRods.isNotEmpty) Positioned.fill(child: Center(child: const Text("입질 !!", style: TextStyle(color: Colors.redAccent, fontSize: 120, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 20, offset: Offset(5, 5))])))),
+            if ((widget.isSea || _lureMode) && isFloatInWater && bitingRods.isNotEmpty) Positioned.fill(child: Center(child: const Text("입질 !!", style: TextStyle(color: Colors.redAccent, fontSize: 120, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic, shadows: [Shadow(color: Colors.black, blurRadius: 20, offset: Offset(5, 5))])))),
             if (isFloatInWater) Positioned(bottom: 40, right: 40, child: _buildMainActionButton()), // 👈 메인 버튼 중복 렌더링 방지
           ],
 
@@ -3280,6 +3316,7 @@ Positioned(
       else if (st == 2) maxRods = 4;   // 하수
     }
     if (selectedRodCount > maxRods) selectedRodCount = maxRods;
+    if (_lureMode) { maxRods = 1; selectedRodCount = 1; } // 🎣 루어 = 손 낚싯대 1대 고정
 
     return Container(
       width: 350, padding: const EdgeInsets.all(24), decoration: BoxDecoration(color: Colors.black.withOpacity(0.85), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFD4AF37), width: 3)),
@@ -3289,8 +3326,8 @@ Positioned(
           const Text('🎣 출조 셋팅', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 26, fontWeight: FontWeight.bold)), const SizedBox(height: 24),
           Text('대편성 갯수: $selectedRodCount대', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
           if (maxRods > 1) Slider(value: selectedRodCount.toDouble(), min: 1, max: maxRods.toDouble(), divisions: maxRods - 1, activeColor: const Color(0xFFD4AF37), inactiveColor: Colors.grey.shade800, onChanged: (v) { audioManager.playSfx("sfx_click.mp3"); setState(() => selectedRodCount = v.toInt()); }),
-          if (maxRods == 1) const Padding(padding: EdgeInsets.symmetric(vertical: 10), child: Text('바다 낚시는 1대만 지원됩니다.', style: TextStyle(color: Colors.grey, fontSize: 12))),
-          if (!widget.isSea) ...[
+          if (maxRods == 1) Padding(padding: const EdgeInsets.symmetric(vertical: 10), child: Text(_lureMode ? '루어낚시는 손 낚싯대 1대로 진행돼요.' : '바다 낚시는 1대만 지원됩니다.', style: const TextStyle(color: Colors.grey, fontSize: 12))),
+          if (!widget.isSea && !_lureMode) ...[
             const SizedBox(height: 15), const Text('케미라이트 색상', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), const SizedBox(height: 10),
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [ _chemiCircle(Colors.green), const SizedBox(width: 10), _chemiCircle(Colors.red), const SizedBox(width: 10), _chemiCircle(Colors.blue), const SizedBox(width: 10), _chemiCircle(Colors.yellow) ]), const SizedBox(height: 20),
           ],
@@ -3298,6 +3335,33 @@ Positioned(
           if (widget.isSea) ...[
             const SizedBox(height: 10), 
             Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('현재 장착 릴: ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)), Text(equippedReel != null ? equippedReel!['name'] : '가방에서 터치!', style: TextStyle(color: equippedReel != null ? const Color(0xFFD4AF37) : Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold))]),
+          ],
+          // 🎣 민물 전용 — 일반낚시 ↔ 루어낚시 전환 (루어=바다식 손낚싯대, 루어대 필요). ⚔️ 아레나(평준화)에선 숨김.
+          if (!widget.isSea && widget.roomId == null) ...[
+            Row(children: [
+              Expanded(child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _lureMode ? Colors.black : const Color(0xFFD4AF37),
+                  foregroundColor: _lureMode ? const Color(0xFFD4AF37) : Colors.black,
+                  side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+                  minimumSize: const Size(0, 46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: () { audioManager.playSfx("sfx_click.mp3"); _lureMode = false; _runAutoEquip(silent: true); },
+                child: const Text('🎣 일반낚시', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _lureMode ? const Color(0xFFD4AF37) : Colors.black,
+                  foregroundColor: _lureMode ? Colors.black : const Color(0xFFD4AF37),
+                  side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
+                  minimumSize: const Size(0, 46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                onPressed: _enterLureMode,
+                child: const Text('🎪 루어낚시', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              )),
+            ]),
+            const SizedBox(height: 12),
           ],
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -3352,15 +3416,16 @@ Positioned(
 
         equippedFloat ??= {'name': '기본 찌', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/float_fw_normal.png'};
 
-        equippedBait ??= {'name': '지렁이 (기본)', 'icon': 'assets/items/bait_fw_worm.png'};
+        // ⚠️ 미끼는 가짜(지렁이 기본) 지급 안 함 — 미끼 없으면 아래에서 캐스팅 차단(무한낚시 버그 방지)
 
         if (widget.isSea) equippedReel ??= {'name': '기본 릴', 'category': 'SEA', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/reel_sea_cf2000.png'};
 
         isRodEquipped = true;
       });
       _showNotificationPopup('🎣 장비 자동 세팅', '보유한 최고 장비로 세팅했어요!\n(없는 장비는 임시 기본으로 채웠어요)', const Color(0xFFD4AF37));
-    } else if (equippedBait == null) {
-      // 🪱 낚시대는 있는데 미끼만 없음 → 가짜 미끼 지급 X, 캐스팅 차단
+    }
+    // 🪱 자동장착 후에도 미끼가 없으면 캐스팅 차단 (모든 미끼 소진 = 낚시 불가)
+    if (equippedBait == null) {
       _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
       return;
     }
@@ -3377,6 +3442,47 @@ Positioned(
     );
   }
 
+  // 🎣 장착된 BC 루어대 → 이미지 키('200'/'400'/'600'). BC 아니면 기본 200.
+  String _lureRodKey() {
+    final n = (equippedRod?['name'] ?? '').toString().toUpperCase().replaceAll(' ', '').replaceAll('-', '');
+    if (n.contains('BC600')) return '600';
+    if (n.contains('BC400')) return '400';
+    return '200';
+  }
+
+  // 🎣 루어모드에서 장착 불가 판정 — 찌·릴·비BC낚싯대·비루어미끼 차단(악세서리는 허용)
+  bool _lureBlocked(Map<String, dynamic> item) {
+    final String t = (item['type'] ?? '').toString().toUpperCase();
+    final String nm = item['name'].toString();
+    if (t == 'FLOAT' || nm.contains('찌')) return true;              // 찌 X (손 낚싯대라 찌 안 씀)
+    if (t == 'REEL') return true;                                    // 릴 X
+    if (t == 'GROUNDBAIT' || nm.contains('밑밥')) return true;        // 밑밥(집어제) X
+    if (t == 'ROD') return !nm.toUpperCase().contains('BC');         // 낚싯대는 루어대(BC)만
+    if (t == 'BAIT') return !(nm.contains('스푼') || nm.contains('웜') || nm.contains('플라이')); // 미끼는 루어미끼만
+    return false; // 선글라스·휘장·장갑·뜰채·아이스박스·낚시줄 등 악세서리는 허용
+  }
+
+  // 🎪 루어 전용 장비(BC 루어대 · 루어미끼)인지 — 민물 일반낚시에선 차단(루어낚시로 유도). ⚠️웜은 바다선 정상미끼라 바다엔 미적용.
+  bool _isLureGear(Map<String, dynamic> item) {
+    final String t = (item['type'] ?? '').toString().toUpperCase();
+    final String nm = item['name'].toString();
+    if (t == 'ROD' && nm.toUpperCase().contains('BC')) return true;
+    if (t == 'BAIT' && (nm.contains('스푼') || nm.contains('웜') || nm.contains('플라이'))) return true;
+    return false;
+  }
+
+  // 🎣 루어모드 진입 — 보유 BC 루어대 있으면 바로 진입 + 자동 루어 세팅(BC 최상급 + 루어미끼 최다). 없으면 상점 안내.
+  void _enterLureMode() {
+    final bool hasBC = _latestInventory.any((it) => (it['name'] ?? '').toString().toUpperCase().contains('BC'));
+    if (!hasBC) {
+      _showNotificationPopup('🎣 루어대 필요', '루어낚시엔 루어 낚싯대(BC-200/400/600)가 필요해요.\nKREFT 상점에서 구매하세요!', const Color(0xFFD4AF37));
+      return;
+    }
+    audioManager.playSfx("sfx_click.mp3");
+    _lureMode = true; selectedRodCount = 1;
+    _runAutoEquip(silent: true); // 🎣 BC 최상급 + 루어미끼 자동 장착 (내부 setState로 리빌드)
+  }
+
   Widget _buildCastingScene() {
     return Positioned.fill(
       child: Stack(
@@ -3389,9 +3495,10 @@ Positioned(
               builder: (context, child) {
                 double swingAngle = castingBaseAngle + 0.5 - (_castController.value * 1.5); 
                 // 🎣 장착 낚싯대별 캐스팅 그림 (파일 없으면 기본 그림 자동 폴백)
-                final String castBase = widget.isSea ? 'assets/images/cast_sea' : 'assets/images/cast_fw';
-                final String castSfx = rodSceneSuffix(equippedRod);
-                final String castImage = castSfx.isEmpty ? '$castBase.png' : '${castBase}_$castSfx.png';
+                final String castBase = _lureMode ? 'assets/images/cast_fw' : (widget.isSea ? 'assets/images/cast_sea' : 'assets/images/cast_fw');
+                final String castImage = _lureMode
+                    ? 'assets/images/cast_lure_bc-${_lureRodKey()}.png'
+                    : (() { final s = rodSceneSuffix(equippedRod); return s.isEmpty ? '$castBase.png' : '${castBase}_$s.png'; })();
                 return Transform.rotate(angle: swingAngle, origin: Offset(castingOriginX, castingOriginY), child: Image.asset(castImage, height: castingImageSize, fit: BoxFit.contain, errorBuilder: (c,e,s) => Image.asset('$castBase.png', height: castingImageSize, fit: BoxFit.contain, errorBuilder: (c2,e2,s2) => const Icon(Icons.waves, size: 200, color: Colors.white10))));
               }
             )
@@ -3407,6 +3514,11 @@ Positioned(
   }
 
   Widget _buildFieldRods() {
+    // 🎣 루어모드 — 바다식 손낚싯대 웨이팅(좌대 없음), BC 루어대별 이미지
+    if (_lureMode) {
+      final String waitImage = 'assets/images/waiting_lure_bc-${_lureRodKey()}.png';
+      return Positioned.fill(child: Stack(children: [Positioned(right: seaWaitingRightOffset, bottom: seaWaitingBottomOffset, child: Transform.rotate(angle: seaWaitingAngle, alignment: Alignment.bottomRight, child: Image.asset(waitImage, height: seaWaitingImageSize, fit: BoxFit.contain, errorBuilder: (c,e,s) => Image.asset('assets/images/waiting_sea.png', height: seaWaitingImageSize, fit: BoxFit.contain, errorBuilder: (c2,e2,s2) => const Icon(Icons.waves, size: 200, color: Colors.white10)))))]));
+    }
     if (widget.isSea) {
       // 🎣 장착 낚싯대별 바다 웨이팅 그림 (파일 없으면 기본 그림 자동 폴백)
       final String waitSfx = rodSceneSuffix(equippedRod);
@@ -3462,9 +3574,10 @@ Positioned(
 
   Widget _buildFightScene() {
     // 🎣 장착 낚싯대별 파이팅 그림 (파일 없으면 기본 그림 자동 폴백)
-    final String fightBase = widget.isSea ? 'assets/images/hand_rod_sea' : 'assets/images/hand_rod_fw';
-    final String fightSfx = rodSceneSuffix(equippedRod);
-    final String fightRodImage = fightSfx.isEmpty ? '$fightBase.png' : '${fightBase}_$fightSfx.png';
+    final String fightBase = _lureMode ? 'assets/images/hand_rod_fw' : (widget.isSea ? 'assets/images/hand_rod_sea' : 'assets/images/hand_rod_fw');
+    final String fightRodImage = _lureMode
+        ? 'assets/images/hand_rod_lure_bc${_lureRodKey()}.png'
+        : (() { final s = rodSceneSuffix(equippedRod); return s.isEmpty ? '$fightBase.png' : '${fightBase}_$s.png'; })();
     return Positioned.fill(
       child: Stack(
         children: [
@@ -3645,7 +3758,7 @@ Positioned(
           myLevel = calcLevelFromExp(exp); // 🆙 공용 100레벨 계산 (옛 30레벨 하드코딩 제거)
         }
         
-        bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼') || name.contains('민물새우'); }
+        bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼') || name.contains('민물새우') || name.contains('스푼') || name.contains('웜') || name.contains('플라이'); }
 
         _latestInventory = inventory; // ⚡ 자동 장착용으로 최신 인벤토리 기억
         return StatefulBuilder(
@@ -3658,6 +3771,10 @@ Positioned(
               // 🦐 새우 있으면 민물새우(미끼) 표시·채집망 숨김 / 새우 없으면 채집망만 표시
               if (item['name'].toString() == '민물새우' && !hasShrimp) return false;
               if (item['name'].toString() == '새우 채집망' && hasShrimp) return false;
+              // 🎣 루어모드: 루어 비호환 장비(찌·릴·일반 낚싯대·일반 미끼) 숨김 — 루어대(BC)·루어미끼·악세서리만
+              if (_lureMode && _lureBlocked(item)) return false;
+              // 🎪 민물 일반낚시: 루어 전용 장비(BC대·루어미끼) 숨김 (루어낚시에서만 노출)
+              if (!widget.isSea && !_lureMode && _isLureGear(item)) return false;
               final isFish = (item['type'] ?? '') == 'FISH';
               if (_currentFilter == 'ALL') return true;
               if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
@@ -3841,6 +3958,7 @@ Positioned(
 
       int getSkinTier(String name) => skinTierByName(name); // 👕 레전드·낚시의 신 포함 통합 등급
       int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
+      int getLureRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('BC600')) return 60; if (n.contains('BC400')) return 40; if (n.contains('BC200')) return 10; return 1; } // 🎣 루어대 등급
       int getFloatTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40; if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
       int getSeaRodTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40; if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
       int getReelTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KF8000')) return 80; if (n.contains('KF6000')) return 60; if (n.contains('KF5000')) return 50; if (n.contains('CF5000')) return 40; if (n.contains('CF3000')) return 30; return 1; }
@@ -3851,10 +3969,13 @@ Positioned(
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
         else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) { if (bestCooler == null || getCoolerTier(name) > getCoolerTier(bestCooler!['name'].toString())) { bestCooler = item; } }
         else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
-        else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) && !name.contains('찌') && !name.contains('릴') && !name.contains('아이스박스') && !name.contains('쿨러') && !name.contains('보냉')) {
+        else if ((item['type'] == 'ROD' || name.contains('대') || name.contains('CF') || name.contains('KT') || name.toUpperCase().contains('BC')) && !name.contains('찌') && !name.contains('릴') && !name.contains('아이스박스') && !name.contains('쿨러') && !name.contains('보냉')) {
+          bool isBC = name.toUpperCase().contains('BC');
           bool isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
-          if (widget.isSea) { if (isSeaRod) { if (bestRod == null || getSeaRodTier(name) > getSeaRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
-          else { if (!isSeaRod) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
+          if (_lureMode) { // 🎣 루어모드: BC 루어대 중 최상급만
+            if (isBC) { if (bestRod == null || getLureRodTier(name) > getLureRodTier(bestRod!['name'].toString())) { bestRod = item; } }
+          } else if (widget.isSea) { if (isSeaRod && !isBC) { if (bestRod == null || getSeaRodTier(name) > getSeaRodTier(bestRod!['name'].toString())) { bestRod = item; } } }
+          else { if (!isSeaRod && !isBC) { if (bestRod == null || getRodTier(name) > getRodTier(bestRod!['name'].toString())) { bestRod = item; } } } // 일반 민물: BC(루어대) 제외
         }
         else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; }
         else if (name.contains('휘장') || name.contains('뱃지')) { // 🎖️ 범용 휘장/뱃지(민물·바다 공용) → 능력치 가장 높은 등급 자동 장착
@@ -3867,21 +3988,23 @@ Positioned(
         else if (name.contains('장갑') && equippedGloves == null) { equippedGloves = item; }
         else if (name.contains('낚시줄') && equippedLine == null) { equippedLine = item; }
         else if (name.contains('밑밥') && equippedGroundbait == null) { equippedGroundbait = item; }
-        else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기')) {
-          int qty = item['quantity'] as int? ?? 0;
-          if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; }
+        else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('민물새우') || name.contains('스푼') || name.contains('웜') || name.contains('플라이') || name.contains('루어')) {
+          bool isLureBait = name.contains('스푼') || name.contains('웜') || name.contains('플라이');
+          bool wantBait = _lureMode ? isLureBait : !isLureBait; // 🎣 루어모드=루어미끼만, 일반=루어미끼 제외
+          if (wantBait) { int qty = item['quantity'] as int? ?? 0; if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; } }
         }
       }
       equippedSkin = bestSkin;
       equippedBait = bestBait;
       equippedRod = bestRod;
       equippedReel = bestReel;
-      equippedFloat = bestFloat;
+      equippedFloat = _lureMode ? null : bestFloat; // 🎣 루어는 찌 안 씀(손 낚싯대)
       equippedCooler = bestCooler; // 🧊 아이스박스 자동 장착
+      if (_lureMode) equippedGroundbait = null; // 🎣 루어는 밑밥 안 씀
       isRodEquipped = equippedRod != null;
 
-      if (widget.isSea) {
-        selectedRodCount = 1;
+      if (widget.isSea || _lureMode) {
+        selectedRodCount = 1; // 🎣 바다·루어는 손 낚싯대 1대
       } else {
         int autoMaxRods = 2;
         String skinName = equippedSkin != null ? equippedSkin!['name'].toString() : '초보';
@@ -3924,6 +4047,16 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // 🎣 루어모드: 루어대(BC)+루어미끼만 허용. 찌·릴·일반미끼·일반 낚싯대 차단.
+    if (_lureMode && _lureBlocked(item)) {
+      _showNotificationPopup('🎪 루어낚시', '루어낚시에선 루어대(BC)와 루어미끼(스푼/웜/플라이)만 쓸 수 있어요.\n(찌·일반미끼·일반 낚싯대는 일반낚시에서!)', const Color(0xFFD4AF37));
+      return;
+    }
+    // 🎪 민물 일반낚시에서 루어 장비 차단 → 루어낚시 모드로 유도
+    if (!widget.isSea && !_lureMode && _isLureGear(item)) {
+      _showNotificationPopup('🎪 루어 장비', '이건 루어 전용 장비예요!\n출조 셋팅에서 "🎪 루어낚시" 버튼을 눌러\n루어낚시로 전환하면 쓸 수 있어요.', const Color(0xFFD4AF37));
+      return;
+    }
     audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -3961,15 +4094,24 @@ Positioned(
             style: ElevatedButton.styleFrom(backgroundColor: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37), foregroundColor: isEquipped ? Colors.white : Colors.black),
             onPressed: () {
               audioManager.playSfx("sfx_click.mp3");
+              // 🦐 새우 채집망 등 '도구(TRAP)'는 미끼/장비가 아님 → catch-all else로 미끼 장착되던 버그 차단.
+              //    (미끼로 장착되면 캐스팅 시 소모돼 사라짐)
+              if (!isEquipped && (item['type'] ?? '').toString().toUpperCase() == 'TRAP') {
+                Navigator.pop(context);
+                _showNotificationPopup('🦐 채집망 사용법',
+                    '새우 채집망은 미끼가 아니에요!\n민물 낚시 중 화면의 "채집망" 버튼으로 던지면\n1분마다 민물새우(미끼)가 모여요. 🦐',
+                    const Color(0xFFD4AF37));
+                return;
+              }
               setState(() {
                 String cleanName = iName.replaceAll(' ', '').toUpperCase();
-                
+
                 if (isEquipped) {
                   // 🗑️ [벗기] 장착 해제 로직
                   if (cleanName.contains('찌')) equippedFloat = null; 
                   else if (isSkinItem(item)) equippedSkin = null;
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = null; 
-                  else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = null; isRodEquipped = false; } 
+                  else if (((item['type'] ?? '') == 'ROD' || cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = null; isRodEquipped = false; } 
                   else if (cleanName.contains('선글라스')) equippedSunglasses = null;
                   else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) equippedBadge = null;
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = null;
@@ -3984,7 +4126,7 @@ Positioned(
                   if (cleanName.contains('찌')) { equippedFloat = item; } 
                   else if (isSkinItem(item)) { equippedSkin = item; }
                   else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) { equippedReel = item; } 
-                  else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; } 
+                  else if (((item['type'] ?? '') == 'ROD' || cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; } 
                   else if (cleanName.contains('선글라스')) { equippedSunglasses = item; }
                   else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) { equippedBadge = item; }
                   else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) { equippedCooler = item; }
@@ -4023,6 +4165,16 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // 🎣 루어모드: 루어대(BC)+루어미끼만 허용
+    if (_lureMode && _lureBlocked(item)) {
+      _showNotificationPopup('🎪 루어낚시', '루어낚시에선 루어대(BC)와 루어미끼(스푼/웜/플라이)만 쓸 수 있어요.\n(찌·일반미끼·일반 낚싯대는 일반낚시에서!)', const Color(0xFFD4AF37));
+      return;
+    }
+    // 🎪 민물 일반낚시에서 루어 장비 차단 → 루어낚시 모드로 유도
+    if (!widget.isSea && !_lureMode && _isLureGear(item)) {
+      _showNotificationPopup('🎪 루어 장비', '이건 루어 전용 장비예요!\n출조 셋팅에서 "🎪 루어낚시" 버튼을 눌러\n루어낚시로 전환하면 쓸 수 있어요.', const Color(0xFFD4AF37));
+      return;
+    }
     String category = item['category'] ?? '';
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
@@ -4033,7 +4185,7 @@ Positioned(
       if (cleanName.contains('찌')) equippedFloat = item;
       else if (isSkinItem(item)) equippedSkin = item;
       else if ((cleanName.contains('릴') && !cleanName.contains('크릴')) || cleanName.contains('2000') || cleanName.contains('3000') || cleanName.contains('5000') || cleanName.contains('6000') || cleanName.contains('8000')) equippedReel = item;
-      else if ((cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; }
+      else if (((item['type'] ?? '') == 'ROD' || cleanName.contains('대') || cleanName.contains('CF') || cleanName.contains('KT')) && !cleanName.contains('아이스박스') && !cleanName.contains('쿨러') && !cleanName.contains('보냉')) { equippedRod = item; isRodEquipped = true; }
       else if (cleanName.contains('선글라스')) equippedSunglasses = item;
       else if (cleanName.contains('휘장') || cleanName.contains('뱃지')) equippedBadge = item;
       else if (cleanName.contains('아이스박스') || cleanName.contains('쿨러') || cleanName.contains('보냉')) equippedCooler = item;
@@ -4379,12 +4531,17 @@ void _showTodayMissionInfo() {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
             onPressed: () {
-              Navigator.pop(context); 
-              audioManager.playSfx("sfx_click.mp3"); 
-              
+              Navigator.pop(context);
+              audioManager.playSfx("sfx_click.mp3");
+              // 🪱 미끼 모두 소진 시 재캐스팅 차단 (미끼 없으면 낚시 불가)
+              if (equippedBait == null) {
+                _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+                return;
+              }
+
               setState(() {
-                isFighting = false; 
-                
+                isFighting = false;
+
                 // 🚨 [핵심 수정] 기존에 있던 isFloatInWater = false; 를 아예 지웠습니다!
                 // 다른 낚싯대들의 찌는 물에 계속 떠 있어야 하니까요!
                 isCasting = true; // 캐스팅 폼만 잡습니다.
@@ -4428,6 +4585,7 @@ class FishingFightingOverlay extends StatefulWidget {
   final int locationStars;
   final Function(bool, double) onFinished;
   final String rodImageSuffix; // 🎣 장착 낚싯대별 파이팅 그림 접미사('' = 기본)
+  final String lureRodKey; // 🎣 루어모드면 '200'/'400'/'600' (hand_rod_lure_bc{key}). '' = 루어 아님
   final bool isArena; // ⚔️ [v239] 아레나면 자동제압 금지(컨트롤 싸움) — 무조건 수동
   final bool isBox;   // 📦 상자면 저항·발악 없이 천천히 끌려옴(~30초)·절대 안 놓침
   final bool isSea;   // 🌊 바다 낚시터 여부 — 낚싯대 그림·물소리 판정(상자는 img로 못 가려서 명시 전달)
@@ -4435,6 +4593,7 @@ class FishingFightingOverlay extends StatefulWidget {
     super.key, required this.fish, required this.playerTotalStats,
     required this.locationStars, required this.onFinished,
     this.rodImageSuffix = '',
+    this.lureRodKey = '',
     this.isArena = false,
     this.isBox = false,
     this.isSea = false,
@@ -4879,7 +5038,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     bool isSea = widget.isSea;
     // 🎣 장착 낚싯대별 파이팅 그림 (파일 없으면 기본 그림 자동 폴백)
     final String fightBase = isSea ? 'assets/images/hand_rod_sea' : 'assets/images/hand_rod_fw';
-    final String fightRodImage = widget.rodImageSuffix.isEmpty ? '$fightBase.png' : '${fightBase}_${widget.rodImageSuffix}.png';
+    final String fightRodImage = widget.lureRodKey.isNotEmpty
+        ? 'assets/images/hand_rod_lure_bc${widget.lureRodKey}.png'
+        : (widget.rodImageSuffix.isEmpty ? '$fightBase.png' : '${fightBase}_${widget.rodImageSuffix}.png');
 
     return Container(
       color: Colors.transparent,
@@ -5570,9 +5731,13 @@ class _RankingTickerState extends State<RankingTicker> with SingleTickerProvider
   }
 
   void _enqueueEvent() {
+    if (!mounted) return;
+    // 📢 오픈베타 상시 안내(이벤트 active 무관) 먼저
+    final beta = gBetaNotice.trim();
+    if (beta.isNotEmpty) _queue.add('📢 $beta');
+    // 🎪 진행 중 이벤트 안내(active일 때만)
     final e = _eventLine();
-    if (e.isEmpty || !mounted) return;
-    _queue.add(e);
+    if (e.isNotEmpty) _queue.add(e);
     _tryNext();
   }
 

@@ -194,8 +194,8 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
   }
 
 
-  final List<String> fwFishList = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라'];
-  final List<String> seaFishList = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치'];
+  final List<String> fwFishList = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어'];
+  final List<String> seaFishList = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치'];
 
  // 🆙 100레벨 공용 계산 사용 (game_config)
   int _calcLevelFromExp(int exp) => calcLevelFromExp(exp);
@@ -586,7 +586,7 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
                     int levelBonus = (realLevel - 1) * 10;
                     int myTotalPower = equipP + equipC + equipS + levelBonus;
 
-                    bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼'); }
+                    bool isBait(String name) { return name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('루어') || name.contains('미끼') || name.contains('민물새우') || name.contains('스푼') || name.contains('웜') || name.contains('플라이'); }
 
                     List<dynamic> filteredItems = inventory.where((item) {
                       String cat = item['category'] ?? '';
@@ -1440,8 +1440,12 @@ class _StoreScreenState extends State<StoreScreen> {
     if (currentTab == 'ROD') displayList = storeRodItems;
     if (currentTab == 'GEAR') displayList = storeGearItems;
     if (currentTab == 'BAIT') displayList = storeBaitItems;
-    // 🛍️ 보조장비 = 포인트템만(캐시 아이템=뱃지/휘장은 '게임스토어' 탭으로 분리)
-    if (currentTab == 'AUX') displayList = [...eventStoreItems(), ...storeAuxItems.where((i) => i['cash'] != true)]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
+    // 🛍️ 보조장비 = 포인트템만(캐시 아이템=뱃지/휘장은 '게임스토어' 탭으로 분리). 가격 낮은 순 정렬(이벤트템은 맨 앞).
+    if (currentTab == 'AUX') {
+      final aux = storeAuxItems.where((i) => i['cash'] != true).toList()
+        ..sort((a, b) => ((a['price'] ?? 0) as num).compareTo((b['price'] ?? 0) as num));
+      displayList = [...eventStoreItems(), ...aux]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
+    }
     // 💳 게임스토어 = 유료(캐시) 아이템 한곳에: 스킨·이용권·입장권 + 보조장비의 캐시템(뱃지/휘장)
     if (currentTab == 'SKIN') displayList = [...storeSkinItems, ...storeAuxItems.where((i) => i['cash'] == true)];
 

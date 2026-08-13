@@ -1,0 +1,372 @@
+<!--
+  ============================================================
+  [백업] camnak.com 낚시용품 쇼핑몰 페이지 (실물)
+  - 원본: 2026-08-10 기준 camnak.com 쇼핑몰 섹션
+  - 구성: 바다낚시(/46) · 민물낚시(/47) 카드 + 협력업체(CAMFISHING PARTNERS) 링크
+  - 용도: mall.camnak.com(실물 별도몰) 구축 시 재활용
+  - ⚠️ 재사용 시 수정할 것:
+      1) 카드 링크 https://camnak.com/46, /47 → mall.camnak.com 새 URL로 교체
+      2) CSS의 .partner-card:hover img 블록 근처 중복 규칙 + 여분 '}' 1개 정리(하단 주석 표시)
+  ============================================================
+-->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700;900&family=Cinzel:wght@600;900&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%;
+  background: #0a0f0a;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+
+.shop-wrap {
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
+  width: 100vw;
+  background: #0a0f0a;
+  padding: 48px 0;
+  overflow: hidden;
+}
+
+.shop-wrap::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 80% at 25% 50%, rgba(29,158,117,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 80% at 75% 50%, rgba(24,95,165,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.shop-title {
+  text-align: center;
+  margin-bottom: 36px;
+  position: relative;
+  z-index: 1;
+  padding: 0 20px;
+}
+
+.shop-title-eyebrow {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.35em;
+  color: rgba(201,162,39,0.6);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.shop-title-main {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(20px, 5vw, 36px);
+  font-weight: 900;
+  color: #f0f0e8;
+}
+
+.shop-title-main span { color: #c9a227; }
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.cards::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 10%; bottom: 10%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(201,162,39,0.3), transparent);
+  transform: translateX(-50%);
+}
+
+.card {
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 52px 44px;
+  background: rgba(240,240,232,0.02);
+  border: 1px solid rgba(201,162,39,0.08);
+  transition: background 0.4s, border-color 0.4s;
+  text-decoration: none;
+  display: block;
+}
+
+.card:hover {
+  background: rgba(240,240,232,0.04);
+  border-color: rgba(201,162,39,0.25);
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.card-sea::before {
+  background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(24,95,165,0.12) 0%, transparent 70%);
+}
+.card-river::before {
+  background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(29,158,117,0.12) 0%, transparent 70%);
+}
+.card:hover::before { opacity: 1; }
+.card-sea   { border-top: 2px solid rgba(24,95,165,0.5); }
+.card-river { border-top: 2px solid rgba(29,158,117,0.5); }
+
+.card-num {
+  font-family: 'Cinzel', serif;
+  font-size: 72px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.06;
+  color: #f0f0e8;
+  position: absolute;
+  top: 24px; right: 32px;
+}
+
+.card-icon { font-size: 36px; margin-bottom: 16px; display: block; }
+
+.card-label {
+  font-family: 'Cinzel', serif;
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: block;
+}
+.card-sea   .card-label { color: rgba(24,95,165,0.8); }
+.card-river .card-label { color: rgba(29,158,117,0.8); }
+
+.card-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: clamp(24px, 3.5vw, 42px);
+  font-weight: 900;
+  color: #f0f0e8;
+  line-height: 1.15;
+  margin-bottom: 14px;
+}
+
+.card-desc {
+  font-size: clamp(12px, 1.4vw, 13px);
+  color: rgba(240,240,232,0.45);
+  line-height: 1.9;
+  margin-bottom: 28px;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 32px;
+}
+
+.tag {
+  font-size: 11px;
+  padding: 3px 10px;
+  letter-spacing: 0.04em;
+}
+.card-sea   .tag { border: 1px solid rgba(24,95,165,0.3);   color: rgba(24,95,165,0.8); }
+.card-river .tag { border: 1px solid rgba(29,158,117,0.3);  color: rgba(29,158,117,0.8); }
+
+.card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  color: #c9a227;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(201,162,39,0.3);
+  transition: gap 0.3s, border-color 0.3s;
+}
+.card:hover .card-cta { gap: 16px; border-color: rgba(201,162,39,0.7); }
+.card-cta-arrow { transition: transform 0.3s; }
+.card:hover .card-cta-arrow { transform: translateX(4px); }
+
+.partners-section {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 40px auto 0;
+  padding: 20px 40px;
+  text-align: center;
+}
+.partners-title {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  color: rgba(201,162,39,0.8);
+  letter-spacing: 0.25em;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+}
+.partners-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+}
+.partner-card {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+.partner-card {
+  overflow: hidden;
+  border-radius: 6px;
+}
+.partner-card img {
+  background: #f5f5f0;
+  padding: 15px 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(201,162,39,0.2);
+  height: 60px;
+  width: auto;
+  max-width: 190px;
+  object-fit: contain;
+  transform: scale(1.3);
+  transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+}
+.partner-card:hover img {
+  transform: scale(1.25) translateY(-3px);
+  border-color: rgba(201,162,39,0.7);
+  box-shadow: 0 4px 12px rgba(201,162,39,0.15);
+}
+/* ⚠️ 아래 여분 '}' 1개 + 중복 .partner-card:hover img 규칙 — 재사용 시 정리 권장 */
+.partner-card:hover img {
+  border-color: rgba(201,162,39,0.7);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(201,162,39,0.15);
+}
+
+.card { opacity: 0; animation: fadeIn 0.8s ease forwards; }
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.25s; }
+.partners-section { opacity: 0; animation: fadeIn 0.8s ease forwards 0.4s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .shop-wrap { padding: 36px 0; }
+  .shop-title { margin-bottom: 24px; }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 0 16px;
+  }
+  .cards::after { display: none; }
+  .card { padding: 32px 24px; }
+  .card-num { font-size: 52px; top: 16px; right: 20px; }
+  .card-icon { font-size: 28px; margin-bottom: 12px; }
+  .card-title { font-size: 28px; margin-bottom: 10px; }
+  .card-desc {
+    font-size: 13px;
+    margin-bottom: 20px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-tags { gap: 5px; margin-bottom: 24px; }
+  .tag { font-size: 10px; padding: 3px 8px; }
+  .card-cta { font-size: 12px; }
+
+  .partners-section { padding: 20px 16px; margin-top: 20px; }
+  .partner-card img {
+  height: 48px;
+  padding: 12px 18px;
+  max-width: 150px;
+  transform: scale(1.2);
+}
+}
+
+@media (max-width: 390px) {
+  .card { padding: 28px 18px; }
+  .card-title { font-size: 24px; }
+  .shop-title-main { font-size: 18px; }
+}
+</style>
+</head>
+<body>
+
+<div class="shop-wrap">
+  <div class="shop-title">
+    <span class="shop-title-eyebrow">CAMFISHING SHOP</span>
+    <h2 class="shop-title-main">낚시 용품 <span>쇼핑몰</span></h2>
+  </div>
+
+  <div class="cards">
+    <a class="card card-sea" href="https://camnak.com/46">
+      <span class="card-num">01</span>
+      <span class="card-icon">🌊</span>
+      <span class="card-label">Sea Fishing</span>
+      <h3 class="card-title">바다낚시<br>용품</h3>
+      <p class="card-desc">갯바위·방파제·선상낚시까지<br>바다 환경에 최적화된 장비와 채비를 만나보세요.</p>
+      <div class="card-tags">
+        <span class="tag">낚시대·릴</span>
+        <span class="tag">루어·미끼</span>
+        <span class="tag">채비·소품</span>
+        <span class="tag">보조장비</span>
+      </div>
+      <div class="card-cta">
+        바다낚시 용품 보기
+        <span class="card-cta-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="card card-river" href="https://camnak.com/47">
+      <span class="card-num">02</span>
+      <span class="card-icon">🎣</span>
+      <span class="card-label">Freshwater Fishing</span>
+      <h3 class="card-title">민물낚시<br>용품</h3>
+      <p class="card-desc">민물낚시를 위한 모든 낚시용품<br>내게 맞는 장비를 찾아보세요.</p>
+      <div class="card-tags">
+        <span class="tag">좌대·텐트</span>
+        <span class="tag">민물대·릴</span>
+        <span class="tag">채비·소품</span>
+        <span class="tag">보조장비</span>
+      </div>
+      <div class="card-cta">
+        민물낚시 용품 보기
+        <span class="card-cta-arrow">→</span>
+      </div>
+    </a>
+  </div>
+
+  <div class="partners-section">
+    <div class="partners-title">CAMFISHING PARTNERS</div>
+    <div class="partners-grid">
+      <a href="https://dongilleisure.com/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/88e91c6a79ca3.jpg" alt="동일레저"></a>
+      <a href="https://aomex.co.kr/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/d2fa8bb972e83.jpg" alt="아오맥스"></a>
+      <a href="https://www.ifuga.kr/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/a9bde86dc75a7.jpg" alt="세양푸가"></a>
+      <a href="https://wanofishing.com/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/6f4d0c324f8fc.jpg" alt="와노피싱"></a>
+      <a href="https://realframe.kr/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/28e0aa1c8be6a.jpg" alt="리얼프레임"></a>
+      <a href="https://www.cherryfish.co.kr/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/42371d78d1635.jpg" alt="체리피시"></a>
+      <a href="https://www.eftv.co.kr/" target="_blank" class="partner-card"><img src="https://cdn.imweb.me/thumbnail/20260617/2e19370e1ab8d.jpg" alt="한국낚시채널"></a>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
