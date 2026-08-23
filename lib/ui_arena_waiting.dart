@@ -74,7 +74,8 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       };
       // ⏱️ 낚시시간 차감은 '선불'이 아니라 아레나에서 '실제 있던 시간'만큼 나갈 때 차감(ui_fishing dispose).
       //    → 5분만 하고 나오면 5분만 깎임. 여기선 시간 차감 안 함.
-      // 🎟️ 무료 1회 초과분은 입장권 1장 사용 → 입장권이 낚시시간 10분(+600초)을 채워줘서 시간 없어도 참가.
+      // 🎟️ 무료 1회 초과분은 입장권 1장 사용 → 입장권이 낚시시간 20분(+1200초)을 채워줘서 시간 없어도 참가.
+      //    (아레나 10분 플레이가 그 시간을 소모하므로 실질 +10분이 남음)
       if (arenaCount >= 1) {
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
@@ -83,7 +84,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           if (qty <= 1) { inv.removeAt(ti); } else { inv[ti]['quantity'] = qty - 1; }
           update['inventory'] = inv;
           update['arenaTicketDate'] = today;
-          update['remainingTime'] = FieldValue.increment(600); // 🎟️ 입장권 = 낚시시간 10분 충전(그 시간을 아레나가 소모)
+          update['remainingTime'] = FieldValue.increment(1200); // 🎟️ 입장권 = 낚시시간 20분 충전(아레나 10분이 소모)
         }
       }
       await ref.update(update);

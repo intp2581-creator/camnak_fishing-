@@ -625,6 +625,7 @@ for (var fish in availableFishes) {
     Map<String, dynamic>? equippedGloves, // 🧤 장갑(P)
     Map<String, dynamic>? equippedLine,       // 🧵 낚시줄(P)
     Map<String, dynamic>? equippedGroundbait, // 🍚 밑밥(S, 세션 버프)
+    List<dynamic>? ownedInventory,            // 💳 넘기면: 보유한 캐시템(스킨·휘장·뱃지) 능력치 전부 합산(장착 불필요)
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -636,12 +637,19 @@ for (var fish in availableFishes) {
       totalSens += int.tryParse(s['S']?.toString() ?? s['감도']?.toString() ?? '0') ?? 0;
     }
 
-    addStats(equippedSkin);       
-    addStats(equippedRod);        
-    addStats(equippedFloat);      
-    addStats(equippedReel);       
+    // 💳 캐시템(스킨·휘장·뱃지)은 '못 파는 영구 소장품'이라 보유만 해도 전부 합산.
+    //    ownedInventory가 오면 장착 스킨/휘장 대신 '보유 전부'를 더한다(중복 방지).
+    if (ownedInventory != null) {
+      final cs = ownedCashStats(ownedInventory);
+      totalStr += cs['P'] ?? 0; totalCtrl += cs['C'] ?? 0; totalSens += cs['S'] ?? 0;
+    } else {
+      addStats(equippedSkin);
+      addStats(equippedBadge);
+    }
+    addStats(equippedRod);
+    addStats(equippedFloat);
+    addStats(equippedReel);
     addStats(equippedSunglasses);
-    addStats(equippedBadge);
     addStats(equippedCooler);     // 🧊 아이스박스
     // 🪱 미끼 감도(S): stats에 S가 있으면 그대로, 없으면(옛 미끼·민물새우) 이름 기반으로 부여
     if (equippedBait != null) {
@@ -656,6 +664,25 @@ for (var fish in availableFishes) {
     addStats(equippedGroundbait); // 🍚 밑밥(감도, 세션 버프)
 
     return {'strength': totalStr, 'control': totalCtrl, 'sensitivity': totalSens};
+  }
+
+  // 💳 보유한 캐시 코스메틱(스킨 SKIN · 휘장/뱃지 COMMON) 능력치 전부 합산.
+  //    못 팔게 막은 영구 소장품이라 장착 안 해도 보유만 하면 다 적용(P/C/S).
+  static Map<String, int> ownedCashStats(List<dynamic>? inventory) {
+    int p = 0, c = 0, s = 0;
+    if (inventory == null) return {'P': 0, 'C': 0, 'S': 0};
+    for (final raw in inventory) {
+      if (raw is! Map) continue;
+      final cat = (raw['category'] ?? '').toString().toUpperCase();
+      if (cat != 'SKIN' && cat != 'COMMON') continue; // 캐시 코스메틱만(이용권 등 TICKET 제외)
+      final st = raw['stats'];
+      if (st is Map) {
+        p += int.tryParse((st['P'] ?? st['힘'] ?? '0').toString()) ?? 0;
+        c += int.tryParse((st['C'] ?? st['컨트롤'] ?? '0').toString()) ?? 0;
+        s += int.tryParse((st['S'] ?? st['감도'] ?? '0').toString()) ?? 0;
+      }
+    }
+    return {'P': p, 'C': c, 'S': s};
   }
 
   // 🛡️ 길드 레벨/버프 (광장·낚시 공용 계산식)
@@ -827,6 +854,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedSkin: skin, equippedRod: rodForCalc, equippedFloat: float, equippedReel: reel,
     equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
+    ownedInventory: inv, // 💳 레이드도 보유 캐시템 능력치 전부 합산
   );
   final lvBonus = ((level > 0 ? level : 1) - 1) * 3;
   // 🛡️ 길드레벨·길드랭킹·개인랭킹 보너스(statBonus)는 일반 낚시처럼 3스탯 각각에 적용 → power엔 ×3

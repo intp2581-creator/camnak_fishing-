@@ -181,7 +181,7 @@ List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
 //    낚시 중 GM 윤슬이 이 목록을 ~7초마다 순서대로 브리핑. messages 없거나 비면 아래 기본값 사용.
 // =========================================================================
 const List<String> kDefaultGmNotices = [
-  "지금은 오픈 베타 중입니다!\n낚시게임 결제 시스템 준비중\n홈페이지 공지사항 참조",
+  "🎣 캠피싱 정식 서비스 중입니다!\n게임스토어 아이템 구매·길드 보스레이드\n지금 바로 즐겨보세요!",
   "캠피싱 오픈기념 할인판매\n품목 안내입니다.",
   "와노와 낚시텐트 30% 할인\n1800, 2000 각 20동씩 한정",
   "리얼프레임 전투텐트 10%\n1100 X 1500 10동 한정판매",
@@ -586,8 +586,8 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
 //      길드원이 렙업·장비·레이드대 티어업(20→60)으로 제압력을 올리면서 한 존씩 뚫는다.
 //      (실유저 평균 제압력 250 기준: 1존 16명 · 2존 32명 — 성장하면 같은 인원으로 도달)
 const List<Map<String, dynamic>> raidBosses = [
-  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3000,  'hp': 900000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
-  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 6000,  'hp': 1800000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
+  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3000,  'hp': 950000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
+  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 6000,  'hp': 2400000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
   {'id': 'basragon', 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 18000, 'hp': 8000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
   {'id': 'kargon',   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 30000, 'hp': 13000000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
   {'id': 'volkar',   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 50000, 'hp': 18000000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
@@ -891,7 +891,7 @@ const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 
 
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)\n\n💳 1,100원(VAT포함) · 1회분 지급 · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
-  {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 10분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)\n\n💳 1,100원(VAT포함) · 1장 지급 · 사용처: 게임 내 아레나 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
+  {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 20분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)\n\n💳 1,100원(VAT포함) · 1장 지급 · 사용처: 게임 내 아레나 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
   {'name': '초보 조사', 'price': 0, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': '../images/skin_beginner.jpg', 'desc': '가장 기본적인 낚시꾼 복장'},
   {'name': '하수 조사', 'price': 2200, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': '../images/skin_novice.jpg', 'desc': '낚시에 맛을 들인 조사 (쇼핑몰 전용)\n\n💳 2,200원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.10↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 10},
   {'name': '중수 조사', 'price': 5500, 'category': 'SKIN', 'type': 'SKIN', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': '../images/skin_intermediate.jpg', 'desc': '포인트 보는 눈이 생긴 조사 (쇼핑몰 전용)\n\n💳 5,500원(VAT포함) · 1개 지급 · 사용처: 게임 내 캐릭터 장착 · 판매 (주)안테모사 · 이용조건 Lv.30↑ · 제공기간 구매일로부터 1년 · 청약철회: 구매 후 7일 내 미장착 시 전액환불(장착=사용개시 시 제한)', 'reqLevel': 30},

@@ -621,6 +621,8 @@ Widget _whisperUnreadBadge() {
       equippedGloves: equippedGloves, // 🧤 장갑(P)
       equippedLine: equippedLine,     // 🧵 낚시줄(P)
       equippedGroundbait: _groundbaitActive ? equippedGroundbait : null, // 🍚 밑밥(S) — 세션 활성 시만
+      // 💳 캐시템(스킨·휘장·뱃지) 보유분 전부 합산 — 단 아레나(roomId!=null)는 평준화라 제외(장착값만)
+      ownedInventory: (widget.roomId != null) ? null : _latestInventory,
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;

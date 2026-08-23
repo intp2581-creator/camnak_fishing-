@@ -153,7 +153,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
         title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
-        content: Text('오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 10분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        content: Text('오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 20분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
