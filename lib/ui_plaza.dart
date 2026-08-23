@@ -3515,12 +3515,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Future<void> _openRaidBossSelect() async {
     // 🐲 이미 길드장이 레이드를 열어놨으면 존 목록을 건너뛰고 바로 셋팅창으로(직행)
     if (_raidOpenNow) { _gateRaidRodThenOpen(_raidBossId); return; }
-    // 길드장/부길드장이 아니면 아직 열 수 없음 — 주최자를 기다려야 함
-    if (!widget.raidIsLeader) {
-      _infoPopup('🐲 보스 레이드',
-          '아직 이번 주 레이드가 열리지 않았어요.\n\n길드장 또는 부길드장이 레이드를 열면\n[레이드 참가하기] 버튼이 나타나요! 🎣');
-      return;
-    }
+    // 🐲 길드장/부길드장/GM만 '열기' 가능. 일반 길드원은 목록을 볼 수 있지만 열 수는 없음.
+    final bool canOpen = widget.raidIsLeader || _isGm;
     int curTier = 1;
     bool needsReset = false; // 🐲 지난 판이 완전클리어됐거나 지난 주 기록이면 새 판 리셋
     final String wkNow = currentRaidWeekKey();
@@ -3529,8 +3525,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final bid = (rd.data()?['bossId'] ?? '').toString();
       final st  = (rd.data()?['status'] ?? 'waiting').toString();
       final locked = (rd.data()?['weekLocked'] ?? '').toString();
-      // 🔒 길드당 주 1회 게이트 — 이미 이번 주 도전 종료(실패/완클)면 다음 월요일까지 대기 (GM은 예외)
-      if (!_isGm && locked.isNotEmpty && locked == wkNow) {
+      // 🔒 길드당 주 1회 게이트 — 열 권한자에게만 '이미 도전함' 안내(일반 길드원은 목록만 봄, GM 예외)
+      if (canOpen && !_isGm && locked.isNotEmpty && locked == wkNow) {
         if (!mounted) return;
         _infoPopup('🐲 이번 주 도전 완료',
             '이번 주 보스 레이드는 이미 도전했어요.\n\n매주 월요일 00:00에 초기화됩니다.\n다음 월요일에 다시 도전해요! 🎣');
@@ -3557,7 +3553,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           Text(
               _isGm
                   ? '🛠️ GM 모드 — 아무 존이나 눌러서 바로 시작할 수 있어요.\n(주간 게이트 무시 · BGM/이미지 테스트용)'
-                  : '무르가돈부터 순서대로 도전!\n10분 안에 잡으면 다음 존으로, 못 잡으면 종료.',
+                  : (canOpen
+                      ? '무르가돈부터 순서대로 도전!\n10분 안에 잡으면 다음 존으로, 못 잡으면 종료.'
+                      : '이번 주 보스 목록이에요. 👀\n길드장·부길드장이 레이드를 열면 참가할 수 있어요.'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Color(0xFFF3D874), fontSize: 15.5, fontWeight: FontWeight.w800, height: 1.4)),
           const SizedBox(height: 12),
@@ -3609,9 +3607,6 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       const SizedBox(height: 2),
                       Text(b['name'] as String,
                           style: TextStyle(color: current ? Colors.white : Colors.white70, fontSize: 19, fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 3),
-                      Text('💪 요구 제압력 ${b['power']}',
-                          style: const TextStyle(color: Colors.white54, fontSize: 12.5, fontWeight: FontWeight.w700)),
                     ])),
                     const SizedBox(width: 8),
                     // 🏷️ 진행 상태 배지 (글자 옆 빈 공간)
@@ -3636,28 +3631,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
               onPressed: () => Navigator.pop(c),
               child: const Text('닫기', style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w700))),
-            const SizedBox(width: 10),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () async {
-                Navigator.pop(c);
-                // ⚠️ 여는 것 자체가 주 1회 — 실수 방지 경고 후 확인해야 열림 (GM은 반복 테스트라 스킵)
-                final ok = _isGm ? true : await _confirmOpenRaidWarning();
-                if (ok != true || !mounted) return;
-                if (needsReset) await _resetRaidRoom(); // 완전클리어/지난주 → 새 판 초기화
-                // 🔒 '연다'는 순간 이번 주 잠금 기록 (GM 제외) — 실패·중도포기해도 다음 리셋까지 재오픈 불가
-                if (!_isGm) {
-                  try {
-                    await FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId)
-                        .set({'weekLocked': currentRaidWeekKey()}, SetOptions(merge: true));
-                  } catch (_) {}
-                }
-                _gateRaidRodThenOpen('murgadon');
-              },
-              child: const Text('🐲 이번 주 레이드 시작', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
-            ),
+            // 🐲 '레이드 시작(열기)'은 길드장·부길드장·GM만 (일반 길드원은 목록만 열람)
+            if (canOpen) ...[
+              const SizedBox(width: 10),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  Navigator.pop(c);
+                  // ⚠️ 여는 것 자체가 주 1회 — 실수 방지 경고 후 확인해야 열림 (GM은 반복 테스트라 스킵)
+                  final ok = _isGm ? true : await _confirmOpenRaidWarning();
+                  if (ok != true || !mounted) return;
+                  if (needsReset) await _resetRaidRoom(); // 완전클리어/지난주 → 새 판 초기화
+                  // 🔒 '연다'는 순간 이번 주 잠금 기록 (GM 제외) — 실패·중도포기해도 다음 리셋까지 재오픈 불가
+                  if (!_isGm) {
+                    try {
+                      await FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId)
+                          .set({'weekLocked': currentRaidWeekKey()}, SetOptions(merge: true));
+                    } catch (_) {}
+                  }
+                  _gateRaidRodThenOpen('murgadon');
+                },
+                child: const Text('🐲 이번 주 레이드 시작', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+              ),
+            ],
           ]),
         ],
       ),

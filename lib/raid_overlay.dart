@@ -70,7 +70,27 @@ class _RaidOverlayState extends State<RaidOverlay> {
     if (user == null) { if (mounted) setState(() => _gearLoading = false); return; }
     try {
       final d = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      final g = resolveRaidGearPower(d.data() ?? {});
+      // 🛡️ 길드레벨 + 길드리그랭킹 + 개인랭킹(가람) 보너스 — 전투화면과 동일하게 제압력에 반영
+      int statBonus = 0;
+      try {
+        if (widget.guildId.isNotEmpty) {
+          final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(widget.guildId).get();
+          final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+          statBonus += FishingLogic.guildStatBonus(FishingLogic.guildLevelFromExp(gexp));
+          final st = await FirebaseFirestore.instance.collection('guild_league').doc('state').get();
+          final active = (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
+          final lr = st.data()?['leagueRanks'];
+          if (active && lr is Map && lr[widget.guildId] is num) {
+            statBonus += FishingLogic.guildLeagueBonus((lr[widget.guildId] as num).toInt());
+          }
+        }
+        final gr = await FirebaseFirestore.instance.collection('garam_rank').doc('state').get();
+        final ranks = gr.data()?['ranks'];
+        if (ranks is Map && ranks[user.uid] is Map && ranks[user.uid]['rank'] is num) {
+          statBonus += garamRankBonus((ranks[user.uid]['rank'] as num).toInt());
+        }
+      } catch (_) {}
+      final g = resolveRaidGearPower(d.data() ?? {}, statBonus: statBonus);
       final rod = g['raidRod'] as Map<String, dynamic>?;
       final int power = (g['power'] as num).toInt();
       final gl = (g['gearList'] as List?)?.cast<Map<String, dynamic>>() ?? <Map<String, dynamic>>[];

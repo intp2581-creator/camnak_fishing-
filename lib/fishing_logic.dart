@@ -760,7 +760,8 @@ for (var fish in availableFishes) {
 //   낚싯대 슬롯만 레이드 전용대(category RAID)로 대체한다(있으면).
 //   반환: power(합산 제압력) · raidTier(1~3, 0=없음) · rodName · skinName · rodSfx(폴백 그림용)
 // =========================================================================
-Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool isSea = false}) {
+// statBonus = 길드레벨 + 길드리그랭킹 + 개인랭킹(가람) 보너스의 합(스탯 1개당). 일반 낚시와 동일하게 3스탯 각각에 더해진다.
+Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool isSea = false, int statBonus = 0}) {
   final inv = (userData['inventory'] as List?) ?? [];
   final int level = (userData['level'] is num) ? (userData['level'] as num).toInt() : 1;
 
@@ -828,7 +829,8 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
   );
   final lvBonus = ((level > 0 ? level : 1) - 1) * 3;
-  int power = (s['strength'] ?? 0) + (s['control'] ?? 0) + (s['sensitivity'] ?? 0) + lvBonus;
+  // 🛡️ 길드레벨·길드랭킹·개인랭킹 보너스(statBonus)는 일반 낚시처럼 3스탯 각각에 적용 → power엔 ×3
+  int power = (s['strength'] ?? 0) + (s['control'] ?? 0) + (s['sensitivity'] ?? 0) + lvBonus + statBonus * 3;
   final tp = (userData['testPower'] is num) ? (userData['testPower'] as num).toInt() : 0;
   if (tp > 0) power = tp;
 
@@ -862,9 +864,9 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     'rodSfx': sfx,
     'gearList': gearList,
     'level': level,
-    // HUD 표시용 스탯 분해(레벨 보너스 포함 — 합=power와 동일)
-    'p': (s['strength'] ?? 0) + lvBonus ~/ 3,
-    'c': (s['control'] ?? 0) + lvBonus ~/ 3,
-    's': (s['sensitivity'] ?? 0) + (lvBonus - (lvBonus ~/ 3) * 2),
+    // HUD 표시용 스탯 분해(레벨+길드/랭킹 보너스 포함 — 합=power와 동일)
+    'p': (s['strength'] ?? 0) + lvBonus ~/ 3 + statBonus,
+    'c': (s['control'] ?? 0) + lvBonus ~/ 3 + statBonus,
+    's': (s['sensitivity'] ?? 0) + (lvBonus - (lvBonus ~/ 3) * 2) + statBonus,
   };
 }

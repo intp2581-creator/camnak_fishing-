@@ -1389,6 +1389,9 @@ class _StoreScreenState extends State<StoreScreen> {
     if (t == 'TRAP') return true;
     // 🎟️ 이용권류(1시간 이용권·아레나 입장권 등) — 유료 결제라 판매 X
     if (c == 'TICKET') return true;
+    // 💳 현금 구매 코스메틱(스킨·휘장·뱃지) — 영구 소장용. 사고→팔기 exploit(경제 붕괴) 방지로 판매 금지.
+    if (c == 'SKIN' || c == 'COMMON') return true;
+    if (item['cash'] == true) return true;
     // 👑 발표 전 최상위 스킨(레전드·낚시의 신) — 아직 팔지 않음
     if (n.contains('레전드') || n.contains('낚시의')) return true;
     return false;

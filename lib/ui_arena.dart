@@ -69,6 +69,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('global_chat')
+                .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart()) // 🔄 이번 접속 이후 메시지만(광장·낚시터와 동일) → 예전 채팅 안 남음
                 .orderBy('timestamp', descending: true).limit(40).snapshots(),
             builder: (ctx, snap) {
               if (!snap.hasData) return const SizedBox.shrink();

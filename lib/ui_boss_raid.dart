@@ -233,8 +233,28 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
     if (u == null) return;
     try {
       final d = (await FirebaseFirestore.instance.collection('users').doc(u.uid).get()).data() ?? {};
+      // 🛡️ 길드레벨 + 길드리그랭킹 + 개인랭킹(가람) 보너스 합산 — 일반 낚시와 동일하게 제압력에 반영
+      int statBonus = 0;
+      try {
+        if (widget.guildId.isNotEmpty) {
+          final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(widget.guildId).get();
+          final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+          statBonus += FishingLogic.guildStatBonus(FishingLogic.guildLevelFromExp(gexp)); // 길드 레벨
+          final st = await FirebaseFirestore.instance.collection('guild_league').doc('state').get();
+          final active = (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
+          final lr = st.data()?['leagueRanks'];
+          if (active && lr is Map && lr[widget.guildId] is num) {
+            statBonus += FishingLogic.guildLeagueBonus((lr[widget.guildId] as num).toInt()); // 주간 길드 리그 순위
+          }
+        }
+        final gr = await FirebaseFirestore.instance.collection('garam_rank').doc('state').get();
+        final ranks = gr.data()?['ranks'];
+        if (ranks is Map && ranks[u.uid] is Map && ranks[u.uid]['rank'] is num) {
+          statBonus += garamRankBonus((ranks[u.uid]['rank'] as num).toInt()); // 개인 주간 랭킹
+        }
+      } catch (_) {}
       // 🐲 제압력/장비 판정은 모임터(레이드 셋팅)와 공용 — fishing_logic.resolveRaidGearPower
-      final g = resolveRaidGearPower(d, isSea: widget.isSea);
+      final g = resolveRaidGearPower(d, isSea: widget.isSea, statBonus: statBonus);
       if (!mounted) return;
       setState(() {
         _power = (g['power'] as num).toInt();

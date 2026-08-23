@@ -144,6 +144,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       'joinedAt': FieldValue.serverTimestamp(),
       'isHost': widget.roomData['hostId'] == user.uid,
       'score': 0,
+      'maxSize': 0, // 🐟 최대어 대회 정산 기준 필드 초기화(없으면 orderBy에서 제외돼 '참가자 부족' 오판)
     }, SetOptions(merge: true));
 
     // 실제 참가자 수로 모집 인원 동기화(로비 표시용)
@@ -475,8 +476,14 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     final orderField = (widget.roomData['winCondition'] == '최대어') ? 'maxSize' : 'score';
     late final List<QueryDocumentSnapshot<Map<String, dynamic>>> allDocs;
     try {
-      final allSnap = await arenaRef.collection('participants').orderBy(orderField, descending: true).get();
-      allDocs = allSnap.docs;
+      // ⚠️ orderBy(orderField)는 그 필드가 없는 참가자를 제외시켜 '참가자 부족' 오판을 냄
+      //   (예: 최대어 대회서 목표어 못 잡아 maxSize 미기록). → 전체를 받아 메모리에서 정렬.
+      final allSnap = await arenaRef.collection('participants').get();
+      double metricOf(QueryDocumentSnapshot<Map<String, dynamic>> d) {
+        final v = d.data()[orderField];
+        return (v is num) ? v.toDouble() : 0.0;
+      }
+      allDocs = allSnap.docs.toList()..sort((a, b) => metricOf(b).compareTo(metricOf(a)));
     } catch (_) { return; }
     if (allDocs.isEmpty) return;
     // ⚔️ 실격(도중 이탈) 제외한 완주자
