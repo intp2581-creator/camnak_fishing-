@@ -584,6 +584,7 @@ class TouchToStartScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
+        // 📱 모바일도 필요 — 전체화면 없으면 게임 화면 잘려 플레이 불가(유저 제보)
         try { if (html.document.fullscreenElement == null) html.document.documentElement?.requestFullscreen(); } catch (e) { debugPrint("전체화면 에러: $e"); }
         SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
         // 🚀 유저가 터치하면 지정된 목적지로 출발!

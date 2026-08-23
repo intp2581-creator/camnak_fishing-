@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_print, deprecated_member_use
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'ui_fishing.dart';
@@ -30,15 +31,24 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
   bool _hasTransitioned = false;
   bool _popupShown = false;
   bool _inFishing = false; // 🎣 낚시 화면에 가 있는 동안 true(결과 팝업은 복귀 후에)
+  Timer? _pingTimer; // 💓 대기실 하트비트(유령방 필터용)
 
   @override
   void initState() {
     super.initState();
     _setupLobby();
+    // 💓 대기실에 있는 동안 25초마다 lastPing 갱신 → 로비가 살아있는 방으로 인식.
+    //    창을 닫으면 갱신 끊김 → 60초 뒤 로비에서 유령방으로 숨겨짐(dispose 안 불려도 안전).
+    _pingTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (_status != 'waiting') return; // 시작/종료되면 핑 불필요
+      FirebaseFirestore.instance.collection('arenas').doc(widget.roomId)
+          .update({'lastPing': FieldValue.serverTimestamp()}).catchError((Object e) {});
+    });
   }
 
   @override
   void dispose() {
+    _pingTimer?.cancel(); // 💓 하트비트 정지
     _leaveRoom(); // 🏠 화면 나갈 때 방 정리(방장이면 삭제/위임) — fire-and-forget
     _chatController.dispose();
     _chatFocus.dispose();

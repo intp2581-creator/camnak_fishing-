@@ -17,8 +17,10 @@ class RankingScreen extends StatefulWidget {
 }
 
 class _RankingScreenState extends State<RankingScreen> {
-  final List<String> fwFishList = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어'];
-  final List<String> seaFishList = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치'];
+  // 🏆 명예의 전당 어종 탭 = 조과기록 대상(garam) 리스트를 그대로 참조
+  //   (하드코딩 중복이라 신규 어종 추가 시 빠지던 버그 → game_config 단일 소스로 통일. 2026-08-16)
+  final List<String> fwFishList = garamFwFish;
+  final List<String> seaFishList = garamSeaFish;
 
   String selectedTab = '레벨';
   String selectedFish = '붕어';

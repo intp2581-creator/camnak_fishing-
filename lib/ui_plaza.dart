@@ -17,7 +17,8 @@ import 'ui_fishing.dart';
 import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
 import 'ui_boss_raid.dart'; // 🐋 길드 보스 레이드(1단계 테스트)
-import 'raid_overlay.dart'; // 🐋 아마존 모임터(광장 재활용) 위 레디/시작 오버레이
+import 'raid_overlay.dart';
+import 'screenshot.dart'; // 📸 화면 스샷(JPG 저장) // 🐋 아마존 모임터(광장 재활용) 위 레디/시작 오버레이
 import 'ui_guild_shop.dart'; // 🏪 길드 전용 아이템 상점
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
@@ -130,7 +131,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   final Map<String, Map<String, dynamic>> _others = {};
   // 🏛️ 길드홀(공용 허브) 모드 여부 — raidGuildId가 곧 길드홀ID
   bool get _isGuildHall => widget.raidGuildId.isNotEmpty;
-  bool _raidPanelOpen = false; // 🐋 관리NPC에서 '보스 레이드' 선택 시 레디/시작 패널 표시
+  bool _raidPanelOpen = false;
+  String _raidHostNick = '';   // 🐲 현재 레이드를 연 길드장 닉(길드홀 '참가하기' 버튼 표시용)
+  bool _raidOpenNow = false;   // 주최자가 셋팅창을 열어둔 상태인가
+  StreamSubscription? _raidRoomSub; // 🐋 관리NPC에서 '보스 레이드' 선택 시 레디/시작 패널 표시
+  String _raidBossId = 'murgadon';   // 🐲 이번 판 시작 보스(건틀릿은 항상 1존부터)
   // 🏛️ 길드홀은 같은 길드원끼리 한 방(raidlobby/{길드ID}) — 채널 분할 없음
   String get _roomKey => _isGuildHall ? 'raidlobby' : (widget.isSea ? 'sea' : 'fresh');
   // 📍 친구·길드 목록에 표시할 내 접속 위치 (예: 'CH2·민물광장')
@@ -476,17 +481,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           if (mounted) setState(() => _showEventAra = true);
         });
       }
+      // 🎁 보물상자 이벤트(추석 등) 홍보 팝업 — 이벤트 켜져 있고 하루 1회만
+      if (gTreasureBoxOn) {
+        String todayKey = '';
+        try { todayKey = html.window.localStorage['treasurePopupDate'] ?? ''; } catch (_) {}
+        final now = DateTime.now().toUtc().add(const Duration(hours: 9)); // KST
+        final today = '${now.year}-${now.month}-${now.day}';
+        if (todayKey != today) {
+          Future.delayed(const Duration(milliseconds: 700), () { if (mounted) _showTreasureEventPopup(today); });
+        }
+      }
     });
     // 🔁 재접속 시 이 광장(민물/바다)으로 돌아오게 마지막 광장 기록
     try { html.window.localStorage['lastPlazaSea'] = widget.isSea ? '1' : '0'; } catch (_) {}
-    // 🎣 [v235] 당기기 조작 변경 안내 — 아라가 최초 1회 설명(localStorage로 유저당 1회). 실제 표시는 이벤트/튜토 팝업 없을 때.
-    try {
-      if (html.window.localStorage['combatGuideSeen_v235'] != '1') {
-        Future.delayed(const Duration(milliseconds: 900), () {
-          if (mounted) setState(() => _showCombatGuide = true);
-        });
-      }
-    } catch (_) {}
+    // 🎣 [v235] 당기기 조작 변경 안내 — 개편 안내가 끝나 종료(안내 UI는 남겨둠, 다음 조작 개편 때 재사용).
+    //    다시 켜려면 아래 블록의 주석을 풀고 localStorage 키를 새 버전(예: combatGuideSeen_v300)으로 바꾸면 됨.
+    // try {
+    //   if (html.window.localStorage['combatGuideSeen_v235'] != '1') {
+    //     Future.delayed(const Duration(milliseconds: 900), () {
+    //       if (mounted) setState(() => _showCombatGuide = true);
+    //     });
+    //   }
+    // } catch (_) {}
     _walkCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600)); // 걷기 교차 주기(확 느리게 → 감잡고 조절)
     // 🚶 원격 캐릭터 걷기 프레임 클럭 (움직이는 유저가 있을 때만 다시 그림)
     _remoteWalkTimer = Timer.periodic(const Duration(milliseconds: 150), (_) {
@@ -532,6 +548,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // ⌨️ PC 키보드 이동 (WASD + 화살표). 채팅 입력 중엔 무시.
   final Set<LogicalKeyboardKey> _pressedKeys = {};
   bool _onHwKey(KeyEvent e) {
+    // 🛑 광장 위에 다른 화면(보스전·낚시터·아레나 등)이 떠 있으면 키 입력 무시.
+    //    안 막으면 보스전에서 누른 D키가 여기까지 와서 캐릭터가 이동 → 이동 타이머/걷기 애니가
+    //    프레임을 잡아먹어 보스전이 렉 걸리고, 복귀하면 캐릭터가 구석에 가 있다.
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
+      if (_pressedKeys.isNotEmpty) {
+        // 눌림 상태 잔재 제거 — 안 그러면 복귀 후에도 계속 걸어감
+        _pressedKeys.clear();
+        _joyTimer?.cancel();
+        _joyTimer = null;
+        if (mounted) setState(() { _joyDir = Offset.zero; _walking = false; });
+        _walkCtrl.stop();
+        _walkCtrl.value = 0;
+      }
+      return false;
+    }
     // ⏎ 엔터로 채팅창 활성화 (마우스 클릭 없이 바로 채팅 시작). 채팅 미포커스 + 다른 입력창 없을 때만.
     if (e is KeyDownEvent &&
         (e.logicalKey == LogicalKeyboardKey.enter || e.logicalKey == LogicalKeyboardKey.numpadEnter)) {
@@ -597,7 +628,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     audioManager.playBgm('bgm_menu.mp3');
   }
 
-  // 🖥️ 전체화면 토글 (낚시 화면과 동일)
+  // 🖥️ 전체화면 토글 (낚시 화면과 동일).
+  //   📱 모바일도 반드시 필요 — 전체화면 없으면 게임 화면이 잘려 플레이 불가(유저 제보).
+  //      requestFullscreen 시 크롬 안내 배너가 잠깐 뜨지만 클릭할 때만이라 감수.
   void _toggleFullScreen() {
     try {
       if (html.document.fullscreenElement == null) {
@@ -635,6 +668,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    _raidRoomSub?.cancel();
     HardwareKeyboard.instance.removeHandler(_onHwKey); // ⌨️ 키보드 핸들러 해제
     _remoteWalkTimer?.cancel();
     _ratingHideTimer?.cancel();
@@ -1114,6 +1148,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final uid = user.uid;
     // 🐋 레이드 모임터: 채널 분할 없이 길드ID 단일 방
     if (_isGuildHall) {
+      // 🐲 길드장이 레이드를 열면 길드원에게 '참가하기' 버튼이 뜨도록 방 문서 감시
+      _raidRoomSub = FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId)
+          .snapshots().listen((snap) {
+        if (!mounted) return;
+        final d = snap.data();
+        final host = (d?['hostUid'] ?? '').toString();
+        final status = (d?['status'] ?? 'waiting').toString();
+        final open = host.isNotEmpty && status == 'waiting';
+        final nick = (d?['hostNick'] ?? '').toString();
+        if (open != _raidOpenNow || nick != _raidHostNick) {
+          setState(() { _raidOpenNow = open; _raidHostNick = nick; });
+        }
+      });
       _channelNum = 0;
       _channelKey = 'raidlobby/${widget.raidGuildId}';
     } else {
@@ -1170,6 +1217,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             'nick': v['nick']?.toString() ?? '조사',
             'img': v['img']?.toString() ?? 'assets/images/char_beginner.png',
             'guild': v['guild']?.toString() ?? '',
+            'gcolor': (v['gcolor'] is num) ? (v['gcolor'] as num).toInt() : _kGuildDefaultColor, // 🎨 길드명 색상(누락돼서 남들이 하늘색으로 보이던 버그 수정)
             'rank': v['rank']?.toString() ?? '초보', // 🎨 등급색용
             'gm': v['gm'] == true, // 🛡️ 운영자 GM 배지
 
@@ -1373,9 +1421,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     _guildDocSub = FirebaseFirestore.instance.collection('guilds').doc(gid).snapshots().listen((s) {
       if (!mounted) return;
-      final c = s.data()?['guildColor'];
+      final data = s.data();
+      final c = data?['guildColor'];
       final int col = (c is num) ? c.toInt() : _kGuildDefaultColor;
-      if (col != _guildColor) { setState(() => _guildColor = col); _writeMe(); } // presence 재기록 → 남들에게도 반영
+      final bool colorChanged = col != _guildColor;
+      setState(() { _guildColor = col; });
+      if (colorChanged) _writeMe(); // 색 바뀌면 presence 재기록 → 남들에게도 반영
     });
   }
 
@@ -1404,8 +1455,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _remoteAvatar(String uid, Map<String, dynamic> d, double worldW, double worldH, double sizeH) {
     final dx = (d['x'] as double).clamp(0.02, 0.98);
     final dy = (d['y'] as double).clamp(0.0, 1.0);
-    final pT = ((dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-    final rH = sizeH * (0.19 + pT * 0.12); // 🧍 내 캐릭터와 동일한 크기 곡선
+    final rH = _figHeight(sizeH, dy); // 🧍 내 캐릭터와 동일한 크기 곡선(맵별 원근)
     final rW = rH * 0.55;
     final face = d['face'] == true;
     final dir = (d['dir'] ?? 'down').toString();
@@ -1569,6 +1619,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   static const List<Offset> _guildHallPoly = [
     Offset(0.320, 0.691), Offset(0.704, 0.697), Offset(0.990, 0.990), Offset(0.005, 0.990),
   ];
+  // 🧍 [원근 크기] 맵마다 걷기 영역의 세로 범위가 달라 곡선을 따로 둔다.
+  //    길드홀은 실내라 원근이 깊음 → 뒤로 가면 확 작아지고 앞으로 오면 크게(2배 이상 차이).
+  //    광장은 넓은 야외라 완만하게.
+  double _perspT(double dy) => _isGuildHall
+      ? ((dy - 0.69) / 0.30).clamp(0.0, 1.0)
+      : ((dy - 0.22) / 0.74).clamp(0.0, 1.0);
+  //   길드홀 기준값(0.29)은 여울 관리인(고정 0.30)과 같은 뒤쪽 줄에서 키가 맞도록 맞춘 값.
+  double _figHeight(double sizeRef, double dy) => sizeRef *
+      (_isGuildHall ? (0.29 + _perspT(dy) * 0.08) : (0.19 + _perspT(dy) * 0.12));
+
   List<Offset> get _activePoly => _isGuildHall ? _guildHallPoly : (widget.isSea ? _seaPoly : _freshPoly);
 
   // 🚫 못 가는 구역(화단·구조물) — 바깥 폴리곤 안에서도 여기 안이면 못 감
@@ -1831,6 +1891,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🚪 게임 종료: "종료할까요?"(기록 자동저장 안내) → 저장 정리 → "저장 완료" → camnak.com
   Future<void> _confirmExitGame() async {
     audioManager.playSfx('sfx_click.mp3');
+    // 🚪 계정 전환은 시도했다가 제거(2026-08-16) — 아임웹 로그아웃은 성공하지만
+    //    유저의 네이버/카카오 SSO 세션이 살아있어 결국 같은 계정으로 재로그인됨.
+    //    사용자 판단: "귀찮아서라도 본계에 충실하게" → 부계 파밍 유도 자체를 안 하는 게 밸런스에도 나음.
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
@@ -1852,17 +1915,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       ),
     );
     if (ok != true) return;
-    _leavePlazaPresence(); // 접속정보(고스트) 정리
+    _leavePlazaPresence();
     if (!mounted) return;
-    // 💾 첫 팝업에서 이미 "자동 저장됨" 안내 → 바로 홈페이지로 (추가 클릭 불필요)
-    // ⚠️ camnak.com에 iframe으로 임베드된 경우, 자기 프레임(window)을 이동시키면
-    //    게임 박스 안에 홈페이지가 중첩돼 뜬다. → 최상위 창(top)을 이동시켜야 함.
-    //    (단독 실행이면 top == 자기 자신이라 동일하게 동작. 클릭=사용자활성화라 top 이동 허용됨)
     const exitUrl = 'https://camnak.com';
     try {
-      html.window.top?.location.href = exitUrl; // 임베드/단독 모두: 브라우저 전체를 홈으로
+      html.window.top?.location.href = exitUrl;
     } catch (_) {
-      html.window.location.href = exitUrl;       // 폴백: 권한 문제 시 자기 프레임
+      html.window.location.href = exitUrl;
     }
   }
 
@@ -2775,6 +2834,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  final GlobalKey _shotKey = GlobalKey(); // 📸 스크린샷 캡처 범위
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -2786,7 +2847,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Listener(
+      body: RepaintBoundary(key: _shotKey, child: Listener(
         onPointerSignal: (e) {
           if (e is PointerScrollEvent) {
             _zoom(e.scrollDelta.dy > 0 ? -0.18 : 0.18); // 휠 위=확대, 아래=축소
@@ -2802,9 +2863,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           _worldW = worldW; // 조이스틱 이동 환산용
           _worldH = worldH;
           final sizeRef = h; // 캐릭터/NPC 기본 크기(줌은 Transform.scale로)
-          // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게
-          final perspT = ((_charPos.dy - 0.22) / (0.96 - 0.22)).clamp(0.0, 1.0);
-          final charH = sizeRef * (0.19 + perspT * 0.12); // NPC 크기에 맞춰 확대
+          // 🏞️ 원근감: 위(멀리)로 갈수록 작게, 아래(가까이)로 올수록 크게 (맵별 곡선)
+          final charH = _figHeight(sizeRef, _charPos.dy);
           final charW = charH * 0.55;
           // 📷 카메라: 캐릭터 중심, 맵 가장자리에서 멈춤(검은 영역 안 보이게)
           final maxCamX = (worldW - w) > 0 ? (worldW - w) : 0.0;
@@ -3312,10 +3372,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ),
 
               // 🌧️ 실시간 날씨 오버레이(비/눈) + 지역·날씨 뱃지
-              const Positioned.fill(
+              //   🏠 길드홀은 실내라 날씨 렌더 스킵(지붕 통과해서 비 내리면 이상함)
+              if (!_isGuildHall) const Positioned.fill(
                 child: IgnorePointer(child: WeatherOverlay()),
               ),
-              const Positioned(
+              if (!_isGuildHall) const Positioned(
                 top: 8, left: 0, right: 0,
                 child: IgnorePointer(child: Center(child: WeatherBadge())),
               ),
@@ -3371,6 +3432,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   _guildHallHudRight(),
                 ])),
                 // (🛡️ 여울 관리인 NPC는 월드 스프라이트로 홀 안에 고정 — 위 sprites 블록 참고)
+                // 🐲 [직행] 길드장이 레이드를 열면 길드원에게 참가 버튼 — 관리인 메뉴/존 목록 건너뛰고 셋팅창으로
+                if (_raidOpenNow && !_raidPanelOpen)
+                  Positioned(
+                    left: 0, right: 0, bottom: 120,
+                    child: Center(child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF7FFFB0), foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 8,
+                      ),
+                      onPressed: () { audioManager.playSfx('sfx_click.mp3'); _gateRaidRodThenOpen(_raidBossId); },
+                      icon: const Text('🐲', style: TextStyle(fontSize: 20)),
+                      label: Text(
+                        _raidHostNick.isNotEmpty ? '레이드 참가하기  ($_raidHostNick 길드장)' : '레이드 참가하기',
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                    )),
+                  ),
                 // 🐋 보스레이드 레디/시작 패널 (관리NPC에서 열림)
                 if (_raidPanelOpen)
                   Positioned.fill(
@@ -3390,37 +3469,340 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           );
         },
         ),
-      ),
+      )),
     );
   }
 
   // 🐋 status=raiding 감지 → 전원 보스전 입장. presence 정리 후 보스전으로 교체(뒤로가면 모임터로 복귀).
+  // 🐲 보스 선택 화면 — 5존 로드맵(순차 언락). 앞 보스 클리어해야 다음 존 열림.
+  // 🐲 이번 주 레이드 안내(프리뷰) + 시작. 건틀릿이라 선택 없이 '현재 도전 존'부터.
+  //    방 문서의 bossId로 진행도를 읽어 존별 상태(클리어/도전중/잠김)를 배지로 표시.
+  // ⚠️ 레이드 오픈 전 경고 — 여는 것 자체가 주 1회라 실수(부길마 오픈)로 소모되지 않게 확인받음.
+  Future<bool?> _confirmOpenRaidWarning() {
+    return showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF14110C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.redAccent, width: 1.5)),
+        title: const Text('⚠️ 이번 주 레이드를 여시겠어요?', textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w900, fontSize: 18)),
+        content: const Text(
+            '길드 보스 레이드는 길드의 축제예요! 🎪\n\n'
+            '• 레이드는 길드당 일주일에 딱 한 번만 열 수 있어요.\n'
+            '• 한 번 열면 실패하거나 중간에 나가도\n  다음 리셋(월요일 00:00)까지 다시 못 열어요.\n'
+            '• 존을 클리어하면 다음 존이 이어서 열려요.\n\n'
+            '길드원이 모두 준비됐을 때 여는 걸 추천해요!',
+            style: TextStyle(color: Colors.white, fontSize: 14.5, height: 1.6)),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        actions: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('아직 안 열래요', style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w700))),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13)),
+              onPressed: () => Navigator.pop(c, true),
+              child: const Text('네, 지금 엽니다! 🐲', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _openRaidBossSelect() async {
+    // 🐲 이미 길드장이 레이드를 열어놨으면 존 목록을 건너뛰고 바로 셋팅창으로(직행)
+    if (_raidOpenNow) { _gateRaidRodThenOpen(_raidBossId); return; }
+    // 길드장/부길드장이 아니면 아직 열 수 없음 — 주최자를 기다려야 함
+    if (!widget.raidIsLeader) {
+      _infoPopup('🐲 보스 레이드',
+          '아직 이번 주 레이드가 열리지 않았어요.\n\n길드장 또는 부길드장이 레이드를 열면\n[레이드 참가하기] 버튼이 나타나요! 🎣');
+      return;
+    }
+    int curTier = 1;
+    bool needsReset = false; // 🐲 지난 판이 완전클리어됐거나 지난 주 기록이면 새 판 리셋
+    final String wkNow = currentRaidWeekKey();
+    try {
+      final rd = await FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId).get();
+      final bid = (rd.data()?['bossId'] ?? '').toString();
+      final st  = (rd.data()?['status'] ?? 'waiting').toString();
+      final locked = (rd.data()?['weekLocked'] ?? '').toString();
+      // 🔒 길드당 주 1회 게이트 — 이미 이번 주 도전 종료(실패/완클)면 다음 월요일까지 대기 (GM은 예외)
+      if (!_isGm && locked.isNotEmpty && locked == wkNow) {
+        if (!mounted) return;
+        _infoPopup('🐲 이번 주 도전 완료',
+            '이번 주 보스 레이드는 이미 도전했어요.\n\n매주 월요일 00:00에 초기화됩니다.\n다음 월요일에 다시 도전해요! 🎣');
+        return;
+      }
+      // 클리어됐거나 지난 주 기록(weekLocked 남음)이면 새 판 시작 시 방 문서 리셋
+      if (st == 'cleared' || (locked.isNotEmpty && locked != wkNow)) {
+        needsReset = true;
+      } else if (bid.isNotEmpty) {
+        curTier = (raidBossById(bid)['tier'] as num).toInt();
+      }
+    } catch (_) {}
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF14110C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: _kGold, width: 1.5)),
+        title: const Text('🐲 이번 주 보스 레이드', textAlign: TextAlign.center,
+            style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 20)),
+        // 📱 폰 가독성 — 썸네일/글자 키우고, 목록은 스크롤(작은 화면에서 안 잘리게)
+        contentPadding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+        content: SizedBox(width: 480, child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+              _isGm
+                  ? '🛠️ GM 모드 — 아무 존이나 눌러서 바로 시작할 수 있어요.\n(주간 게이트 무시 · BGM/이미지 테스트용)'
+                  : '무르가돈부터 순서대로 도전!\n10분 안에 잡으면 다음 존으로, 못 잡으면 종료.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFF3D874), fontSize: 15.5, fontWeight: FontWeight.w800, height: 1.4)),
+          const SizedBox(height: 12),
+          Flexible(child: SingleChildScrollView(child: Column(children: [
+            ...raidBosses.map((b) {
+              final int t = (b['tier'] as num).toInt();
+              // 🛠️ GM은 아무 존이나 자유롭게 선택 가능(BGM·이미지 테스트 목적) → 모두 '도전!' 상태로 표시.
+              //    일반 유저는 tier 순차 진행(클리어/도전/잠김 배지).
+              final bool cleared = !_isGm && t < curTier;
+              final bool current = _isGm || t == curTier;
+              final bool locked  = !_isGm && t > curTier;
+              final Color badgeColor = cleared ? const Color(0xFF7FFFB0) : (current ? _kGold : Colors.white38);
+              final String badgeText = cleared ? '클리어' : (current ? '도전!' : '잠김');
+              final String badgeIcon = cleared ? '✅' : (current ? '🎯' : '🔒');
+              return Padding(padding: const EdgeInsets.only(bottom: 10), child:
+                Material(color: Colors.transparent, child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  // 🛠️ GM은 아무 존이나 클릭 → 방 문서를 해당 존으로 강제 세팅 후 레이드 시작
+                  //    일반 유저는 배지 표시용, 실제 시작은 하단 '이번 주 레이드 시작' 버튼으로만.
+                  onTap: (locked || !_isGm) ? null : () async {
+                    Navigator.pop(c);
+                    await _resetRaidRoomTo(b['id'] as String); // GM 강제 리셋: 이 존부터 시작
+                    _gateRaidRodThenOpen(b['id'] as String);
+                  },
+                  child: Container(
+                  decoration: BoxDecoration(
+                    // 도전 존은 밝게 강조, 아직 못 깬 존은 살짝 가라앉게(썸네일은 그대로 보이게)
+                    color: current ? _kGold.withOpacity(0.16) : (cleared ? Colors.white10 : Colors.white.withOpacity(0.045)),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: current ? _kGold : (cleared ? const Color(0xFF7FFFB0).withOpacity(0.4) : Colors.white12),
+                      width: current ? 2 : 1,
+                    ),
+                  ),
+                  child: Padding(padding: const EdgeInsets.all(10), child: Row(children: [
+                    // 🖼️ 보스방 썸네일(thumb) — 없으면 보스 이미지로 폴백
+                    Container(width: 134, height: 78,
+                      decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(11),
+                          border: Border.all(color: _kGold.withOpacity(current ? 0.85 : 0.4), width: 1.3)),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(10),
+                        child: Image.asset((b['thumb'] ?? '') as String, fit: BoxFit.cover,
+                            errorBuilder: (a, bb, cc) => Padding(padding: const EdgeInsets.all(4),
+                              child: Image.asset(b['marker'] as String, fit: BoxFit.contain,
+                                  errorBuilder: (a2, b2, c2) => const Icon(Icons.set_meal, color: Colors.white24, size: 32)))))),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('${b['tier']}. ${b['zone']}',
+                          style: TextStyle(color: current ? _kGold : Colors.white54, fontSize: 15, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 2),
+                      Text(b['name'] as String,
+                          style: TextStyle(color: current ? Colors.white : Colors.white70, fontSize: 19, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 3),
+                      Text('💪 요구 제압력 ${b['power']}',
+                          style: const TextStyle(color: Colors.white54, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                    ])),
+                    const SizedBox(width: 8),
+                    // 🏷️ 진행 상태 배지 (글자 옆 빈 공간)
+                    Column(mainAxisSize: MainAxisSize.min, children: [
+                      Text(badgeIcon, style: const TextStyle(fontSize: 20)),
+                      const SizedBox(height: 2),
+                      Text(badgeText, style: TextStyle(color: badgeColor, fontSize: 12, fontWeight: FontWeight.w900)),
+                    ]),
+                  ])),
+                ),
+                )),
+              );
+            }),
+          ]))),
+          const SizedBox(height: 8),
+          const Text('⚠️ 레이드 전용 낚싯대가 있어야 참여할 수 있어요 (길드상점)',
+              textAlign: TextAlign.center, style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.w700)),
+        ])),
+        actions: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TextButton(
+              style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
+              onPressed: () => Navigator.pop(c),
+              child: const Text('닫기', style: TextStyle(color: Colors.white60, fontSize: 15, fontWeight: FontWeight.w700))),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: () async {
+                Navigator.pop(c);
+                // ⚠️ 여는 것 자체가 주 1회 — 실수 방지 경고 후 확인해야 열림 (GM은 반복 테스트라 스킵)
+                final ok = _isGm ? true : await _confirmOpenRaidWarning();
+                if (ok != true || !mounted) return;
+                if (needsReset) await _resetRaidRoom(); // 완전클리어/지난주 → 새 판 초기화
+                // 🔒 '연다'는 순간 이번 주 잠금 기록 (GM 제외) — 실패·중도포기해도 다음 리셋까지 재오픈 불가
+                if (!_isGm) {
+                  try {
+                    await FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId)
+                        .set({'weekLocked': currentRaidWeekKey()}, SetOptions(merge: true));
+                  } catch (_) {}
+                }
+                _gateRaidRodThenOpen('murgadon');
+              },
+              child: const Text('🐲 이번 주 레이드 시작', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 17)),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  // 🎫 레이드대 입장 게이트 — 레이드 전용 낚싯대가 없으면 참여 불가(길드상점 구매 유도).
+  Future<void> _gateRaidRodThenOpen(String bossId) async {
+    bool hasRod = _inventory.any((i) => i is Map && isRaidRod(i));
+    if (!hasRod) {
+      // 상점에서 방금 샀을 수 있으니 최신 인벤 재확인
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          final d = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          final inv = List<dynamic>.from(d.data()?['inventory'] ?? []);
+          _inventory = inv;
+          hasRod = inv.any((i) => i is Map && isRaidRod(i));
+        }
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    if (!hasRod) {
+      _infoPopup('🎣 레이드 낚싯대 필요',
+          '보스레이드는 전용 낚싯대가 있어야 참여할 수 있어요!\n\n길드 상점에서 레이드 낚싯대를\n먼저 구매해 주세요. 🐲');
+      return;
+    }
+    setState(() { _raidBossId = bossId; _raidPanelOpen = true; });
+  }
+
+  // 🐲 완전클리어 상태의 방 문서를 초기화 — 다음 판이 다시 1존(무르가돈)부터 시작되게.
+  //   (raid_overlay가 doc의 bossId를 승계하기 때문에 여기서 비워줘야 볼카르로 재입장 안 됨)
+  Future<void> _resetRaidRoom() async {
+    try {
+      final ref = FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId);
+      // 이전 판 참가자 레디 상태 청소
+      final ps = await ref.collection('participants').get();
+      for (final d in ps.docs) { try { await d.reference.delete(); } catch (_) {} }
+      // 문서 자체 초기화(다음 시작 시 raid_overlay가 새로 세팅)
+      await ref.set({
+        'status': 'waiting',
+        'bossId': 'murgadon',
+        'bossTier': 1,
+        'hostUid': FieldValue.delete(),
+        'hostNick': FieldValue.delete(),
+        'endAt': FieldValue.delete(),
+        'bossHp': FieldValue.delete(),
+        'weekLocked': FieldValue.delete(), // 🔓 새 주 시작 → 게이트 해제
+      }, SetOptions(merge: true));
+    } catch (e) { debugPrint('🐲 레이드 방 리셋 실패: $e'); }
+  }
+
+  // 🛠️ GM 전용: 특정 존으로 방 문서를 강제 세팅 (BGM·이미지 테스트용, 주간 게이트 무시).
+  Future<void> _resetRaidRoomTo(String bossId) async {
+    try {
+      final boss = raidBossById(bossId);
+      final ref = FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId);
+      final ps = await ref.collection('participants').get();
+      for (final d in ps.docs) { try { await d.reference.delete(); } catch (_) {} }
+      await ref.set({
+        'status': 'waiting',
+        'bossId': boss['id'],
+        'bossTier': (boss['tier'] as num).toInt(),
+        'hostUid': FieldValue.delete(),
+        'hostNick': FieldValue.delete(),
+        'endAt': FieldValue.delete(),
+        'bossHp': FieldValue.delete(),
+        'weekLocked': FieldValue.delete(),
+      }, SetOptions(merge: true));
+    } catch (e) { debugPrint('🐲 GM 레이드 방 세팅 실패: $e'); }
+  }
+
   Future<void> _enterBossRaid(int endAt) async {
     if (!mounted) return;
     _awayFromPlaza = true; // 광장 하트비트 중지(고스트 방지)
     try { await _myRef?.remove(); } catch (_) {}
+    if (!mounted) return;
+    // 🐲 방 문서에 기록된 '현재 도전 보스'로 입장(1존부터 시작 · 클리어하면 다음 존이 기록됨).
+    String bossId = _raidBossId;
+    try {
+      final rd = await FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId).get();
+      final bid = (rd.data()?['bossId'] ?? '').toString();
+      if (bid.isNotEmpty) bossId = bid;
+    } catch (_) {}
+    final boss = raidBossById(bossId);
     if (!mounted) return;
     await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => BossRaidScreen(
         guildId: widget.raidGuildId,
         guildName: widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName,
         nickname: widget.nickname,
-        isSea: widget.isSea,
+        isSea: false,
+        isLeader: widget.raidIsLeader,
         endAt: endAt > 0 ? endAt : DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
+        bossHp: (boss['hp'] as num).toInt(),
+        bossId: boss['id'] as String,
+        bossName: boss['name'] as String,
+        bossZone: boss['zone'] as String,
+        bossMarker: boss['marker'] as String,
+        bossBg: boss['bg'] as String,
+        bossTier: (boss['tier'] as num).toInt(),
+        bossBgm: (boss['bgm'] ?? '') as String,
+        bossWater: ((boss['water'] as List?) ?? const []).map((e) => (e as num).toDouble()).toList(),
       ),
     ));
+    if (!mounted) return;
     // 보스전에서 복귀 → 모임터 presence 재등록
     _awayFromPlaza = false;
     if (mounted) { _writeMe(); }
     // 🐋 길드장이 복귀하면 방을 대기 상태로 리셋(다음 판 준비) + 전원 레디 해제
+    //    ⚠️ 볼카르(마지막존)까지 완전클리어(status=='cleared')한 경우에는 bossId까지 무르가돈으로 되돌려
+    //       다음 판이 다시 1존부터 시작되게 한다. (안 그러면 볼카르로 재입장됨)
     if (widget.raidIsLeader) {
       try {
         final roomRef = FirebaseFirestore.instance.collection('raids').doc(widget.raidGuildId);
+        final rd = await roomRef.get();
+        final st = (rd.data()?['status'] ?? '').toString();
+        // 🐲 복귀 상태 3가지 구분:
+        //   ① cleared(볼카르까지 완전클리어) → 방 닫고 무르가돈으로 리셋(다음 주용). weekLocked 유지=이번 주 재오픈 차단.
+        //   ② waiting(존 클리어 후 _advanceLeader가 다음 존 세팅) → 방 열어둔 채 이어가기(host 유지).
+        //   ③ 그 외(raiding=중도이탈 · failed=시간초과 실패) → 방 닫음(host 제거). weekLocked가 재오픈 차단 = 다음 리셋까지 대기.
+        final bool wasCleared = st == 'cleared';
+        final bool isContinuing = st == 'waiting'; // 존 사이 이어가기
         final ps = await roomRef.collection('participants').get();
         for (final p in ps.docs) {
-          await p.reference.set({'isReady': false}, SetOptions(merge: true));
+          if (isContinuing) { await p.reference.set({'isReady': false}, SetOptions(merge: true)); }
+          else { await p.reference.delete(); } // 클리어·실패·이탈 = 참가자 정리
         }
-        await roomRef.set({'status': 'waiting', 'endAt': FieldValue.delete()}, SetOptions(merge: true));
+        if (wasCleared) {
+          await roomRef.set({
+            'status': 'waiting', 'bossId': 'murgadon', 'bossTier': 1,
+            'hostUid': FieldValue.delete(), 'hostNick': FieldValue.delete(),
+            'endAt': FieldValue.delete(), 'bossHp': FieldValue.delete(),
+          }, SetOptions(merge: true));
+        } else if (isContinuing) {
+          // 이어가기 — 방 열어둠(host 유지) → _raidOpenNow=true로 다음 존 계속
+          await roomRef.set({'endAt': FieldValue.delete()}, SetOptions(merge: true));
+        } else {
+          // 실패/중도이탈 → 방 닫음. status=failed + host 제거 → _raidOpenNow=false → weekLocked가 재오픈 차단
+          await roomRef.set({
+            'status': 'failed',
+            'hostUid': FieldValue.delete(), 'hostNick': FieldValue.delete(),
+            'endAt': FieldValue.delete(), 'bossHp': FieldValue.delete(),
+          }, SetOptions(merge: true));
+        }
       } catch (_) {}
     }
   }
@@ -4577,7 +4959,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  int _guildTab = 0; // 0 길드원 / 1 혜택 / 2 설정
+  int _guildTab = 4; // 4 공지(기본) / 0 길드원 / 1 혜택 / 2 설정 / 3 가입신청
 
   Widget _guildHome(BuildContext ctx, String uid, String gid, {VoidCallback? onBackToList}) {
     return StreamBuilder<DocumentSnapshot>(
@@ -4653,6 +5035,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   ]),
                 ),
                 Row(children: [
+                  _guildTabBtn('📢 공지', 4, setTab),
                   _guildTabBtn('길드원', 0, setTab),
                   _guildTabBtn('혜택', 1, setTab),
                   _guildTabBtn('설정', 2, setTab),
@@ -4660,13 +5043,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 ]),
                 const Divider(color: Colors.white12, height: 1),
                 Expanded(
-                  child: _guildTab == 1
-                      ? _guildPerksTab(gLevel, guildExp)
-                      : _guildTab == 2
-                          ? _guildSettingsTab(ctx, uid, gid, isMaster, canManage, g)
-                          : _guildTab == 3
-                              ? _guildApplicationsTab(gid)
-                              : _guildMembersTab(gid, uid, isMaster),
+                  child: _guildTab == 4
+                      ? _guildNoticeTab(gid, uid, canManage, g)
+                      : _guildTab == 1
+                          ? _guildPerksTab(gLevel, guildExp)
+                          : _guildTab == 2
+                              ? _guildSettingsTab(ctx, uid, gid, isMaster, canManage, g)
+                              : _guildTab == 3
+                                  ? _guildApplicationsTab(gid)
+                                  : _guildMembersTab(gid, uid, isMaster),
                 ),
               ],
             );
@@ -4698,6 +5083,110 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ),
       ),
     );
+  }
+
+  // 📢 [길드 공지 탭] 단일 공지문 — 길드장/부길드장만 작성·수정, 전 길드원 읽기.
+  //   게임 시간이 짧아 실시간 만남이 어려우니 비동기 소통 수단. guilds/{gid}.notice 필드 하나.
+  Widget _guildNoticeTab(String gid, String myUid, bool canManage, Map<String, dynamic> g) {
+    final String notice = (g['notice'] ?? '').toString();
+    final String noticeBy = (g['noticeBy'] ?? '').toString();
+    final ts = g['noticeAt'];
+    String whenTxt = '';
+    if (ts is Timestamp) {
+      final dt = ts.toDate();
+      whenTxt = '${dt.year}.${dt.month.toString().padLeft(2, '0')}.${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Text('📢 길드 공지', style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.w900)),
+          const Spacer(),
+          if (canManage)
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: _kGold, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+              onPressed: () => _editGuildNotice(gid, notice),
+              icon: const Icon(Icons.edit, size: 16),
+              label: Text(notice.isEmpty ? '작성' : '수정', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ),
+        ]),
+        const SizedBox(height: 10),
+        Container(
+          width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 120),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: _kGold.withOpacity(0.35)),
+          ),
+          child: notice.isEmpty
+              ? Text(
+                  canManage
+                      ? '아직 공지가 없어요.\n오른쪽 위 "작성"으로 길드원에게 소식을 남겨보세요! 🎣\n\n예) 이번 주 토요일 밤 9시 볼카르 도전합니다!\n     시간 되는 분들 모여주세요~'
+                      : '아직 등록된 공지가 없어요.\n길드장님의 공지를 기다려 주세요! 🎣',
+                  style: const TextStyle(color: Colors.white54, fontSize: 14, height: 1.6))
+              : Text(notice, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.65)),
+        ),
+        if (notice.isNotEmpty && (noticeBy.isNotEmpty || whenTxt.isNotEmpty)) ...[
+          const SizedBox(height: 8),
+          Text(
+            '✍️ ${noticeBy.isEmpty ? '길드 운영진' : noticeBy}${whenTxt.isEmpty ? '' : '  ·  $whenTxt'}',
+            style: const TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  // ✏️ 길드 공지 작성/수정 다이얼로그 (길드장·부길드장)
+  Future<void> _editGuildNotice(String gid, String current) async {
+    final ctrl = TextEditingController(text: current);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF14110C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('📢 길드 공지 작성', style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 17)),
+        content: SizedBox(
+          width: 460,
+          child: TextField(
+            controller: ctrl,
+            maxLines: 8,
+            maxLength: 500,
+            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5),
+            decoration: InputDecoration(
+              hintText: '길드원에게 남길 소식을 적어주세요.\n(레이드 일정·모임 시간·규칙 등)',
+              hintStyle: const TextStyle(color: Colors.white38),
+              filled: true,
+              fillColor: Colors.black26,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _kGold.withOpacity(0.4))),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: _kGold.withOpacity(0.4))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: _kGold, width: 1.5)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(c, ctrl.text.trim()),
+            child: const Text('저장', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (result == null) return; // 취소
+    try {
+      await FirebaseFirestore.instance.collection('guilds').doc(gid).set({
+        'notice': result,
+        'noticeBy': widget.nickname,
+        'noticeAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+      if (mounted) _toast('📢 공지를 저장했어요.');
+    } catch (e) {
+      if (mounted) _toast('공지 저장 실패: $e');
+    }
   }
 
   Widget _guildMembersTab(String gid, String myUid, bool isMaster) {
@@ -5678,6 +6167,74 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
+  // 🎁 보물상자 이벤트(추석 등) 홍보 팝업 — 축제 느낌 센터 다이얼로그. "다시 안 보기"=오늘 안 뜸.
+  void _showTreasureEventPopup(String todayKey) {
+    audioManager.playSfx('sfx_click.mp3');
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (c) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+        child: Container(
+          width: 460,
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Color(0xFF2A1E0C), Color(0xFF14110C)]),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _kGold, width: 2),
+            boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 24)],
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('🌕  한가위 보물상자 이벤트  🎁',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _kGold, fontSize: 21, fontWeight: FontWeight.w900,
+                    shadows: [Shadow(color: Colors.black, blurRadius: 6)])),
+            const SizedBox(height: 12),
+            Image.asset('assets/items/보물상자.png', height: 110, fit: BoxFit.contain,
+                errorBuilder: (a, b, cc) => const Text('🎁', style: TextStyle(fontSize: 80))),
+            const SizedBox(height: 12),
+            const Text('낚시하다 🎁보물상자가 걸릴 확률 UP!\n열어보면 이런 선물이 쏟아져요',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700, height: 1.5)),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: _kGold.withOpacity(0.4))),
+              child: const Text(
+                  '🎣 미끼 10종 · 밑밥 · 낚시줄\n'
+                  '🧊 중형 아이스박스 · 🕶️ 레인보우 편광선글라스\n'
+                  '🎏 고급 낚싯대 · 찌 · 릴\n'
+                  '🎟️ 낚시 1시간 이용권 · 아레나 입장권',
+                  style: TextStyle(color: Color(0xFFF3D874), fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.7)),
+            ),
+            const SizedBox(height: 16),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              TextButton(
+                style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+                onPressed: () {
+                  try { html.window.localStorage['treasurePopupDate'] = todayKey; } catch (_) {}
+                  Navigator.pop(c);
+                },
+                child: const Text('오늘 그만 보기', style: TextStyle(color: Colors.white54, fontSize: 14, fontWeight: FontWeight.w700))),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 13),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () => Navigator.pop(c),
+                child: const Text('낚시하러 가기 🎣', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
+              ),
+            ]),
+          ]),
+        ),
+      ),
+    );
+  }
+
   // 🤝 친구 삭제 (확인 후 my_list에서 제거)
   void _confirmRemoveFriend(DocumentReference ref, String friendName) {
     if (!mounted) return;
@@ -5793,20 +6350,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             const SizedBox(height: 4),
             const Text('어디로 안내해 드릴까요?', style: TextStyle(color: Colors.white60, fontSize: 13)),
             const SizedBox(height: 18),
-            // 🐋 보스 레이드 — 정식 오픈 전까지 GM만. 유저는 '곧 오픈' 안내.
-            _guildMenuBtn('🐋 보스 레이드', _isGm ? '길드원과 함께 대물 보스 사냥' : '곧 오픈 예정 🔧',
-                () {
-                  Navigator.pop(c);
-                  if (_isGm) {
-                    setState(() => _raidPanelOpen = true);
-                  } else {
-                    _infoPopup('🐋 보스 레이드', '길드원 전원이 힘을 합쳐 대물 보스를 잡는\n길드 레이드를 준비 중이에요!\n\n조금만 기다려 주세요. 🎣');
-                  }
-                }),
+            // 🐋 보스 레이드 — 2026-08-15 오픈베타 공개
+            _guildMenuBtn('🐋 보스 레이드', '길드원과 함께 대물 보스 사냥',
+                () { Navigator.pop(c); _openRaidBossSelect(); }),
             const SizedBox(height: 10),
-            _guildMenuBtn('🏪 길드 상점', '길드 전용 아이템 · 곧 오픈 예정 🔧',
-                () { Navigator.pop(c); Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => GuildShopScreen(guildName: gname))); }),
+            // 🏪 길드 상점 — 레이드 전용 낚싯대 판매
+            _guildMenuBtn('🏪 길드 상점', '보스레이드 전용 낚싯대 판매 🐲',
+                () { Navigator.pop(c);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => GuildShopScreen(guildName: gname)));
+                }),
             const SizedBox(height: 10),
             _guildMenuBtn('🛡️ 길드 정보', '길드원 · 가입신청 · 관리',
                 () { Navigator.pop(c); _openGuild(); }),
@@ -6372,7 +6924,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _miniBtn(Icons.settings,
           () { audioManager.playSfx('sfx_click.mp3'); showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); }); }),
       const SizedBox(width: 8),
-      _miniBtn(Icons.fullscreen, _toggleFullScreen),
+      _miniBtn(Icons.fullscreen, _toggleFullScreen), // 📱 모바일도 필요(전체화면 없으면 게임 불가)
+      const SizedBox(width: 8),
+      // 📸 스크린샷 — 길드원 단체샷 찍어 홈페이지 조행기에 올리기
+      _miniBtn(Icons.photo_camera, () {
+        audioManager.playSfx('sfx_click.mp3');
+        takeScreenshot(context, _shotKey, prefix: _isGuildHall ? 'camnak_guild' : 'camnak_plaza');
+      }),
       const SizedBox(width: 10),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -6503,7 +7061,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             _miniBtn(Icons.settings, // ⚙️ 설정(볼륨 + 제압 방식)
                 () { audioManager.playSfx('sfx_click.mp3'); showSoundSettingsDialog(context).then((_) { if (mounted) setState(() {}); }); }),
             const SizedBox(width: 8),
-            _miniBtn(Icons.fullscreen, _toggleFullScreen),
+            _miniBtn(Icons.fullscreen, _toggleFullScreen), // 📱 모바일도 필요(전체화면 없으면 게임 불가)
+            const SizedBox(width: 8),
+            // 📸 스크린샷 — 광장 단체샷 찍어 홈페이지 조행기에 올리기 (길드홀 HUD에만 있던 걸 광장에도 추가)
+            _miniBtn(Icons.photo_camera, () {
+              audioManager.playSfx('sfx_click.mp3');
+              takeScreenshot(context, _shotKey, prefix: _isGuildHall ? 'camnak_guild' : 'camnak_plaza');
+            }),
             const SizedBox(width: 12),
             // 내 정보 카드 (스킨/레벨/경험치바/머니/가방)
             Container(

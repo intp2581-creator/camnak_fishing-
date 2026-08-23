@@ -14,7 +14,7 @@ import 'dart:js_util' as js_util;
 import 'package:flutter/material.dart';
 
 /// ⚠️ 배포마다 올리는 빌드 식별자 (web/appver.json 과 같은 값으로 유지)
-const String kBuildId = '20260701-295';
+const String kBuildId = '20260701-330';
 
 bool _updateChecked = false;
 
@@ -94,6 +94,18 @@ Future<void> forceReloadLatest(String serverBuild) async {
       }
     }
   } catch (_) {}
-  // 3) 새로고침(네트워크에서 최신 부팅파일 받음 — no-cache 헤더와 함께 동작)
-  html.window.location.reload();
+  // 3) 캐시버스터 쿼리(_v=타임스탬프)를 붙여 '새 URL'로 이동 → 브라우저가 index.html·부팅파일을
+  //    HTTP 캐시에서 못 꺼내고 네트워크에서 새로 받음. (location.reload()는 캐시된 옛 버전을 그대로
+  //    다시 띄우는 경우가 있어 "새로고침 눌러도 그대로" 버그의 원인이었음 — iframe 임베드+SW 조합.)
+  try {
+    final Uri cur = Uri.parse(html.window.location.href);
+    // 기존 쿼리에서 _v 제거 후(무한 증식 방지) 새 타임스탬프 부여
+    final Map<String, String> qp = Map<String, String>.from(cur.queryParameters)
+      ..remove('_v')
+      ..['_v'] = DateTime.now().millisecondsSinceEpoch.toString();
+    final String bust = cur.replace(queryParameters: qp).toString();
+    html.window.location.replace(bust); // replace = 히스토리 안 쌓임
+  } catch (_) {
+    html.window.location.reload();       // 폴백
+  }
 }

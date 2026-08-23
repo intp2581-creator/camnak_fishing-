@@ -325,8 +325,8 @@ Map<String, dynamic> getTodayBobaeFish() {
 
 // 🎖️ 가람 주간 개인 종합 랭킹 (레벨 + 어종별 최대어 보드 합산, 매주 월요일 정산)
 //    각 보드 1위=10점 ... 10위=1점. 종합 top10이 1주일 동안 P/C/S 보너스 + 머리 위 순위마크.
-const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어'];
-const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치'];
+const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'];
+const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'];
 int garamRankBonus(int rank) {
   // 🎖️ 종합순위별 P/C/S 각 보너스(선형): 1위+10, 2위+9, 3위+8 ... 10위+1
   if (rank >= 1 && rank <= 10) return 11 - rank;
@@ -337,9 +337,9 @@ int garamRankBonus(int rank) {
 //    민물: 블루길/베스/살치 10 · 메기/강준치/떡붕어 15 · 붕어/잉어/가물치 35 · 자라 70
 //    바다: 주꾸미/고등어/광어 10 · 갑오징어/갈치/우럭/벵에돔 15 · 감성돔/문어/참돔 35 · 참치 70
 int fishSellPrice(String name) {
-  const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어'];
+  const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어', '동자개', '성대'];
   const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔'];
-  const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔'];
+  const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔', '향어', '민물장어', '농어', '부시리', '돌돔'];
   const p200 = ['자라', '참치'];
   // 🔻 판매가 1/3 인하(경제 밸런스): 잡을 때 포인트가 메인, 판매는 보너스
   if (p200.contains(name)) return 70;
@@ -397,12 +397,15 @@ bool? globalIsSeaMode; // 민물/바다 모드가 바뀌었는지 체크용
 
 // =========================================================================
 // 📈 [경험치 & 레벨 밸런스 테이블]
-// 🆙 만렙 150레벨 (마스터100 → 전설120 → 낚시의 신150). 후반일수록 가팔라지는 '가속 곡선'.
-//    d(L)=레벨 L 도달에 필요한 경험치(직전 레벨 대비). d(2)=1400에서 시작해
-//    10레벨 구간마다 '레벨당 증가폭(step)'을 +50씩 키운다:
-//      Lv1~10 +200/lv, 11~20 +250, 21~30 +300 ... 141~150 +900.
-//    ⚠️ Lv1~50 확정 / Lv51~150은 임시 뼈대 — 오픈 후 유저 랩업속도(특히 Lv48 도달자) 보고 재튜닝 예정.
-//    누적: Lv50≈38만, Lv100(마스터)≈183만, Lv120(전설)≈285만, Lv150(신)≈498만. (신 도달 ≈ 3년 목표)
+// 🆙 만렙 150레벨. 후반일수록 가팔라지는 '가속 곡선'.
+//    d(L)=레벨 L 도달에 필요한 경험치(직전 레벨 대비).
+//    Lv 1~30: 기존 완만한 커브 유지(초반 성취감)
+//    Lv 31~50: 리니어(9500+500×offset) — 5k EXP/일 pace 기준 30→31 2일, 40→41 3일, 50→51 4일
+//    Lv 51~100: step 800/lv (아이템·이용권·레이드 대비 마진)
+//    Lv 101~150: step 1200/lv (만렙 방어)
+//    누적: Lv50≈43만, Lv100(마스터)≈243만, Lv120(전설)≈387만, Lv150(신)≈693만. (신 도달 ≈ 3~4년 목표)
+//    ⚠️ 2026-08-16 v311 상향: 곧 나올 1시간 이용권·레이드 이용권·상자 EXP 상향·주간 레이드 3존 확정
+//    등으로 실제 pace가 4444→13000/일까지 뛸 것 예상. Lv30 이상 유저 나오는 대로 재튜닝 예정.
 // =========================================================================
 const int globalMaxLevel = 150;
 
@@ -411,10 +414,23 @@ List<int> _buildExpTable() {
   final table = List<int>.filled(M + 1, 0); // index 0·1 = 0 (누적 경험치)
   int prevDelta = 0;
   for (int L = 2; L <= M; L++) {
-    final int band = (L - 1) ~/ 10;                       // L=2~10→0, 11~20→1, 21~30→2 ...
-    final int step = 200 + 50 * band;                     // 그 구간의 '레벨당 증가폭'
-    final int delta = (L == 2) ? 1400 : prevDelta + step; // 이번 레벨업에 필요한 경험치
-    table[L] = table[L - 1] + delta;                      // 누적
+    final int delta;
+    if (L <= 30) {
+      // Lv 1~30: 기존 커브 유지(초반 성취감)
+      final int band = (L - 1) ~/ 10; // L=2~10→0, 11~20→1, 21~30→2
+      final int step = 200 + 50 * band;
+      delta = (L == 2) ? 1400 : prevDelta + step;
+    } else if (L <= 50) {
+      // Lv 31~50: 사용자 요청 리니어 — 30→31 10k, 40→41 15k, 50→51 20k EXP
+      delta = 9500 + 500 * (L - 30);
+    } else if (L <= 100) {
+      // Lv 51~100: step 800/lv (아이템 대비 마진)
+      delta = prevDelta + 800;
+    } else {
+      // Lv 101~150: step 1200/lv (만렙 방어)
+      delta = prevDelta + 1200;
+    }
+    table[L] = table[L - 1] + delta;
     prevDelta = delta;
   }
   return table;
@@ -503,14 +519,14 @@ const Map<String, String> spotTypeByName = {
 //   나머지 어종은 1.0(변화 없음). 특정 낚시터가 아니라 '종류' 기준으로 통일.
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
-  // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길
-  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost},
-  // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지 (루어어종 쏘가리·꺽지 배치)
-  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost},
-  // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치
-  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost},
-  // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·볼락·참치
-  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '볼락': _spotBoost, '참치': _spotBoost},
+  // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길·향어
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost},
+  // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지·동자개·민물장어
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost},
+  // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치·돌돔·농어
+  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost, '돌돔': _spotBoost, '농어': _spotBoost},
+  // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·주꾸미·볼락·참치·부시리·성대
+  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '볼락': _spotBoost, '참치': _spotBoost, '부시리': _spotBoost, '성대': _spotBoost},
 };
 // ℹ️ 무지개송어는 특정 낚시터 편중 없이 민물 전역에서 루어에 물림(spot 부스트 없음=중립).
 double spotFishMult(String locationName, String fishName) {
@@ -555,6 +571,78 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
   return null;
 }
 
+// =========================================================================
+// 🐲 [보스레이드 로스터] 판타지 존 5단계 — 순차 언락(앞 보스 클리어해야 다음 활성)
+//   id: 진행 기록 키 · marker: 게이지 위 보스 이미지 · bg: 존 배경 · hp: 목표 제압치 · minutes: 제한시간
+//   ⚠️ hp/minutes 는 밸런스 테스트로 조정. 이미지 없으면 폴백(안 깨짐).
+// =========================================================================
+// 🐲 건틀릿: 매주 1존부터, 보스당 10분. 클리어하면 다음 보스 자동(새 10분). 실패=길드홀 강퇴·종료. 주 1회.
+//    hp는 존별로 상승(난이도). minutes는 전부 10(건틀릿).
+// 🐲 power = 안내용 '필요 합산 제압력(/초)' · hp = 실제 목표 제압치.
+//   ⚠️ 발악·저항 때문에 실효율이 약 50%(실측: 제압력 3400으로 10분에 74%).
+//      → hp = power × 600초 × 0.5 (= power × 300). 표기 power = 실제 필요 합산 제압력.
+//   water: [멀리, 중간, 가까이] 수면선(화면 높이 비율) — 배경마다 물 높이가 달라 존별로 지정.
+//   📊 난이도는 '오늘 기준'이 아니라 성장 목표로 설계 — 오픈 초반엔 1존도 벅차고,
+//      길드원이 렙업·장비·레이드대 티어업(20→60)으로 제압력을 올리면서 한 존씩 뚫는다.
+//      (실유저 평균 제압력 250 기준: 1존 16명 · 2존 32명 — 성장하면 같은 인원으로 도달)
+const List<Map<String, dynamic>> raidBosses = [
+  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3000,  'hp': 900000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
+  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 6000,  'hp': 1800000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
+  {'id': 'basragon', 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 18000, 'hp': 8000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
+  {'id': 'kargon',   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 30000, 'hp': 13000000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
+  {'id': 'volkar',   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 50000, 'hp': 18000000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
+];
+
+// 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 전원 지급 (사용자 확정 2026-08-15 상향)
+//   key=boss id · exp/point=지급량 · mystery=수상한상자 개수 · treasure=보물상자 개수
+//   ※ 5존 합계(exp 30,000/p 150,000/수상 30/보물 6)=각 존 누적 결과(별도 완전클리어 보너스 없음)
+const Map<String, Map<String, dynamic>> raidRewards = {
+  'murgadon': {'exp': 2000,  'point': 10000, 'mystery': 2,  'treasure': 0},
+  'abykura':  {'exp': 4000,  'point': 20000, 'mystery': 4,  'treasure': 0},
+  'basragon': {'exp': 6000,  'point': 30000, 'mystery': 6,  'treasure': 1},
+  'kargon':   {'exp': 8000,  'point': 40000, 'mystery': 8,  'treasure': 2},
+  'volkar':   {'exp': 10000, 'point': 50000, 'mystery': 10, 'treasure': 3},
+};
+
+// 보스 id로 로스터 항목 조회. 없으면 첫 보스(무르가돈) 폴백.
+Map<String, dynamic> raidBossById(String id) {
+  for (final b in raidBosses) {
+    if (b['id'] == id) return b;
+  }
+  return raidBosses.first;
+}
+
+// 다음 존(현재 클리어한 보스의 tier+1). 없으면 null(전존 클리어 = 완전 클리어).
+Map<String, dynamic>? nextRaidBoss(String clearedBossId) {
+  final cur = raidBossById(clearedBossId);
+  final nextTier = (cur['tier'] as num).toInt() + 1;
+  for (final b in raidBosses) {
+    if ((b['tier'] as num).toInt() == nextTier) return b;
+  }
+  return null;
+}
+
+// 🗓️ 이번 주 레이드 키(KST 기준 월요일 날짜 'YYYY-MM-DD')
+//   길드당 주 1회 도전 게이트에 쓰임. 매주 월요일 00:00 KST 자동 리셋(키가 바뀌면 새 주).
+String currentRaidWeekKey() {
+  final kst = DateTime.now().toUtc().add(const Duration(hours: 9));
+  final d = DateTime(kst.year, kst.month, kst.day);
+  final monday = d.subtract(Duration(days: d.weekday - 1)); // weekday: 1=Mon..7=Sun
+  return '${monday.year}-${monday.month.toString().padLeft(2, '0')}-${monday.day.toString().padLeft(2, '0')}';
+}
+
+// 길드가 클리어한 보스 id 목록으로 '현재 도전 가능한 최고 tier' 판정 (순차 언락).
+//   clearedIds에 앞 tier가 다 있으면 다음 tier 열림. 반환 = 도전 가능한 tier들.
+List<Map<String, dynamic>> unlockedRaidBosses(List<dynamic> clearedIds) {
+  final cleared = clearedIds.map((e) => e.toString()).toSet();
+  final List<Map<String, dynamic>> out = [];
+  for (final b in raidBosses) {
+    out.add(b);
+    if (!cleared.contains(b['id'])) break; // 이 보스 아직 못 깼으면 여기까지만 열림
+  }
+  return out;
+}
+
 
 // =========================================================================
 // 🐟 [물고기 도감 및 확률/보상 데이터]
@@ -577,6 +665,10 @@ final List<Map<String, dynamic>> fwFishPool = [
   {'name': '쏘가리', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_12_mandarin.png'},
   {'name': '꺽지', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_11_kkeokji.png'},
   {'name': '무지개송어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_13_rainbow_trout.png'},
+  // 🐟 [신규 2026-08-16] 향어(저수지·떡밥강세) · 민물장어(수로·지렁이 야행성) · 동자개(수로·새우강세)
+  {'name': '향어', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 100.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_14_israeli_carp.png'},
+  {'name': '민물장어', 'weight': 50, 'unit': 'Cm', 'min': 30.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_15_eel.png'},
+  {'name': '동자개', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_16_bullhead.png'},
 ];
 
 // 🌊 바다 물고기
@@ -591,10 +683,15 @@ final List<Map<String, dynamic>> seaFishPool = [
   {'name': '광어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 0, 'img': 'assets/images/fish_sea_10_halibut.png'},
   {'name': '감성돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 80.0, 'pts': 1, 'img': 'assets/images/fish_sea_01_black_porgy.png'}, // 👑 6대장
   {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 1, 'max': 70, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장 (기존 최대어 69kg 보존 위해 max 70)
-  {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 30.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
+  {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 40.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
   // 🎣 [루어/신규] 볼락(갯지렁이·웜에 강함) · 학꽁치(크릴에 강함)
   {'name': '볼락', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_12_mebaru.png'},
   {'name': '학꽁치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 45.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_13_halfbeak.png'},
+  // 🐟 [신규 2026-08-16] 성대(선상·갯지렁이) · 농어(갯바위·루어강세) · 부시리(선상·대물·고등어생미끼) · 돌돔(갯바위·갯지렁이)
+  {'name': '성대', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 40.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_15_gurnard.png'},
+  {'name': '농어', 'weight': 50, 'unit': 'Cm', 'min': 30.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_14_seabass.png'},
+  {'name': '부시리', 'weight': 50, 'unit': 'Cm', 'min': 40.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_16_amberjack.png'},
+  {'name': '돌돔', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 60.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_17_rock_bream.png'},
 ];
 
 
@@ -675,6 +772,28 @@ final List<Map<String, dynamic>> storeRodItems = [
   {'name': 'KT500', 'price': 600000, 'reqLevel': 70, 'category': 'SEA', 'type': 'ROD', 'stats': {'P': 50, 'C': 50, 'S': 50}, 'icon': 'rod_sea_kt500.png', 'desc': '심해 대물 제압용 마스터 바다대'},
 ];
 
+// 🐲 [길드상점 전용] 보스레이드 낚싯대 — 레이드 참여 입장권 겸 제압력.
+//   category 'RAID' + type 'ROD'. 일반 상점엔 안 뜨고 길드상점에서만 포인트로 판매.
+//   raidTier(1~3) → 파이팅 이미지 cast_raid_N/waiting_raid_N/hand_rod_raid_N 매핑.
+//   제압력은 일반 낚시와 동일 계산(낚싯대 슬롯만 이 대로 교체). 이 대 없으면 레이드 참여 불가.
+final List<Map<String, dynamic>> storeGuildRaidRods = [
+  {'name': '에인션트 KREFT', 'price': 10000,  'category': 'RAID', 'type': 'ROD', 'raidTier': 1, 'stats': {'P': 30,  'C': 30,  'S': 30},  'icon': 'rod_raid_1.png', 'desc': '태고의 룬이 새겨진 레이드 입문용 낚싯대'},
+  {'name': '라이트닝 KREFT', 'price': 300000, 'reqLevel': 50,  'category': 'RAID', 'type': 'ROD', 'raidTier': 2, 'stats': {'P': 50,  'C': 50,  'S': 50},  'icon': 'rod_raid_2.png', 'desc': '번개의 힘이 깃든 중급 레이드 낚싯대'},
+  {'name': '인페르노 KREFT', 'price': 600000, 'reqLevel': 100, 'category': 'RAID', 'type': 'ROD', 'raidTier': 3, 'stats': {'P': 100, 'C': 100, 'S': 100}, 'icon': 'rod_raid_3.png', 'desc': '화염을 다스리는 최상급 레이드 낚싯대'},
+];
+
+// 아이템이 레이드 전용 낚싯대인지 판별
+bool isRaidRod(Map<dynamic, dynamic>? item) =>
+    item != null && (item['category'] ?? '') == 'RAID' && (item['type'] ?? '') == 'ROD';
+
+// 레이드대 이름 → 티어(1~3). 없으면 0. (인벤 아이템엔 raidTier가 없을 수 있어 이름으로도 역참조)
+int raidRodTierByName(String name) {
+  for (final r in storeGuildRaidRods) {
+    if (r['name'] == name) return (r['raidTier'] as num).toInt();
+  }
+  return 0;
+}
+
 // ⚙️ 상점: 릴 & 찌 목록
 final List<Map<String, dynamic>> storeGearItems = [
   {'name': '일반찌', 'price': 0, 'category': 'FW', 'type': 'FLOAT', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'float_fw_normal.png', 'desc': '가장 기본적인 민물 찌'},
@@ -738,9 +857,37 @@ final List<Map<String, dynamic>> storeAuxItems = [
 //    정확한 게임스토어 페이지 URL이 있으면 여기만 바꾸면 됨.
 const String kGameStoreUrl = 'https://camnak.com/137';
 
+// 🛒 상품별 쇼핑몰 상세페이지 딥링크 — 게임 아이템명 → 아임웹 상품번호(idx)
+//    구매 버튼 누르면 목록이 아니라 해당 상품 구매창으로 바로 이동.
+//    새 상품 추가 시 여기에 이름:idx 만 넣으면 됨. (idx = 아임웹 shop_view idx = prodNo)
+const String kMallItemBase = 'https://camnak.com/shop_view/?idx=';
+const Map<String, int> kMallProductIdx = {
+  '낚시 1시간 이용권': 223,
+  '아레나 입장권': 245,
+  '캠피싱 뱃지': 244,
+  '캠피싱 휘장': 242,
+  'KREFT 정예 휘장': 243,
+  '하수 조사': 224,
+  '중수 조사': 225,
+  '고수 조사': 226,
+  '프로 조사': 227,
+  '마스터 조사': 228,
+};
+// 아이템명으로 상세페이지 URL 반환 (매핑에 없으면 게임스토어 목록으로 폴백)
+String mallUrlForItem(String itemName) {
+  final exact = kMallProductIdx[itemName];
+  if (exact != null) return '$kMallItemBase$exact';
+  for (final e in kMallProductIdx.entries) {
+    if (itemName.contains(e.key) || e.key.contains(itemName)) {
+      return '$kMallItemBase${e.value}';
+    }
+  }
+  return kGameStoreUrl;
+}
+
 // 💳 게임아이템 결제 오픈 스위치. 토스페이먼츠 승인되면 true로 바꿔 배포하면
 //    상점 버튼이 "🔜 결제 오픈 예정"(구매 막힘) → "🛒 쇼핑몰 구매"로 전환된다.
-const bool kPaymentOpen = false;
+const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 + 자동지급 검증 완료)
 
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)\n\n💳 1,100원(VAT포함) · 1회분 지급 · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},

@@ -13,6 +13,120 @@ class ArenaScreen extends StatefulWidget {
 }
 
 class _ArenaScreenState extends State<ArenaScreen> {
+  // 💬 아레나 로비 전체채팅(광장·낚시터와 같은 global_chat) — 대회원 홍보/모집용
+  final TextEditingController _chatCtrl = TextEditingController();
+  String _myNick = '조사';
+  String _myRank = '초보';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMe();
+  }
+
+  @override
+  void dispose() {
+    _chatCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadMe() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    try {
+      final d = (await FirebaseFirestore.instance.collection('users').doc(uid).get()).data() ?? {};
+      if (mounted) setState(() { _myNick = (d['nickname'] ?? '조사').toString(); _myRank = (d['rank'] ?? '초보').toString(); });
+    } catch (_) {}
+  }
+
+  void _sendLobbyChat() {
+    final t = _chatCtrl.text.trim();
+    if (t.isEmpty) return;
+    FirebaseFirestore.instance.collection('global_chat').add({
+      'nickname': _myNick, 'message': t, 'type': 'global', 'receiver': '',
+      'channel': '', 'rank': _myRank, 'timestamp': FieldValue.serverTimestamp(),
+    });
+    _chatCtrl.clear();
+  }
+
+  // 💬 전체채팅 패널 (로비 하단) — 광장/낚시터와 같은 global_chat, 전원에게 노출(홍보)
+  Widget _lobbyChatPanel() {
+    return Container(
+      height: 200,
+      decoration: const BoxDecoration(
+          color: Color(0xE6141414),
+          border: Border(top: BorderSide(color: Color(0x33D4AF37)))),
+      child: Column(children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(14, 8, 14, 4),
+          child: Row(children: [
+            Icon(Icons.campaign, color: Color(0xFFD4AF37), size: 18),
+            SizedBox(width: 6),
+            Text('전체 채팅 — 여기서 대회원 모집하세요!',
+                style: TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('global_chat')
+                .orderBy('timestamp', descending: true).limit(40).snapshots(),
+            builder: (ctx, snap) {
+              if (!snap.hasData) return const SizedBox.shrink();
+              final msgs = snap.data!.docs.where((d) {
+                final m = d.data() as Map<String, dynamic>;
+                return (m['type'] ?? 'global') == 'global';
+              }).take(25).toList();
+              return ListView.builder(
+                reverse: true,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                itemCount: msgs.length,
+                itemBuilder: (c, i) {
+                  final m = msgs[i].data() as Map<String, dynamic>;
+                  final nick = (m['nickname'] ?? '').toString();
+                  final text = (m['message'] ?? '').toString();
+                  final rank = (m['rank'] ?? '초보').toString();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: RichText(text: TextSpan(children: [
+                      TextSpan(text: '$nick: ',
+                          style: TextStyle(color: rankColor(rank), fontWeight: FontWeight.bold, fontSize: 13)),
+                      TextSpan(text: text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+                    ])),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(10, 4, 10, 10),
+          child: Row(children: [
+            Expanded(child: SizedBox(height: 40, child: TextField(
+              controller: _chatCtrl,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendLobbyChat(),
+              decoration: InputDecoration(
+                hintText: '메시지를 입력하세요...  (예: "예당지 최대어 대회 열었어요!")',
+                hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                filled: true, fillColor: Colors.black45,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+              ),
+            ))),
+            const SizedBox(width: 8),
+            SizedBox(height: 40, width: 40, child: ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              onPressed: _sendLobbyChat,
+              child: const Icon(Icons.send, color: Colors.black, size: 20),
+            )),
+          ]),
+        ),
+      ]),
+    );
+  }
+
   // 🎟️ 아레나 입장 '자격' 확인 (차감은 대회 시작 시 대기실에서!). 무료 1회 + 입장권 하루 1회
   //   true=입장 가능(방 만들기/입장 OK) / false=불가(팝업 표시됨)
   Future<bool> _canEnterArena(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
@@ -111,7 +225,17 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
                 }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
+                }
+                // 💓 유령방 필터: lastPing(없으면 createdAt)이 60초 넘게 안 갱신된 waiting 방 = 방장 나감(창닫음) → 숨김
+                final nowMs = DateTime.now().millisecondsSinceEpoch;
+                var docs = snapshot.data!.docs.where((d) {
+                  final m = d.data() as Map<String, dynamic>;
+                  final ts = (m['lastPing'] ?? m['createdAt']) as Timestamp?;
+                  return ts != null && (nowMs - ts.millisecondsSinceEpoch) < 60000;
+                }).toList();
+                if (docs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -134,7 +258,6 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   );
                 }
 
-                var docs = snapshot.data!.docs.toList();
                 docs.sort((a, b) {
                   var aData = a.data() as Map<String, dynamic>;
                   var bData = b.data() as Map<String, dynamic>;
@@ -228,6 +351,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
             ),
           ),
 
+          _lobbyChatPanel(), // 💬 로비 하단 전체채팅(대회원 모집 — 광장·낚시터 전원 노출)
           Padding(
             // 💡 좌우 여백을 빼고, 아래쪽 여백만 깔끔하게 남깁니다!
             padding: const EdgeInsets.only(bottom: 40.0),
@@ -585,6 +709,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         'hostRank': (userData['rank'] ?? '초보').toString(), // ⚔️ 방 등급대(입장 제한 기준)
                         'currentPlayers': 1,
                         'createdAt': FieldValue.serverTimestamp(),
+                        'lastPing': FieldValue.serverTimestamp(), // 💓 방장 하트비트(유령방 필터용) — 대기실서 25초마다 갱신
                       });
 
                       if (!context.mounted) return;

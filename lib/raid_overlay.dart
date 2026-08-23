@@ -7,10 +7,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'game_config.dart';    // raidBossById, raidBosses
+import 'fishing_logic.dart'; // resolveRaidGearPower (전투화면과 동일한 제압력 계산)
 
 const Color _kGold = Color(0xFFD4AF37);
-const int kRaidBossHp = 4000000; // 피라루크 필요 제압치(400만)
-const int kRaidSeconds = 600;    // 제한 10분
+const int kRaidBossHp = 900000; // 1존(무르가돈) 필요 제압치 — 로스터 raidBosses[murgadon].hp와 동일하게 유지
+const int kRaidSeconds = 600;    // 🐲 보스당 10분(건틀릿 — 클리어하면 다음 보스 새 10분)
 
 class RaidOverlay extends StatefulWidget {
   final String guildId;
@@ -44,11 +46,47 @@ class _RaidOverlayState extends State<RaidOverlay> {
       FirebaseFirestore.instance.collection('raids').doc(widget.guildId);
   bool _started = false;
 
+  // 🎣 레이드 셋팅(출조 셋팅과 동일 룩) — 장착된 레이드 낚싯대
+  Map<String, dynamic>? _raidRod;
+  int _myPower = 0;
+  List<Map<String, dynamic>> _gearList = []; // 🎒 레이드에 쓰일 장비(읽기 전용 요약)
+  bool _gearLoading = true;
+  String _hostUid = '';        // 🎖️ 이번 레이드를 연 사람(길드장/부길드장 1명) — 이 사람만 시작 가능
+  bool get _isHost => _hostUid.isNotEmpty && _hostUid == _uid;
+  String _bossId = 'murgadon'; // 🐲 이번에 도전할 보스(클리어하면 방 문서에 다음 보스가 기록됨)
+
   @override
   void initState() {
     super.initState();
     _join();
     _watchRoom();
+    _autoEquipRaidRod();
+  }
+
+  // ⚡ 자동 장착 — 전투화면과 동일 규칙(resolveRaidGearPower)으로 레이드대 + 제압력 산출.
+  //   내 제압력을 참가자 문서에 기록 → 모임터에서 '레디한 길드원 합산 제압력' 표시.
+  Future<void> _autoEquipRaidRod({bool notify = false}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) { if (mounted) setState(() => _gearLoading = false); return; }
+    try {
+      final d = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final g = resolveRaidGearPower(d.data() ?? {});
+      final rod = g['raidRod'] as Map<String, dynamic>?;
+      final int power = (g['power'] as num).toInt();
+      final gl = (g['gearList'] as List?)?.cast<Map<String, dynamic>>() ?? <Map<String, dynamic>>[];
+      if (!mounted) return;
+      setState(() { _raidRod = rod; _myPower = power; _gearList = gl; _gearLoading = false; });
+      // 참가자 문서에 내 제압력 기록(레이드대 없으면 0 — 합산에서 제외)
+      if (_uid.isNotEmpty) {
+        _roomRef.collection('participants').doc(_uid)
+            .set({'power': rod != null ? power : 0}, SetOptions(merge: true)).catchError((_) {});
+      }
+      if (notify) {
+        _snack(rod != null ? '⚡ 자동장착 완료 — ${rod['name']} (제압력 $power)' : '레이드 전용 낚싯대가 없어요! (길드상점)');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _gearLoading = false);
+    }
   }
 
   @override
@@ -58,6 +96,10 @@ class _RaidOverlayState extends State<RaidOverlay> {
       _roomRef.get().then((snap) {
         if ((snap.data()?['status'] ?? 'waiting') == 'waiting') {
           _roomRef.collection('participants').doc(_uid).delete().catchError((_) {});
+          // 주최자가 나가면 주최 자리를 비워 다른 길드장이 다시 열 수 있게 함
+          if ((snap.data()?['hostUid'] ?? '') == _uid) {
+            _roomRef.set({'hostUid': '', 'hostNick': ''}, SetOptions(merge: true)).catchError((_) => _roomRef);
+          }
         }
       }).catchError((_) {});
     }
@@ -75,6 +117,13 @@ class _RaidOverlayState extends State<RaidOverlay> {
         if (widget.isLeader) 'hasLeader': true,
       }, SetOptions(merge: true));
       final snap = await _roomRef.get();
+      // 🎖️ 주최자 선점 — 길드장/부길드장이 셋팅창을 '먼저 연' 한 명만 시작 권한을 갖는다.
+      //    (여러 리더가 각자 시작해 따로 도는 문제 방지)
+      final String curHost = (snap.data()?['hostUid'] ?? '').toString();
+      if (widget.isLeader && curHost.isEmpty && (snap.data()?['status'] ?? 'waiting') == 'waiting') {
+        await _roomRef.set({'hostUid': _uid, 'hostNick': widget.myNick,
+            'openedAt': FieldValue.serverTimestamp()}, SetOptions(merge: true));
+      }
       if ((snap.data()?['status'] ?? 'waiting') == 'waiting') {
         await _roomRef.collection('participants').doc(_uid).set({
           'nick': widget.myNick,
@@ -93,6 +142,10 @@ class _RaidOverlayState extends State<RaidOverlay> {
     _roomRef.snapshots().listen((snap) {
       if (!mounted) return;
       final d = snap.data();
+      final hu = (d?['hostUid'] ?? '').toString();
+      if (hu != _hostUid) setState(() => _hostUid = hu);
+      final bid = (d?['bossId'] ?? '').toString();
+      if (bid.isNotEmpty && bid != _bossId) setState(() => _bossId = bid); // 진행도 반영
       final status = (d?['status'] ?? 'waiting').toString();
       if (status == 'raiding' && !_started) {
         _started = true;
@@ -136,11 +189,58 @@ class _RaidOverlayState extends State<RaidOverlay> {
     await _roomRef.set({
       'status': 'raiding',
       'endAt': endAt,
-      'bossHp': kRaidBossHp,     // 공유 보스 체력(전투에서 각자 제압력만큼 깎음)
+      // 🐲 현재 도전 보스(1존부터 시작 · 클리어하면 다음 존이 기록돼 있음)
+      'bossHp': (raidBossById(_bossId)['hp'] as num).toInt(),
+      'bossId': _bossId,
+      'bossTier': (raidBossById(_bossId)['tier'] as num).toInt(),
       'startedAt': FieldValue.serverTimestamp(),
       'memberCount': total,
     }, SetOptions(merge: true));
     // (onStart는 _watchRoom 리스너가 전원 공통으로 처리 → 길드장도 동일 경로로 입장)
+  }
+
+  // 🎒 내 장비 요약 — 자동장착이 고른 최상급 장비(레이드에 그대로 적용됨)
+  Widget _myGearPanel() {
+    if (_gearLoading || _gearList.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: 288,
+      constraints: const BoxConstraints(maxHeight: 620),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF14110C).withOpacity(0.94),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kGold.withOpacity(0.75), width: 1.4),
+        boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 16)],
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Center(child: Text('🎒 내 장비',
+            style: TextStyle(color: _kGold, fontSize: 19, fontWeight: FontWeight.w900))),
+        const SizedBox(height: 3),
+        const Center(child: Text('자동장착 — 최상급으로 적용됨',
+            style: TextStyle(color: Colors.white38, fontSize: 12, fontWeight: FontWeight.w700))),
+        const SizedBox(height: 10),
+        Flexible(child: SingleChildScrollView(child: Column(children: [
+          for (final g in _gearList) Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Row(children: [
+              Container(width: 46, height: 46,
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(9)),
+                child: Padding(padding: const EdgeInsets.all(3),
+                  child: Image.asset('assets/items/${g['icon']}', fit: BoxFit.contain,
+                      errorBuilder: (a, b, c) => Image.asset('assets/images/${g['icon']}', fit: BoxFit.contain,
+                          errorBuilder: (a2, b2, c2) => const Icon(Icons.inventory_2, color: Colors.white24, size: 24)))),
+              ),
+              const SizedBox(width: 9),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(g['slot'] as String, style: const TextStyle(color: Colors.white38, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                Text(g['name'] as String, maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 14.5, fontWeight: FontWeight.w800)),
+              ])),
+            ]),
+          ),
+        ]))),
+      ]),
+    );
   }
 
   void _snack(String m) {
@@ -192,12 +292,25 @@ class _RaidOverlayState extends State<RaidOverlay> {
         ]),
       ),
 
-      // 하단 중앙: 인원수 + 레디(길드원) / 시작(길드장)
+      // 🎒 [내 장비] 레이드에 실제로 쓰일 장비(자동장착 결과) — 셋팅 패널 왼쪽
       Positioned(
-        left: 0, right: 0, bottom: 24,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 460),
+        right: 130, top: 92, bottom: 0, // 셋팅 패널 옆 + 우측상단 HUD(설정/내정보)와 안 겹치게 아래로
+        child: Center(child: _myGearPanel()),
+      ),
+
+      // 🎣 [레이드 셋팅] 일반 낚시 '출조 셋팅'과 동일 구조 — 낚싯대 이미지 + 자동장착 + 레디 + 시작
+      Center(
+        child: SingleChildScrollView(
+          child: Container(
+            width: 430,
+            margin: const EdgeInsets.symmetric(vertical: 60),
+            padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFF14110C).withOpacity(0.94),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: _kGold, width: 1.6),
+              boxShadow: const [BoxShadow(color: Colors.black87, blurRadius: 20)],
+            ),
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: _roomRef.collection('participants').snapshots(),
               builder: (c, ps) {
@@ -205,62 +318,151 @@ class _RaidOverlayState extends State<RaidOverlay> {
                 final total = docs.length;
                 final readyCnt = docs.where((d) => d.data()['isReady'] == true).length;
                 final allReady = total > 0 && readyCnt == total;
+                final boss = raidBossById(_bossId); // 현재 도전 보스(클리어할수록 다음 존)
+                final bool hasRod = _raidRod != null;
+                // 💪 레디한 길드원들의 합산 제압력 (요구치 비교는 노출 안 함 — 심리적 포기 유발)
+                int readyPower = 0;
+                for (final d in docs) {
+                  if (d.data()['isReady'] != true) continue;
+                  final p = d.data()['power'];
+                  if (p is num) readyPower += p.toInt();
+                }
+
                 return Column(mainAxisSize: MainAxisSize.min, children: [
-                  // 🎣 모임/레디 인원 (버튼 위)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    margin: const EdgeInsets.only(bottom: 10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.55),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _kGold.withOpacity(0.6)),
+                  const Text('🐲 레이드 셋팅',
+                      style: TextStyle(color: _kGold, fontSize: 23, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 4),
+                  Text('${boss['tier']}. ${boss['zone']} · ${boss['name']}',
+                      style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  Divider(color: _kGold.withOpacity(0.25), height: 1),
+                  const SizedBox(height: 12),
+
+                  // 🎣 레이드 전용 낚싯대 (자동장착 버튼 위)
+                  if (_gearLoading)
+                    const Padding(padding: EdgeInsets.symmetric(vertical: 30),
+                        child: CircularProgressIndicator(color: _kGold))
+                  else if (hasRod) ...[
+                    Container(
+                      height: 118,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Image.asset('assets/items/${_raidRod!['icon']}', fit: BoxFit.contain,
+                          errorBuilder: (a, b, c2) => const Icon(Icons.phishing, color: _kGold, size: 60)),
                     ),
-                    child: Text('🎣 모임 $total명   ·   ✅ 레디 $readyCnt / $total명',
-                        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
-                  ),
-                  // 길드원 레디 토글 (내 상태)
+                    const SizedBox(height: 8),
+                    Text('${_raidRod!['name']}',
+                        style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 3),
+                    Text('💪 제압 ${_raidRod!['stats']?['P'] ?? 0}   🎯 컨트롤 ${_raidRod!['stats']?['C'] ?? 0}   📡 감도 ${_raidRod!['stats']?['S'] ?? 0}',
+                        style: const TextStyle(color: _kGold, fontSize: 12.5, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('⚔️ 내 총 제압력  $_myPower',
+                        style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 14, fontWeight: FontWeight.w900)),
+                  ] else ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.black26, borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.orangeAccent.withOpacity(0.5)),
+                      ),
+                      child: const Column(children: [
+                        Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 34),
+                        SizedBox(height: 6),
+                        Text('레이드 전용 낚싯대가 없어요!\n길드 상점에서 먼저 구매해 주세요.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.orangeAccent, fontSize: 13.5, fontWeight: FontWeight.w800, height: 1.4)),
+                      ]),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+
+                  // ⚡ 자동 장착
+                  SizedBox(width: double.infinity, height: 46, child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.6), foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: _kGold.withOpacity(0.7), width: 1.3)),
+                    ),
+                    onPressed: () => _autoEquipRaidRod(notify: true),
+                    child: const Text('⚡ 자동 장착', style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900)),
+                  )),
+                  const SizedBox(height: 8),
+
+                  // ✅ 레디
                   StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: _roomRef.collection('participants').doc(_uid).snapshots(),
                     builder: (c2, s) {
                       final ready = s.data?.data()?['isReady'] == true;
-                      return SizedBox(
-                        width: double.infinity, height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ready ? const Color(0xFF7FFFB0) : Colors.black.withOpacity(0.55),
-                            foregroundColor: ready ? Colors.black : Colors.white,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: const BorderSide(color: Color(0xFF7FFFB0), width: 1.4)),
-                          ),
-                          onPressed: () => _toggleReady(ready),
-                          child: Text(ready ? '✅ 레디 완료 (탭하면 취소)' : '준비되면 레디!',
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+                      return SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: ready ? const Color(0xFF7FFFB0) : Colors.black.withOpacity(0.55),
+                          foregroundColor: ready ? Colors.black : Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: Color(0xFF7FFFB0), width: 1.4)),
                         ),
-                      );
+                        onPressed: hasRod ? () => _toggleReady(ready) : () => _snack('레이드 낚싯대가 있어야 참여할 수 있어요!'),
+                        child: Text(ready ? '✅ 레디 완료 (탭하면 취소)' : '준비되면 레디!',
+                            style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900)),
+                      ));
                     },
                   ),
-                  if (widget.isLeader) ...[
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity, height: 56,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: allReady ? _kGold : _kGold.withOpacity(0.45),
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: _startRaid,
-                        child: Text('🚀 보스전 시작!  (레디 $readyCnt/$total)',
-                            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+
+                  // 🚀 시작 — '이 레이드를 연' 길드장/부길드장 한 명만. 나머지는 대기 안내.
+                  if (_isHost) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(width: double.infinity, height: 54, child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: allReady ? _kGold : _kGold.withOpacity(0.45),
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.only(top: 6),
-                      child: Text('길드장/부길드장만 시작할 수 있어요',
-                          style: TextStyle(color: Colors.white60, fontSize: 11)),
+                      onPressed: _startRaid,
+                      child: Text('🚀 레이드 시작!  (레디 $readyCnt/$total)',
+                          style: const TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900)),
+                    )),
+                    const Padding(padding: EdgeInsets.only(top: 6),
+                        child: Text('레이드를 연 길드장/부길드장만 시작할 수 있어요',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700))),
+                  ] else ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        color: Colors.black26, borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Text(
+                        _hostUid.isEmpty
+                            ? '⏳ 길드장이 레이드를 열면 시작돼요'
+                            : '⏳ 길드장의 시작을 기다리는 중...',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white60, fontSize: 14.5, fontWeight: FontWeight.w800)),
                     ),
                   ],
+                  const SizedBox(height: 10),
+                  Text('🎣 모임 $total명   ·   ✅ 레디 $readyCnt / $total명',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  // 💪 레디한 길드원 합산 제압력 (요구치·판정문구 미표시 — 심리적 포기 유발 방지)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.black38,
+                      borderRadius: BorderRadius.circular(11),
+                      border: Border.all(color: const Color(0xFF7FFFB0).withOpacity(0.55), width: 1.3),
+                    ),
+                    child: Text('💪 레디 길드원 합산 제압력  $readyPower',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF7FFFB0),
+                            fontSize: 19, fontWeight: FontWeight.w900)),
+                  ),
                 ]);
               },
             ),

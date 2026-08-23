@@ -3,6 +3,17 @@ import 'dart:html' as html; // 🔊 사운드 설정 저장(localStorage)
 import 'package:audioplayers/audioplayers.dart';
 import 'game_config.dart'; // 1탄에서 만든 중앙 통제실 연결!
 
+// 📱 모바일 브라우저 감지 — Fullscreen API 호출 시 크롬 모바일이 강제로 띄우는
+//    "전체화면 종료하려면 상단에서 드래그" 안내 배너가 폰 화면 절반 가림.
+//    이걸 안 뜨게 하려면 아예 requestFullscreen()을 호출하지 않는 게 답.
+//    (모바일 크롬은 스크롤하면 주소창 자동으로 숨겨져서 pseudo-fullscreen 됨)
+bool isMobileWeb() {
+  try {
+    final ua = html.window.navigator.userAgent.toLowerCase();
+    return RegExp(r'iphone|ipod|android|windows phone|blackberry|opera mini|mobile').hasMatch(ua);
+  } catch (_) { return false; }
+}
+
 // =========================================================================
 // 🎵 [캠피싱 사운드 매니저] 
 // BGM과 효과음을 통제하는 방송실입니다.
@@ -10,7 +21,19 @@ import 'game_config.dart'; // 1탄에서 만든 중앙 통제실 연결!
 class AudioManager {
   static final AudioManager _instance = AudioManager._internal();
   factory AudioManager() { return _instance; }
-  AudioManager._internal() { _loadSettings(); }
+  AudioManager._internal() {
+    _loadSettings();
+    // 🔁 [BGM 루프 보정] 웹에서 ReleaseMode.loop가 안 먹는 경우가 있어(브라우저/코덱에 따라 1회만 재생)
+    //    곡이 끝나면 현재 곡을 다시 틀어준다. 루프가 정상이면 이 콜백은 애초에 안 불린다.
+    bgmPlayer.onPlayerComplete.listen((_) async {
+      if (isMuted || !bgmOn || currentBgm.isEmpty) return;
+      try {
+        await bgmPlayer.setReleaseMode(ReleaseMode.loop);
+        await bgmPlayer.setVolume(_outBgmVol);
+        await bgmPlayer.play(AssetSource('sound/$currentBgm'));
+      } catch (_) {}
+    });
+  }
 
   final AudioPlayer bgmPlayer = AudioPlayer();
   final AudioPlayer efxPlayer = AudioPlayer();
@@ -22,6 +45,10 @@ class AudioManager {
   bool sfxOn = true;
   double bgmVol = 0.7;
   double sfxVol = 1.0;
+  // 🔉 [BGM 마스터 게인] 배경음이 커서 매번 끄게 된다는 피드백 → 실제 출력만 낮춤.
+  //   유저 슬라이더(bgmVol)는 그대로 두고 여기에 곱해 재생 → 이미 저장된 설정(0.7)도 함께 작아진다.
+  static const double kBgmGain = 0.5;
+  double get _outBgmVol => (bgmVol * kBgmGain).clamp(0.0, 1.0);
   int combatAssist = 2; // ⚔️ 제압 방식: 0 수동 / 1 자동(잡고) / 2 완전자동(기본값). localStorage 저장.
 
   void _loadSettings() {
@@ -56,7 +83,7 @@ class AudioManager {
     if (isMuted) return;
     if (currentBgm.isNotEmpty) {
       try {
-        await bgmPlayer.setVolume(bgmVol);
+        await bgmPlayer.setVolume(_outBgmVol);
         if (bgmPlayer.state != PlayerState.playing) {              // 재생 중이 아니면
           await bgmPlayer.setReleaseMode(ReleaseMode.loop);
           if (bgmPlayer.state == PlayerState.paused) { await bgmPlayer.resume(); }  // 일시정지 → 재개
@@ -73,7 +100,7 @@ class AudioManager {
   }
   Future<void> setBgmVol(double v) async {
     bgmVol = v.clamp(0.0, 1.0); _saveSettings();
-    try { await bgmPlayer.setVolume(bgmVol); } catch (_) {}
+    try { await bgmPlayer.setVolume(_outBgmVol); } catch (_) {}
   }
   Future<void> setSfxVol(double v) async {
     sfxVol = v.clamp(0.0, 1.0); _saveSettings();
@@ -88,7 +115,7 @@ class AudioManager {
     currentBgm = fileName; // 재생돼야 할 곡을 항상 기억(설정 켤 때 이 곡을 틀 수 있게)
     if (isMuted || !bgmOn) return; // 배경음 꺼져있으면 곡만 기억하고 재생 안 함
     await bgmPlayer.setReleaseMode(ReleaseMode.loop);
-    await bgmPlayer.setVolume(bgmVol);
+    await bgmPlayer.setVolume(_outBgmVol);
     await bgmPlayer.play(AssetSource('sound/$fileName'));
   }
 
@@ -174,28 +201,28 @@ class FishingLogic {
   // 🗺️ [어종 대통합 도감] 민물은 모든 민물고기! 바다는 모든 바다고기!
   static final Map<String, List<String>> locationFishMap = {
     // 🏞️ [민물] 저수지 & 수로 (민물고기 10종 총출동!)
-    '예산 예당지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '안성 고삼지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '진천 백곡지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '춘천 파로호': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '충주 충주호': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '예산 신양수로': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '청양 지천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '인천 청라수로': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '해남 금자천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
-    '충주 달천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어'],
+    '예산 예당지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '안성 고삼지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '진천 백곡지': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '춘천 파로호': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '충주 충주호': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '예산 신양수로': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '청양 지천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '인천 청라수로': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '해남 금자천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
+    '충주 달천': ['붕어', '떡붕어', '블루길', '베스', '살치', '잉어', '메기', '자라', '가물치', '강준치', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'],
 
     // 🌊 [바다] 갯바위 & 선상 (바다고기 11종 총출동!)
-    '통영 척포 갯바위': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '신안 가거도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '완도 청산도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '여수 거문도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '제주 섶섬': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '거제 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '오천항 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '대천 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '통영 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
-    '완도 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치'],
+    '통영 척포 갯바위': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '신안 가거도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '완도 청산도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '여수 거문도': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '제주 섶섬': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '거제 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '오천항 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '대천 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '통영 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
+    '완도 선상': ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'],
   };
 
   // 🐟 1. 물고기 생성기 (입질 왔을 때 어떤 고기인지, 사이즈는 몇인지 계산)
@@ -203,10 +230,14 @@ class FishingLogic {
   // 📦 랜덤 상자 보상 (인벤토리에서 '열기' 시 호출). 실제 아이템 정의와 필드 일치.
   //    되팔기(30%)·레벨제한 동작 위해 gear는 price·reqLevel 포함.
   // ═══════════════════════════════════════════════════════════════════
+  // 🎣 미끼 10종(민물6+바다4) — 상자 미끼 보상 풀 (2026-08-16 추석이벤트 개편: 루어미끼 스푼/웜/플라이 추가)
   static const List<Map<String, dynamic>> _boxBaits = [
     {'name': '글루텐', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png'},
     {'name': '옥수수', 'price': 1500, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png'},
     {'name': '지렁이', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png'},
+    {'name': '플라이', 'price': 1000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_lure_fly.png'},
+    {'name': '웜', 'price': 1500, 'category': 'COMMON', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_lure_worm.png'},
+    {'name': '스푼', 'price': 2000, 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_lure_spoon.png'},
     {'name': '루어', 'price': 1000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png'},
     {'name': '크릴', 'price': 1500, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png'},
     {'name': '에기', 'price': 2000, 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png'},
@@ -220,18 +251,23 @@ class FishingLogic {
     {'name': '민물 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png'},
     {'name': '바다 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png'},
   ];
+  // 🎣 찌·릴 4종 (2026-08-16 개편: 나노카본찌·CF전자찌·CF5000·KF5000)
   static const List<Map<String, dynamic>> _boxFloatReel = [
-    {'name': '수제찌', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'FLOAT', 'quantity': 1, 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'float_fw_handmade.png'},
     {'name': '나노카본찌', 'price': 50000, 'reqLevel': 30, 'category': 'FW', 'type': 'FLOAT', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'float_fw_nano.png'},
+    {'name': 'CF 전자찌', 'price': 100000, 'reqLevel': 50, 'category': 'FW', 'type': 'FLOAT', 'quantity': 1, 'stats': {'P': 25, 'C': 25, 'S': 25}, 'icon': 'float_fw_elec_cf.png'},
     {'name': 'CF5000', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'REEL', 'quantity': 1, 'stats': {'P': 15, 'C': 15, 'S': 15}, 'icon': 'reel_sea_cf5000.png'},
     {'name': 'KF5000', 'price': 50000, 'reqLevel': 30, 'category': 'SEA', 'type': 'REEL', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'reel_sea_kf5000.png'},
   ];
+  // 🎣 낚싯대 4종 (2026-08-16 개편: CF-40T·KT-20T·CF500·KT250)
   static const List<Map<String, dynamic>> _boxRods = [
+    {'name': 'CF-40T', 'price': 50000, 'reqLevel': 10, 'category': 'FW', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_fw_cf40.png'},
     {'name': 'KT-20T', 'price': 100000, 'reqLevel': 30, 'category': 'FW', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_fw_kt20.png'},
-    {'name': 'KT-30T', 'price': 300000, 'reqLevel': 50, 'category': 'FW', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 40, 'C': 40, 'S': 40}, 'icon': 'rod_fw_kt30.png'},
-    {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 10}, 'icon': 'rod_sea_cf500.png'},
-    {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 30, 'C': 20, 'S': 10}, 'icon': 'rod_sea_kt250.png'},
+    {'name': 'CF500', 'price': 50000, 'reqLevel': 10, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'rod_sea_cf500.png'},
+    {'name': 'KT250', 'price': 100000, 'reqLevel': 30, 'category': 'SEA', 'type': 'ROD', 'quantity': 1, 'stats': {'P': 30, 'C': 30, 'S': 30}, 'icon': 'rod_sea_kt250.png'},
   ];
+  // 🧊🕶️ 단품 장비 (중형 아이스박스 · 레인보우 편광 선글라스) — 보물상자 추가(2026-08-16)
+  static const Map<String, dynamic> _boxCooler = {'name': '중형 아이스박스', 'price': 50000, 'reqLevel': 20, 'category': 'COMMON', 'type': 'COOLER', 'quantity': 1, 'stats': {'P': 10, 'C': 10, 'S': 10}, 'icon': 'cooler_m.png'};
+  static const Map<String, dynamic> _boxSunglasses = {'name': '레인보우 편광 선글라스', 'price': 50000, 'reqLevel': 30, 'category': 'COMMON', 'type': 'ETC', 'quantity': 1, 'stats': {'P': 20, 'C': 20, 'S': 20}, 'icon': 'item_sunglasses_rainbow.png'};
   static const Map<String, dynamic> _boxArenaTicket = {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png'};
   static const Map<String, dynamic> _boxHourTicket = {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'item_ticket_1h.png'};
 
@@ -256,14 +292,18 @@ class FishingLogic {
         return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'};
       }
     }
-    // 보물상자
+    // 🎁 보물상자 (추석이벤트 개편 2026-08-16) — 미끼10·밑밥2·낚시줄2·아이스박스·선글라스·낚싯대4·찌릴4·이용권2
+    //    확률: 미끼25 · 밑밥20 · 낚시줄13 · 아이스박스8 · 선글라스8 · 찌릴12 · 낚싯대6 · 아레나권4 · 1시간권4
+    //    (낚싯대=최상급템이라 찌/릴보다 귀하게: 낚싯대6% < 찌릴12%)
     final k = r.nextInt(100);
-    if (k < 40) { final b = pick(_boxBaits); return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'}; }
-    if (k < 65) { final g = pick(_boxChum); return {'kind': 'item', 'item': g, 'gear': false, 'label': '${g['name']} 50개'}; }
-    if (k < 80) { final l = pick(_boxLines); return {'kind': 'item', 'item': l, 'gear': false, 'label': l['name']}; }
-    if (k < 90) { final f = pick(_boxFloatReel); return {'kind': 'item', 'item': f, 'gear': true, 'label': f['name']}; }
-    if (k < 95) { final rod = pick(_boxRods); return {'kind': 'item', 'item': rod, 'gear': true, 'label': rod['name']}; }
-    if (k < 98) { return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxArenaTicket), 'gear': false, 'label': '아레나 입장권'}; }
+    if (k < 25) { final b = pick(_boxBaits); return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'}; }
+    if (k < 45) { final g = pick(_boxChum); return {'kind': 'item', 'item': g, 'gear': false, 'label': '${g['name']} 50개'}; }
+    if (k < 58) { final l = pick(_boxLines); return {'kind': 'item', 'item': l, 'gear': false, 'label': l['name']}; }
+    if (k < 66) { return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxCooler), 'gear': true, 'label': '중형 아이스박스'}; }
+    if (k < 74) { return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxSunglasses), 'gear': true, 'label': '레인보우 편광 선글라스'}; }
+    if (k < 86) { final f = pick(_boxFloatReel); return {'kind': 'item', 'item': f, 'gear': true, 'label': f['name']}; }
+    if (k < 92) { final rod = pick(_boxRods); return {'kind': 'item', 'item': rod, 'gear': true, 'label': rod['name']}; }
+    if (k < 96) { return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxArenaTicket), 'gear': false, 'label': '아레나 입장권'}; }
     return {'kind': 'item', 'item': Map<String, dynamic>.from(_boxHourTicket), 'gear': false, 'label': '낚시 1시간 이용권'};
   }
 
@@ -358,26 +398,26 @@ class FishingLogic {
 // 🎯 [2026-08 개편] 사용자 상성표 그대로 반영. 0.0=안 물림(루어전용어종 차단), 0.1~0.5=가끔.
 //    루어 미끼(스푼/플라이=민물전용, 웜=민물·바다 공용). 웜은 민물+바다 어종 모두 포함(공용).
 final Map<String, Map<String, double>> baitAffinity = {
-  // ── 민물 미끼 ──
-  '글루텐':   {'붕어': 2.0, '잉어': 1.5, '가물치': 0.0, '떡붕어': 2.0, '블루길': 0.0, '살치': 1.0, '베스': 0.0, '강준치': 1.0, '자라': 0.2, '메기': 0.0, '쏘가리': 0.0, '꺽지': 0.0, '무지개송어': 0.0},
-  '지렁이':   {'붕어': 1.5, '잉어': 1.0, '가물치': 1.0, '떡붕어': 1.0, '블루길': 2.0, '살치': 1.0, '베스': 0.5, '강준치': 0.5, '자라': 0.5, '메기': 2.0, '쏘가리': 0.1, '꺽지': 0.1, '무지개송어': 0.1},
-  '옥수수':   {'붕어': 1.5, '잉어': 2.0, '가물치': 0.0, '떡붕어': 1.0, '블루길': 0.0, '살치': 1.5, '베스': 0.0, '강준치': 1.0, '자라': 0.0, '메기': 0.0, '쏘가리': 0.0, '꺽지': 0.0, '무지개송어': 0.0},
-  '민물새우': {'붕어': 1.5, '잉어': 1.0, '가물치': 1.0, '떡붕어': 1.5, '블루길': 1.5, '살치': 0.0, '베스': 0.5, '강준치': 0.0, '자라': 0.5, '메기': 1.5, '쏘가리': 0.1, '꺽지': 0.1, '무지개송어': 0.1},
+  // ── 민물 미끼 ── (2026-08-16 강준치 재조정=육식성으로 + 향어/민물장어/동자개 3종 추가)
+  '글루텐':   {'붕어': 2.0, '잉어': 1.5, '가물치': 0.0, '떡붕어': 2.0, '블루길': 0.0, '살치': 1.0, '베스': 0.0, '강준치': 0.0, '자라': 0.2, '메기': 0.0, '쏘가리': 0.0, '꺽지': 0.0, '무지개송어': 0.0, '향어': 2.0, '민물장어': 0.0, '동자개': 0.0},
+  '지렁이':   {'붕어': 1.5, '잉어': 1.0, '가물치': 1.0, '떡붕어': 1.0, '블루길': 2.0, '살치': 1.0, '베스': 0.5, '강준치': 1.5, '자라': 0.5, '메기': 2.0, '쏘가리': 0.1, '꺽지': 0.1, '무지개송어': 0.1, '향어': 0.5, '민물장어': 2.0, '동자개': 1.5},
+  '옥수수':   {'붕어': 1.5, '잉어': 2.0, '가물치': 0.0, '떡붕어': 1.0, '블루길': 0.0, '살치': 1.5, '베스': 0.0, '강준치': 0.0, '자라': 0.0, '메기': 0.0, '쏘가리': 0.0, '꺽지': 0.0, '무지개송어': 0.0, '향어': 1.0, '민물장어': 0.0, '동자개': 0.0},
+  '민물새우': {'붕어': 1.5, '잉어': 1.0, '가물치': 1.0, '떡붕어': 1.5, '블루길': 1.5, '살치': 0.0, '베스': 0.5, '강준치': 1.0, '자라': 0.5, '메기': 1.5, '쏘가리': 0.1, '꺽지': 0.1, '무지개송어': 0.1, '향어': 0.5, '민물장어': 1.5, '동자개': 2.0},
   // ── 루어 미끼(민물) ──
-  '스푼':     {'붕어': 0.0, '잉어': 0.0, '가물치': 2.0, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 2.0, '강준치': 0.0, '자라': 0.0, '메기': 0.0, '쏘가리': 1.0, '꺽지': 0.0, '무지개송어': 1.5},
-  '플라이':   {'붕어': 0.0, '잉어': 0.0, '가물치': 0.5, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 0.2, '강준치': 0.5, '자라': 0.0, '메기': 0.0, '쏘가리': 0.2, '꺽지': 2.0, '무지개송어': 0.5},
+  '스푼':     {'붕어': 0.0, '잉어': 0.0, '가물치': 2.0, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 2.0, '강준치': 2.0, '자라': 0.0, '메기': 0.0, '쏘가리': 1.0, '꺽지': 0.0, '무지개송어': 1.5, '향어': 0.0, '민물장어': 0.0, '동자개': 0.0},
+  '플라이':   {'붕어': 0.0, '잉어': 0.0, '가물치': 0.5, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 0.2, '강준치': 0.5, '자라': 0.0, '메기': 0.0, '쏘가리': 0.2, '꺽지': 2.0, '무지개송어': 0.5, '향어': 0.0, '민물장어': 0.0, '동자개': 0.0},
   // ── 웜(민물·바다 공용) — 두 영역 어종 모두 포함 ──
   '웜': {
-    '붕어': 0.0, '잉어': 0.0, '가물치': 1.0, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 1.5, '강준치': 0.0, '자라': 0.0, '메기': 0.0, '쏘가리': 2.0, '꺽지': 1.0, '무지개송어': 2.0,
-    '참돔': 0.1, '감성돔': 0.1, '문어': 0.5, '고등어': 0.0, '우럭': 0.0, '갈치': 1.0, '광어': 2.0, '갑오징어': 1.0, '주꾸미': 0.5, '벵에돔': 0.5, '볼락': 1.0, '학꽁치': 0.0, '참치': 0.0,
+    '붕어': 0.0, '잉어': 0.0, '가물치': 1.0, '떡붕어': 0.0, '블루길': 0.0, '살치': 0.0, '베스': 1.5, '강준치': 1.0, '자라': 0.0, '메기': 0.0, '쏘가리': 2.0, '꺽지': 1.0, '무지개송어': 2.0, '향어': 0.0, '민물장어': 0.0, '동자개': 0.0,
+    '참돔': 0.1, '감성돔': 0.1, '문어': 0.5, '고등어': 0.0, '우럭': 0.0, '갈치': 1.0, '광어': 2.0, '갑오징어': 1.0, '주꾸미': 0.5, '벵에돔': 0.5, '볼락': 1.0, '학꽁치': 0.0, '참치': 0.0, '성대': 1.0, '농어': 0.0, '부시리': 1.0, '돌돔': 0.0,
   },
-  // ── 바다 미끼 ──
-  '갯지렁이': {'참돔': 1.5, '감성돔': 0.5, '문어': 0.0, '고등어': 0.0, '우럭': 2.0, '갈치': 0.5, '광어': 1.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 2.0, '학꽁치': 1.0, '참치': 0.0},
-  '크릴':     {'참돔': 2.0, '감성돔': 2.0, '문어': 0.0, '고등어': 2.0, '우럭': 0.5, '갈치': 1.0, '광어': 1.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 2.0, '볼락': 1.0, '학꽁치': 2.0, '참치': 0.0},
-  '루어':     {'참돔': 0.5, '감성돔': 1.0, '문어': 0.5, '고등어': 1.0, '우럭': 1.0, '갈치': 2.0, '광어': 0.5, '갑오징어': 1.0, '주꾸미': 0.5, '벵에돔': 1.5, '볼락': 0.5, '학꽁치': 0.0, '참치': 1.0},
-  '에기':     {'참돔': 0.0, '감성돔': 0.0, '문어': 2.0, '고등어': 0.0, '우럭': 0.0, '갈치': 0.0, '광어': 0.0, '갑오징어': 2.0, '주꾸미': 2.0, '벵에돔': 0.0, '볼락': 0.0, '학꽁치': 0.0, '참치': 0.0},
-  // 🐟 특수 미끼: 잡은 고등어를 미끼로 쓰면 참치가 잘 물림(생미끼)
-  '고등어':   {'참치': 1.5},
+  // ── 바다 미끼 ── (2026-08-16 성대/농어/부시리/돌돔 4종 추가)
+  '갯지렁이': {'참돔': 1.5, '감성돔': 0.5, '문어': 0.0, '고등어': 0.0, '우럭': 2.0, '갈치': 0.5, '광어': 1.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 2.0, '학꽁치': 1.0, '참치': 0.0, '성대': 2.0, '농어': 1.5, '부시리': 0.0, '돌돔': 1.5},
+  '크릴':     {'참돔': 2.0, '감성돔': 2.0, '문어': 0.0, '고등어': 2.0, '우럭': 0.5, '갈치': 1.0, '광어': 1.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 2.0, '볼락': 1.0, '학꽁치': 2.0, '참치': 0.0, '성대': 1.0, '농어': 1.0, '부시리': 0.0, '돌돔': 1.0},
+  '루어':     {'참돔': 0.5, '감성돔': 1.0, '문어': 0.5, '고등어': 1.0, '우럭': 1.0, '갈치': 2.0, '광어': 0.5, '갑오징어': 1.0, '주꾸미': 0.5, '벵에돔': 1.5, '볼락': 0.5, '학꽁치': 0.0, '참치': 1.0, '성대': 0.5, '농어': 2.0, '부시리': 1.5, '돌돔': 0.0},
+  '에기':     {'참돔': 0.0, '감성돔': 0.0, '문어': 2.0, '고등어': 0.0, '우럭': 0.0, '갈치': 0.0, '광어': 0.0, '갑오징어': 2.0, '주꾸미': 2.0, '벵에돔': 0.0, '볼락': 0.0, '학꽁치': 0.0, '참치': 0.0, '성대': 0.0, '농어': 0.0, '부시리': 0.0, '돌돔': 0.0},
+  // 🐟 특수 미끼: 잡은 고등어를 미끼로 쓰면 참치·부시리가 잘 물림(생미끼)
+  '고등어':   {'참치': 1.5, '부시리': 1.5},
 };
 
 // 🎣 가중치(확률) 룰렛 돌리기
@@ -402,29 +442,35 @@ for (var fish in availableFishes) {
   totalWeight += w;
 }
 
-// 📦 상자 드랍: 물고기 룰렛에 상자 weight를 얹음. ⚠️ 일반 물고기 weight=50이라 총합 ~300-400 →
-//    상자 weight로 확률 조절(예: mystery 20 ≈ 5%, treasure 12 ≈ 3%). 낮으면 거의 안 나옴!
-//    수상한 상자=상시, 보물상자=이벤트(gTreasureBoxOn)일 때만. 아레나·튜토리얼은 allowBoxes=false로 제외.
+// 📦 상자 드랍 — 물고기 룰렛과 **독립** 롤(2026-08-15 개편).
+//    이유: 이전엔 물고기 totalWeight에 상자 weight를 얹어서, 미끼 상성으로 어종 폭이 좁아지면
+//         (예: 루어=스푼/플라이) totalWeight가 낮아져 상자 상대확률이 훅 뛰는 문제(아들 제보 12개/시간).
+//    목표: 미끼·낚시터·어종 폭 무관, 50분 낚시(≈100-150회 시도)에 평균 2-4개.
+//    수상한 상자 = 2% (상시) · 보물상자 = 1% (이벤트 gTreasureBoxOn 켜졌을 때만).
+//    아레나·튜토리얼은 allowBoxes=false로 제외.
 // 🧪 kBoxTestMode=true 면 상자 자주 드랍 + 보물상자 강제 ON (테스트용, 배포 전 false로!)
 const bool kBoxTestMode = false;
-if (totalWeight < 1) totalWeight = 1;
-final int mysteryW = allowBoxes ? (kBoxTestMode ? 300 : 20) : 0;   // 수상한 상자 ≈ 5%
-final int treasureW = (allowBoxes && (gTreasureBoxOn || kBoxTestMode)) ? (kBoxTestMode ? 300 : 12) : 0; // 보물상자 ≈ 3%(이벤트 중만)
-final int grandTotal = totalWeight + mysteryW + treasureW;
-final int boxRoll = math.Random().nextInt(grandTotal);
-if (boxRoll >= totalWeight) {
-  final bool isMystery = boxRoll < totalWeight + mysteryW;
-  return {
-    'name': isMystery ? '수상한 상자' : '보물상자',
-    'isBox': true,
-    'boxType': isMystery ? 'mystery' : 'treasure',
-    'icon': isMystery ? '수상한 상자.png' : '보물상자.png',
-    'img': isMystery ? 'assets/items/수상한 상자.png' : 'assets/items/보물상자.png',
-    'unit': '개', 'size': 0.0, 'min': 0.0, 'max': 1.0, 'weightKg': 0.0, 'exp': 0, 'pts': 0,
-  };
+if (allowBoxes) {
+  final double mysteryP = kBoxTestMode ? 0.30 : 0.02;
+  final double treasureP = (gTreasureBoxOn || kBoxTestMode)
+      ? (kBoxTestMode ? 0.30 : 0.01)
+      : 0.0;
+  final double boxRoll = math.Random().nextDouble();
+  if (boxRoll < mysteryP + treasureP) {
+    final bool isMystery = boxRoll < mysteryP;
+    return {
+      'name': isMystery ? '수상한 상자' : '보물상자',
+      'isBox': true,
+      'boxType': isMystery ? 'mystery' : 'treasure',
+      'icon': isMystery ? '수상한 상자.png' : '보물상자.png',
+      'img': isMystery ? 'assets/items/수상한 상자.png' : 'assets/items/보물상자.png',
+      'unit': '개', 'size': 0.0, 'min': 0.0, 'max': 1.0, 'weightKg': 0.0, 'exp': 0, 'pts': 0,
+    };
+  }
 }
+if (totalWeight < 1) totalWeight = 1;
 
-    int randomWeight = boxRoll; // 물고기 구간(0~totalWeight-1)에 떨어진 값 재사용
+    int randomWeight = math.Random().nextInt(totalWeight);
 Map<String, dynamic>? selectedFish;
 int currentWeight = 0;
 for (var fish in availableFishes) {
@@ -706,4 +752,119 @@ for (var fish in availableFishes) {
 
     return 'assets/images/char_beginner.png';
   }
+}
+
+// =========================================================================
+// 🐲 [보스레이드 제압력 계산] 모임터(레이드 셋팅)와 전투화면이 같은 값을 쓰도록 공용화.
+//   userData = users/{uid} 문서. 낚시터 '자동장착'과 동일 규칙으로 최상급 장비를 고르되,
+//   낚싯대 슬롯만 레이드 전용대(category RAID)로 대체한다(있으면).
+//   반환: power(합산 제압력) · raidTier(1~3, 0=없음) · rodName · skinName · rodSfx(폴백 그림용)
+// =========================================================================
+Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool isSea = false}) {
+  final inv = (userData['inventory'] as List?) ?? [];
+  final int level = (userData['level'] is num) ? (userData['level'] as num).toInt() : 1;
+
+  int rodTierFw(String n) { n = n.replaceAll(' ', '').replaceAll('-', '').toUpperCase();
+    if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40;
+    if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
+  int rodTierSea(String n) { n = n.replaceAll(' ', '').toUpperCase();
+    if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40;
+    if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
+  int floatTier(String n) { n = n.replaceAll(' ', '').toUpperCase();
+    if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40;
+    if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
+  int reelTier(String n) { n = n.replaceAll(' ', '').toUpperCase();
+    if (n.contains('KF8000')) return 80; if (n.contains('KF6000')) return 60; if (n.contains('KF5000')) return 50;
+    if (n.contains('CF5000')) return 40; if (n.contains('CF3000')) return 30; return 1; }
+  int coolerTier(String n) { if (n.contains('대형')) return 3; if (n.contains('중형')) return 2; return 1; }
+
+  Map<String, dynamic>? skin, rod, raidRod, float, reel, cooler, sunglasses, badge, net, belt, gloves, line;
+  for (final raw in inv) {
+    if (raw is! Map) continue;
+    final item = Map<String, dynamic>.from(raw);
+    final name = (item['name'] ?? '').toString();
+    final cat = (item['category'] ?? '').toString().toUpperCase();
+    // 🐲 레이드대(category RAID)는 물/바다 구분 없이 최고 티어 → 낚싯대 슬롯 대체
+    if (isRaidRod(item)) {
+      if (raidRod == null || raidRodTierByName(name) > raidRodTierByName((raidRod['name'] ?? '').toString())) raidRod = item;
+      continue;
+    }
+    if (isSea && cat == 'FW') continue;
+    if (!isSea && cat == 'SEA') continue;
+
+    if (isSkinItem(item)) {
+      if (skin == null || skinTierByName(name) > skinTierByName((skin['name'] ?? '').toString())) skin = item;
+    } else if (name.contains('찌')) {
+      if (float == null || floatTier(name) > floatTier((float['name'] ?? '').toString())) float = item;
+    } else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) {
+      if (cooler == null || coolerTier(name) > coolerTier((cooler['name'] ?? '').toString())) cooler = item;
+    } else if (item['type'] == 'REEL' || name.contains('릴')) {
+      if (reel == null || reelTier(name) > reelTier((reel['name'] ?? '').toString())) reel = item;
+    } else if ((name.contains('대') || name.contains('CF') || name.contains('KT')) &&
+        !name.contains('찌') && !name.contains('릴') && !name.contains('아이스박스') && !name.contains('쿨러') && !name.contains('보냉')) {
+      final isSeaRod = name.contains('250') || name.contains('350') || name.contains('500');
+      if (isSea == isSeaRod) {
+        final t = isSea ? rodTierSea(name) : rodTierFw(name);
+        final bt = rod == null ? -1 : (isSea ? rodTierSea((rod['name'] ?? '').toString()) : rodTierFw((rod['name'] ?? '').toString()));
+        if (t > bt) rod = item;
+      }
+    }
+    else if (name.contains('선글라스')) sunglasses ??= item;
+    else if (name.contains('휘장') || name.contains('뱃지')) {
+      final p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
+      final bp = (badge?['stats']?['P'] as num?)?.toInt() ?? -1;
+      if (badge == null || p > bp) badge = item;
+    }
+    else if (name.contains('뜰채')) net ??= item;
+    else if (name.contains('벨트')) belt ??= item;
+    else if (name.contains('장갑')) gloves ??= item;
+    else if (name.contains('낚시줄')) line ??= item;
+  }
+
+  final Map<String, dynamic>? rodForCalc = raidRod ?? rod;
+  final s = FishingLogic.getMyTotalStats(
+    equippedSkin: skin, equippedRod: rodForCalc, equippedFloat: float, equippedReel: reel,
+    equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
+    equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
+  );
+  final lvBonus = ((level > 0 ? level : 1) - 1) * 3;
+  int power = (s['strength'] ?? 0) + (s['control'] ?? 0) + (s['sensitivity'] ?? 0) + lvBonus;
+  final tp = (userData['testPower'] is num) ? (userData['testPower'] as num).toInt() : 0;
+  if (tp > 0) power = tp;
+
+  String sfx = rod != null ? rodSceneSuffix(rod) : '';
+  if (sfx.isEmpty) sfx = isSea ? 'kt500' : 'kt40';
+
+  // 🎒 레이드에 실제로 쓰일 장비 목록(모임터 '내 장비' 패널용). null 슬롯은 제외.
+  final List<Map<String, dynamic>> gearList = [];
+  void addGear(String slot, Map<String, dynamic>? it) {
+    if (it == null) return;
+    gearList.add({'slot': slot, 'name': (it['name'] ?? '').toString(), 'icon': (it['icon'] ?? '').toString()});
+  }
+  addGear('낚싯대', rodForCalc);
+  addGear('스킨', skin);
+  addGear('릴', reel);
+  addGear('찌', float);
+  addGear('휘장', badge);
+  addGear('선글라스', sunglasses);
+  addGear('뜰채', net);
+  addGear('벨트', belt);
+  addGear('장갑', gloves);
+  addGear('낚시줄', line);
+  addGear('쿨러', cooler);
+
+  return {
+    'power': power,
+    'raidTier': raidRod != null ? raidRodTierByName((raidRod['name'] ?? '').toString()) : 0,
+    'raidRod': raidRod,
+    'rodName': rodForCalc?['name'] ?? '기본 장비',
+    'skinName': skin?['name'] ?? '기본 스킨',
+    'rodSfx': sfx,
+    'gearList': gearList,
+    'level': level,
+    // HUD 표시용 스탯 분해(레벨 보너스 포함 — 합=power와 동일)
+    'p': (s['strength'] ?? 0) + lvBonus ~/ 3,
+    'c': (s['control'] ?? 0) + lvBonus ~/ 3,
+    's': (s['sensitivity'] ?? 0) + (lvBonus - (lvBonus ~/ 3) * 2),
+  };
 }

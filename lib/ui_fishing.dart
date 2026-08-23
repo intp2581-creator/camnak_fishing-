@@ -9,7 +9,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:html' as html;
 import 'package:flutter/gestures.dart';
 // 👇 우리가 1,2,3,4탄에서 쪼개놓은 피땀눈물 파일들 연결!
-import 'game_config.dart';   
+import 'game_config.dart';
+import 'screenshot.dart'; // 📸 화면 스샷(JPG 저장)   
 import 'fishing_logic.dart'; 
 import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
@@ -78,6 +79,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
 // 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
   void toggleFullScreen() {
+    // 📱 모바일도 필요 — 전체화면 없으면 게임 화면 잘려 플레이 불가(유저 제보)
     try {
       // 🚨 브라우저가 전체화면이 아니라고 판단하면 (전화받고 왔을 때 등)
       if (html.document.fullscreenElement == null) {
@@ -733,8 +735,8 @@ Widget _whisperUnreadBadge() {
 
     isRodEquipped = equippedRod != null;
 
-    // 🍚 일반 낚시터 입장 시 밑밥 1개 소모 → 이번 세션 감도 +10 (아레나는 method 내부에서 제외)
-    _useGroundbaitOnEntry();
+    // 🍚 밑밥은 입장 시 자동 소모 X → 캐스팅 후 화면의 "밑밥" 버튼으로 수동 사용(채집망 옆). (2026-08-16 사용자 요청)
+    //    (자동이면 낚시터 옮기기만 해도 소모돼 낭비 → 원할 때만 뿌리게)
 
     // 👇 [여기서부터 덮어씌우기] 아레나 모드 진입 시 장비 강제 풀세팅!
     if (widget.title != widget.locationName) {
@@ -999,6 +1001,8 @@ Widget _whisperUnreadBadge() {
   // ⏎ 엔터로 채팅창 활성화 (마우스 클릭 없이 바로 채팅). 채팅 미포커스 + 다른 입력창 없을 때만.
   bool _onEnterFocusChat(KeyEvent e) {
     if (e is! KeyDownEvent) return false;
+    // 🛑 이 화면 위에 다른 화면(파이팅 오버레이·팝업 등)이 떠 있으면 무시(엔터가 새서 채팅이 열리는 것 방지)
+    if (!mounted || ModalRoute.of(context)?.isCurrent != true) return false;
     if (e.logicalKey != LogicalKeyboardKey.enter && e.logicalKey != LogicalKeyboardKey.numpadEnter) return false;
     if (_chatFocus.hasFocus) return false; // 이미 채팅 중이면 기본 전송(onSubmitted)에 맡김
     final pf = FocusManager.instance.primaryFocus;
@@ -1150,7 +1154,9 @@ Widget _whisperUnreadBadge() {
 
       if (remainingTimeNotifier.value > 0) {
         remainingTimeNotifier.value--;
-        if (remainingTimeNotifier.value % 10 == 0) {
+        // ⏱️ 3초마다 저장 — F5(새로고침)로 마지막 저장 이후 시간을 되돌려받던 익스플로잇 차단.
+        //    (10초였을 땐 F5로 최대 9초씩 벌 수 있었음. 3초면 리로드 시간이 더 걸려 이득 0)
+        if (remainingTimeNotifier.value % 3 == 0) {
           _saveDailyTimeToFirebase(remainingTimeNotifier.value);
         }
       } else {
@@ -2221,14 +2227,23 @@ Widget _whisperUnreadBadge() {
         final sv = (s is num) ? s.toDouble() : 0.0;
         if (sv > topSize) topSize = sv;
       }
-      // 기존 전체 1위 기록을 넘어섰을 때만(첫 기록·소물은 방송 안 함)
-      if (topSize > 0 && caughtSize > topSize) {
+      // 🏆 방송 조건 (2026-08-16 개편): ①남의 1위 기록을 깸  OR  ②첫 기록이지만 '대물'(그 어종 최대어의 40%↑)
+      //    신규 어종은 아직 아무도 기록이 없어 첫 타자가 조용히 지나가던 문제 → 첫 대물도 팡파레.
+      //    (잡챙이 스팸 방지: 최대어 40% 미만 소물은 첫 기록이어도 방송 안 함)
+      double speciesMax = 0.0;
+      for (final f in [...fwFishPool, ...seaFishPool]) {
+        if (f['name'] == fishName) { speciesMax = (f['max'] as num?)?.toDouble() ?? 0.0; break; }
+      }
+      final bool beatRecord = topSize > 0 && caughtSize > topSize;
+      final bool firstBig = topSize <= 0 && speciesMax > 0 && caughtSize >= speciesMax * 0.4;
+      if (beatRecord || firstBig) {
         final sizeStr = caughtSize == caughtSize.roundToDouble()
             ? caughtSize.toStringAsFixed(0)
             : caughtSize.toStringAsFixed(1);
+        final tail = beatRecord ? '최대어 랭킹 1위를 갱신했습니다!' : '최대어 랭킹 1위에 등극했습니다! 🥇';
         await FirebaseFirestore.instance.collection('ticker_news').add({
           'text': '🎉 축하합니다! ${widget.nickname}님이 ${widget.locationName}에서 '
-              '$fishName $sizeStr$unit를 잡아 최대어 랭킹 1위를 갱신했습니다!',
+              '$fishName $sizeStr$unit를 잡아 $tail',
           'nickname': widget.nickname,
           'timestamp': FieldValue.serverTimestamp(),
         });
@@ -2544,6 +2559,8 @@ void _recast() {  // 기존 코드
     );
   }
 
+  final GlobalKey _shotKey = GlobalKey(); // 📸 스크린샷 캡처 범위
+
   @override
   Widget build(BuildContext context) {
     String currentCharacterImg = 'assets/images/char_beginner.png';
@@ -2555,7 +2572,7 @@ void _recast() {  // 기존 코드
     //    ⚔️ 아레나 경기 중 시스템/브라우저 뒤로가기도 확인 팝업 거치게 WillPopScope로 감쌈
     return WillPopScope(
       onWillPop: _onWillPopFishing,
-      child: Stack(
+      child: RepaintBoundary(key: _shotKey, child: Stack(
       children: [
         // ==========================================================
         // 1. 사장님의 기존 본게임 화면
@@ -2684,6 +2701,46 @@ Positioned(
         ]),
       ),
     ),
+    // 🦐 새우 채집망 던지기/건지기 (민물 전용 · 보유 시에만 표시) — 상단바에서 이쪽으로 이동
+    if (_hasShrimpTrap() && !widget.isSea) ...[
+      const SizedBox(width: 10),
+      GestureDetector(
+        onTap: _toggleShrimpTrap,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _trapDeployed ? const Color(0xCC1B5E20) : Colors.black54,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.amber, width: 2)),
+          child: Column(children: [
+            const Text('🦐', style: TextStyle(fontSize: 26)),
+            const SizedBox(height: 4),
+            Text(_trapDeployed ? '건지기' : '채집망', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ),
+    ],
+    // 🍚 밑밥 뿌리기 (밑밥 장착 상태 · 아직 안 뿌렸을 때만 표시) — 수동으로 감도+10 (낚시터당 1개 소모)
+    if (equippedGroundbait != null && !_groundbaitActive && widget.roomId == null) ...[
+      const SizedBox(width: 10),
+      GestureDetector(
+        onTap: _useGroundbaitOnEntry,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.amber, width: 2)),
+          child: Column(children: [
+            Image.asset('assets/items/${(equippedGroundbait!['icon'] ?? 'chum_fw.png')}',
+                width: 28, height: 28, fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Text('🍚', style: TextStyle(fontSize: 26))),
+            const SizedBox(height: 4),
+            const Text('밑밥', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ]),
+        ),
+      ),
+    ],
   ]),
 ),
           
@@ -2830,8 +2887,7 @@ Positioned(
                 },
               ),
               const SizedBox(width: 8),
-              
-              _buildTopMiniButton(
+              _buildTopMiniButton( // 📱 모바일도 필요(전체화면 없으면 게임 불가)
                 icon: Icons.fullscreen,
                 onPressed: toggleFullScreen,
               ),
@@ -2841,6 +2897,15 @@ Positioned(
                 icon: Icons.shield,
                 onPressed: () => showGuildInfoDialog(context),
               ),
+              const SizedBox(width: 8),
+              // 📸 스크린샷 — 조과 자랑샷 저장(홈페이지 조행기 업로드용)
+              _buildTopMiniButton(
+                icon: Icons.photo_camera,
+                onPressed: () {
+                  audioManager.playSfx('sfx_click.mp3');
+                  takeScreenshot(context, _shotKey, prefix: 'camnak_fishing');
+                },
+              ),
               // 📜 퀘스트 진행현황 (두루마리 아이콘 — 광장 아라 퀘스트 용지와 통일 · 일반 낚시터에서만)
               if (widget.roomId == null) ...[
                 const SizedBox(width: 8),
@@ -2849,26 +2914,7 @@ Positioned(
                   onPressed: () { audioManager.playSfx("sfx_click.mp3"); _showQuestPopup(); },
                 ),
               ],
-              // 🦐 새우 채집망 던지기/건지기 (민물 전용 · 보유 시에만 표시)
-              if (_hasShrimpTrap() && !widget.isSea) ...[
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _toggleShrimpTrap,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: _trapDeployed ? const Color(0xCC1B5E20) : Colors.black87,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFD4AF37), width: 1),
-                    ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      const Text('🦐', style: TextStyle(fontSize: 14)),
-                      const SizedBox(width: 6),
-                      Text(_trapDeployed ? '건지기' : '채집망', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold)),
-                    ]),
-                  ),
-                ),
-              ],
+              // 🦐 채집망 버튼은 상단바에서 우측 인벤토리/미끼교체 줄로 이동(상단 붐빔·날씨창 겹침 해소, 2026-08-16)
               const SizedBox(width: 20), // 황금 버튼들과 닉네임 바 사이의 넉넉한 간격!
 
               // 👇 (기존의 1429번 줄 Container 시작 부분이 이 아래로 오면 됩니다!)
@@ -3205,7 +3251,7 @@ Positioned(
           ),
           
       ],
-    ), // 🚀 2. 아까 위에서 열었던 Stack 필름을 최종적으로 닫아줍니다!
+    )), // 🚀 2. Stack + RepaintBoundary(📸 스샷 범위) 닫기
     ); // ⚔️ WillPopScope 닫기
   } // <-- build 함수 끝나는 괄호
 
@@ -3965,6 +4011,8 @@ Positioned(
 
       for (var item in validItems) {
         String name = item['name'].toString();
+        // 🐲 레이드 전용 낚싯대(KREFT)는 일반 낚시 자동장착 대상 아님 — type:'ROD'라 민물대로 오인·최상급 장착되던 버그 차단
+        if (item is Map && (item['category'] == 'RAID' || isRaidRod(item))) continue;
         if (isSkinItem(item)) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
         else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) { if (bestCooler == null || getCoolerTier(name) > getCoolerTier(bestCooler!['name'].toString())) { bestCooler = item; } }
@@ -4059,6 +4107,8 @@ Positioned(
     }
     audioManager.playSfx("sfx_click.mp3");
     String category = item['category'] ?? '';
+    // 🐲 레이드 전용 낚싯대는 일반 낚시터에서 장착 불가 (길드 보스레이드 전용)
+    if (category == 'RAID' || isRaidRod(item)) { _showNotificationPopup('🐲 레이드 전용 장비', '레이드 낚싯대는 길드 보스레이드에서만 쓸 수 있어요!\n(일반 낚시터에선 일반 낚싯대를 장착하세요)', Colors.redAccent); return; }
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비/미끼를 쓸 수 없습니다!', Colors.redAccent); return; }
 
@@ -4165,6 +4215,14 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // 🦐 새우 채집망 등 '도구(TRAP)'는 미끼/장비가 아님 → catch-all else로 미끼 장착돼 캐스팅 시 소모되는 버그 차단.
+    //    (한라삼천 유저 채집망 사라짐 버그 재발: _openItemPopup엔 이미 가드 있는데 _quickEquipItem에 빠져있었음. 2026-08-16 수정.)
+    if ((item['type'] ?? '').toString().toUpperCase() == 'TRAP') {
+      _showNotificationPopup('🦐 채집망 사용법',
+          '새우 채집망은 미끼가 아니에요!\n민물 낚시 중 화면의 "채집망" 버튼으로 던지면\n1분마다 민물새우(미끼)가 모여요. 🦐',
+          const Color(0xFFD4AF37));
+      return;
+    }
     // 🎣 루어모드: 루어대(BC)+루어미끼만 허용
     if (_lureMode && _lureBlocked(item)) {
       _showNotificationPopup('🎪 루어낚시', '루어낚시에선 루어대(BC)와 루어미끼(스푼/웜/플라이)만 쓸 수 있어요.\n(찌·일반미끼·일반 낚싯대는 일반낚시에서!)', const Color(0xFFD4AF37));
@@ -4176,6 +4234,8 @@ Positioned(
       return;
     }
     String category = item['category'] ?? '';
+    // 🐲 레이드 전용 낚싯대는 일반 낚시터에서 장착 불가 (길드 보스레이드 전용) — RAID 카테고리라 FW/SEA 체크를 통과하던 버그 차단
+    if (category == 'RAID' || isRaidRod(item)) { _showNotificationPopup('🐲 레이드 전용 장비', '레이드 낚싯대는 길드 보스레이드에서만 쓸 수 있어요!\n(일반 낚시터에선 일반 낚싯대를 장착하세요)', Colors.redAccent); return; }
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     audioManager.playSfx("sfx_click.mp3"); 
@@ -4662,6 +4722,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       '고등어': 80.0, '우럭': 70.0, '갈치': 150.0, '참돔': 120.0,
       '벵에돔': 60.0, '갑오징어': 55.0, '주꾸미': 30.0, '광어': 120.0,
       '감성돔': 80.0, '문어': 120.0, '참치': 200.0,
+      // 🐟 [신규 2026-08-16] 루어어종(쏘가리·꺽지·무지개송어)+신규7종 최대어 (힘 계산 기준)
+      '쏘가리': 55.0, '꺽지': 30.0, '무지개송어': 55.0, '볼락': 30.0, '학꽁치': 45.0,
+      '향어': 100.0, '민물장어': 120.0, '동자개': 30.0, // 동자개=30↓ 방해꾼(항상 약함)
+      '성대': 40.0, '농어': 70.0, '부시리': 120.0, '돌돔': 60.0,
     };
     
     String fishName = widget.fish['name']?.toString() ?? '';

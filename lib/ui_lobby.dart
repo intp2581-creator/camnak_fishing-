@@ -1347,21 +1347,62 @@ class _StoreScreenState extends State<StoreScreen> {
   String _sellTab = '장비'; // 💰 판매 탭 안의 서브탭: 장비 / 물고기
   final Set<String> _fishExcluded = <String>{}; // 🐟 선택판매에서 뺀 어종(체크 해제 = 안 팜)
   String currentTab = 'ROD';
+  bool _isGm = false; // 🛡️ GM 계정 여부 — 최상급 보호 스킵용
+  Map<String, dynamic> _purchaseDates = {}; // 🎟️ 아이템별 마지막 구매일(1일 1회 구매 제한 표시용)
 
   @override
   void initState() {
     super.initState();
     myDisplayGold = widget.currentGold;
     myInventory = List.from(widget.currentInventory);
+    _loadIsGm();
   }
 
-  // 상점 정가 조회(이름으로) — 판매가 계산에 사용
+  // 🛡️ users/{uid}.isGm + purchaseDates 로드
+  Future<void> _loadIsGm() async {
+    try {
+      final u = FirebaseAuth.instance.currentUser;
+      if (u == null) return;
+      final d = await FirebaseFirestore.instance.collection('users').doc(u.uid).get();
+      final gm = d.data()?['isGm'] == true;
+      final pd = Map<String, dynamic>.from(d.data()?['purchaseDates'] ?? {});
+      if (mounted) setState(() { _isGm = gm; _purchaseDates = pd; });
+    } catch (_) {}
+  }
+
+  // 상점 정가 조회(이름으로) — 판매가 계산에 사용. 🐲 레이드대 상점(길드) 정가도 포함.
   int? _storePriceOf(String name) {
-    for (final list in [storeRodItems, storeGearItems, storeBaitItems, storeAuxItems, storeSkinItems]) {
+    for (final list in [storeRodItems, storeGearItems, storeBaitItems, storeAuxItems, storeSkinItems, storeGuildRaidRods]) {
       for (final it in list) {
         if (it['name'] == name) return (it['price'] as int?) ?? 0;
       }
     }
+    return null;
+  }
+
+  // 🚫 판매 금지 아이템 판정 (도구·이용권·미공개 최상위 스킨)
+  bool _isNonSellable(Map<String, dynamic> item) {
+    final t = (item['type'] ?? '').toString().toUpperCase();
+    final c = (item['category'] ?? '').toString().toUpperCase();
+    final n = (item['name'] ?? '').toString();
+    // 🦐 도구(새우 채집망 등) — 팔아먹을 사람 없음, 실수 방지
+    if (t == 'TRAP') return true;
+    // 🎟️ 이용권류(1시간 이용권·아레나 입장권 등) — 유료 결제라 판매 X
+    if (c == 'TICKET') return true;
+    // 👑 발표 전 최상위 스킨(레전드·낚시의 신) — 아직 팔지 않음
+    if (n.contains('레전드') || n.contains('낚시의')) return true;
+    return false;
+  }
+
+  // 👕 스킨 커스텀 판매가 (초보 100 · 하수 10,000 · 중수 25,000 · 고수 50,000 · 프로 100,000 · 마스터 250,000)
+  //   레전드/신은 _isNonSellable에서 차단되므로 여기 없음.
+  int? _skinSellPrice(String name) {
+    if (name.contains('초보')) return 100;
+    if (name.contains('하수')) return 10000;
+    if (name.contains('중수')) return 25000;
+    if (name.contains('고수')) return 50000;
+    if (name.contains('프로')) return 100000;
+    if (name.contains('마스터')) return 250000;
     return null;
   }
 
@@ -1373,11 +1414,15 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   // 판매가: 정가의 30%(없으면 기본 100P). 미끼는 개당 5P × 수량(묶음 전체).
+  //   👕 스킨은 별도 가격표(_skinSellPrice) 사용. 🐲 레이드대는 storeGuildRaidRods 정가의 30%.
   int _sellPrice(Map<String, dynamic> item) {
     final name = (item['name'] ?? '').toString();
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     if ((item['type'] ?? '') == 'FISH') return fishSellPrice(name) * qty; // 🐟 잡은 고기: 어종별 마리당 가격 × 수량
     if (_isBaitItem(item)) return (5 * qty).clamp(5, 999999);
+    // 👕 스킨은 이름별 커스텀 가격표 우선 적용
+    final skinP = _skinSellPrice(name);
+    if (skinP != null) return skinP;
     final p = _storePriceOf(name);
     // 무료 지급품(0P)도 인벤 정리용으로 팔 수 있게 (구매는 막아서 되팔이 악용 방지)
     final unit = (p != null && p > 0) ? (p * 0.3).floor() : 100;
@@ -1385,6 +1430,7 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   // 부위 분류(최상급 보호 판단용)
+  //   ⚠️ 낚싯대는 민물(FW)·바다(SEA)·레이드(RAID)로 분리 — 안 그러면 CF-40T(민물) 사면 CF250(바다) 보호가 풀림.
   String _slotType(Map<String, dynamic> item) {
     final n = (item['name'] ?? '').toString().replaceAll(' ', '').toUpperCase();
     if (n.contains('찌')) return 'float';
@@ -1394,7 +1440,12 @@ class _StoreScreenState extends State<StoreScreen> {
         n.contains('6000') || n.contains('8000')) {
       return 'reel';
     }
-    if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'rod';
+    if (n.contains('대') || n.contains('CF') || n.contains('KT') || n.contains('KREFT') || n.contains('BC')) {
+      final cat = (item['category'] ?? '').toString().toUpperCase();
+      if (cat == 'SEA') return 'rod_sea';
+      if (cat == 'RAID') return 'rod_raid';
+      return 'rod_fw'; // 기본 = 민물
+    }
     if (n.contains('선글라스')) return 'sun';
     if (n.contains('휘장') || n.contains('뱃지')) return 'badge';
     if (_isBaitItem(item)) return 'bait';
@@ -1414,9 +1465,11 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   // 보유 중 같은 부위에서 가장 좋은(최상급) 아이템인가? (실수 판매 방지)
+  //   🛡️ GM(캠피싱)은 최상급 보호 스킵 — 아무 장비나 자유롭게 팔아서 테스트 가능하게.
   bool _isTopGrade(Map<String, dynamic> item) {
+    if (_isGm) return false;
     final type = _slotType(item);
-    if (!['rod', 'reel', 'float', 'skin', 'sun', 'badge'].contains(type)) return false;
+    if (!['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float', 'skin', 'sun', 'badge'].contains(type)) return false;
     final myGrade = _gradeOf(item);
     if (myGrade <= 0) return false;
     int maxGrade = 0;
@@ -1618,12 +1671,14 @@ class _StoreScreenState extends State<StoreScreen> {
     final bool isFish = (item['type'] ?? '') == 'FISH';
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
+    // 🚫 판매 금지 항목(도구·이용권·미공개 스킨) — '초보'는 기본 지급이라 별도 처리
+    final bool nonSellable = _isNonSellable(item);
     final isBeginner = itemName.contains('초보');
     final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급
-    final bool isGear = ['rod', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
+    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
     // ⭐ 최상급은 잠금하되, 중복(2개+)이면 '여분'은 판매 허용 → 마지막 1개(=쓰는 것)만 보호
     final bool topLocked = isTop && !(isGear && qty > 1);
-    final sellable = !isBeginner && !topLocked;
+    final sellable = !isBeginner && !topLocked && !nonSellable;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
@@ -1662,7 +1717,10 @@ class _StoreScreenState extends State<StoreScreen> {
           child: Padding(
             padding: const EdgeInsets.all(14),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Center(child: Text(sellable ? '+$price P' : (isTop ? '🔒 잠금' : '판매 불가'), style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : (isTop ? const Color(0xFFD4AF37) : Colors.white38), fontSize: 18, fontWeight: FontWeight.w900))),
+              Center(child: Text(
+                sellable ? '+$price P' : (isTop ? '🔒 잠금' : (nonSellable ? '판매 불가' : '판매 불가')),
+                style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : (isTop ? const Color(0xFFD4AF37) : Colors.white38),
+                    fontSize: 18, fontWeight: FontWeight.w900))),
               const SizedBox(height: 8),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
@@ -1671,7 +1729,11 @@ class _StoreScreenState extends State<StoreScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
                 onPressed: sellable ? () => _confirmSell(item, price, bait, qty) : null,
-                child: Text(sellable ? '팔기' : (isTop ? '최상급 보호' : '기본 지급'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                child: Text(
+                  sellable ? '팔기'
+                    : (isTop ? '최상급 보호'
+                      : (nonSellable ? '판매 금지' : '기본 지급')),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ]),
           ),
@@ -1727,7 +1789,7 @@ class _StoreScreenState extends State<StoreScreen> {
     if (user == null) return;
     final name = item['name'].toString();
     // 🎣 낚싯대/릴/찌는 한 개씩 판매(중복이어도 장착/보유분 보호 — 실수로 둘 다 안 팔리게)
-    final bool isGear = ['rod', 'reel', 'float'].contains(_slotType(item));
+    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float'].contains(_slotType(item));
     final int curQty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bool sellOne = isGear && curQty > 1;
     try {
@@ -1805,6 +1867,8 @@ class _StoreScreenState extends State<StoreScreen> {
                   final isFreeStarter = (item['price'] is num) && (item['price'] as num) <= 0;
                   if (isFreeStarter || (isSkin && itemName.contains('초보'))) return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [const Center(child: Text('기본 지급', style: TextStyle(color: Colors.grey, fontSize: 16, fontWeight: FontWeight.bold))), const SizedBox(height: 10), ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade900, foregroundColor: Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))), onPressed: null, child: const Text('구매 불가', style: TextStyle(fontWeight: FontWeight.bold)))]);
                   bool isMallOnly = isSkin || item['cash'] == true || itemName.contains('1시간 이용권');
+                  // 💳 결제 오픈 게이트 — 전역 스위치(kPaymentOpen) OR GM 계정.
+                  final bool paymentOpen = kPaymentOpen || _isGm;
                   if (isMallOnly) {
                     final int priceKrw = (item['price'] is num) ? (item['price'] as num).toInt() : 0;
                     final String priceStr = priceKrw.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (m) => ',');
@@ -1814,35 +1878,42 @@ class _StoreScreenState extends State<StoreScreen> {
                     // 🎖️ 승급(칭호) 체크 — 스킨은 해당 승급 퀘스트 통과해야 구매 가능(레벨만으론 불가, 웹훅과 일치)
                     final String reqRank = isSkin ? skinReqRank(itemName) : '';
                     final bool rankOk = reqRank.isEmpty || rankIndex(widget.currentRank) >= rankIndex(reqRank);
-                    // 🚫 이미 보유 중인 스킨·휘장(계정당 1개)은 재구매 불가
-                    final bool alreadyOwned = (isSkin || item['cash'] == true) && myInventory.any((i) => i['name'] == itemName);
+                    // 🚫 스킨·휘장(계정당 1개)=보유 시 재구매 불가 / 🎟️ 소비성(이용권·입장권)=1일 1회 구매
+                    final bool isConsumable = (item['category'] == 'TICKET');
+                    final String today = DateTime.now().toString().substring(0, 10);
+                    final bool boughtToday = isConsumable && (_purchaseDates[itemName] == today);
+                    final bool alreadyOwned = !isConsumable && (isSkin || item['cash'] == true) && myInventory.any((i) => i['name'] == itemName);
+                    final bool blocked = alreadyOwned || boughtToday; // 구매 막힘(보유중 or 오늘 이미 구매)
                     final bool buyOk = lvOk && rankOk; // 레벨 + 승급 둘 다 충족해야 구매 가능
                     return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                      Center(child: Text('₩$priceStr', style: TextStyle(color: (buyOk && !alreadyOwned) ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
+                      Center(child: Text('₩$priceStr', style: TextStyle(color: (buyOk && !blocked) ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
                       const SizedBox(height: 6),
                       if (alreadyOwned)
                         const Center(child: Text('✅ 보유 중', style: TextStyle(color: Color(0xFF7FFFB0), fontSize: 12, fontWeight: FontWeight.bold)))
+                      else if (boughtToday)
+                        const Center(child: Text('✅ 오늘 구매완료\n(내일 다시 구매 가능)',
+                            textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF7FFFB0), fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
                       else if (!lvOk)
                         Center(child: Text('🔒 Lv.$reqLv 부터 구매 가능\n(현재 Lv.${widget.currentLevel})',
                             textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
                       else if (!rankOk)
                         Center(child: Text('🔒 \'$reqRank\' 승급 후 구매 가능\n(아라 NPC 승급 퀘스트)',
                             textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
-                      else if (!kPaymentOpen)
+                      else if (!paymentOpen)
                         const Center(child: Text('🔜 결제 준비 중이에요. 곧 오픈됩니다!',
                             textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFD4AF37), fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
                       const SizedBox(height: 6),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (buyOk && !alreadyOwned && kPaymentOpen) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
-                          foregroundColor: (buyOk && !alreadyOwned && kPaymentOpen) ? Colors.black : Colors.white38,
+                          backgroundColor: (buyOk && !blocked && paymentOpen) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+                          foregroundColor: (buyOk && !blocked && paymentOpen) ? Colors.black : Colors.white38,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: (buyOk && !alreadyOwned && kPaymentOpen)
+                        onPressed: (buyOk && !blocked && paymentOpen)
                             ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName); }
                             : null,
-                        child: Text(alreadyOwned ? '구매 완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (!kPaymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매'))),
+                        child: Text(alreadyOwned ? '구매 완료' : (boughtToday ? '오늘 구매완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (!paymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매')))),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ]);
@@ -1932,7 +2003,7 @@ class _StoreScreenState extends State<StoreScreen> {
           TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-            onPressed: () { Navigator.pop(c); html.window.open(kGameStoreUrl, 'camnak_store'); },
+            onPressed: () { Navigator.pop(c); html.window.open(mallUrlForItem(itemName), 'camnak_store'); },
             child: const Text('쇼핑몰로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],

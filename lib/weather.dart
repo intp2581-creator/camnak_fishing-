@@ -94,9 +94,18 @@ class WeatherService {
       final data = json.decode(resp) as Map<String, dynamic>;
       final rawPty = data['pty'];
       final pty = rawPty is int ? rawPty : int.tryParse('$rawPty') ?? 0;
+      // 🌡️ 기상청 API가 결측 시 -999 같은 sentinel값을 뱉는 경우가 있어 방어.
+      //    (유저 제보: "-999°C" 그대로 노출된 버그 · 곽성근님 2026-08-16)
+      //    한국 기상 현실 범위 훨씬 밖(|t|≥100)이면 결측으로 판정 → '--'로 표시.
+      String? tempStr;
+      final rawTemp = data['temp'];
+      if (rawTemp != null) {
+        final t = double.tryParse(rawTemp.toString());
+        tempStr = (t == null || t.abs() >= 100) ? '--' : rawTemp.toString();
+      }
       notifier.value = WeatherInfo(
         pty: pty,
-        temp: data['temp']?.toString(),
+        temp: tempStr,
         region: (data['region'] ?? '').toString(),
       );
       _lastFetch = DateTime.now();
