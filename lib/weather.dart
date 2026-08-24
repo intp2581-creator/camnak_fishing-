@@ -203,7 +203,10 @@ void _showLocationGuide(BuildContext context) {
 /// 사용: Positioned.fill(child: IgnorePointer(child: WeatherOverlay()))
 class WeatherOverlay extends StatefulWidget {
   final bool isSea; // 바다면 비를 살짝 더 세게
-  const WeatherOverlay({super.key, this.isSea = false});
+  // 🎣👀 관전: 친구 날씨를 강제 적용(뷰어 위치의 WeatherService 무시). null=평소처럼 내 위치 날씨.
+  //   지정하면 서비스 리스너를 안 붙이고 빗소리도 재생하지 않음(시각만).
+  final WeatherInfo? forceWeather;
+  const WeatherOverlay({super.key, this.isSea = false, this.forceWeather});
   @override
   State<WeatherOverlay> createState() => _WeatherOverlayState();
 }
@@ -220,14 +223,26 @@ class _WeatherOverlayState extends State<WeatherOverlay>
   @override
   void initState() {
     super.initState();
-    _w = WeatherService.instance.notifier.value;
+    // 🎣👀 관전: forceWeather 지정 시 그 값을 쓰고 서비스 리스너/빗소리 없음
+    _w = widget.forceWeather ?? WeatherService.instance.notifier.value;
     _rebuildDrops();
-    _updateRainSound();
-    WeatherService.instance.notifier.addListener(_onWeather);
+    if (widget.forceWeather == null) {
+      _updateRainSound();
+      WeatherService.instance.notifier.addListener(_onWeather);
+    }
     _ticker = createTicker((elapsed) {
       _time = elapsed.inMicroseconds / 1e6;
       if (mounted && !_w.isClear) setState(() {});
     })..start();
+  }
+
+  @override
+  void didUpdateWidget(covariant WeatherOverlay old) {
+    super.didUpdateWidget(old);
+    // 🎣👀 관전: 방송된 날씨(pty)가 바뀌면 갱신
+    if (widget.forceWeather != null && widget.forceWeather!.pty != _w.pty) {
+      setState(() { _w = widget.forceWeather!; _rebuildDrops(); });
+    }
   }
 
   void _onWeather() {
@@ -277,7 +292,7 @@ class _WeatherOverlayState extends State<WeatherOverlay>
 
   @override
   void dispose() {
-    WeatherService.instance.notifier.removeListener(_onWeather);
+    if (widget.forceWeather == null) WeatherService.instance.notifier.removeListener(_onWeather);
     if (_holdingRain) { _holdingRain = false; audioManager.releaseRain(); } // 🌧️ 화면 나가면 참조 반납
     _ticker.dispose();
     super.dispose();

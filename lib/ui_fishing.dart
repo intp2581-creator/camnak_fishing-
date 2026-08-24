@@ -78,6 +78,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   bool _showFishingRating = true; // 🎖️ 낚시 화면 등급 마크(30초 노출 후 사라짐 — 광장과 통일, 규정 충족)
   Timer? _ratingHideTimer;
   bool _liveStarted = false; // 🎣👀 라이브 관전 방송 시작됨(등급/닉 로드 후 1회)
+  void _liveWeatherSync() => FishingLive.updateWeather(WeatherService.instance.notifier.value.pty); // 🌧️ 날씨 변경 방송
 // 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
   void toggleFullScreen() {
@@ -898,6 +899,7 @@ Widget _whisperUnreadBadge() {
     _chatFocus.dispose();
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
+    WeatherService.instance.notifier.removeListener(_liveWeatherSync); // 🌧️ 관전 날씨 동기화 해제
     FishingLive.stop(); // 🎣👀 라이브 관전 방송 종료(fishing_live 노드 정리)
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
     _garamRotateTimer?.cancel(); // 🎤 멘트 회전 타이머 정리
@@ -2601,6 +2603,29 @@ void _recast() {  // 기존 코드
           Positioned.fill(child: IgnorePointer(child: WeatherOverlay(isSea: widget.isSea))),
           // 🌦️ 날씨 뱃지(지역·기온) — 타이머 바로 아래에 딱 붙임
           const Positioned(top: 78, left: 0, right: 0, child: IgnorePointer(child: Center(child: WeatherBadge()))),
+          // 👀 관전자 표시(누가 내 낚시를 보는지) — 일반 낚시(아레나 아님)일 때만
+          if (widget.roomId == null)
+            Positioned(top: 104, left: 0, right: 0, child: IgnorePointer(child: Center(
+              child: ValueListenableBuilder<List<String>>(
+                valueListenable: FishingLive.watcherNamesNotifier,
+                builder: (c, names, _) {
+                  if (names.isEmpty) return const SizedBox.shrink();
+                  final String label = names.length <= 2
+                      ? names.join(', ')
+                      : '${names.take(2).join(', ')} 외 ${names.length - 2}명';
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.55),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF7FFFB0).withOpacity(0.7), width: 1),
+                    ),
+                    child: Text('👀 관전 ${names.length} · $label',
+                        style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 13, fontWeight: FontWeight.bold)),
+                  );
+                },
+              ),
+            ))),
           // 📢 실시간 자막(뉴스 티커): 진행 중 이벤트 + 최대어 랭킹 갱신을 한 줄로 흐르게.
           //    (기존 이벤트 배너 자리. 경험치 뒤 ~ 인벤토리 앞 가운데 폭으로 제한해 HUD와 안 겹침)
           const Positioned(
@@ -2777,7 +2802,21 @@ Positioned(
                         FishingLive.start(liveU.uid,
                           spot: widget.locationName.isNotEmpty ? widget.locationName : widget.title,
                           sea: widget.isSea, bg: widget.bgImagePath,
-                          rank: realRank, nick: realNickname);
+                          rank: realRank, nick: realNickname,
+                          pty: WeatherService.instance.notifier.value.pty); // 🌧️ 현재 날씨
+                        WeatherService.instance.notifier.addListener(_liveWeatherSync); // 날씨 변경 → 관전 화면 반영
+                        // 👀 관전자 입장 알림(누가 내 방을 보는지)
+                        FishingLive.onWatcherJoined = (n) {
+                          if (!mounted) return;
+                          try {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                              content: Text('👀 $n님이 관전을 시작했어요'),
+                              duration: const Duration(seconds: 2),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: Colors.black87,
+                            ));
+                          } catch (_) {}
+                        };
                         _liveStarted = true;
                       }
                     }

@@ -22,6 +22,10 @@ class FishingLive {
   static bool _hasWatchers = false; // 관전자 1명 이상?
   static int _watcherCount = 0;
   static final ValueNotifier<int> watcherCountNotifier = ValueNotifier<int>(0);
+  static List<String> _watcherNames = []; // 현재 관전자 닉 목록
+  static final ValueNotifier<List<String>> watcherNamesNotifier =
+      ValueNotifier<List<String>>(const []);
+  static void Function(String nick)? onWatcherJoined; // 새 관전자 입장 콜백(토스트용)
   static DateTime _lastFightPush = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// 낚시터 진입 시 1회 호출(아레나 제외). meta 기록 + 관전자 감시 시작.
@@ -32,6 +36,7 @@ class FishingLive {
     required String bg,
     required String rank,
     required String nick,
+    int pty = 0, // 🌧️ 현재 날씨(강수형태) — 관전 화면 미러용
   }) {
     // 이전 세션 잔재 정리 후 새로 시작
     if (_uid != null && _uid != uid) stop();
@@ -46,18 +51,43 @@ class FishingLive {
       'bg': bg,
       'rank': rank,
       'nick': nick,
+      'pty': pty,
       'active': true,
       't': ServerValue.timestamp,
     }).catchError((Object e) => debugPrint('🎣👀 meta set ERR: $e'));
 
-    // 👀 관전자 수 감시 → state 방송 게이팅
+    // 👀 관전자 감시 → state 방송 게이팅 + 관전자 닉 목록/입장 감지
+    _watcherNames = [];
+    watcherNamesNotifier.value = const [];
     _watchSub?.cancel();
     _watchSub = _ref!.child('watchers').onValue.listen((e) {
       final v = e.snapshot.value;
-      _watcherCount = (v is Map) ? v.length : 0;
+      final List<String> names = [];
+      if (v is Map) {
+        v.forEach((k, val) {
+          if (val is Map && val['nick'] != null) {
+            names.add(val['nick'].toString());
+          } else {
+            names.add('조사'); // 닉 없는 옛 형식 방어
+          }
+        });
+      }
+      // 새로 들어온 관전자 → 토스트 콜백
+      for (final n in names) {
+        if (!_watcherNames.contains(n)) onWatcherJoined?.call(n);
+      }
+      _watcherNames = names;
+      _watcherCount = names.length;
       _hasWatchers = _watcherCount > 0;
       watcherCountNotifier.value = _watcherCount;
+      watcherNamesNotifier.value = names;
     }, onError: (Object e) => debugPrint('🎣👀 watchers sub ERR: $e'));
+  }
+
+  /// 현재 날씨(pty) 갱신 — 낚시 중 날씨가 바뀌면 meta 패치(관전 화면 반영).
+  static void updateWeather(int pty) {
+    if (_uid == null) return;
+    _ref?.child('meta').update({'pty': pty}).catchError((_) {});
   }
 
   /// 낚시 단계 전환 방송(캐스팅/대기/입질/파이팅/랜딩 등). 관전자 있을 때만 기록.
@@ -108,6 +138,9 @@ class FishingLive {
     _hasWatchers = false;
     _watcherCount = 0;
     watcherCountNotifier.value = 0;
+    _watcherNames = [];
+    watcherNamesNotifier.value = const [];
+    onWatcherJoined = null;
     _uid = null;
     _ref = null;
     if (ref != null) {
@@ -121,11 +154,12 @@ class FishingLive {
 class SpectateSession {
   final String fisherUid;
   final String myUid;
+  final String myNick; // 관전자 닉(방송자 화면에 "누가 보는지" 표시용)
   DatabaseReference? _root; // fishing_live/{fisherUid}
   DatabaseReference? _myWatcherRef; // .../watchers/{myUid}
   StreamSubscription<DatabaseEvent>? _sub;
 
-  SpectateSession(this.fisherUid, this.myUid);
+  SpectateSession(this.fisherUid, this.myUid, {this.myNick = '조사'});
 
   /// meta+state 전체를 하나의 스냅샷 맵으로 흘려보낸다.
   /// { meta: {...}, state: {...} } 형태(없으면 빈 맵).
@@ -135,7 +169,7 @@ class SpectateSession {
     _myWatcherRef = _root!.child('watchers/$myUid');
     _myWatcherRef!.onDisconnect().remove().catchError((_) {});
     _myWatcherRef!
-        .set(ServerValue.timestamp)
+        .set({'nick': myNick, 't': ServerValue.timestamp})
         .catchError((Object e) => debugPrint('🎣👀 watcher reg ERR: $e'));
 
     final controller = StreamController<Map<String, dynamic>>();

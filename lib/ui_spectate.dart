@@ -11,6 +11,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_live.dart';
 import 'game_config.dart'; // chatSessionStart()
+import 'weather.dart'; // 🌧️ 친구 날씨 미러(WeatherOverlay + WeatherInfo)
 
 const Color _kGold = Color(0xFFD4AF37);
 const String _specDbUrl =
@@ -106,7 +107,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   void initState() {
     super.initState();
     final myUid = FirebaseAuth.instance.currentUser?.uid ?? '_none_';
-    _session = SpectateSession(widget.fisherUid, myUid);
+    _session = SpectateSession(widget.fisherUid, myUid, myNick: widget.myNickname);
     _session!.stream().listen((snap) {
       if (!mounted) return;
       setState(() {
@@ -157,6 +158,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     final String rank = (_meta['rank'] ?? '').toString();
     final String nick = (_meta['nick'] ?? widget.fisherNick).toString();
     final String bg = (_meta['bg'] ?? '').toString();
+    final bool sea = _meta['sea'] == true;
+    final int pty = _toI(_meta['pty'], 0);
     final String phase = (_state['phase'] ?? 'waiting').toString();
 
     return Scaffold(
@@ -176,6 +179,12 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                       : Image.asset(bg, fit: BoxFit.cover,
                           errorBuilder: (c, e, s) => _bgFallback()),
                 ),
+                // 🌧️ 친구 날씨 미러(비/눈) — 방송된 pty로 강제(내 위치 무시)
+                if (pty > 0)
+                  Positioned.fill(child: IgnorePointer(
+                    child: WeatherOverlay(isSea: sea, forceWeather: WeatherInfo(pty: pty)),
+                  )),
+
                 // 상단 가독성 그라데이션
                 Positioned(
                   top: 0, left: 0, right: 0, height: 130,
@@ -191,8 +200,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                   ),
                 ),
 
-                // 🎣 중앙 낚시 장면(단계별)
-                Positioned.fill(child: _phaseContent(phase)),
+                // 🎣 중앙 낚시 장면(단계별) — 민물=찌 그림 / 바다=입질 텍스트
+                Positioned.fill(child: _phaseContent(phase, sea)),
 
                 // 👀 관전 배지(상단 중앙)
                 Positioned(
@@ -284,15 +293,11 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
         ),
       );
 
-  // 🎣 단계별 중앙 장면
-  Widget _phaseContent(String phase) {
+  // 🎣 단계별 중앙 장면 (민물=찌 그림 / 바다=입질 텍스트)
+  Widget _phaseContent(String phase, bool sea) {
     switch (phase) {
       case 'bite':
-        return const Center(
-          child: Text('입질 !!',
-              style: TextStyle(color: Colors.redAccent, fontSize: 120, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
-                  shadows: [Shadow(color: Colors.black, blurRadius: 20, offset: Offset(5, 5))])),
-        );
+        return sea ? _biteText() : _floatScene(raised: true);
       case 'fighting':
         return _fightScene();
       case 'landed':
@@ -300,8 +305,50 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       case 'casting':
         return _hint('친구가 캐스팅 중...');
       default: // waiting / idle
-        return _hint('친구가 입질을 기다리는 중...');
+        return sea ? _hint('친구가 입질을 기다리는 중...') : _floatScene(raised: false);
     }
+  }
+
+  // 🌊 바다: 입질 텍스트
+  Widget _biteText() => const Center(
+        child: Text('입질 !!',
+            style: TextStyle(color: Colors.redAccent, fontSize: 120, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
+                shadows: [Shadow(color: Colors.black, blurRadius: 20, offset: Offset(5, 5))])),
+      );
+
+  // 🎣 민물: 물 위의 찌(대기=가라앉음 / 입질=올라옴+찌올림 안내)
+  Widget _floatScene({required bool raised}) {
+    return AnimatedAlign(
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+      alignment: raised ? const Alignment(0, 0.02) : const Alignment(0, 0.32),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        if (raised)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(14)),
+            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          ),
+        Image.asset('assets/items/float_fw_normal.png',
+            height: raised ? 140 : 116, fit: BoxFit.contain,
+            errorBuilder: (c, e, s) => _drawnFloat(raised)),
+      ]),
+    );
+  }
+
+  // 찌 이미지가 없을 때 대비: 간단히 그린 전자찌(발광 팁 + 몸통)
+  Widget _drawnFloat(bool raised) {
+    final Color tip = raised ? Colors.redAccent : Colors.orangeAccent;
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Container(
+        width: 12, height: 12,
+        decoration: BoxDecoration(shape: BoxShape.circle, color: tip,
+            boxShadow: [BoxShadow(color: tip.withOpacity(0.85), blurRadius: 12)]),
+      ),
+      Container(width: 5, height: raised ? 96 : 80,
+          decoration: BoxDecoration(color: Colors.white.withOpacity(0.85), borderRadius: BorderRadius.circular(3))),
+    ]);
   }
 
   Widget _hint(String txt) => Align(
