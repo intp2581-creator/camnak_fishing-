@@ -1444,6 +1444,9 @@ class _StoreScreenState extends State<StoreScreen> {
       return 'reel';
     }
     if (n.contains('대') || n.contains('CF') || n.contains('KT') || n.contains('KREFT') || n.contains('BC')) {
+      // 🎣 루어 베이트캐스팅대(BC-200/400/600) — 일반 민물대와 다른 별도 슬롯.
+      //    (같은 슬롯이면 더 비싼 일반대 보유 시 루어대 최상급 보호가 안 걸림 → 실수로 되팔 수 있음)
+      if (n.contains('BC')) return 'rod_lure';
       final cat = (item['category'] ?? '').toString().toUpperCase();
       if (cat == 'SEA') return 'rod_sea';
       if (cat == 'RAID') return 'rod_raid';
@@ -1472,7 +1475,7 @@ class _StoreScreenState extends State<StoreScreen> {
   bool _isTopGrade(Map<String, dynamic> item) {
     if (_isGm) return false;
     final type = _slotType(item);
-    if (!['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float', 'skin', 'sun', 'badge'].contains(type)) return false;
+    if (!['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float', 'skin', 'sun', 'badge'].contains(type)) return false;
     final myGrade = _gradeOf(item);
     if (myGrade <= 0) return false;
     int maxGrade = 0;
@@ -1678,7 +1681,7 @@ class _StoreScreenState extends State<StoreScreen> {
     final bool nonSellable = _isNonSellable(item);
     final isBeginner = itemName.contains('초보');
     final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급
-    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
+    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
     // ⭐ 최상급은 잠금하되, 중복(2개+)이면 '여분'은 판매 허용 → 마지막 1개(=쓰는 것)만 보호
     final bool topLocked = isTop && !(isGear && qty > 1);
     final sellable = !isBeginner && !topLocked && !nonSellable;
@@ -1792,7 +1795,7 @@ class _StoreScreenState extends State<StoreScreen> {
     if (user == null) return;
     final name = item['name'].toString();
     // 🎣 낚싯대/릴/찌는 한 개씩 판매(중복이어도 장착/보유분 보호 — 실수로 둘 다 안 팔리게)
-    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'reel', 'float'].contains(_slotType(item));
+    final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float'].contains(_slotType(item));
     final int curQty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bool sellOne = isGear && curQty > 1;
     try {
