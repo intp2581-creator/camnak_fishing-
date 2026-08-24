@@ -12,6 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_live.dart';
 import 'game_config.dart'; // chatSessionStart()
 import 'weather.dart'; // 🌧️ 친구 날씨 미러(WeatherOverlay + WeatherInfo)
+import 'ui_fishing.dart'; // 🎣 실제 파이팅 오버레이 재사용(FishingFightingOverlay)
 
 const Color _kGold = Color(0xFFD4AF37);
 const String _specDbUrl =
@@ -102,6 +103,9 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   Map<String, dynamic> _meta = {};
   Map<String, dynamic> _state = {};
   bool _gotAny = false;
+  // 🎣 실제 파이팅 오버레이에 전투 프레임 공급용 스트림
+  final StreamController<Map<String, dynamic>> _fightCtrl =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   @override
   void initState() {
@@ -121,6 +125,10 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                 (snap['state'] as Map).map((k, v) => MapEntry(k.toString(), v)))
             : {};
       });
+      // 🎣 파이팅 프레임을 실제 오버레이로 전달
+      if ((_state['phase'] ?? '') == 'fighting' && !_fightCtrl.isClosed) {
+        _fightCtrl.add(_state);
+      }
     });
   }
 
@@ -128,6 +136,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   void dispose() {
     _session?.dispose();
     _chatCtrl.dispose();
+    _fightCtrl.close();
     super.dispose();
   }
 
@@ -146,8 +155,6 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     _chatCtrl.clear();
   }
 
-  double _toD(dynamic v, [double def = 0]) =>
-      (v is num) ? v.toDouble() : (double.tryParse('$v') ?? def);
   int _toI(dynamic v, [int def = 0]) =>
       (v is num) ? v.toInt() : (int.tryParse('$v') ?? def);
 
@@ -299,7 +306,19 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       case 'bite':
         return sea ? _biteText() : _floatScene(raised: true);
       case 'fighting':
-        return _fightScene();
+        // 🎣 실제 게임 파이팅 오버레이를 관전 모드로 재사용(낚싯대·바·손·노브 그대로)
+        return FishingFightingOverlay(
+          key: const ValueKey('spectate-fight'),
+          fish: const <String, dynamic>{},
+          playerTotalStats: 0,
+          locationStars: 0,
+          onFinished: (_, __) {},
+          rodImageSuffix: (_meta['rodSuffix'] ?? '').toString(),
+          lureRodKey: (_meta['lureKey'] ?? '').toString(),
+          isSea: sea,
+          spectator: true,
+          spectatorStream: _fightCtrl.stream,
+        );
       case 'landed':
         return _landedCard();
       case 'casting':
@@ -376,95 +395,6 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
           decoration: BoxDecoration(color: Colors.black.withOpacity(0.35), borderRadius: BorderRadius.circular(16)),
           child: Text(txt, style: const TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w600)),
         ),
-      );
-
-  // ⚔️ 밀당 전투 장면 재구성
-  Widget _fightScene() {
-    final double bar = _toD(_state['bar'], 0.5).clamp(0.0, 1.0);
-    final int stage = _toI(_state['stage'], 1);
-    final String mode = (_state['mode'] ?? 'calm').toString();
-    final int timeLeft = _toI(_state['timeLeft'], 0);
-    final bool pulling = _state['pulling'] == true;
-
-    Widget? modeChip;
-    if (mode == 'rage') {
-      modeChip = _chip('⚠️  🐟 물고기의 발악!!', Colors.redAccent);
-    } else if (mode == 'resist') {
-      modeChip = _chip('⚠️  🐟 물고기의 저항!', Colors.orangeAccent);
-    }
-
-    return Stack(children: [
-      // 상단 중앙: 발악/저항 칩 + 제한시간
-      Positioned(
-        top: 175, left: 0, right: 0,
-        child: Column(children: [
-          if (modeChip != null) modeChip,
-          const SizedBox(height: 10),
-          Text('제한시간: $timeLeft초',
-              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold,
-                  shadows: [Shadow(color: Colors.black45, blurRadius: 5)])),
-        ]),
-      ),
-      // 우측: N단 제압 (바 위 오른쪽)
-      Positioned(
-        right: 60, bottom: 300,
-        child: Text('$stage단 제압!',
-            style: const TextStyle(color: _kGold, fontSize: 30, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
-                shadows: [Shadow(color: Colors.black, blurRadius: 8, offset: Offset(2, 2))])),
-      ),
-      // 🎣 밀당 바 — 게임과 동일(bottom230/left50/right50, 빨강-흰-파랑 + 중앙눈금 + fighting_fish)
-      Positioned(
-        bottom: 230, left: 50, right: 50,
-        child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
-          Container(
-            height: 15,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: const LinearGradient(colors: [Colors.redAccent, Colors.white, Colors.blueAccent]),
-              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
-            ),
-          ),
-          Container(width: 3, height: 25, color: Colors.white.withOpacity(0.6)),
-          Align(
-            alignment: Alignment(bar * 2 - 1, 0), // 0=빨강(왼쪽) ~ 1=파랑(오른쪽)
-            child: Image.asset('assets/images/fighting_fish.png', width: 64, fit: BoxFit.contain,
-                errorBuilder: (c, e, s) => const Text('🐟', style: TextStyle(fontSize: 34))),
-          ),
-        ]),
-      ),
-      // 우하단: 풀기 / 당기기 (친구 동작 미러, 비활성)
-      Positioned(
-        right: 40, bottom: 60,
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: BoxDecoration(
-              color: pulling ? Colors.white12 : Colors.orange.withOpacity(0.85),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text('◀ 풀기', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 88, height: 88,
-            decoration: BoxDecoration(
-              color: pulling ? _kGold : _kGold.withOpacity(0.5),
-              shape: BoxShape.circle,
-              boxShadow: pulling ? [BoxShadow(color: _kGold.withOpacity(0.6), blurRadius: 18)] : null,
-            ),
-            child: const Center(
-              child: Text('당기기', style: TextStyle(color: Colors.black, fontSize: 20, fontWeight: FontWeight.w900)),
-            ),
-          ),
-        ]),
-      ),
-    ]);
-  }
-
-  Widget _chip(String txt, Color c) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        decoration: BoxDecoration(color: c.withOpacity(0.9), borderRadius: BorderRadius.circular(22)),
-        child: Text(txt, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
       );
 
   // 🎉 HIT 랜딩 카드

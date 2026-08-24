@@ -2803,7 +2803,9 @@ Positioned(
                           spot: widget.locationName.isNotEmpty ? widget.locationName : widget.title,
                           sea: widget.isSea, bg: widget.bgImagePath,
                           rank: realRank, nick: realNickname,
-                          pty: WeatherService.instance.notifier.value.pty); // 🌧️ 현재 날씨
+                          pty: WeatherService.instance.notifier.value.pty, // 🌧️ 현재 날씨
+                          rodSuffix: rodSceneSuffix(equippedRod), // 🎣 낚싯대 그림 일치
+                          lureKey: _lureMode ? _lureRodKey() : '');
                         WeatherService.instance.notifier.addListener(_liveWeatherSync); // 날씨 변경 → 관전 화면 반영
                         // 👀 관전자 입장 알림(누가 내 방을 보는지)
                         FishingLive.onWatcherJoined = (n) {
@@ -4735,6 +4737,9 @@ class FishingFightingOverlay extends StatefulWidget {
   final bool isSea;   // 🌊 바다 낚시터 여부 — 낚싯대 그림·물소리 판정(상자는 img로 못 가려서 명시 전달)
   // 🎣👀 관전 방송 콜백(bar 0~1, stage 1~3, mode calm/resist/rage, timeLeft, pulling) — 없으면 방송 안 함
   final void Function(double bar, int stage, String mode, int timeLeft, bool pulling)? onBroadcast;
+  // 🎣👀 관전 모드: true면 게임로직·입력 없이 방송 스트림 값으로만 렌더(실제 낚싯대·바·손 그대로 재사용)
+  final bool spectator;
+  final Stream<Map<String, dynamic>>? spectatorStream; // {bar,stage,mode,timeLeft,pulling}
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
     required this.locationStars, required this.onFinished,
@@ -4744,6 +4749,8 @@ class FishingFightingOverlay extends StatefulWidget {
     this.isBox = false,
     this.isSea = false,
     this.onBroadcast,
+    this.spectator = false,
+    this.spectatorStream,
   });
   @override
   State<FishingFightingOverlay> createState() => _FishingFightingOverlayState();
@@ -4782,10 +4789,18 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
   math.Random random = math.Random();
   late AnimationController _rodController;
 
+  StreamSubscription<Map<String, dynamic>>? _specSub; // 🎣👀 관전: 방송 스트림 구독
+
   @override
   void initState() {
     super.initState();
     _rodController = AnimationController(vsync: this, duration: const Duration(milliseconds: 250))..repeat(reverse: true);
+    // 🎣👀 관전 모드: 게임로직/입력/사운드 없이, 방송값으로 노티파이어만 갱신
+    if (widget.spectator) {
+      knobNotifier.value = -1.0; _pullZone = -1;
+      _specSub = widget.spectatorStream?.listen(_applySpectate);
+      return;
+    }
     _prepareFishStats();
     _assist = widget.isArena ? 0 : audioManager.combatAssist; // ⚔️ [v239] 아레나는 무조건 수동(컨트롤 싸움)
     if (_assist == 2) {
@@ -4795,6 +4810,24 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     }
     HardwareKeyboard.instance.addHandler(_onCombatKey); // 🎣 [v235] PC A(풀기)/D(당기기) 키
     _startGame();
+  }
+
+  // 🎣👀 관전: 방송 상태 → 오버레이 노티파이어(실제 build 그대로 렌더)
+  void _applySpectate(Map<String, dynamic> s) {
+    if (!mounted) return;
+    final double bar = (s['bar'] is num) ? (s['bar'] as num).toDouble() : gaugeNotifier.value;
+    final int stage = (s['stage'] is num) ? (s['stage'] as num).toInt() : playerGearNotifier.value;
+    final String mode = (s['mode'] ?? 'calm').toString();
+    final int timeLeft = (s['timeLeft'] is num) ? (s['timeLeft'] as num).toInt() : timeNotifier.value;
+    final bool pulling = s['pulling'] == true;
+    _isFishFacingRight = bar >= gaugeNotifier.value; // 진행 방향으로 물고기 머리
+    gaugeNotifier.value = bar;
+    playerGearNotifier.value = stage;
+    fishGearNotifier.value = mode == 'rage' ? 2 : (mode == 'resist' ? 1 : 0);
+    timeNotifier.value = timeLeft;
+    isPressing = pulling;
+    knobNotifier.value = pulling ? 1.0 : -1.0; // 노브 위치(당김/풀기)
+    setState(() {});
   }
 
   void _prepareFishStats() {
@@ -5005,7 +5038,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
   @override
   void dispose() {
-    HardwareKeyboard.instance.removeHandler(_onCombatKey); // 🎣 [v235] A/D 키 핸들러 해제
+    _specSub?.cancel(); // 🎣👀 관전 스트림 구독 해제
+    if (!widget.spectator) HardwareKeyboard.instance.removeHandler(_onCombatKey); // 🎣 [v235] A/D 키 핸들러 해제
     gameTimer?.cancel();
     _penaltyTimer?.cancel(); // 🎣 줄꼬임 페널티 타이머 정리
     _flingTimer?.cancel();   // 🎣 [v237] 물고기 챔 타이머 정리
@@ -5205,7 +5239,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
         ? 'assets/images/hand_rod_lure_bc${widget.lureRodKey}.png'
         : (widget.rodImageSuffix.isEmpty ? '$fightBase.png' : '${fightBase}_${widget.rodImageSuffix}.png');
 
-    return Container(
+    return IgnorePointer( // 🎣👀 관전 모드에선 입력 차단(친구 동작만 보여줌)
+      ignoring: widget.spectator,
+      child: Container(
       color: Colors.transparent,
       child: Stack(
         children: [
@@ -5384,6 +5420,7 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           ),
         ],
       ),
+      ), // 🎣👀 IgnorePointer 닫기
     );
   }
 }

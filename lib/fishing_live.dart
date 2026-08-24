@@ -37,6 +37,8 @@ class FishingLive {
     required String rank,
     required String nick,
     int pty = 0, // 🌧️ 현재 날씨(강수형태) — 관전 화면 미러용
+    String rodSuffix = '', // 🎣 파이팅 낚싯대 그림 접미사(관전 전투 화면 일치용)
+    String lureKey = '', // 🎣 루어대 키
   }) {
     // 이전 세션 잔재 정리 후 새로 시작
     if (_uid != null && _uid != uid) stop();
@@ -52,6 +54,8 @@ class FishingLive {
       'rank': rank,
       'nick': nick,
       'pty': pty,
+      'rodSuffix': rodSuffix,
+      'lureKey': lureKey,
       'active': true,
       't': ServerValue.timestamp,
     }).catchError((Object e) => debugPrint('🎣👀 meta set ERR: $e'));
