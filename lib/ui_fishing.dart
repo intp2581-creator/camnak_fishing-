@@ -16,6 +16,7 @@ import 'gm_notice_popup.dart';
 import 'ui_lobby.dart';     
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
+import 'fishing_live.dart'; // 🎣👀 친구 낚시 라이브 관전(방송측)
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 // 🎖️ 등급분류 표시 위젯(buildRatingMark/showGameRatingDialog/kGameRatingNumber)은 game_config.dart로 이동.
@@ -76,6 +77,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   int _garamMsgIdx = 0; // 🎤 현재 표시 중인 멘트 번호(순환)
   bool _showFishingRating = true; // 🎖️ 낚시 화면 등급 마크(30초 노출 후 사라짐 — 광장과 통일, 규정 충족)
   Timer? _ratingHideTimer;
+  bool _liveStarted = false; // 🎣👀 라이브 관전 방송 시작됨(등급/닉 로드 후 1회)
 // 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
   void toggleFullScreen() {
@@ -666,8 +668,10 @@ Widget _whisperUnreadBadge() {
     final String presenceLoc = (widget.title != widget.locationName)
         ? '아레나'
         : (widget.locationName.isNotEmpty ? widget.locationName : '낚시터');
-    guildGoOnline(nick: widget.nickname, loc: presenceLoc); // 🟢 전역 접속표시(+위치)
-    _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(nick: widget.nickname, loc: presenceLoc); }); // 💓 낚시 중에도 접속 유지
+    // 🎣👀 일반 낚시(아레나 아님)일 때만 '구경' 가능 플래그 — 친구목록에서 관전 진입용
+    final bool canSpectate = widget.roomId == null;
+    guildGoOnline(nick: widget.nickname, loc: presenceLoc, fishing: canSpectate, sea: widget.isSea); // 🟢 전역 접속표시(+위치)
+    _guildHeartbeat = Timer.periodic(const Duration(seconds: 12), (_) { if (mounted) guildGoOnline(nick: widget.nickname, loc: presenceLoc, fishing: canSpectate, sea: widget.isSea); }); // 💓 낚시 중에도 접속 유지
 
     // 🚀 [추가] 튜토리얼 중인 쌩초보 유저면 윤슬님 출근시키기!
     if (widget.isFirstTime) {
@@ -894,6 +898,7 @@ Widget _whisperUnreadBadge() {
     _chatFocus.dispose();
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
+    FishingLive.stop(); // 🎣👀 라이브 관전 방송 종료(fishing_live 노드 정리)
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
     _garamRotateTimer?.cancel(); // 🎤 멘트 회전 타이머 정리
     _ratingHideTimer?.cancel(); // 🎖️ 등급 마크 숨김 타이머 정리
@@ -1245,11 +1250,13 @@ Widget _whisperUnreadBadge() {
       setState(() { bitingRods.add(rodIndex); });
       HapticFeedback.lightImpact();
       strongVibrate(90); // 📳 입질! (강하게)
+      FishingLive.setPhase('bite'); // 🎣👀 관전: 입질!
 
       // 찌가 올라가 정점 찍고 약 4.5초 대기 → 못 채면 놓치고 다음 입질 예약
       _escapeTimer = Timer(const Duration(milliseconds: 4500), () {
         if (!mounted) return;
         setState(() { bitingRods.remove(rodIndex); });
+        FishingLive.setPhase('waiting'); // 🎣👀 관전: 입질 놓침 → 대기
         if (isFloatInWater) _scheduleNextBite();
       });
     });
@@ -1332,12 +1339,13 @@ Widget _whisperUnreadBadge() {
 
     // 🎣 [내부 함수] 실제 파이팅 미니게임을 띄우는 로직
     void launchFightOverlay() {
+      FishingLive.setPhase('fighting'); // 🎣👀 관전: 파이팅 시작
       showDialog(
         context: context,
-        barrierDismissible: false, 
+        barrierDismissible: false,
         builder: (context) {
           return Material(
-            color: Colors.transparent, 
+            color: Colors.transparent,
             child: FishingFightingOverlay(
               fish: fish,
               playerTotalStats: totalStats,
@@ -1347,6 +1355,9 @@ Widget _whisperUnreadBadge() {
               isArena: widget.roomId != null, // ⚔️ 아레나면 자동제압 금지(수동 강제)
               isBox: fish['isBox'] == true, // 📦 상자면 슬로우 파이팅
               isSea: widget.isSea, // 🌊 낚싯대 그림·물소리 판정(상자는 img로 못 가림)
+              // 🎣👀 관전 방송: 전투 프레임(밀당바·제압단계·발악/저항·시간·당김) — 헬퍼가 스로틀+게이팅
+              onBroadcast: (bar, stage, mode, timeLeft, pulling) =>
+                  FishingLive.pushFight(bar, stage, mode, timeLeft, pulling),
 
               onFinished: (bool isSuccess, double size) async {
       Navigator.pop(context);
@@ -2759,6 +2770,17 @@ Positioned(
                     realExp = userData['exp'] ?? 0; realGold = userData['gold'] ?? 0;
                     realRank = userData['rank'] ?? '초보'; realNickname = userData['nickname'] ?? widget.nickname;
                     _myRank = realRank; // 🎖️ 승급 자격 레벨 판정용 캐시
+                    // 🎣👀 라이브 관전 방송 시작(아레나 제외, 등급/닉 확정 후 1회) — meta 기록
+                    if (!_liveStarted && widget.roomId == null) {
+                      final liveU = FirebaseAuth.instance.currentUser;
+                      if (liveU != null) {
+                        FishingLive.start(liveU.uid,
+                          spot: widget.locationName.isNotEmpty ? widget.locationName : widget.title,
+                          sea: widget.isSea, bg: widget.bgImagePath,
+                          rank: realRank, nick: realNickname);
+                        _liveStarted = true;
+                      }
+                    }
                     _myTutStep = (userData['tutStep'] as num?)?.toInt() ?? 99; // 🎓 튜토리얼 단계 캐시
                     _latestInventory = userData['inventory'] ?? []; // 🦐 채집망 보유 체크용 최신 인벤
                   }
@@ -4508,6 +4530,16 @@ void _showTodayMissionInfo() {
     imagePath = imagePath.replaceAll('assets/images/fish_fw', 'assets/fish_fw/fish_fw');
     imagePath = imagePath.replaceAll('assets/images/fish_sea', 'assets/fish_sea/fish_sea');
 
+    // 🎣👀 관전: HIT 랜딩 카드 방송(물고기 이름/크기/사진 + 획득 EXP/Pts — 개인 잔액 아님)
+    FishingLive.landed({
+      'name': caughtFish['name'],
+      'size': caughtFish['size'],
+      'unit': caughtFish['unit'],
+      'img': imagePath,
+      'exp': caughtFish['exp'] ?? 0,
+      'pts': caughtFish['pts'] ?? 0,
+    });
+
     showDialog(
       context: context, barrierDismissible: false, 
       builder: (context) => AlertDialog(
@@ -4619,9 +4651,10 @@ void _showTodayMissionInfo() {
               });
 
               // 🎣 낚싯대 휘두르는 소리와 애니메이션 실행
-              audioManager.playSfx("sfx_casting.mp3"); 
+              audioManager.playSfx("sfx_casting.mp3");
               audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); // 🔊 BGM 재개!
                _castController.forward(from: 0.0);
+              FishingLive.setPhase('casting'); // 🎣👀 관전: 재캐스팅
 
               // ⏳ 1.5초 후 찌 안착 및 타이머 재시작
               Future.delayed(const Duration(milliseconds: 1500), () {
@@ -4630,6 +4663,7 @@ void _showTodayMissionInfo() {
                     isCasting = false;
                     isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; // 안전장치 유지
                   });
+                  FishingLive.setPhase('waiting'); // 🎣👀 관전: 찌 안착 → 대기
                   
                   // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
                   //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)
@@ -4660,6 +4694,8 @@ class FishingFightingOverlay extends StatefulWidget {
   final bool isArena; // ⚔️ [v239] 아레나면 자동제압 금지(컨트롤 싸움) — 무조건 수동
   final bool isBox;   // 📦 상자면 저항·발악 없이 천천히 끌려옴(~30초)·절대 안 놓침
   final bool isSea;   // 🌊 바다 낚시터 여부 — 낚싯대 그림·물소리 판정(상자는 img로 못 가려서 명시 전달)
+  // 🎣👀 관전 방송 콜백(bar 0~1, stage 1~3, mode calm/resist/rage, timeLeft, pulling) — 없으면 방송 안 함
+  final void Function(double bar, int stage, String mode, int timeLeft, bool pulling)? onBroadcast;
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
     required this.locationStars, required this.onFinished,
@@ -4668,6 +4704,7 @@ class FishingFightingOverlay extends StatefulWidget {
     this.isArena = false,
     this.isBox = false,
     this.isSea = false,
+    this.onBroadcast,
   });
   @override
   State<FishingFightingOverlay> createState() => _FishingFightingOverlayState();
@@ -4896,6 +4933,18 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           if (newGauge <= 0.0) { gaugeNotifier.value = 0.0; isFinished = true; isWin = false; }
           else if (newGauge >= 1.0) { gaugeNotifier.value = 1.0; isFinished = true; isWin = true; }
           } // 📦 else(일반 물고기 물리) 끝
+        }
+
+        // 🎣👀 관전 방송(스로틀·게이팅은 콜백 내부에서). 발악=2/저항=1/잔잔=0 → rage/resist/calm
+        if (widget.onBroadcast != null) {
+          final int fg = fishGearNotifier.value;
+          widget.onBroadcast!(
+            gaugeNotifier.value,
+            playerGearNotifier.value,
+            fg == 2 ? 'rage' : (fg == 1 ? 'resist' : 'calm'),
+            timeNotifier.value,
+            isPressing,
+          );
         }
 
         if (isFinished) {

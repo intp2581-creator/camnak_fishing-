@@ -46,6 +46,16 @@
         ".read": "auth != null",
         ".write": "auth != null"
       }
+    },
+    "fishing_live": {
+      "$uid": {
+        ".read": "auth != null",
+        "meta": { ".write": "auth != null && auth.uid === $uid" },
+        "state": { ".write": "auth != null && auth.uid === $uid" },
+        "watchers": {
+          "$w": { ".write": "auth != null && auth.uid === $w" }
+        }
+      }
     }
   }
 }

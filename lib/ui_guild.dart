@@ -41,19 +41,26 @@ StreamSubscription<DatabaseEvent> watchLoginSession(void Function() onKicked) {
 // 🟢 전역 접속표시: 앱 화면(광장/낚시터)에서 호출. 연결 끊기면 자동 offline.
 //   loc: 현재 접속 위치(예: 'CH2·민물광장', '낚시터', '로비') → 친구·길드 목록에 표시
 //   nick: 닉네임(친구는 닉으로 저장되므로 nick 기준 프레즌스도 같이 기록)
-void guildGoOnline({String? nick, String? loc}) {
+//   fishing/sea: 🎣👀 낚시 중(아레나 제외)이면 친구가 '구경' 진입할 수 있도록 플래그+uid를 실어줌.
+void guildGoOnline({String? nick, String? loc, bool fishing = false, bool sea = false}) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return;
   final data = <String, Object>{'online': true, 't': ServerValue.timestamp};
   if (loc != null && loc.isNotEmpty) data['loc'] = loc;
+  // 🎣👀 관전 진입용: 낚시 중일 때만 true+uid. 낚시가 아니면 명시적으로 false로 덮어 끔.
+  data['fishing'] = fishing;
+  if (fishing) {
+    data['uid'] = uid;
+    data['sea'] = sea;
+  }
   final ref = _statusDb().ref('status/$uid');
-  ref.onDisconnect().update({'online': false, 't': ServerValue.timestamp});
-  ref.set(data);
+  ref.onDisconnect().update({'online': false, 'fishing': false, 't': ServerValue.timestamp});
+  ref.update(data);
   // 친구 목록(닉 기준) 조회용 프레즌스도 동일 기록
   if (nick != null && nick.isNotEmpty) {
     final nref = _statusDb().ref('status_nick/$nick');
-    nref.onDisconnect().update({'online': false, 't': ServerValue.timestamp});
-    nref.set(data);
+    nref.onDisconnect().update({'online': false, 'fishing': false, 't': ServerValue.timestamp});
+    nref.update(data);
   }
 }
 

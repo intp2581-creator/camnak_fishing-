@@ -23,6 +23,7 @@ import 'ui_guild_shop.dart'; // 🏪 길드 전용 아이템 상점
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
 import 'ui_guild.dart'; // 길드 접속표시(presence) + 접속 점
+import 'ui_spectate.dart'; // 🎣👀 친구 낚시 라이브 관전(구경 버튼 + 관전 화면)
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 import 'app_version.dart'; // 🔖 새 버전 알림(새로고침 안내)
@@ -2729,6 +2730,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                     userLocByNick(fn, fontSize: 10), // 📍 접속 채널·위치(접속 중일 때만)
                                   ]),
                                   trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                                    // 🎣👀 친구가 낚시 중(아레나 아님)일 때만 노출되는 '구경' 버튼
+                                    SpectateFriendButton(nick: fn, myNickname: widget.nickname),
                                     IconButton(
                                       icon: const Icon(Icons.chat_bubble, color: Colors.yellowAccent, size: 20),
                                       padding: EdgeInsets.zero, constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
