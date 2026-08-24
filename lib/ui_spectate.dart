@@ -316,26 +316,44 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                 shadows: [Shadow(color: Colors.black, blurRadius: 20, offset: Offset(5, 5))])),
       );
 
-  // 🎣 민물: 물 위의 찌(대기=가라앉음 / 입질=올라옴+찌올림 안내)
+  // 🎣 민물: 물 위의 찌(대기=가라앉음 / 입질=올라옴+찌올림 안내) + 물 파문
   Widget _floatScene({required bool raised}) {
     return AnimatedAlign(
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOut,
-      alignment: raised ? const Alignment(0, 0.02) : const Alignment(0, 0.32),
+      alignment: raised ? const Alignment(0, 0.12) : const Alignment(0, 0.30),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         if (raised)
           Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(14)),
-            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
+            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           ),
         Image.asset('assets/items/float_fw_normal.png',
-            height: raised ? 140 : 116, fit: BoxFit.contain,
+            height: raised ? 96 : 76, fit: BoxFit.contain,
             errorBuilder: (c, e, s) => _drawnFloat(raised)),
+        // 🌊 물 파문(찌가 물에 떠 있는 느낌 — 덩그러니 방지)
+        _ripple(),
       ]),
     );
   }
+
+  Widget _ripple() => SizedBox(
+        width: 130, height: 34,
+        child: Stack(alignment: Alignment.center, children: [
+          _ring(120, 30, 0.07),
+          _ring(80, 20, 0.12),
+          _ring(44, 12, 0.20),
+        ]),
+      );
+  Widget _ring(double w, double h, double op) => Container(
+        width: w, height: h,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.elliptical(w, h)),
+          border: Border.all(color: Colors.white.withOpacity(op), width: 1.4),
+        ),
+      );
 
   // 찌 이미지가 없을 때 대비: 간단히 그린 전자찌(발광 팁 + 몸통)
   Widget _drawnFloat(bool raised) {
@@ -372,51 +390,51 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     if (mode == 'rage') {
       modeChip = _chip('⚠️  🐟 물고기의 발악!!', Colors.redAccent);
     } else if (mode == 'resist') {
-      modeChip = _chip('🌊 물고기의 저항!', Colors.orangeAccent);
+      modeChip = _chip('⚠️  🐟 물고기의 저항!', Colors.orangeAccent);
     }
 
     return Stack(children: [
       // 상단 중앙: 발악/저항 칩 + 제한시간
       Positioned(
-        top: 150, left: 0, right: 0,
+        top: 175, left: 0, right: 0,
         child: Column(children: [
           if (modeChip != null) modeChip,
           const SizedBox(height: 10),
           Text('제한시간: $timeLeft초',
-              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold,
-                  shadows: [Shadow(color: Colors.black, blurRadius: 8, offset: Offset(2, 2))])),
+              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold,
+                  shadows: [Shadow(color: Colors.black45, blurRadius: 5)])),
         ]),
       ),
-      // 중앙: 빨강→파랑 밀당 바 + 물고기 위치
+      // 우측: N단 제압 (바 위 오른쪽)
       Positioned(
-        left: 90, right: 90, top: 352,
-        child: SizedBox(
-          height: 40,
-          child: Stack(clipBehavior: Clip.none, alignment: Alignment.center, children: [
-            Container(
-              height: 12,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(6),
-                gradient: const LinearGradient(colors: [Color(0xFFE53935), Color(0xFF1E88E5)]),
-              ),
-            ),
-            Align(
-              alignment: Alignment(bar * 2 - 1, 0), // 0=빨강(왼쪽) ~ 1=파랑(오른쪽)
-              child: const Text('🐠', style: TextStyle(fontSize: 34)),
-            ),
-          ]),
-        ),
-      ),
-      // 우측: N단 제압
-      Positioned(
-        right: 60, top: 300,
+        right: 60, bottom: 300,
         child: Text('$stage단 제압!',
             style: const TextStyle(color: _kGold, fontSize: 30, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
                 shadows: [Shadow(color: Colors.black, blurRadius: 8, offset: Offset(2, 2))])),
       ),
+      // 🎣 밀당 바 — 게임과 동일(bottom230/left50/right50, 빨강-흰-파랑 + 중앙눈금 + fighting_fish)
+      Positioned(
+        bottom: 230, left: 50, right: 50,
+        child: Stack(alignment: Alignment.center, clipBehavior: Clip.none, children: [
+          Container(
+            height: 15,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(colors: [Colors.redAccent, Colors.white, Colors.blueAccent]),
+              boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
+            ),
+          ),
+          Container(width: 3, height: 25, color: Colors.white.withOpacity(0.6)),
+          Align(
+            alignment: Alignment(bar * 2 - 1, 0), // 0=빨강(왼쪽) ~ 1=파랑(오른쪽)
+            child: Image.asset('assets/images/fighting_fish.png', width: 64, fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Text('🐟', style: TextStyle(fontSize: 34))),
+          ),
+        ]),
+      ),
       // 우하단: 풀기 / 당기기 (친구 동작 미러, 비활성)
       Positioned(
-        right: 40, bottom: 44,
+        right: 40, bottom: 60,
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -428,9 +446,9 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
           ),
           const SizedBox(width: 12),
           Container(
-            width: 96, height: 96,
+            width: 88, height: 88,
             decoration: BoxDecoration(
-              color: pulling ? _kGold : _kGold.withOpacity(0.45),
+              color: pulling ? _kGold : _kGold.withOpacity(0.5),
               shape: BoxShape.circle,
               boxShadow: pulling ? [BoxShadow(color: _kGold.withOpacity(0.6), blurRadius: 18)] : null,
             ),
@@ -460,31 +478,32 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     final int pts = _toI(fish['pts'], 0);
     return Center(
       child: Container(
-        padding: const EdgeInsets.all(25),
+        // ⚠️ mainAxisSize.min을 줘도 아래 Row가 max폭이면 카드가 전체폭이 됨 → Row도 min으로.
+        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 22),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
+          color: const Color(0xFF0A0A0A), // 불투명(배경 달 비침 방지)
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: _kGold, width: 2.5),
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Text('HIT !!!', style: TextStyle(color: Colors.redAccent, fontSize: 42, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
+          const Text('HIT !!!', style: TextStyle(color: Colors.redAccent, fontSize: 34, fontWeight: FontWeight.w900, fontStyle: FontStyle.italic,
               shadows: [Shadow(color: Colors.black, blurRadius: 10, offset: Offset(2, 2))])),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Container(
             decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white24)),
-            padding: const EdgeInsets.all(10),
-            child: Image.asset(img, height: 150, fit: BoxFit.contain,
-                errorBuilder: (c, e, s) => const Icon(Icons.set_meal, color: Colors.white54, size: 90)),
+            padding: const EdgeInsets.all(8),
+            child: Image.asset(img, height: 118, fit: BoxFit.contain,
+                errorBuilder: (c, e, s) => const Icon(Icons.set_meal, color: Colors.white54, size: 80)),
           ),
-          const SizedBox(height: 14),
-          Text('${fish['name'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
-          Text('${fish['size'] ?? ''} ${fish['unit'] ?? ''}', style: const TextStyle(color: Colors.cyanAccent, fontSize: 34, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 12),
+          Text('${fish['name'] ?? ''}', style: const TextStyle(color: Colors.white, fontSize: 25, fontWeight: FontWeight.bold)),
+          Text('${fish['size'] ?? ''} ${fish['unit'] ?? ''}', style: const TextStyle(color: Colors.cyanAccent, fontSize: 29, fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text('+ $exp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+          Row(mainAxisSize: MainAxisSize.min, children: [
+            Text('+ $exp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 18, fontWeight: FontWeight.bold)),
             if (pts > 0) ...[
-              const SizedBox(width: 15),
-              Text('+ $pts Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 14),
+              Text('+ $pts Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ]),
         ]),
