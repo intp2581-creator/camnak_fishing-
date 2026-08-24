@@ -589,3 +589,4 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 // (임시 정리 함수 cleanupEventBadge 는 태극기 배지 34개 제거 후 제거됨 — 2026-08-24)
 
 // (임시 함수 grantGuildFlagTemp 는 트로피 깃발 위치 테스트 후 제거됨 — 2026-08-24)
+// (임시 함수 grantBadgeTemp 는 미르페스카·아레투사에 캠피싱 뱃지 지급 후 제거됨 — 2026-08-24)
