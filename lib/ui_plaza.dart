@@ -4271,6 +4271,27 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _infoPopup('🎁 이벤트 아이템', '이 아이템은 가방에 있으면\n효과가 자동으로 적용돼요!\n장착할 필요 없어요 😊');
       return;
     }
+    // 🎟️ 이용권·입장권(TICKET)은 장착 아이템이 아님 → 미끼 슬롯 오장착 방지. 사용은 낚시터에서.
+    if ((item['category'] ?? '').toString().toUpperCase() == 'TICKET') {
+      _infoPopup('🎟️ 이용권', '이용권은 장착하는 게 아니에요!\n낚시터(낚시 시작)에서 가방을 열어\n탭하면 사용할 수 있어요. 🎣');
+      return;
+    }
+    // 🦐 도구(TRAP·채집망)도 장착 아님 → 미끼 슬롯 오장착 방지
+    if (t == 'TRAP') {
+      _infoPopup('🦐 채집망', '채집망은 미끼가 아니에요!\n민물 낚시 중 "채집망" 버튼으로 던지면\n1분마다 민물새우가 모여요. 🦐');
+      return;
+    }
+    // 🐲 레이드 전용 낚싯대(RAID)는 길드 보스레이드 전용 → 미끼 슬롯 오장착 방지
+    if ((item['category'] ?? '').toString().toUpperCase() == 'RAID') {
+      _infoPopup('🐲 레이드 전용 장비', '레이드 낚싯대는 길드 보스레이드에서만 쓸 수 있어요!\n(일반 낚시엔 일반 낚싯대를 장착하세요)');
+      return;
+    }
+    // 🎪 루어 전용 장비(BC 루어대·스푼/웜/플라이)는 루어낚시 전용 → 미끼 슬롯 오장착 방지
+    final _nm = item['name'].toString();
+    if (n.contains('BC') || _nm.contains('스푼') || _nm.contains('웜') || _nm.contains('플라이')) {
+      _infoPopup('🎪 루어 전용 장비', '이건 루어낚시 전용 장비예요!\n낚시터에서 "🎪 루어낚시"로 전환하면 쓸 수 있어요.\n(일반 낚시엔 일반 낚싯대·미끼를 쓰세요)');
+      return;
+    }
     bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
     if (t == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) {
       globalEquippedCooler = same(globalEquippedCooler) ? null : item;

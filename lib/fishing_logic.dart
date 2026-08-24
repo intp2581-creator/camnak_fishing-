@@ -673,6 +673,7 @@ for (var fish in availableFishes) {
     if (inventory == null) return {'P': 0, 'C': 0, 'S': 0};
     for (final raw in inventory) {
       if (raw is! Map) continue;
+      if ((raw['type'] ?? '').toString().toUpperCase() == 'EVENT') continue; // 🎁 이벤트 아이템은 eventItemBonus가 만료체크로 따로 처리(만료 시 0)
       final cat = (raw['category'] ?? '').toString().toUpperCase();
       if (cat != 'SKIN' && cat != 'COMMON') continue; // 캐시 코스메틱만(이용권 등 TICKET 제외)
       final st = raw['stats'];

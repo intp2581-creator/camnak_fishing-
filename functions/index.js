@@ -585,3 +585,5 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 // (임시 진단 함수 paymentDiag 는 결제 검증 완료 후 제거됨 — 2026-08-23)
 // (임시 지급 함수 grantSkinTemp 는 미르페스카·아레투사 하수스킨 지급 후 제거됨 — 2026-08-23)
 // (임시 config 함수 cfgAdmin 은 오픈베타→정식서비스 문구 교체 후 제거됨 — 2026-08-23)
+// (임시 config 함수 cfgEvent 은 광복절 이벤트 종료 후 제거됨 — 2026-08-24)
+// (임시 정리 함수 cleanupEventBadge 는 태극기 배지 34개 제거 후 제거됨 — 2026-08-24)

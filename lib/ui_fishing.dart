@@ -3260,6 +3260,13 @@ Positioned(
 // 🎟️ [여기에 추가!] 티켓 사용 확인 팝업
   void _useTicket(Map<String, dynamic> ticketItem) {
     audioManager.playSfx('sfx_click.mp3');
+    // 🎟️ 아레나 입장권은 낚시시간 충전용이 아님 → 아레나 참가 시 자동 사용. 여기선 안내만.
+    if ((ticketItem['name'] ?? '').toString().contains('입장권')) {
+      _showNotificationPopup('🎟️ 아레나 입장권',
+          '이 입장권은 아레나(대회) 참가 시 자동으로 사용돼요.\n낚시 시간 충전용이 아니에요! (그대로 보관됩니다)',
+          const Color(0xFFD4AF37));
+      return;
+    }
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -3297,7 +3304,7 @@ Positioned(
       if (doc.data()?['lastTimeTicketDate'] == today) {
         if (mounted) {
           _showNotificationPopup('🎟️ 오늘은 이미 사용했어요',
-              '시간 이용권은 하루에 한 번만 사용할 수 있어요.\n내일 다시 사용해 주세요!\n(이용권은 인벤토리에 그대로 남아있어요 😊)',
+              '시간 이용권은 하루 1회(자정 기준) 사용할 수 있어요.\n밤 12시(자정)가 지나면 다시 사용 가능해요!\n(이용권은 인벤토리에 그대로 남아있어요 😊)',
               const Color(0xFFD4AF37));
         }
         return;
@@ -4217,6 +4224,8 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // 🎟️ 이용권·입장권(TICKET)은 장착 아이템이 아님 → 탭해서 '사용'으로(미끼 슬롯 오장착 방지)
+    if ((item['category'] ?? '').toString().toUpperCase() == 'TICKET') { _useTicket(item); return; }
     // 🦐 새우 채집망 등 '도구(TRAP)'는 미끼/장비가 아님 → catch-all else로 미끼 장착돼 캐스팅 시 소모되는 버그 차단.
     //    (한라삼천 유저 채집망 사라짐 버그 재발: _openItemPopup엔 이미 가드 있는데 _quickEquipItem에 빠져있었음. 2026-08-16 수정.)
     if ((item['type'] ?? '').toString().toUpperCase() == 'TRAP') {
