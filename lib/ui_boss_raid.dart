@@ -530,6 +530,10 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
     _flushDamage();
 
     if (win) {
+      // 🏆 이 보스 클리어를 길드 문서에 '영구' 기록 → 길드홀 트로피 깃발용. (arrayUnion=중복 무해)
+      FirebaseFirestore.instance.collection('guilds').doc(widget.guildId)
+          .set({'clearedBosses': FieldValue.arrayUnion([widget.bossId])}, SetOptions(merge: true))
+          .catchError((_) {});
       _grantReward(); // 🎁 이 존 보상(로컬 지급 · 중복 가드)
       final next = nextRaidBoss(widget.bossId);
       if (next != null) {

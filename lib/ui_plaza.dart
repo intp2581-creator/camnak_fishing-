@@ -161,7 +161,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🎨 길드명 색상 — 길드장이 지정(guilds/{gid}.guildColor). presence로 실어 머리 위·명패에 반영.
   static const int _kGuildDefaultColor = 0xFF7FD4FF; // 기본 하늘색
   int _guildColor = _kGuildDefaultColor;
+  List<String> _clearedBosses = []; // 🏆 길드가 클리어한 보스 id 목록(길드홀 트로피 깃발용)
   StreamSubscription<DocumentSnapshot>? _guildDocSub; // 길드doc 실시간 구독(색상 등)
+
+  // 🏆 보스 트로피 깃발 슬롯 좌표(길드홀). bossId → [cx, cy(깃발 아래끝), 높이비율]. 바닥중앙 앵커. 시각 조정용(임시값).
+  static const Map<String, List<double>> kRaidFlagSlots = {
+    'murgadon': [0.37, 0.47, 0.25], // 좌(1단계 무르가돈) — 벽 가로선 위, 명패·방패 높이
+    'abykura':  [0.63, 0.47, 0.25], // 우(반대편 · 2단계) — 오른쪽 방패 자리
+    'basragon': [0.22, 0.50, 0.26], // 앞쪽 좌(3단계)
+    'kargon':   [0.78, 0.50, 0.26], // 앞쪽 우(4단계)
+    'volkar':   [0.49, 0.50, 0.26], // 중앙 앞(5단계)
+  };
   // 🎨 길드명 프리셋 팔레트(어두운 배경서 잘 보이는 색만)
   static const List<int> kGuildColorPalette = [
     0xFF7FD4FF, // 하늘(기본)
@@ -1163,6 +1173,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       });
       _channelNum = 0;
       _channelKey = 'raidlobby/${widget.raidGuildId}';
+      // 🏆 길드홀은 이 홀의 길드(raidGuildId)로 clearedBosses 구독 → 트로피 깃발 표시(유저 guildId 필드 비어있어도 동작)
+      _subGuildColor(widget.raidGuildId);
     } else {
       // 🧩 채널 배정 (정원 차면 자동 분할)
       _channelKey = await _pickChannel(_roomKey, uid);
@@ -1425,7 +1437,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final c = data?['guildColor'];
       final int col = (c is num) ? c.toInt() : _kGuildDefaultColor;
       final bool colorChanged = col != _guildColor;
-      setState(() { _guildColor = col; });
+      final cb = (data?['clearedBosses'] is List)
+          ? List<String>.from((data!['clearedBosses'] as List).map((e) => e.toString()))
+          : <String>[];
+      setState(() { _guildColor = col; _clearedBosses = cb; });
       if (colorChanged) _writeMe(); // 색 바뀌면 presence 재기록 → 남들에게도 반영
     });
   }
@@ -2971,6 +2986,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           if (_isGuildHall) {
                             // 🛡️ 여울 관리인 — 홀 뒤쪽 낚싯대 진열 옆(월드 고정·깊이정렬). 좌표는 미세조정 가능.
                             sprites.add(MapEntry(0.698, _guildManagerNpc(worldW, worldH, sizeRef, 0.603, 0.698)));
+                            // 🏆 클리어한 보스 트로피 깃발(영구) — 벽 고정, 캐릭터 뒤(depth 낮게). 좌표=kRaidFlagSlots.
+                            for (final e in kRaidFlagSlots.entries) {
+                              if (!_clearedBosses.contains(e.key)) continue;
+                              final v = e.value;
+                              sprites.add(MapEntry(0.02, _plazaPortal(worldW, worldH, sizeRef, v[0], v[1], 'flag_${e.key}.png', v[2])));
+                            }
                           } else if (!widget.isSea) {
                             // 🏞️ 민물광장 시설 포털
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, kCenterpieceFile, kCenterpieceHFrac)));
