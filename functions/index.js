@@ -606,3 +606,34 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 
 // (임시 함수 setStarMultTemp 는 별점별 힘 배율 첫날값[★3 1.05·★4 1.08·★5 1.10] 설정 후 제거됨 — 2026-08-24)
 //   다음 단계 상향 시: 이 함수 재추가(query s3/s4/s5) → 배포 → 호출 → 삭제. config/event.starMult에 저장됨.
+
+// ⭐ [상시 스케줄] 별점별 물고기 힘 배율 자동 램프 — ★3·4·5를 매일 04:00 KST에 +0.02씩 동시에 상향.
+//   목표 도달(★3 1.20·★4 1.30·★5 1.40) 시 no-op. config/event.starRampOff=true면 일시정지.
+//   반발 시 정지: config/event.starRampOff=true / 되돌리기: setStarMultTemp로 값 하향 / 종료: 이 함수 삭제.
+exports.rampStarMult = functions.scheduler.onSchedule(
+  { schedule: "0 4 * * *", timeZone: "Asia/Seoul", region: "us-central1" },
+  async (event) => {
+    try {
+      const db = admin.firestore();
+      const ref = db.collection("config").doc("event");
+      const snap = await ref.get();
+      const d = snap.data() || {};
+      if (d.starRampOff === true) { console.log("[별점램프] 일시정지(starRampOff)"); return; }
+      const targets = { "3": 1.20, "4": 1.30, "5": 1.40 };
+      const step = 0.02;
+      const cur = (d.starMult && typeof d.starMult === "object") ? d.starMult : {};
+      const out = { "1": 1.0, "2": 1.0 };
+      let changed = false;
+      for (const k of ["3", "4", "5"]) {
+        let v = (typeof cur[k] === "number") ? cur[k] : 1.0;
+        if (v < targets[k]) { v = Math.min(targets[k], Math.round((v + step) * 100) / 100); changed = true; }
+        out[k] = v;
+      }
+      if (!changed) { console.log("[별점램프] 목표 도달 — 변화 없음", cur); return; }
+      await ref.set({ starMult: out }, { merge: true });
+      console.log("[별점램프] 상향", out);
+    } catch (e) {
+      console.error("[별점램프] 실패", e);
+    }
+  }
+);
