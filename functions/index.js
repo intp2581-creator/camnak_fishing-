@@ -642,3 +642,5 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 //   원복(공지 내려도 될 때): config/event.betaNotice를 정식서비스 문구만 남게 되돌리기.
 
 // (임시 함수 diagTadagiTemp 는 따다기 1시간 이용권 2장 누락 복구[결제5·지급3] 후 제거됨 — 2026-08-24)
+
+// (임시 함수 diagEmailTicketsTemp 는 달빛둠벙[pmhseo] 이용권 6장 결제=6장 지급 정산확인 후 제거됨 — 2026-08-24)
