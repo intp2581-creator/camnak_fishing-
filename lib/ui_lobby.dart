@@ -1389,14 +1389,11 @@ class _StoreScreenState extends State<StoreScreen> {
     if (t == 'TRAP') return true;
     // 🎟️ 이용권류(1시간 이용권·아레나 입장권 등) — 유료 결제라 판매 X
     if (c == 'TICKET') return true;
-    // 💳 현금 구매 코스메틱(스킨·휘장·뱃지) — 영구 소장용. 사고→팔기 exploit(경제 붕괴) 방지로 판매 금지.
-    if (c == 'SKIN') return true;
-    if (item['cash'] == true) return true;
-    // 💳 캐시 COMMON 코스메틱(뱃지·휘장)은 인벤 저장 시 cash 플래그가 없어 이름으로 차단.
-    //    그 외 COMMON(아이스박스·선글라스·장갑 등 일반 도구)은 판매 허용 (2026-08-24 사용자 요청).
-    if (c == 'COMMON' && (n.contains('뱃지') || n.contains('휘장'))) return true;
     // 👑 발표 전 최상위 스킨(레전드·낚시의 신) — 아직 팔지 않음
     if (n.contains('레전드') || n.contains('낚시의')) return true;
+    // 💳 스킨·휘장·뱃지 = 계정당 1개(ONCE)라 팔고 재구매가 불가 → 포인트 환전 exploit 없음.
+    //    그래서 판매 허용하되, 최상급 1개만 _isTopGrade로 보호(실수 판매 방지) — 2026-08-24 사용자 결정.
+    //    (아이스박스·선글라스 등 일반 도구도 판매 허용)
     return false;
   }
 
