@@ -209,6 +209,11 @@ Future<void> loadGmNotice() async {
 /// 현재 활성 이벤트(전역). 앱 시작 시 loadGameEvent()로 채움. 기본=이벤트 없음.
 GameEvent currentGameEvent = GameEvent.none;
 
+/// 🎣 낚시터 별점별 물고기 힘 배율 (Firestore config/event.starMult, 실시간). 비면 전부 1.0(변화 없음).
+///   예: {3:1.05, 4:1.10, 5:1.15} → ★3 물고기 힘 ×1.05 … 며칠에 걸쳐 콘솔에서 살짝씩 상향(제압력 인플레 대응).
+///   이벤트 active 여부와 무관하게 항상 적용(gBetaNotice처럼 상시 읽음).
+Map<int, double> gStarPowerMult = {};
+
 /// 💎 보물상자 이벤트(명절 한정) 스위치. 메인 이벤트(active)와 '독립' —
 ///    지금 오픈기념 배지 때문에 active가 켜져 있어도 여기 영향 안 받음.
 ///    config/event 문서에 boxEvent:true 넣으면 켜짐. boxEventEnd("yyyy-MM-dd HH:mm")
@@ -246,6 +251,19 @@ Future<void> loadGameEvent() async {
       gTreasureBoxOn = boxOn && (boxEnd == null || DateTime.now().isBefore(boxEnd));
     }
     gBetaNotice = (d?['betaNotice'] ?? '').toString(); // 📢 이벤트 active와 무관하게 항상 읽음
+    // 🎣 별점별 물고기 힘 배율(이벤트 active와 무관하게 항상 적용) — config/event.starMult:{"3":1.05,...}
+    {
+      final raw = d?['starMult'];
+      final Map<int, double> m = {};
+      if (raw is Map) {
+        raw.forEach((k, v) {
+          final s = int.tryParse(k.toString());
+          final val = (v is num) ? v.toDouble() : null;
+          if (s != null && val != null && val > 0) m[s] = val;
+        });
+      }
+      gStarPowerMult = m;
+    }
     if (d == null || d['active'] != true) { currentGameEvent = GameEvent.none; return; }
     final now = DateTime.now();
     final start = _parseKst(d['start']);
@@ -279,6 +297,7 @@ Future<void> loadGameEvent() async {
   } catch (_) {
     currentGameEvent = GameEvent.none;
     gTreasureBoxOn = false;
+    gStarPowerMult = {}; // 오류 시 안전하게 배율 없음(=쉬운 쪽)
   }
 }
 

@@ -4867,6 +4867,11 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       fishBasePower = tunaMin + (kMaxPower - tunaMin) * math.pow(r, kCurve).toDouble();
     }
 
+    // 🎣 [별점별 필드 난이도] 낚시터 등급별 물고기 힘 배율(Firestore config/event.starMult, 실시간).
+    //    제압력 인플레(액세서리) 대응 — 며칠에 걸쳐 콘솔에서 ★3~5를 살짝씩 상향. 비면 1.0(변화 없음).
+    final double starMul = gStarPowerMult[widget.locationStars] ?? 1.0;
+    if (starMul != 1.0) fishBasePower *= starMul;
+
   } catch (e) {
     fishBasePower = 1000.0;
   }
