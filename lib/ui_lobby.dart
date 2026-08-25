@@ -1391,6 +1391,8 @@ class _StoreScreenState extends State<StoreScreen> {
     if (c == 'TICKET') return true;
     // 👑 발표 전 최상위 스킨(레전드·낚시의 신) — 아직 팔지 않음
     if (n.contains('레전드') || n.contains('낚시의')) return true;
+    // 🧵 낚시줄 = 내구도 소모품(쓸수록 m↓→끊어짐). 소진 직전(10m) 되팔이(정가30%=6,000P) exploit 방지로 판매 금지.
+    if (t == 'LINE' || n.contains('낚시줄')) return true;
     // 💳 스킨·휘장·뱃지 = 계정당 1개(ONCE)라 팔고 재구매가 불가 → 포인트 환전 exploit 없음.
     //    그래서 판매 허용하되, 최상급 1개만 _isTopGrade로 보호(실수 판매 방지) — 2026-08-24 사용자 결정.
     //    (아이스박스·선글라스 등 일반 도구도 판매 허용)
@@ -1465,6 +1467,12 @@ class _StoreScreenState extends State<StoreScreen> {
     }
     if (n.contains('선글라스')) return 'sun';
     if (n.contains('휘장') || n.contains('뱃지')) return 'badge';
+    // 🧊🧤🎽🥅 도구류도 부위별 슬롯 — 각 부위 최상급 1개 보호(소중대 아이스박스는 대형만 잠금 등)
+    final ty = (item['type'] ?? '').toString().toUpperCase();
+    if (ty == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) return 'cooler';
+    if (ty == 'GLOVES' || n.contains('장갑')) return 'glove';
+    if (ty == 'BELT' || n.contains('벨트')) return 'belt';
+    if (ty == 'NET' || n.contains('뜰채')) return 'net';
     if (_isBaitItem(item)) return 'bait';
     return 'etc';
   }
@@ -1486,7 +1494,7 @@ class _StoreScreenState extends State<StoreScreen> {
   bool _isTopGrade(Map<String, dynamic> item) {
     if (_isGm) return false;
     final type = _slotType(item);
-    if (!['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float', 'skin', 'sun', 'badge'].contains(type)) return false;
+    if (!['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float', 'skin', 'sun', 'badge', 'cooler', 'glove', 'belt', 'net'].contains(type)) return false;
     final myGrade = _gradeOf(item);
     if (myGrade <= 0) return false;
     int maxGrade = 0;
