@@ -1953,7 +1953,9 @@ class _StoreScreenState extends State<StoreScreen> {
                                 int price = item['price'];
                                 if (isBait || isTicket) { showDialog(context: context, builder: (context) => AlertDialog(backgroundColor: Colors.grey.shade900, title: Text(isTicket ? '🎟️ 입장권 구매' : '🛒 미끼 구매', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 구매로 $price P가 차감됩니다.\n구매하시겠습니까?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(context); _buyItem(item); }, child: const Text('확인', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))])); } else {
                                   bool isAlreadyOwned = myInventory.any((myItem) => myItem['name'] == itemName);
-                                  if (isAlreadyOwned) { _showNotificationPopup('🛑 구매 불가!', '이미 보유 중인 장비입니다!\n인벤토리를 확인해주세요.', Colors.orangeAccent); return; } _buyItem(item);
+                                  if (isAlreadyOwned) { _showNotificationPopup('🛑 구매 불가!', '이미 보유 중인 장비입니다!\n인벤토리를 확인해주세요.', Colors.orangeAccent); return; }
+                                  // 🛒 실수 클릭 방지 — 낚싯대·장비 포인트 구매도 확인창 거치게(미끼·입장권과 동일)
+                                  showDialog(context: context, builder: (dctx) => AlertDialog(backgroundColor: Colors.grey.shade900, title: const Text('🛒 구매 확인', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 을(를) $price P에 구매할까요?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(dctx); _buyItem(item); }, child: const Text('구매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))]));
                                 }
                               },
                               child: Text(auxLvOk ? '🛒 구매하기' : '🔒 레벨 부족', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),

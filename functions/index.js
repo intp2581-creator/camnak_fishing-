@@ -597,3 +597,5 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 // (임시 함수 grantGuildFlagTemp 는 트로피 깃발 위치 테스트 후 제거됨 — 2026-08-24)
 // (임시 함수 grantBadgeTemp 는 미르페스카·아레투사에 캠피싱 뱃지 지급 후 제거됨 — 2026-08-24)
 // (임시 함수 diagUserTemp·fixTicketsTemp 는 달빛둠벙 1시간권 4개 복구 + 수량(qty) 필드 확인 후 제거됨 — 2026-08-24)
+
+// (임시 함수 refundRodTemp 는 달빛둠벙 실수구매 CF-30T 제거+20,000P 환불 후 제거됨 — 2026-08-24)
