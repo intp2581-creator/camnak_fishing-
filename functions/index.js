@@ -603,3 +603,6 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 // (임시 함수 diagTerryTemp 는 빨강테리 중수스킨 구매=승급미달 환불요청 확인 후 제거됨 — 2026-08-24)
 
 // (임시 함수 resetOctopusRecordTemp 는 문어 1~50kg 개편에 맞춰 전 유저 문어 기록 39건 리셋 후 제거됨 — 2026-08-24)
+
+// (임시 함수 setStarMultTemp 는 별점별 힘 배율 첫날값[★3 1.05·★4 1.08·★5 1.10] 설정 후 제거됨 — 2026-08-24)
+//   다음 단계 상향 시: 이 함수 재추가(query s3/s4/s5) → 배포 → 호출 → 삭제. config/event.starMult에 저장됨.
