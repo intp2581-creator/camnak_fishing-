@@ -202,7 +202,13 @@ function extractProductNames(order) {
     for (const it of items) {
       const nm = (it.productInfo && (it.productInfo.prodName || it.productInfo.name)) ||
                  it.prodName || it.name;
-      if (nm) names.push(String(nm));
+      if (!nm) continue;
+      // 🎟️ 수량(qty) 반영 — 4개 사면 상품명을 4번 넣어 지급 로직이 4개 처리(STACK 누적).
+      //    (예전엔 qty 무시로 항상 1개만 지급되던 버그 수정 — 2026-08-24)
+      let q = Number(it.qty != null ? it.qty : (it.count != null ? it.count : (it.quantity != null ? it.quantity : 1)));
+      if (!Number.isFinite(q) || q < 1) q = 1;
+      if (q > 100) q = 100; // 안전 상한
+      for (let k = 0; k < q; k++) names.push(String(nm));
     }
   }
   return names;
@@ -590,3 +596,4 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 
 // (임시 함수 grantGuildFlagTemp 는 트로피 깃발 위치 테스트 후 제거됨 — 2026-08-24)
 // (임시 함수 grantBadgeTemp 는 미르페스카·아레투사에 캠피싱 뱃지 지급 후 제거됨 — 2026-08-24)
+// (임시 함수 diagUserTemp·fixTicketsTemp 는 달빛둠벙 1시간권 4개 복구 + 수량(qty) 필드 확인 후 제거됨 — 2026-08-24)
