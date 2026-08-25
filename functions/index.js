@@ -601,3 +601,5 @@ exports.getWeather = functions.https.onRequest(async (req, res) => {
 // (임시 함수 refundRodTemp 는 달빛둠벙 실수구매 CF-30T 제거+20,000P 환불 후 제거됨 — 2026-08-24)
 
 // (임시 함수 diagTerryTemp 는 빨강테리 중수스킨 구매=승급미달 환불요청 확인 후 제거됨 — 2026-08-24)
+
+// (임시 함수 resetOctopusRecordTemp 는 문어 1~50kg 개편에 맞춰 전 유저 문어 기록 39건 리셋 후 제거됨 — 2026-08-24)

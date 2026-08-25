@@ -682,7 +682,7 @@ final List<Map<String, dynamic>> seaFishPool = [
   {'name': '주꾸미', 'weight': 50, 'unit': 'Cm', 'min': 5.0, 'max': 15.0, 'pts': 0, 'reqBait': '에기', 'img': 'assets/images/fish_sea_06_webfoot_octopus.png'},
   {'name': '광어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 0, 'img': 'assets/images/fish_sea_10_halibut.png'},
   {'name': '감성돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 80.0, 'pts': 1, 'img': 'assets/images/fish_sea_01_black_porgy.png'}, // 👑 6대장
-  {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 1, 'max': 70, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장 (기존 최대어 69kg 보존 위해 max 70)
+  {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 1, 'max': 50, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장 (현실감 1~50kg · 2026-08-24 기록 리셋, 힘 계산표도 50 정렬)
   {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 40.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
   // 🎣 [루어/신규] 볼락(갯지렁이·웜에 강함) · 학꽁치(크릴에 강함)
   {'name': '볼락', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_12_mebaru.png'},
