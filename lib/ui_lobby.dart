@@ -1401,11 +1401,19 @@ class _StoreScreenState extends State<StoreScreen> {
   //   레전드/신은 _isNonSellable에서 차단되므로 여기 없음.
   int? _skinSellPrice(String name) {
     if (name.contains('초보')) return 100;
-    if (name.contains('하수')) return 10000;
-    if (name.contains('중수')) return 25000;
-    if (name.contains('고수')) return 50000;
-    if (name.contains('프로')) return 100000;
-    if (name.contains('마스터')) return 250000;
+    if (name.contains('하수')) return 20000;
+    if (name.contains('중수')) return 50000;
+    if (name.contains('고수')) return 100000;
+    if (name.contains('프로')) return 200000;
+    if (name.contains('마스터')) return 500000;
+    return null;
+  }
+
+  // 🎖️ 뱃지·휘장 판매가(포인트) — 등급별 지정가(정가30% 대신)
+  int? _badgeSellPrice(String name) {
+    if (name.contains('정예')) return 100000; // KREFT 정예 휘장
+    if (name.contains('휘장')) return 50000;  // 캠피싱 휘장
+    if (name.contains('뱃지')) return 20000;  // 캠피싱 뱃지
     return null;
   }
 
@@ -1426,6 +1434,9 @@ class _StoreScreenState extends State<StoreScreen> {
     // 👕 스킨은 이름별 커스텀 가격표 우선 적용
     final skinP = _skinSellPrice(name);
     if (skinP != null) return skinP;
+    // 🎖️ 뱃지·휘장도 지정 판매가 적용
+    final badgeP = _badgeSellPrice(name);
+    if (badgeP != null) return badgeP;
     final p = _storePriceOf(name);
     // 무료 지급품(0P)도 인벤 정리용으로 팔 수 있게 (구매는 막아서 되팔이 악용 방지)
     final unit = (p != null && p > 0) ? (p * 0.3).floor() : 100;
