@@ -642,3 +642,5 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 // (임시 함수 diagEmailTicketsTemp 는 달빛둠벙[pmhseo] 이용권 6장 결제=6장 지급 정산확인 후 제거됨 — 2026-08-24)
 
 // (임시 함수 grantJungsuSkinTemp 는 빨강테리 중수승급 완료 후 중수스킨 지급+환불요청 취소 후 제거됨 — 2026-08-24)
+
+// (임시 함수 grantTestItemsTemp 는 미르페스카·아레투사에 중수스킨+캠피싱휘장 지급 후 제거됨 — 2026-08-24)
