@@ -627,6 +627,7 @@ Widget _whisperUnreadBadge() {
       // 💳 [착용기반] 착용한 스킨1+뱃지1만(조건 충족 시). 로그인 시 조건 되는 최고 자동착용됨.
       ownedInventory: null,
       myLevel: _currentLevel > 0 ? _currentLevel : 1, myRank: _myRank,
+      isArena: widget.title != widget.locationName, // ⚔️ 아레나 평준화(마스터 스킨·정예휘장)는 조건 무시 적용
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;
@@ -4906,8 +4907,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
 
     // 🎣 [별점별 필드 난이도] 낚시터 등급별 물고기 힘 배율(Firestore config/event.starMult, 실시간).
     //    제압력 인플레(액세서리) 대응 — 며칠에 걸쳐 콘솔에서 ★3~5를 살짝씩 상향. 비면 1.0(변화 없음).
+    //    ⚔️ 아레나는 평준화(제압력 고정)라 램프 제외 — 안 그러면 물고기만 세져서 불공정.
     final double starMul = gStarPowerMult[widget.locationStars] ?? 1.0;
-    if (starMul != 1.0) fishBasePower *= starMul;
+    if (starMul != 1.0 && !widget.isArena) fishBasePower *= starMul;
 
   } catch (e) {
     fishBasePower = 1000.0;

@@ -628,6 +628,7 @@ for (var fish in availableFishes) {
     List<dynamic>? ownedInventory,            // 💳 넘기면: 보유한 캐시템(스킨·휘장·뱃지) 능력치 전부 합산(장착 불필요)
     int myLevel = 999999,                     // 🎖️ 캐시템 착용조건(레벨) 판정용 — 미달이면 능력치 미적용
     String myRank = '',                       // 🎖️ 스킨 착용조건(승급) 판정용
+    bool isArena = false,                     // ⚔️ 아레나=평준화: 지급된 마스터 스킨·휘장을 조건 무시하고 적용
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -652,8 +653,15 @@ for (var fish in availableFishes) {
     }
     // 💳 [착용기반] 착용한 스킨1+뱃지1만, 그것도 착용조건(레벨+승급) 충족 시에만 능력치 적용.
     //    (보유합산 폐지 — 착용/해제하면 제압력이 바뀜. 로그인 시 조건 되는 최고를 자동 착용해 예전 보유자 유지.)
-    if (statEligible(equippedSkin)) addStats(equippedSkin);
-    if (statEligible(equippedBadge)) addStats(equippedBadge);
+    // ⚔️ 아레나는 평준화 — 지급된 마스터 스킨·정예휘장을 '조건 무시'하고 적용.
+    //    (안 그러면 저랩 유저는 마스터스킨(300)·정예휘장(50) 조건 미달로 빠져 1350→300이 됨)
+    if (isArena) {
+      addStats(equippedSkin);
+      addStats(equippedBadge);
+    } else {
+      if (statEligible(equippedSkin)) addStats(equippedSkin);
+      if (statEligible(equippedBadge)) addStats(equippedBadge);
+    }
     addStats(equippedRod);
     addStats(equippedFloat);
     addStats(equippedReel);
