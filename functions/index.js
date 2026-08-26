@@ -646,3 +646,6 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 // (임시 함수 grantTestItemsTemp 는 미르페스카·아레투사에 중수스킨+캠피싱휘장 지급 후 제거됨 — 2026-08-24)
 
 // (임시 함수 diagBaekduTemp 는 백두무궁 제압력 하락원인[하수스킨+뱃지 보유·미착용] 확인 후 제거됨 — 2026-08-24)
+
+// (임시 함수 cfgTicker2Temp 는 줄광고를 능력치(착용기반) 업데이트 공지로 갱신 후 제거됨 — 2026-08-24)
+//   원복: config/event.betaNotice를 정식서비스 문구만 남게 되돌리기.
