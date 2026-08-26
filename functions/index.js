@@ -649,3 +649,5 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 
 // (임시 함수 cfgTicker2Temp 는 줄광고를 능력치(착용기반) 업데이트 공지로 갱신 후 제거됨 — 2026-08-24)
 //   원복: config/event.betaNotice를 정식서비스 문구만 남게 되돌리기.
+
+// (임시 함수 refundArenaTicketTemp 는 빨강테리 아레나 입장권 1장 복구[평준화 버그 허탕] 후 제거됨 — 2026-08-24)
