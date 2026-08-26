@@ -87,6 +87,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _remainingSec = 3600; // ⏱️ 오늘 남은 낚시 시간(초) — 광장에도 표시(유저 요청)
   int _level = 1;
   List<dynamic> _inventory = [];
+  bool _autoCashEquipped = false; // 🎖️ 최초 로드 시 조건 되는 최고 스킨·뱃지 1회 자동착용(착용기반 회귀 방지)
 
   // 캐릭터 위치 (0~1 비율 좌표, dy는 발 위치 기준)
   Offset _charPos = const Offset(0.5, 0.74);
@@ -828,6 +829,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         // 🎓 튜토리얼 상태는 실시간 스트림으로 안 건드림(캐시 스냅샷 덮어쓰기 방지).
         //    초기값은 _loadUser 일회성 get, 이후 변경은 로컬 낙관적 업데이트로만.
         _inventory = (d['inventory'] ?? []) as List<dynamic>;
+        if (!_autoCashEquipped) { _autoCashEquipped = true; _autoEquipBestCash(); } // 🎖️ 최초 1회 최고 자동착용
         if (guildChanged) {
           _guildId = gid;
           _guildName = gname;
@@ -1573,11 +1575,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       reqLv = skinLv[skinTierByName(nm)] ?? 0;
     }
     if (reqLv > 0 && _level < reqLv) return false;
-    final String rr = isSkinItem(item)
-        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(nm))
-        : '';
+    final String rr = cashReqRank(nm); // 🎖️ 뱃지/휘장도 승급 요구
     if (rr.isNotEmpty && rankIndex(_rank) < rankIndex(rr)) return false;
     return true;
+  }
+
+  // 🎖️ [착용기반] 보유 중 조건 되는 최고 스킨1+뱃지1을 자동 착용(최초 로드 시). 예전 보유자 능력치 유지.
+  void _autoEquipBestCash() {
+    Map<String, dynamic>? bestSkin, bestBadge;
+    int bp(Map<String, dynamic> it) => (it['stats'] is Map) ? (int.tryParse((it['stats']['P'] ?? '0').toString()) ?? 0) : 0;
+    for (final raw in _inventory) {
+      if (raw is! Map) continue;
+      final m = Map<String, dynamic>.from(raw);
+      if (!_cashItemEligible(m)) continue;
+      final n = (m['name'] ?? '').toString();
+      final cat = (m['category'] ?? '').toString().toUpperCase();
+      if (cat == 'SKIN' || skinTierByName(n) > 0) {
+        if (bestSkin == null || skinTierByName(n) > skinTierByName((bestSkin['name'] ?? '').toString())) bestSkin = m;
+      } else if (cat == 'COMMON' && (n.contains('뱃지') || n.contains('휘장'))) {
+        if (bestBadge == null || bp(m) > bp(bestBadge)) bestBadge = m;
+      }
+    }
+    if (bestSkin != null) globalEquippedSkin = bestSkin;
+    if (bestBadge != null) globalEquippedBadge = bestBadge;
   }
 
   String get _charImage {
@@ -4158,7 +4178,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
       equippedLine: fm(globalEquippedLine),           // 🧵 낚시줄(P)
       equippedGroundbait: fm(globalEquippedGroundbait), // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
-      ownedInventory: _inventory, // 💳 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지)
+      ownedInventory: null, // 💳 착용기반 — 착용한 스킨·뱃지(조건 충족 시)만. 로그인 시 최고 자동착용됨.
       myLevel: _level > 0 ? _level : 1, myRank: _rank,
     );
     final eP = (equip['strength'] ?? 10) - 10;
@@ -4166,7 +4186,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final eS = (equip['sensitivity'] ?? 10) - 10;
 
     Widget body(int gLevel) {
-      final lvB = (_level - 1) < 0 ? 0 : (_level - 1); // 🆙 레벨 보너스(각 +1/레벨) — 낚시 전투력과 동일
+      final lvB = _level < 0 ? 0 : _level; // 🆙 레벨 보너스(각 +레벨) — Lv과 일치·낚시 전투력과 동일(2026-08-24)
       final gB = FishingLogic.guildStatBonus(gLevel);
       final cB = FishingLogic.guildLeagueBonus(_myLeagueRank);
       final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
@@ -4345,9 +4365,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
           reqLv = skinLv[skinTierByName(_nm)] ?? 0;
         }
-        final String reqRank = isSkinItem(item)
-            ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(_nm))
-            : '';
+        final String reqRank = cashReqRank(_nm); // 🎖️ 뱃지/휘장도 승급 요구
         if (reqLv > 0 && _level < reqLv) {
           _infoPopup('🔒 착용 레벨 부족', '$_nm은(는) Lv.$reqLv 부터 착용할 수 있어요.\n(현재 Lv.$_level)\n\n구매한 아이템은 인벤토리에 있어요!\n레벨 올린 뒤 착용하세요 👍');
           return;

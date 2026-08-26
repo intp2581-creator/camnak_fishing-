@@ -1412,9 +1412,7 @@ class _StoreScreenState extends State<StoreScreen> {
       reqLv = skinLv[skinTierByName(n)] ?? 0;
     }
     if (reqLv > 0 && widget.currentLevel < reqLv) return true;
-    final String reqRank = _isSkin(item)
-        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(n))
-        : '';
+    final String reqRank = cashReqRank(n); // 🎖️ 뱃지/휘장도 승급 요구
     if (reqRank.isNotEmpty && rankIndex(widget.currentRank) < rankIndex(reqRank)) return true;
     return false;
   }

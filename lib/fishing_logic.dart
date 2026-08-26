@@ -646,32 +646,14 @@ for (var fish in availableFishes) {
       if (it == null) return false;
       final int rl = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
       if (rl > 0 && myLevel < rl) return false;
-      final String rr = (it['reqRank'] ?? '').toString();
+      final String rr = cashReqRank((it['name'] ?? '').toString()); // 🎖️ 뱃지/휘장도 승급 요구(이름 기반)
       if (rr.isNotEmpty && (myRank.isEmpty ? 999 : rankIndex(myRank)) < rankIndex(rr)) return false;
       return true;
     }
-    if (ownedInventory != null) {
-      Map<String, dynamic>? bestSkin, bestBadge;
-      int badgeP(Map<String, dynamic> it) => (it['stats'] is Map) ? (int.tryParse((it['stats']['P'] ?? '0').toString()) ?? 0) : 0;
-      for (final raw in ownedInventory) {
-        if (raw is! Map) continue;
-        final m = Map<String, dynamic>.from(raw);
-        if (!statEligible(m)) continue;
-        final n = (m['name'] ?? '').toString();
-        final cat = (m['category'] ?? '').toString().toUpperCase();
-        if (cat == 'SKIN' || skinTierByName(n) > 0) {
-          if (bestSkin == null || skinTierByName(n) > skinTierByName((bestSkin['name'] ?? '').toString())) bestSkin = m;
-        } else if (cat == 'COMMON' && (n.contains('뱃지') || n.contains('휘장'))) {
-          if (bestBadge == null || badgeP(m) > badgeP(bestBadge)) bestBadge = m;
-        }
-      }
-      addStats(bestSkin);
-      addStats(bestBadge);
-    } else {
-      // 아레나 등 ownedInventory 미전달 시 착용값만(조건 충족 시)
-      if (statEligible(equippedSkin)) addStats(equippedSkin);
-      if (statEligible(equippedBadge)) addStats(equippedBadge);
-    }
+    // 💳 [착용기반] 착용한 스킨1+뱃지1만, 그것도 착용조건(레벨+승급) 충족 시에만 능력치 적용.
+    //    (보유합산 폐지 — 착용/해제하면 제압력이 바뀜. 로그인 시 조건 되는 최고를 자동 착용해 예전 보유자 유지.)
+    if (statEligible(equippedSkin)) addStats(equippedSkin);
+    if (statEligible(equippedBadge)) addStats(equippedBadge);
     addStats(equippedRod);
     addStats(equippedFloat);
     addStats(equippedReel);
@@ -888,10 +870,10 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedSkin: skin, equippedRod: rodForCalc, equippedFloat: float, equippedReel: reel,
     equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
-    ownedInventory: inv, // 💳 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지)
+    ownedInventory: null, // 💳 착용기반 — 자동장착이 고른 스킨·뱃지(조건 충족)만
     myLevel: level, myRank: (userData['rank'] ?? '초보').toString(),
   );
-  final lvBonus = ((level > 0 ? level : 1) - 1) * 3;
+  final lvBonus = (level > 0 ? level : 1) * 3; // 🆙 Lv당 +3(각 스탯 +레벨), Lv과 일치(2026-08-24)
   // 🛡️ 길드레벨·길드랭킹·개인랭킹 보너스(statBonus)는 일반 낚시처럼 3스탯 각각에 적용 → power엔 ×3
   int power = (s['strength'] ?? 0) + (s['control'] ?? 0) + (s['sensitivity'] ?? 0) + lvBonus + statBonus * 3;
   final tp = (userData['testPower'] is num) ? (userData['testPower'] as num).toInt() : 0;

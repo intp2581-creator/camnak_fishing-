@@ -507,6 +507,18 @@ String skinReqRank(String skinName) {
   return '';
 }
 
+// 🎖️ 캐시 코스메틱(스킨·뱃지·휘장)의 요구 승급(칭호). 이름 기반이라 옛 인벤(reqRank 필드 없음)도 정상 판정.
+//   스킨: 하수/중수/고수/프로/마스터 조사. 뱃지류: 캠피싱뱃지→하수 · 캠피싱휘장→중수 · KREFT정예휘장→고수.
+//   (스킨과 짝: 뱃지=하수급 Lv10 · 휘장=중수급 Lv30 · 정예휘장=고수급 Lv50)
+String cashReqRank(String name) {
+  final sr = skinReqRank(name);
+  if (sr.isNotEmpty) return sr;
+  if (name.contains('정예')) return '고수';
+  if (name.contains('휘장')) return '중수';
+  if (name.contains('뱃지')) return '하수';
+  return '';
+}
+
 // 🏅 칭호: 레벨 breakpoint 기준 (실제 칭호는 승급 퀘스트 통과로 결정 — 이건 참고용).
 //    하수10 → 중수30 → 고수50 → 프로70 → 마스터100 → 레전드120 → 낚시의 신150(만렙)
 String calcRankFromLevel(int level) {

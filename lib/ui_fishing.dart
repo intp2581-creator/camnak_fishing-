@@ -624,8 +624,8 @@ Widget _whisperUnreadBadge() {
       equippedGloves: equippedGloves, // 🧤 장갑(P)
       equippedLine: equippedLine,     // 🧵 낚시줄(P)
       equippedGroundbait: _groundbaitActive ? equippedGroundbait : null, // 🍚 밑밥(S) — 세션 활성 시만
-      // 💳 [2026-08-24] 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지). 아레나는 평준화라 제외.
-      ownedInventory: (widget.roomId != null) ? null : _latestInventory,
+      // 💳 [착용기반] 착용한 스킨1+뱃지1만(조건 충족 시). 로그인 시 조건 되는 최고 자동착용됨.
+      ownedInventory: null,
       myLevel: _currentLevel > 0 ? _currentLevel : 1, myRank: _myRank,
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
@@ -1337,7 +1337,7 @@ Widget _whisperUnreadBadge() {
     Map<String, int> myStats = getMyTotalStats();
     // 🏆 아레나는 완전 평준화(장비=마스터 지급 + 레벨 보너스 0) → 순수 실력 대결. 일반 낚시는 레벨 보너스 반영.
     final bool isArenaMode = widget.title != widget.locationName;
-    final int lvBonus = isArenaMode ? 0 : ((_currentLevel > 0 ? _currentLevel : 1) - 1) * 3; // 🆙 레벨 보너스(제압력)
+    final int lvBonus = isArenaMode ? 0 : (_currentLevel > 0 ? _currentLevel : 1) * 3; // 🆙 레벨 보너스(제압력) — Lv당 +3(각 스탯 +레벨). Lv과 일치(2026-08-24)
     double totalStats = ((myStats['strength'] ?? 0) + (myStats['control'] ?? 0) + (myStats['sensitivity'] ?? 0) + lvBonus).toDouble();
 
     // 🎣 [내부 함수] 실제 파이팅 미니게임을 띄우는 로직
@@ -2854,7 +2854,7 @@ Positioned(
     }
                   
                   // 🏆 아레나는 완전 평준화 → 레벨 보너스 0으로 표시(실제 제압력과 일치)
-                  int levelEach = (widget.title != widget.locationName) ? 0 : realLevel - 1; // 🆙 레벨업마다 힘·컨트롤·감도 각 +1 (제압력 +3)
+                  int levelEach = (widget.title != widget.locationName) ? 0 : realLevel; // 🆙 레벨업마다 힘·컨트롤·감도 각 +1 (제압력 +3), Lv과 일치
                   Map<String, int> currentStats = getMyTotalStats();
                   int equipP = (currentStats['strength'] ?? 0) + levelEach;
                   int equipC = (currentStats['control'] ?? 0) + levelEach;
@@ -4062,9 +4062,7 @@ Positioned(
       reqLv = skinLv[skinTierByName(nm)] ?? 0;
     }
     if (reqLv > 0 && _currentLevel < reqLv) return false;
-    final String reqRank = isSkinItem(item)
-        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(nm))
-        : '';
+    final String reqRank = cashReqRank(nm); // 🎖️ 뱃지/휘장도 승급 요구
     if (reqRank.isNotEmpty && rankIndex(_myRank) < rankIndex(reqRank)) return false;
     return true;
   }
@@ -4229,9 +4227,7 @@ Positioned(
         const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
         reqLv = skinLv[skinTierByName(iName)] ?? 0;
       }
-      final String reqRank = isSkinItem(item)
-          ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(iName))
-          : '';
+      final String reqRank = cashReqRank(iName); // 🎖️ 뱃지/휘장도 승급 요구
       if (reqLv > 0 && _currentLevel < reqLv) {
         _showNotificationPopup('🔒 착용 레벨 부족', '$iName은(는) Lv.$reqLv 부터 착용할 수 있어요.\n(현재 Lv.$_currentLevel)\n\n구매한 아이템은 인벤토리에 있어요.\n레벨을 올린 뒤 착용하세요! 👍', Colors.orangeAccent);
         return;
