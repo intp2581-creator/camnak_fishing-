@@ -1440,6 +1440,17 @@ class _StoreScreenState extends State<StoreScreen> {
     return null;
   }
 
+  // 🪱 상점에서 내 보유 수량 조회(미끼 등) — myInventory(구매 즉시 갱신)에서 이름 매칭 합산.
+  int _ownedQty(String name) {
+    int q = 0;
+    for (final i in myInventory) {
+      if (i is Map && (i['name'] ?? '').toString() == name) {
+        q += (i['quantity'] is num) ? (i['quantity'] as num).toInt() : 1;
+      }
+    }
+    return q;
+  }
+
   bool _isBaitItem(Map<String, dynamic> item) {
     final t = (item['type'] ?? '').toString().toUpperCase();
     final c = (item['category'] ?? '').toString().toUpperCase();
@@ -1974,6 +1985,11 @@ class _StoreScreenState extends State<StoreScreen> {
                     mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Center(child: Text('${item['price']} P', style: TextStyle(color: auxLvOk ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
+                      // 🪱 미끼는 보유 수량 표시(광장 안 나가고 부족한 것 미리 구매용 — 랭킹1위 건의)
+                      if (_isBaitItem(item)) ...[
+                        const SizedBox(height: 3),
+                        Center(child: Text('보유 ${_ownedQty(itemName)}개', style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 13, fontWeight: FontWeight.bold))),
+                      ],
                       if (!auxLvOk) ...[
                         const SizedBox(height: 4),
                         Center(child: Text('🔒 Lv.$auxReqLv 부터 구매 가능\n(현재 Lv.${widget.currentLevel})', textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
