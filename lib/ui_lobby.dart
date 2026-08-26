@@ -1423,7 +1423,7 @@ class _StoreScreenState extends State<StoreScreen> {
   // 👕 스킨 커스텀 판매가 (초보 100 · 하수 10,000 · 중수 25,000 · 고수 50,000 · 프로 100,000 · 마스터 250,000)
   //   레전드/신은 _isNonSellable에서 차단되므로 여기 없음.
   int? _skinSellPrice(String name) {
-    if (name.contains('초보')) return 100;
+    if (name.contains('초보')) return 1000; // 초보 조사(무료 기본 스킨)도 상점에 1000P 판매 허용(2026-08-24)
     if (name.contains('하수')) return 20000;
     if (name.contains('중수')) return 50000;
     if (name.contains('고수')) return 100000;
@@ -1728,16 +1728,17 @@ class _StoreScreenState extends State<StoreScreen> {
     final bool isFish = (item['type'] ?? '') == 'FISH';
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
-    // 🚫 판매 금지 항목(도구·이용권·미공개 스킨) — '초보'는 기본 지급이라 별도 처리
+    // 🚫 판매 금지 항목(도구·이용권·미공개 스킨)
     final bool nonSellable = _isNonSellable(item);
-    final isBeginner = itemName.contains('초보');
-    final isTop = !isBeginner && _isTopGrade(item); // 부위별 최상급
+    // 🆕 초보 조사 스킨(무료 기본템)도 1000P 판매 허용. 단 최상급 보호는 유지
+    //    → 하수 이상 있으면 초보는 '여분'이라 판매 가능 / 초보만 있으면(저랩) 최상급이라 보호(잠금).
+    final isTop = _isTopGrade(item); // 부위별 최상급
     final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
     // ⭐ 최상급은 잠금하되, 중복(2개+)이면 '여분'은 판매 허용 → 마지막 1개(=쓰는 것)만 보호
     final bool topLocked = isTop && !(isGear && qty > 1);
     // 🎖️ 착용조건 미달 캐시템(스킨·뱃지)은 판매도 잠금(레벨 전 포인트 현금화 우회 차단)
     final bool cashLocked = _cashSellLockUntilEligible(item);
-    final sellable = !isBeginner && !topLocked && !nonSellable && !cashLocked;
+    final sellable = !topLocked && !nonSellable && !cashLocked;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
