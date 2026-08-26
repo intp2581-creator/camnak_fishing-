@@ -1564,19 +1564,36 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           ? 'assets/plaza/plaza_sea.jpg'
           : 'assets/plaza/plaza_fw.jpg');
 
+  // 🎖️ 캐시템(스킨·뱃지) 착용조건 충족? (외형·미리보기용) — _level/_rank 기준. 못 입는 건 외형 반영 X.
+  bool _cashItemEligible(Map<String, dynamic> item) {
+    final nm = (item['name'] ?? '').toString();
+    int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+    if (reqLv == 0 && isSkinItem(item)) {
+      const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
+      reqLv = skinLv[skinTierByName(nm)] ?? 0;
+    }
+    if (reqLv > 0 && _level < reqLv) return false;
+    final String rr = isSkinItem(item)
+        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(nm))
+        : '';
+    if (rr.isNotEmpty && rankIndex(_rank) < rankIndex(rr)) return false;
+    return true;
+  }
+
   String get _charImage {
-    if (globalEquippedSkin != null) {
+    // 착용한 스킨이 조건 충족이면 그걸로
+    if (globalEquippedSkin != null && _cashItemEligible(globalEquippedSkin!)) {
       return FishingLogic.getLobbyCharacterImage(globalEquippedSkin!['name'].toString());
     }
-    // 인벤토리에 보유한 최고 스킨 추정 (장착정보 없을 때 대비)
-    final skinNames = _inventory
-        .where((i) => (i['category'] == 'SKIN' || i['type'] == 'SKIN'))
-        .map((i) => i['name'].toString())
-        .toList();
-    for (final tier in ['마스터', '프로', '고수', '중수', '하수']) {
-      if (skinNames.any((n) => n.contains(tier))) {
-        return FishingLogic.getLobbyCharacterImage(tier);
-      }
+    // 아니면 보유 스킨 중 '착용 조건 충족한' 최고 등급으로 (못 입는 스킨은 외형 반영 안 함)
+    for (final tier in ['낚시의', '레전드', '마스터', '프로', '고수', '중수', '하수']) {
+      final hit = _inventory.firstWhere((i) {
+        if (i is! Map) return false;
+        if (!(i['category'] == 'SKIN' || i['type'] == 'SKIN')) return false;
+        if (!(i['name'] ?? '').toString().contains(tier)) return false;
+        return _cashItemEligible(Map<String, dynamic>.from(i));
+      }, orElse: () => null);
+      if (hit != null) return FishingLogic.getLobbyCharacterImage(tier);
     }
     return 'assets/images/char_beginner.png';
   }
