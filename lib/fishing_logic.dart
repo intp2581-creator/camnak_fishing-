@@ -626,6 +626,8 @@ for (var fish in availableFishes) {
     Map<String, dynamic>? equippedLine,       // 🧵 낚시줄(P)
     Map<String, dynamic>? equippedGroundbait, // 🍚 밑밥(S, 세션 버프)
     List<dynamic>? ownedInventory,            // 💳 넘기면: 보유한 캐시템(스킨·휘장·뱃지) 능력치 전부 합산(장착 불필요)
+    int myLevel = 999999,                     // 🎖️ 캐시템 착용조건(레벨) 판정용 — 미달이면 능력치 미적용
+    String myRank = '',                       // 🎖️ 스킨 착용조건(승급) 판정용
   }) {
     int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
 
@@ -637,15 +639,19 @@ for (var fish in availableFishes) {
       totalSens += int.tryParse(s['S']?.toString() ?? s['감도']?.toString() ?? '0') ?? 0;
     }
 
-    // 💳 캐시템(스킨·휘장·뱃지)은 '못 파는 영구 소장품'이라 보유만 해도 전부 합산.
-    //    ownedInventory가 오면 장착 스킨/휘장 대신 '보유 전부'를 더한다(중복 방지).
-    if (ownedInventory != null) {
-      final cs = ownedCashStats(ownedInventory);
-      totalStr += cs['P'] ?? 0; totalCtrl += cs['C'] ?? 0; totalSens += cs['S'] ?? 0;
-    } else {
-      addStats(equippedSkin);
-      addStats(equippedBadge);
+    // 💳 [2026-08-24 착용기반] 착용한 스킨1+뱃지1만 능력치 적용(보유합산 폐지). 단 착용조건(레벨/승급)
+    //    미달이면 능력치 0 — 홈페이지서 조건 미달로 사도(항상 지급) 조건 충족 전엔 효과 X, 충족 시 자동 적용.
+    //    (ownedInventory 파라미터는 더 이상 안 씀 — 호출부가 null 전달)
+    bool statEligible(Map<String, dynamic>? it) {
+      if (it == null) return false;
+      final int rl = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
+      if (rl > 0 && myLevel < rl) return false;
+      final String rr = (it['reqRank'] ?? '').toString();
+      if (rr.isNotEmpty && (myRank.isEmpty ? 999 : rankIndex(myRank)) < rankIndex(rr)) return false;
+      return true;
     }
+    if (statEligible(equippedSkin)) addStats(equippedSkin);
+    if (statEligible(equippedBadge)) addStats(equippedBadge);
     addStats(equippedRod);
     addStats(equippedFloat);
     addStats(equippedReel);
@@ -668,14 +674,21 @@ for (var fish in availableFishes) {
 
   // 💳 보유한 캐시 코스메틱(스킨 SKIN · 휘장/뱃지 COMMON) 능력치 전부 합산.
   //    못 팔게 막은 영구 소장품이라 장착 안 해도 보유만 하면 다 적용(P/C/S).
-  static Map<String, int> ownedCashStats(List<dynamic>? inventory) {
+  static Map<String, int> ownedCashStats(List<dynamic>? inventory, {int myLevel = 999999, String myRank = ''}) {
     int p = 0, c = 0, s = 0;
     if (inventory == null) return {'P': 0, 'C': 0, 'S': 0};
+    final int myRankIdx = myRank.isEmpty ? 999 : rankIndex(myRank);
     for (final raw in inventory) {
       if (raw is! Map) continue;
       if ((raw['type'] ?? '').toString().toUpperCase() == 'EVENT') continue; // 🎁 이벤트 아이템은 eventItemBonus가 만료체크로 따로 처리(만료 시 0)
       final cat = (raw['category'] ?? '').toString().toUpperCase();
       if (cat != 'SKIN' && cat != 'COMMON') continue; // 캐시 코스메틱만(이용권 등 TICKET 제외)
+      // 🎖️ 착용 조건(레벨·승급) 미달 = 능력치 미적용. 홈페이지선 조건 미달로도 구매 가능하니
+      //    (구매=항상 지급, 계정당 1개라 exploit 없음) 조건 충족 전까지는 효과 X. 충족하면 자동 적용.
+      final reqLv = (raw['reqLevel'] is num) ? (raw['reqLevel'] as num).toInt() : 0;
+      if (reqLv > 0 && myLevel < reqLv) continue;
+      final reqRank = (raw['reqRank'] ?? '').toString();
+      if (reqRank.isNotEmpty && myRankIdx < rankIndex(reqRank)) continue;
       final st = raw['stats'];
       if (st is Map) {
         p += int.tryParse((st['P'] ?? st['힘'] ?? '0').toString()) ?? 0;
@@ -855,7 +868,8 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedSkin: skin, equippedRod: rodForCalc, equippedFloat: float, equippedReel: reel,
     equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
-    ownedInventory: inv, // 💳 레이드도 보유 캐시템 능력치 전부 합산
+    ownedInventory: null, // 💳 착용기반 — 자동장착이 고른 스킨·뱃지(조건 충족 시)만 반영
+    myLevel: level, myRank: (userData['rank'] ?? '초보').toString(),
   );
   final lvBonus = ((level > 0 ? level : 1) - 1) * 3;
   // 🛡️ 길드레벨·길드랭킹·개인랭킹 보너스(statBonus)는 일반 낚시처럼 3스탯 각각에 적용 → power엔 ×3

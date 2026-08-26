@@ -290,15 +290,11 @@ async function processOrder(order, source) {
       matchedKnownItem = true;
 
       if (itemTemplate.limitType === "ONCE") {
+        // 🎖️ [2026-08-24] 착용 레벨/승급 제한은 '지급'이 아니라 '게임 내 착용·능력치'에서 검사.
+        //    → 홈페이지서 조건 미달로 사도 인벤엔 무조건 지급(계정당 1개라 exploit 없음, "안 들어왔다" 문의 방지).
+        //    조건 충족 전엔 게임에서 착용·능력치 적용이 안 되고, 충족하면 자동 적용됨.
         const alreadyOwns = inventory.some(i => i.name === itemTemplate.name);
-        const meetsLevel = realLevel >= itemTemplate.reqLevel;
-        const userRank = userData.rank || "초보";
-        const reqRankIdx = itemTemplate.reqRank ? RANK_ORDER.indexOf(itemTemplate.reqRank) : -1;
-        const userRankIdx = RANK_ORDER.indexOf(userRank);
-        const meetsRank = reqRankIdx < 0 || userRankIdx >= reqRankIdx;
-        if (alreadyOwns) { needsRefund = true; refundReason = "이미 보유 중인 스킨을 중복 구매함"; }
-        else if (!meetsLevel) { needsRefund = true; refundReason = `레벨 미달 (요구: Lv.${itemTemplate.reqLevel}, 현재: Lv.${realLevel})`; }
-        else if (!meetsRank) { needsRefund = true; refundReason = `승급 미달 (요구: ${itemTemplate.reqRank} 승급, 현재: ${userRank})`; }
+        if (alreadyOwns) { needsRefund = true; refundReason = "이미 보유 중(계정당 1개) 중복 구매"; }
         else { inventory.push({ ...itemTemplate }); isInventoryUpdated = true; }
       }
       else if (itemTemplate.limitType === "DAILY") {

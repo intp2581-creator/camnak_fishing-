@@ -1399,6 +1399,29 @@ class _StoreScreenState extends State<StoreScreen> {
     return false;
   }
 
+  // 🎖️ [판매 잠금] 착용 조건(레벨/승급) 미달 스킨·뱃지·휘장 = 판매도 잠금.
+  //    홈페이지선 조건 미달로도 구매 가능(항상 지급) → 레벨 되기 전 포인트로 현금화하는 우회 차단.
+  //    조건 충족하면 자동으로 판매 가능(최상급 보호 규칙은 별도 적용).
+  bool _cashSellLockUntilEligible(Map<String, dynamic> item) {
+    final n = (item['name'] ?? '').toString();
+    final bool isCash = _isSkin(item) || n.contains('뱃지') || n.contains('휘장');
+    if (!isCash) return false;
+    int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+    if (reqLv == 0 && _isSkin(item)) {
+      const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
+      reqLv = skinLv[skinTierByName(n)] ?? 0;
+    }
+    if (reqLv > 0 && widget.currentLevel < reqLv) return true;
+    final String reqRank = _isSkin(item)
+        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(n))
+        : '';
+    if (reqRank.isNotEmpty && rankIndex(widget.currentRank) < rankIndex(reqRank)) return true;
+    return false;
+  }
+
+  bool _isSkin(Map<String, dynamic> item) =>
+      (item['type'] ?? '') == 'SKIN' || (item['category'] ?? '') == 'SKIN' || skinTierByName((item['name'] ?? '').toString()) > 0;
+
   // 👕 스킨 커스텀 판매가 (초보 100 · 하수 10,000 · 중수 25,000 · 고수 50,000 · 프로 100,000 · 마스터 250,000)
   //   레전드/신은 _isNonSellable에서 차단되므로 여기 없음.
   int? _skinSellPrice(String name) {
@@ -1703,7 +1726,9 @@ class _StoreScreenState extends State<StoreScreen> {
     final bool isGear = ['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float'].contains(_slotType(item)); // 낚싯대/릴/찌 = 한 개씩 판매
     // ⭐ 최상급은 잠금하되, 중복(2개+)이면 '여분'은 판매 허용 → 마지막 1개(=쓰는 것)만 보호
     final bool topLocked = isTop && !(isGear && qty > 1);
-    final sellable = !isBeginner && !topLocked && !nonSellable;
+    // 🎖️ 착용조건 미달 캐시템(스킨·뱃지)은 판매도 잠금(레벨 전 포인트 현금화 우회 차단)
+    final bool cashLocked = _cashSellLockUntilEligible(item);
+    final sellable = !isBeginner && !topLocked && !nonSellable && !cashLocked;
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white10)),
@@ -1743,8 +1768,8 @@ class _StoreScreenState extends State<StoreScreen> {
             padding: const EdgeInsets.all(14),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Center(child: Text(
-                sellable ? '+$price P' : (isTop ? '🔒 잠금' : (nonSellable ? '판매 불가' : '판매 불가')),
-                style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : (isTop ? const Color(0xFFD4AF37) : Colors.white38),
+                sellable ? '+$price P' : (isTop ? '🔒 잠금' : (cashLocked ? '🔒 조건 미달' : '판매 불가')),
+                style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : ((isTop || cashLocked) ? const Color(0xFFD4AF37) : Colors.white38),
                     fontSize: 18, fontWeight: FontWeight.w900))),
               const SizedBox(height: 8),
               ElevatedButton(
@@ -1757,7 +1782,8 @@ class _StoreScreenState extends State<StoreScreen> {
                 child: Text(
                   sellable ? '팔기'
                     : (isTop ? '최상급 보호'
-                      : (nonSellable ? '판매 금지' : '기본 지급')),
+                      : (cashLocked ? '착용조건 후'
+                        : (nonSellable ? '판매 금지' : '기본 지급'))),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ]),

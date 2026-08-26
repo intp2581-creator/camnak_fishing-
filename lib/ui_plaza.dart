@@ -4141,7 +4141,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
       equippedLine: fm(globalEquippedLine),           // 🧵 낚시줄(P)
       equippedGroundbait: fm(globalEquippedGroundbait), // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
-      ownedInventory: _inventory, // 💳 보유 캐시템(스킨·휘장·뱃지) 전부 합산 — 낚시터 능력치와 일치
+      ownedInventory: null, // 💳 착용기반 — 착용한 스킨·뱃지(조건 충족 시)만 반영
+      myLevel: _level > 0 ? _level : 1, myRank: _rank,
     );
     final eP = (equip['strength'] ?? 10) - 10;
     final eC = (equip['control'] ?? 10) - 10;
@@ -4315,6 +4316,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (n.contains('BC') || _nm.contains('스푼') || _nm.contains('웜') || _nm.contains('플라이')) {
       _infoPopup('🎪 루어 전용 장비', '이건 루어낚시 전용 장비예요!\n낚시터에서 "🎪 루어낚시"로 전환하면 쓸 수 있어요.\n(일반 낚시엔 일반 낚싯대·미끼를 쓰세요)');
       return;
+    }
+    // 🎖️ [착용 제한] 스킨·뱃지·휘장 = 홈페이지서 조건 미달로도 구매 가능(항상 지급) → 착용에서 레벨/승급 검사(광장 미리보기 동일). 해제는 허용.
+    if (isSkinItem(item) || _nm.contains('뱃지') || _nm.contains('휘장')) {
+      final bool curEquipped = isSkinItem(item)
+          ? (globalEquippedSkin?['name'] == item['name'])
+          : (globalEquippedBadge?['name'] == item['name']);
+      if (!curEquipped) {
+        int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+        if (reqLv == 0 && isSkinItem(item)) {
+          const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
+          reqLv = skinLv[skinTierByName(_nm)] ?? 0;
+        }
+        final String reqRank = isSkinItem(item)
+            ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(_nm))
+            : '';
+        if (reqLv > 0 && _level < reqLv) {
+          _infoPopup('🔒 착용 레벨 부족', '$_nm은(는) Lv.$reqLv 부터 착용할 수 있어요.\n(현재 Lv.$_level)\n\n구매한 아이템은 인벤토리에 있어요!\n레벨 올린 뒤 착용하세요 👍');
+          return;
+        }
+        if (reqRank.isNotEmpty && rankIndex(_rank) < rankIndex(reqRank)) {
+          _infoPopup('🔒 승급 필요', '$_nm은(는) [$reqRank] 승급 후 착용할 수 있어요.\n(아라 승급 퀘스트)\n\n구매한 스킨은 인벤토리에 있어요!');
+          return;
+        }
+      }
     }
     bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
     if (t == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) {

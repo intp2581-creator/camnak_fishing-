@@ -624,8 +624,9 @@ Widget _whisperUnreadBadge() {
       equippedGloves: equippedGloves, // 🧤 장갑(P)
       equippedLine: equippedLine,     // 🧵 낚시줄(P)
       equippedGroundbait: _groundbaitActive ? equippedGroundbait : null, // 🍚 밑밥(S) — 세션 활성 시만
-      // 💳 캐시템(스킨·휘장·뱃지) 보유분 전부 합산 — 단 아레나(roomId!=null)는 평준화라 제외(장착값만)
-      ownedInventory: (widget.roomId != null) ? null : _latestInventory,
+      // 💳 [2026-08-24] 착용기반 전환 — 보유합산 폐지. 능력치=착용한 스킨1+뱃지1만(조건 충족 시).
+      ownedInventory: null,
+      myLevel: _currentLevel > 0 ? _currentLevel : 1, myRank: _myRank,
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
     if (widget.title != widget.locationName) return s;
@@ -4051,6 +4052,23 @@ Positioned(
   }
 
   // ⚡ [자동 장착] 현재 맵에 맞는 최고 효율 장비로 자동 세팅 (출조 셋팅 패널에서 호출)
+  // 🎖️ 캐시템(스킨·뱃지) 착용 조건 충족? (자동장착 필터용) — 레벨 미로드(_currentLevel<=0) 시 fail-open(막지 않음).
+  bool _cashEquipEligible(Map<String, dynamic> item) {
+    if (_currentLevel <= 0) return true; // 데이터 로드 전엔 막지 않음(로드 후 재장착 시 정상 판정)
+    final String nm = (item['name'] ?? '').toString();
+    int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+    if (reqLv == 0 && isSkinItem(item)) {
+      const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
+      reqLv = skinLv[skinTierByName(nm)] ?? 0;
+    }
+    if (reqLv > 0 && _currentLevel < reqLv) return false;
+    final String reqRank = isSkinItem(item)
+        ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(nm))
+        : '';
+    if (reqRank.isNotEmpty && rankIndex(_myRank) < rankIndex(reqRank)) return false;
+    return true;
+  }
+
   void _runAutoEquip({bool silent = false}) {
     // 🛡️ [아레나 검문소] 대회 중에는 자동 장착 금지!
     if (widget.roomId != null) {
@@ -4085,7 +4103,7 @@ Positioned(
         String name = item['name'].toString();
         // 🐲 레이드 전용 낚싯대(KREFT)는 일반 낚시 자동장착 대상 아님 — type:'ROD'라 민물대로 오인·최상급 장착되던 버그 차단
         if (item is Map && (item['category'] == 'RAID' || isRaidRod(item))) continue;
-        if (isSkinItem(item)) { if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } }
+        if (isSkinItem(item)) { if (!_cashEquipEligible(item)) continue; if (bestSkin == null || getSkinTier(name) > getSkinTier(bestSkin!['name'].toString())) { bestSkin = item; } } // 🎖️ 조건 미달 스킨은 자동장착 제외
         else if (name.contains('찌')) { if (bestFloat == null || getFloatTier(name) > getFloatTier(bestFloat!['name'].toString())) { bestFloat = item; } }
         else if (item['type'] == 'COOLER' || name.contains('아이스박스') || name.contains('쿨러') || name.contains('보냉')) { if (bestCooler == null || getCoolerTier(name) > getCoolerTier(bestCooler!['name'].toString())) { bestCooler = item; } }
         else if (item['type'] == 'REEL' || name.contains('000') || name.contains('릴')) { if (bestReel == null || getReelTier(name) > getReelTier(bestReel!['name'].toString())) { bestReel = item; } }
@@ -4099,9 +4117,11 @@ Positioned(
         }
         else if (name.contains('선글라스') && equippedSunglasses == null) { equippedSunglasses = item; }
         else if (name.contains('휘장') || name.contains('뱃지')) { // 🎖️ 범용 휘장/뱃지(민물·바다 공용) → 능력치 가장 높은 등급 자동 장착
-          final int p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
-          final int bestP = (equippedBadge?['stats']?['P'] as num?)?.toInt() ?? -1;
-          if (equippedBadge == null || p > bestP) equippedBadge = item;
+          if (_cashEquipEligible(item)) { // 🎖️ 조건 미달 뱃지는 자동장착 제외
+            final int p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
+            final int bestP = (equippedBadge?['stats']?['P'] as num?)?.toInt() ?? -1;
+            if (equippedBadge == null || p > bestP) equippedBadge = item;
+          }
         }
         else if (name.contains('뜰채') && equippedNet == null) { equippedNet = item; }
         else if (name.contains('벨트') && equippedBelt == null) { equippedBelt = item; }
@@ -4201,10 +4221,31 @@ Positioned(
     if (equippedLine?['name'] == iName) isEquipped = true;
     if (equippedGroundbait?['name'] == iName) isEquipped = true;
 
+    // 🎖️ [착용 제한] 스킨·뱃지·휘장은 홈페이지서 조건 미달로도 구매 가능(항상 지급) → '착용'에서 레벨/승급 검사.
+    //    미착용 상태에서 조건 미달이면 착용 차단(인벤엔 그대로). 이미 착용 중이면 해제는 허용.
+    if (!isEquipped && (isSkinItem(item) || iName.contains('뱃지') || iName.contains('휘장'))) {
+      int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+      if (reqLv == 0 && isSkinItem(item)) {
+        const skinLv = {2: 10, 3: 30, 4: 50, 5: 70, 6: 100, 7: 120, 8: 150};
+        reqLv = skinLv[skinTierByName(iName)] ?? 0;
+      }
+      final String reqRank = isSkinItem(item)
+          ? ((item['reqRank']?.toString() ?? '').isNotEmpty ? item['reqRank'].toString() : skinReqRank(iName))
+          : '';
+      if (reqLv > 0 && _currentLevel < reqLv) {
+        _showNotificationPopup('🔒 착용 레벨 부족', '$iName은(는) Lv.$reqLv 부터 착용할 수 있어요.\n(현재 Lv.$_currentLevel)\n\n구매한 아이템은 인벤토리에 있어요.\n레벨을 올린 뒤 착용하세요! 👍', Colors.orangeAccent);
+        return;
+      }
+      if (reqRank.isNotEmpty && rankIndex(_myRank) < rankIndex(reqRank)) {
+        _showNotificationPopup('🔒 승급 필요', '$iName은(는) [$reqRank] 승급 후 착용할 수 있어요.\n(광장 아라의 승급 퀘스트)\n\n구매한 스킨은 인벤토리에 있어요.\n승급 후 착용하세요! 👍', Colors.orangeAccent);
+        return;
+      }
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.grey.shade900, 
+        backgroundColor: Colors.grey.shade900,
         // 장착 중이면 테두리 빨간색, 아니면 금색
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37))),
         title: Text(isEquipped ? '🔓 장착 해제' : '🎧 아이템 장착', style: TextStyle(color: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
