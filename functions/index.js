@@ -644,3 +644,5 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 // (임시 함수 grantJungsuSkinTemp 는 빨강테리 중수승급 완료 후 중수스킨 지급+환불요청 취소 후 제거됨 — 2026-08-24)
 
 // (임시 함수 grantTestItemsTemp 는 미르페스카·아레투사에 중수스킨+캠피싱휘장 지급 후 제거됨 — 2026-08-24)
+
+// (임시 함수 diagBaekduTemp 는 백두무궁 제압력 하락원인[하수스킨+뱃지 보유·미착용] 확인 후 제거됨 — 2026-08-24)

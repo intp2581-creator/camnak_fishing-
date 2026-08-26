@@ -639,9 +639,9 @@ for (var fish in availableFishes) {
       totalSens += int.tryParse(s['S']?.toString() ?? s['감도']?.toString() ?? '0') ?? 0;
     }
 
-    // 💳 [2026-08-24 착용기반] 착용한 스킨1+뱃지1만 능력치 적용(보유합산 폐지). 단 착용조건(레벨/승급)
-    //    미달이면 능력치 0 — 홈페이지서 조건 미달로 사도(항상 지급) 조건 충족 전엔 효과 X, 충족 시 자동 적용.
-    //    (ownedInventory 파라미터는 더 이상 안 씀 — 호출부가 null 전달)
+    // 💳 [2026-08-24] 캐시템 능력치 = 보유한 것 중 '착용조건(레벨/승급) 충족한 최고등급' 스킨1+뱃지1만(보유합산·스택 폐지).
+    //    착용 안 해도 자동으로 최고 1개 반영(유저 편의 — 예전 보유자 능력치 유지). 조건 미달은 제외(홈페이지 레벨우회 차단).
+    //    아레나(ownedInventory null)는 평준화라 캐시 스탯 제외.
     bool statEligible(Map<String, dynamic>? it) {
       if (it == null) return false;
       final int rl = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
@@ -650,8 +650,28 @@ for (var fish in availableFishes) {
       if (rr.isNotEmpty && (myRank.isEmpty ? 999 : rankIndex(myRank)) < rankIndex(rr)) return false;
       return true;
     }
-    if (statEligible(equippedSkin)) addStats(equippedSkin);
-    if (statEligible(equippedBadge)) addStats(equippedBadge);
+    if (ownedInventory != null) {
+      Map<String, dynamic>? bestSkin, bestBadge;
+      int badgeP(Map<String, dynamic> it) => (it['stats'] is Map) ? (int.tryParse((it['stats']['P'] ?? '0').toString()) ?? 0) : 0;
+      for (final raw in ownedInventory) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        if (!statEligible(m)) continue;
+        final n = (m['name'] ?? '').toString();
+        final cat = (m['category'] ?? '').toString().toUpperCase();
+        if (cat == 'SKIN' || skinTierByName(n) > 0) {
+          if (bestSkin == null || skinTierByName(n) > skinTierByName((bestSkin['name'] ?? '').toString())) bestSkin = m;
+        } else if (cat == 'COMMON' && (n.contains('뱃지') || n.contains('휘장'))) {
+          if (bestBadge == null || badgeP(m) > badgeP(bestBadge)) bestBadge = m;
+        }
+      }
+      addStats(bestSkin);
+      addStats(bestBadge);
+    } else {
+      // 아레나 등 ownedInventory 미전달 시 착용값만(조건 충족 시)
+      if (statEligible(equippedSkin)) addStats(equippedSkin);
+      if (statEligible(equippedBadge)) addStats(equippedBadge);
+    }
     addStats(equippedRod);
     addStats(equippedFloat);
     addStats(equippedReel);
@@ -868,7 +888,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedSkin: skin, equippedRod: rodForCalc, equippedFloat: float, equippedReel: reel,
     equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
-    ownedInventory: null, // 💳 착용기반 — 자동장착이 고른 스킨·뱃지(조건 충족 시)만 반영
+    ownedInventory: inv, // 💳 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지)
     myLevel: level, myRank: (userData['rank'] ?? '초보').toString(),
   );
   final lvBonus = ((level > 0 ? level : 1) - 1) * 3;

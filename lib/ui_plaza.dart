@@ -4158,7 +4158,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       equippedGloves: globalEquippedGloves, // 🧤 장갑(P)
       equippedLine: fm(globalEquippedLine),           // 🧵 낚시줄(P)
       equippedGroundbait: fm(globalEquippedGroundbait), // 🍚 밑밥(S) — 미리보기(실제는 낚시터 세션에만)
-      ownedInventory: null, // 💳 착용기반 — 착용한 스킨·뱃지(조건 충족 시)만 반영
+      ownedInventory: _inventory, // 💳 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지)
       myLevel: _level > 0 ? _level : 1, myRank: _rank,
     );
     final eP = (equip['strength'] ?? 10) - 10;

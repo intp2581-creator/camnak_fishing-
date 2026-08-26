@@ -624,8 +624,8 @@ Widget _whisperUnreadBadge() {
       equippedGloves: equippedGloves, // 🧤 장갑(P)
       equippedLine: equippedLine,     // 🧵 낚시줄(P)
       equippedGroundbait: _groundbaitActive ? equippedGroundbait : null, // 🍚 밑밥(S) — 세션 활성 시만
-      // 💳 [2026-08-24] 착용기반 전환 — 보유합산 폐지. 능력치=착용한 스킨1+뱃지1만(조건 충족 시).
-      ownedInventory: null,
+      // 💳 [2026-08-24] 보유 중 조건 되는 최고 스킨1+뱃지1 자동 반영(스택 폐지). 아레나는 평준화라 제외.
+      ownedInventory: (widget.roomId != null) ? null : _latestInventory,
       myLevel: _currentLevel > 0 ? _currentLevel : 1, myRank: _myRank,
     );
     // 🏆 아레나는 완전 평준화: 길드/챔피언/주간랭킹/이벤트아이템 보너스도 미적용(전원 장비값만)
