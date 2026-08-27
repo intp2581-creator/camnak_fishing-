@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>길드홀 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 길드홀 — 길드 혜택, 길드 리그, 5존 보스레이드 안내">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .hero-raid{position:relative;border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);margin-bottom:26px}
+  .hero-raid img{width:100%;display:block}
+  .zones{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .zone{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:var(--shadow-sm);text-align:center;padding-bottom:16px}
+  .zone .z-img{aspect-ratio:1/1;background:#0a1f28;display:grid;place-items:center;overflow:hidden}
+  .zone .z-img img{width:100%;height:100%;object-fit:contain;padding:10px}
+  .zone .z-t{font-weight:800;font-size:16px;color:var(--blue-ink);margin:12px 0 4px}
+  .zone .z-s{font-size:13px;color:var(--ink-soft);line-height:1.55;padding:0 8px}
+  .zone .z-n{display:inline-block;background:var(--sky1);color:var(--blue-ink);font-weight:800;
+    font-size:12px;padding:3px 11px;border-radius:12px;margin-top:8px}
+  .perk{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px}
+  .perk .pi{flex:none;font-size:26px}
+  .perk .pt{font-size:15.5px;line-height:1.75;color:#33525f}
+  .perk .pt b{color:var(--ink)}
+  @media (max-width:820px){ .zones{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
+      <a class="on" href="guild.html">길드홀</a>
+      <a data-store href="#">게임스토어</a>
+      <a data-yt href="#">미디어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🏰 길드홀</h1>
+  <p>혼자보다 함께. 길드에서 더 큰 물고기를 노리세요.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="hero-raid"><img src="assets/slide1-boss.jpg" alt="THE GREAT CATCH - THE GUILD BOSS RAID"></div>
+
+  <div class="sec-head"><h2>🤝 길드에 가입하면</h2><span class="sub">모든 길드원이 함께 강해집니다</span></div>
+  <div class="panel">
+    <div class="perk"><div class="pi">📈</div><div class="pt">
+      <b>길드 경험치</b> — 길드원이 물고기를 잡을 때마다 경험치가 쌓입니다. 길드 레벨이 오르면 <b>길드원 전체의 힘·컨트롤·감도</b>가 함께 올라가요.</div></div>
+    <div class="perk"><div class="pi">👑</div><div class="pt">
+      <b>주간 길드 리그</b> — 한 주 동안의 길드 활동으로 순위가 매겨집니다. 상위 길드는 <b>추가 능력치 보너스</b>를 받아요.</div></div>
+    <div class="perk"><div class="pi">🏴</div><div class="pt">
+      <b>트로피 깃발</b> — 보스를 처음 제압하면 길드홀 벽에 깃발이 영구히 걸립니다. 우리 길드가 어디까지 갔는지 한눈에 보여요.</div></div>
+    <div class="perk"><div class="pi">💬</div><div class="pt">
+      <b>길드 채팅</b> — 길드원끼리만 쓰는 채팅으로 조황 정보를 나누고 레이드를 준비하세요.</div></div>
+    <div class="perk" style="margin-bottom:0"><div class="pi">👥</div><div class="pt">
+      <b>인원 확장</b> — 길드 레벨이 오르면 가입할 수 있는 인원도 늘어납니다.</div></div>
+  </div>
+
+  <div class="sec-head"><h2>⚔️ 길드 보스레이드</h2><span class="sub">주 1회, 길드의 축제</span></div>
+  <div class="panel">
+    <p>길드원이 <b>제압력을 합쳐</b> 거대한 보스를 상대하는 콘텐츠입니다. 제한 시간 안에 보스를 끝까지 끌어내면 승리해요.</p>
+    <ul>
+      <li>매주 <b>무르가돈</b>부터 시작해 갈 수 있는 데까지 도전</li>
+      <li>한 존을 깨면 다음 존으로 이어집니다</li>
+      <li>참가하려면 <b>레이드 낚싯대</b>가 필요합니다 (길드 상점에서 구매)</li>
+      <li>보스를 처음 제압하면 <b>깃발</b>이 걸리고, 길드원 전체 제압력이 올라갑니다</li>
+    </ul>
+    <p class="tip">⚠️ 레이드는 <b>주 1회</b>만 열 수 있습니다. 한 번 열면 실패하거나 중도에 나가도 다음 주까지 다시 열 수 없으니, 길드원이 모였을 때 시작하세요. (매주 월요일 초기화)</p>
+  </div>
+
+  <div class="sec-head"><h2>🐲 5개 존</h2><span class="sub">차례로 뚫어야 하는 관문</span></div>
+  <div class="zones">
+    <div class="zone"><div class="z-img"><img src="assets/boss1.png" alt=""></div>
+      <div class="z-t">무르가돈</div><div class="z-s">신성한 늪</div><div class="z-n">1존</div></div>
+    <div class="zone"><div class="z-img"><img src="assets/boss2.png" alt=""></div>
+      <div class="z-t">아비쿠라</div><div class="z-s">신비한 바다</div><div class="z-n">2존</div></div>
+    <div class="zone"><div class="z-img"><img src="assets/boss3.png" alt=""></div>
+      <div class="z-t">바스라곤</div><div class="z-s">고대의 수로</div><div class="z-n">3존</div></div>
+    <div class="zone"><div class="z-img"><img src="assets/boss4.png" alt=""></div>
+      <div class="z-t">카르곤</div><div class="z-s">폭풍의 호수</div><div class="z-n">4존</div></div>
+    <div class="zone"><div class="z-img"><img src="assets/boss5.png" alt=""></div>
+      <div class="z-t">볼카르</div><div class="z-s">용암의 심연</div><div class="z-n">5존</div></div>
+  </div>
+
+  <div class="sec-head"><h2>🚀 시작하는 법</h2></div>
+  <div class="panel">
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="t">게임에 접속해 <b>광장</b>으로 이동합니다.</div></div>
+      <div class="step"><div class="n">2</div><div class="t"><b>길드</b> NPC에게 가서 길드에 가입하거나 새로 만듭니다.</div></div>
+      <div class="step"><div class="n">3</div><div class="t">길드홀의 <b>여울 관리인</b>에게 가면 보스레이드와 길드 상점을 이용할 수 있어요.</div></div>
+      <div class="step"><div class="n">4</div><div class="t">길드 상점에서 <b>레이드 낚싯대</b>를 준비하고 레이드에 참가하세요.</div></div>
+    </div>
+    <p style="margin-top:20px"><a class="btn btn-play" data-play href="#">🎮 길드 만나러 가기</a></p>
+  </div>
+</div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137', YT_URL='https://youtu.be/W4PUbMzAALw';
+  function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
+  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL); wire('[data-yt]',YT_URL);
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>

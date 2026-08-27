@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이벤트 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 진행 중인 이벤트 안내">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .ev{overflow:hidden}
+  .ev .thumb{aspect-ratio:16/9;position:relative;background:#d7f0f6;overflow:hidden}
+  .ev .thumb img{width:100%;height:100%;object-fit:cover}
+  .ev .badge{position:absolute;top:12px;left:12px;background:var(--yellow);color:#5a3d00;
+    font-weight:800;font-size:13px;padding:5px 13px;border-radius:16px}
+  .ev .body{padding:18px 20px 22px}
+  .ev h3{margin:0 0 7px;font-size:19px;color:var(--ink)}
+  .ev p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.65}
+  .ev .d{margin-top:10px;color:#9fb6bf;font-size:13px}
+  .always{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .al{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow-sm);padding:24px}
+  .al .ai{font-size:30px;margin-bottom:10px}
+  .al h3{margin:0 0 8px;font-size:18px;color:var(--blue-ink)}
+  .al p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.7}
+  .empty{padding:52px 20px;text-align:center;color:#9fb6bf;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius)}
+  @media (max-width:820px){ .always{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a class="on" href="event.html">이벤트</a>
+      <a href="guild.html">길드홀</a>
+      <a data-store href="#">게임스토어</a>
+      <a data-yt href="#">미디어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🎁 이벤트</h1>
+  <p>진행 중인 이벤트를 확인하고 참여하세요.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="sec-head" style="margin-top:0"><h2>🔥 진행 중인 이벤트</h2><span class="sub">기간을 놓치지 마세요</span></div>
+  <div class="grid n3" id="evList"><div class="empty">불러오는 중…</div></div>
+
+  <div class="sec-head"><h2>♾️ 상시 콘텐츠</h2><span class="sub">언제든 참여할 수 있어요</span></div>
+  <div class="always">
+    <div class="al">
+      <div class="ai">🏆</div>
+      <h3>주간 · 월간 · 연간 랭킹</h3>
+      <p>잡은 물고기의 크기와 종류로 점수가 쌓입니다. 주간 랭킹 상위 조사님은 한 주 동안 <b>능력치 보너스</b>를 받아요.</p>
+    </div>
+    <div class="al">
+      <div class="ai">🎁</div>
+      <h3>랜덤 상자</h3>
+      <p>낚시 중 만나는 <b>수상한 상자</b>를 열어보세요. 등급에 따라 다양한 아이템이 나옵니다.</p>
+    </div>
+    <div class="al">
+      <div class="ai">⚔️</div>
+      <h3>길드 보스레이드</h3>
+      <p>길드원과 함께 5개 존의 보스에 도전하세요. 제압에 성공하면 <b>길드 전체 능력치</b>가 올라갑니다.</p>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin:44px 0 10px">
+    <a class="btn btn-play" data-play href="#">🎮 지금 참여하러 가기</a>
+  </div>
+</div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137', YT_URL='https://youtu.be/W4PUbMzAALw';
+  var API='https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi';
+  function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
+  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL); wire('[data-yt]',YT_URL);
+
+  var IMGS=['assets/event1.jpg','assets/event2.jpg','assets/event3.jpg'];
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  fetch(API+'?list=1&limit=30').then(function(r){return r.json()}).then(function(j){
+    var box=document.getElementById('evList');
+    var items=(j.items||[]).filter(function(n){return n.type==='event';});
+    if(!items.length){
+      box.innerHTML='<div class="empty" style="grid-column:1/-1">진행 중인 이벤트가 없습니다.<br><span style="font-size:14px">아래 상시 콘텐츠는 언제든 참여하실 수 있어요!</span></div>';
+      return;
+    }
+    box.innerHTML=items.map(function(n,i){
+      return '<a class="card ev" href="notice.html?id='+encodeURIComponent(n.id)+'">'
+        +'<div class="thumb"><img src="'+IMGS[i%3]+'" alt=""><span class="badge">진행중</span></div>'
+        +'<div class="body"><h3>'+esc(n.title)+'</h3>'
+        +'<p>자세한 내용을 확인해 보세요.</p>'
+        +'<div class="d">'+esc(n.date||'')+'</div></div></a>';
+    }).join('');
+  }).catch(function(){
+    document.getElementById('evList').innerHTML='<div class="empty" style="grid-column:1/-1">불러오지 못했습니다.</div>';
+  });
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>

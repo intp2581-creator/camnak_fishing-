@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게임 가이드 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 게임 가이드 — 낚시 방법, 제압력, 등급 승급, 낚시터, 루어낚시, 아레나, 길드 보스레이드 안내">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .toc{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:8px}
+  .toc a{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 10px;
+    text-align:center;font-weight:700;font-size:14.5px;color:var(--ink-soft);transition:.15s}
+  .toc a:hover{border-color:var(--blue);color:var(--blue-ink);transform:translateY(-2px)}
+  .toc a i{display:block;font-style:normal;font-size:24px;margin-bottom:6px}
+  .rank-flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0 0}
+  .rank-flow span{background:var(--sky1);color:var(--blue-ink);font-weight:700;font-size:14px;
+    padding:7px 14px;border-radius:18px}
+  .rank-flow span:last-child{background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#5a3d00}
+  .rank-flow em{color:#9fb6bf;font-style:normal}
+  @media (max-width:820px){ .toc{grid-template-columns:repeat(2,1fr)} }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a class="on" href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
+      <a href="guild.html">길드홀</a>
+      <a data-store href="#">게임스토어</a>
+      <a data-yt href="#">미디어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>📖 게임 가이드</h1>
+  <p>처음 오신 조사님도 5분이면 감이 옵니다.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="toc">
+    <a href="#basic"><i>🎣</i>낚시 기본</a>
+    <a href="#power"><i>💪</i>제압력</a>
+    <a href="#rank"><i>🏅</i>등급 승급</a>
+    <a href="#spot"><i>⭐</i>낚시터</a>
+    <a href="#lure"><i>🎪</i>루어낚시</a>
+    <a href="#arena"><i>⚔️</i>아레나</a>
+    <a href="#guildc"><i>🏰</i>길드·레이드</a>
+    <a href="#rankw"><i>🏆</i>랭킹</a>
+  </div>
+
+  <div class="sec-head" id="basic"><h2>🎣 낚시 기본</h2><span class="sub">이 흐름만 알면 됩니다</span></div>
+  <div class="panel">
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="t"><b>캐스팅</b> — 낚싯대를 던져 찌를 물에 넣습니다. 민물은 여러 대, 바다·루어는 한 대로 진행해요.</div></div>
+      <div class="step"><div class="n">2</div><div class="t"><b>입질</b> — 찌가 움직이고 "입질!" 표시가 뜹니다. 이때를 놓치지 마세요.</div></div>
+      <div class="step"><div class="n">3</div><div class="t"><b>챔질</b> — 챔질 버튼을 아래로 끌어내려 물고기를 겁니다. 너무 이르거나 늦으면 놓쳐요.</div></div>
+      <div class="step"><div class="n">4</div><div class="t"><b>밀당</b> — 물고기와 힘겨루기. 당기면 내 쪽으로, 놓으면 물고기 쪽으로 갑니다. 게이지를 끝까지 당기면 성공!</div></div>
+      <div class="step"><div class="n">5</div><div class="t"><b>발악 · 저항</b> — 물고기가 몸부림칠 때가 고비입니다. 무리하게 당기면 줄이 터져요.</div></div>
+    </div>
+    <p class="tip">💡 낚시 시간은 하루 <b>1시간</b>이 기본으로 주어지고, 이용권으로 늘릴 수 있어요. 잡은 기록·포인트·인벤토리는 <b>자동 저장</b>되니 그냥 창을 닫아도 괜찮습니다.</p>
+  </div>
+
+  <div class="sec-head" id="power"><h2>💪 제압력</h2><span class="sub">내 캐릭터가 얼마나 센가</span></div>
+  <div class="panel">
+    <p><b>힘 · 컨트롤 · 감도</b> 세 능력치의 합계가 <b>제압력</b>입니다. 제압력이 높을수록 큰 물고기를 놓치지 않고 잡을 수 있어요.</p>
+    <ul>
+      <li><b>힘</b> — 물고기를 당기는 파워</li>
+      <li><b>컨트롤</b> — 밀당 안정감</li>
+      <li><b>감도</b> — 입질을 빨리 감지</li>
+    </ul>
+    <p style="margin-top:14px">제압력은 이렇게 구성됩니다.</p>
+    <ul>
+      <li><b>기본 능력치</b> — 모든 조사님 동일</li>
+      <li><b>장착 장비</b> — 낚싯대 · 릴/찌 · 스킨 · 뱃지/휘장 · 장갑 · 벨트 · 아이스박스 · 뜰채 · 낚시줄</li>
+      <li><b>레벨 보너스</b> · <b>길드 보너스</b> · <b>주간 랭킹 보너스</b> · <b>이벤트 아이템</b></li>
+    </ul>
+    <p class="tip">⚠️ 능력치는 <b>가방에 있는 것이 아니라 "착용한" 장비</b>만 적용됩니다. 광장 <b>내정보</b>에서 어떤 항목이 얼마나 더해졌는지 확인할 수 있어요.</p>
+  </div>
+
+  <div class="sec-head" id="rank"><h2>🏅 등급 승급</h2><span class="sub">조사님의 성장 단계</span></div>
+  <div class="panel">
+    <div class="rank-flow">
+      <span>초보</span><em>›</em><span>하수</span><em>›</em><span>중수</span><em>›</em><span>고수</span><em>›</em>
+      <span>프로</span><em>›</em><span>마스터</span><em>›</em><span>레전드</span><em>›</em><span>낚시의 신</span>
+    </div>
+    <p style="margin-top:16px">광장의 <b>아라</b>에게 승급 퀘스트를 받을 수 있습니다. 레벨 조건과 함께 <b>대장급 어종</b>을 잡아야 다음 등급으로 올라갑니다.</p>
+    <p>등급이 오르면 더 좋은 <b>스킨</b>을 착용할 수 있고, 낚시터 입장이나 상점 아이템도 열립니다.</p>
+  </div>
+
+  <div class="sec-head" id="spot"><h2>⭐ 낚시터와 난이도</h2><span class="sub">어디서 던질까</span></div>
+  <div class="panel">
+    <p>전국 <b>20개 낚시터</b>가 민물과 바다로 나뉘어 있습니다. 저수지·수로·갯바위·선상 등 장소마다 나오는 어종이 달라요.</p>
+    <p>낚시터마다 <b>★ 난이도</b>가 표시됩니다. 별이 많을수록 큰 물고기와 대장급이 자주 나오지만, 그만큼 제압이 어렵고 줄이 잘 터집니다.</p>
+    <p class="tip">💡 내 제압력에 맞는 낚시터부터 차근차근 올라가는 걸 추천해요. 무리하면 줄만 터지고 시간이 낭비됩니다.</p>
+  </div>
+
+  <div class="sec-head" id="lure"><h2>🎪 루어낚시</h2><span class="sub">색다른 손맛</span></div>
+  <div class="panel">
+    <p>민물 낚시터에서 출조 설정의 <b>🎪 루어낚시</b> 버튼을 누르면 손 낚싯대로 즐기는 루어 모드로 바뀝니다.</p>
+    <p><b>BC 루어대</b>와 <b>루어 미끼</b>(플라이 · 웜 · 스푼)가 필요하며, <b>쏘가리 · 꺽지 · 무지개송어</b> 같은 루어 전용 어종을 만날 수 있어요.</p>
+    <p class="tip">💡 루어 모드에서는 찌와 밑밥을 쓰지 않습니다. 루어대만 있으면 자동으로 세팅돼요.</p>
+  </div>
+
+  <div class="sec-head" id="arena"><h2>⚔️ 아레나</h2><span class="sub">실력만으로 겨루는 대전</span></div>
+  <div class="panel">
+    <p>아레나는 <b>장비가 평준화</b>되는 실시간 대전입니다. 모든 참가자가 동일한 장비로 시작하기 때문에 <b>순수한 조작 실력</b>으로 승부가 갈려요.</p>
+    <ul>
+      <li>참가는 <b>하루 무료 1회 + 아레나 입장권 1회</b></li>
+      <li>제한 시간 안에 더 좋은 조과를 올린 조사님이 승리</li>
+      <li>레벨·등급 제한 없이 누구나 참가 가능</li>
+    </ul>
+    <p class="tip">💡 평준화라서 저레벨도 고레벨을 이길 수 있습니다. 챔질 타이밍과 밀당이 승부처예요.</p>
+  </div>
+
+  <div class="sec-head" id="guildc"><h2>🏰 길드와 보스레이드</h2><span class="sub">함께하면 강해집니다</span></div>
+  <div class="panel">
+    <p>길드에 가입하면 길드원이 물고기를 잡을 때마다 <b>길드 경험치</b>가 쌓이고, 레벨이 오르면 <b>길드원 전체의 능력치</b>가 올라갑니다.</p>
+    <p><b>길드 보스레이드</b>는 길드원이 힘을 합쳐 거대 보스를 제압하는 <b>주 1회</b> 콘텐츠입니다. 무르가돈부터 볼카르까지 5개 존이 있고, 제압에 성공하면 길드홀에 <b>트로피 깃발</b>이 걸립니다.</p>
+    <p><a class="btn btn-line" href="guild.html">길드홀 자세히 보기 →</a></p>
+  </div>
+
+  <div class="sec-head" id="rankw"><h2>🏆 랭킹</h2><span class="sub">기록에 도전하세요</span></div>
+  <div class="panel">
+    <p><b>주간 · 월간 · 연간</b> 종합 랭킹이 운영됩니다. 잡은 물고기의 크기와 종류에 따라 점수가 쌓여요.</p>
+    <p>주간 랭킹 상위 조사님에게는 한 주 동안 <b>능력치 보너스</b>가 주어집니다. 또 전체 1위 최대어 기록이 갱신되면 게임 상단에 <b>실시간 자막</b>으로 알려드려요.</p>
+  </div>
+
+  <div style="text-align:center;margin:44px 0 10px">
+    <a class="btn btn-play" data-play href="#">🎮 지금 바로 낚시하러 가기</a>
+  </div>
+</div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137', YT_URL='https://youtu.be/W4PUbMzAALw';
+  function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
+  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL); wire('[data-yt]',YT_URL);
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>
