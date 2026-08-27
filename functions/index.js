@@ -715,7 +715,9 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
     if (!uref.exists || uref.data().isGm !== true) {
       return res.status(403).json({ ok: false, err: "관리자 계정만 사용할 수 있습니다" });
     }
-    const nick = (uref.data().nickname || "운영자").toString();
+    // 📝 공지 작성자는 항상 "운영자"로 고정 — 관리자의 개인 게임 닉네임(미르페스카 등) 노출 방지.
+    //    (관리자 계정이 여러 개라도 공지엔 일관되게 "운영자"로 표기)
+    const nick = "운영자";
 
     const b = req.body || {};
     const action = String(b.action || "save");
