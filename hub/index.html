@@ -178,6 +178,42 @@
   .mallband .mgo{margin-left:auto;font-weight:800;font-size:15px;background:rgba(255,255,255,.18);
     padding:10px 18px;border-radius:12px}
 
+  /* 게임 특징 카드 */
+  .featgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .feat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;box-shadow:var(--shadow-sm);transition:.18s}
+  .feat:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+  .feat .fimg{aspect-ratio:16/10;overflow:hidden;background:#d7f0f6}
+  .feat .fimg img{width:100%;height:100%;object-fit:cover}
+  .feat .fbody{padding:20px 22px 24px}
+  .feat h3{margin:0 0 8px;font-size:19px;color:var(--blue-ink);font-weight:800}
+  .feat p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.7}
+  /* 성장 단계 */
+  .rankline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:26px 22px;box-shadow:var(--shadow-sm)}
+  .rankline .rk{background:var(--sky1);color:var(--blue-ink);font-weight:800;font-size:15px;
+    padding:9px 18px;border-radius:20px}
+  .rankline .rk.god{background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#5a3d00}
+  .rankline i{color:#b9cdd6;font-style:normal;font-weight:800}
+  .ranknote{text-align:center;color:var(--ink-soft);font-size:14.5px;line-height:1.8;margin:14px 0 0}
+  .ranknote a{color:var(--emerald);font-weight:700}
+  /* 유튜브 밴드 */
+  .ytband{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:1px solid var(--line);
+    border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);transition:.18s}
+  .ytband:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .ythumb{position:relative;aspect-ratio:16/9;background:#0a323f}
+  .ythumb img{width:100%;height:100%;object-fit:cover;opacity:.88}
+  .ythumb .ply{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;color:#e33}
+  .ythumb .ply{background:none}
+  .ythumb .ply::before{content:'';position:absolute;width:74px;height:74px;border-radius:50%;
+    background:rgba(255,255,255,.94);box-shadow:var(--shadow)}
+  .ythumb .ply{z-index:1}
+  .yttx{padding:32px 34px;display:flex;flex-direction:column;justify-content:center;gap:8px}
+  .yttx b{font-size:21px;color:var(--ink);font-weight:800}
+  .yttx span{color:var(--ink-soft);font-size:15px;line-height:1.7}
+  .yttx em{font-style:normal;color:var(--emerald);font-weight:700;font-size:15px;margin-top:6px}
+
   /* ===== SECTIONS ===== */
   section.blk{padding:52px 0 6px}
   .sec-head{display:flex;align-items:flex-end;gap:12px;margin-bottom:22px}
@@ -242,6 +278,10 @@
     .quick .wrap{grid-template-columns:1fr;gap:24px}
     .grid.n2,.grid.n3{grid-template-columns:1fr}
     .corners{grid-template-columns:repeat(2,1fr)}
+    .featgrid{grid-template-columns:1fr}
+    .ytband{grid-template-columns:1fr}
+    .yttx{padding:22px 20px}
+    .rankline .rk{font-size:13.5px;padding:7px 13px}
     .mallband{padding:18px 20px}
     .mallband .mgo{margin-left:0}
     .guildbox{grid-template-columns:1fr}
@@ -362,6 +402,60 @@
     </div>
   </div>
 </div>
+
+<!-- 게임 특징 (메인 전용 볼거리) -->
+<section class="blk wrap" id="feat">
+  <div class="sec-head">
+    <h2>🎣 이런 게임이에요</h2>
+    <span class="sub">설치 없이, 브라우저에서 바로</span>
+  </div>
+  <div class="featgrid">
+    <div class="feat">
+      <div class="fimg"><img src="assets/f-spot.jpg" alt=""></div>
+      <div class="fbody"><h3>전국 20개 낚시터</h3>
+        <p>저수지 · 수로 · 갯바위 · 선상까지. 장소마다 나오는 어종과 난이도가 다릅니다.</p></div>
+    </div>
+    <div class="feat">
+      <div class="fimg"><img src="assets/f-plaza.jpg" alt=""></div>
+      <div class="fbody"><h3>조사님들이 모이는 광장</h3>
+        <p>채팅으로 인사하고, 랭킹으로 겨루고, 길드로 뭉치세요. 실시간 멀티플레이.</p></div>
+    </div>
+    <div class="feat">
+      <div class="fimg"><img src="assets/f-raid.jpg" alt=""></div>
+      <div class="fbody"><h3>길드 보스레이드</h3>
+        <p>길드원이 힘을 합쳐 5개 존의 거대 보스에 도전하는 주 1회 콘텐츠.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 성장 단계 -->
+<section class="blk wrap" id="ranks">
+  <div class="sec-head">
+    <h2>🏅 8단계 성장</h2>
+    <span class="sub">초보에서 낚시의 신까지</span>
+  </div>
+  <div class="rankline">
+    <span class="rk">초보</span><i>›</i><span class="rk">하수</span><i>›</i><span class="rk">중수</span><i>›</i>
+    <span class="rk">고수</span><i>›</i><span class="rk">프로</span><i>›</i><span class="rk">마스터</span><i>›</i>
+    <span class="rk">레전드</span><i>›</i><span class="rk god">낚시의 신</span>
+  </div>
+  <p class="ranknote">레벨과 대장급 어종 조건을 채우면 승급에 도전할 수 있어요.
+    등급이 오를수록 더 좋은 스킨과 장비를 착용할 수 있습니다.
+    <a href="guide.html#rank">등급 시스템 자세히 →</a></p>
+</section>
+
+<!-- 소개 영상 -->
+<section class="blk wrap" id="media">
+  <div class="sec-head"><h2>🎬 소개 영상</h2><span class="sub">1분이면 감이 옵니다</span></div>
+  <a class="ytband" data-yt href="#">
+    <div class="ythumb"><img src="assets/media-thumb.jpg" alt=""><span class="ply">▶</span></div>
+    <div class="yttx">
+      <b>캠피싱 KREFT 트레일러</b>
+      <span>6등급 성장 서사를 담은 공식 소개 영상</span>
+      <em>유튜브에서 보기 ↗</em>
+    </div>
+  </a>
+</section>
 
 <!-- 쇼핑몰 배너 -->
 <div class="wrap" style="margin:34px auto 10px">
