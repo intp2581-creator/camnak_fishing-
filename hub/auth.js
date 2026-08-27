@@ -7,7 +7,11 @@ import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const ME_API = 'https://us-central1-camnak-fishing.cloudfunctions.net/meApi';
-const LOGIN_URL = 'https://camnak.com/login';   // 로그인하러 가는 곳(아임웹)
+// 🔑 로그인: 아임웹의 "홈페이지 이동" 페이지로 보냄.
+//    그 페이지는 회원전용이라 → 미로그인 시 아임웹 로그인(네이버/카카오/구글/이메일) → 로그인 후 자동 복귀
+//    → 그 페이지의 스크립트가 window.MEMBER_UID(이메일)를 붙여 홈페이지로 되돌려보냄 → 자동 로그인 완료
+//    ⚠️ 아임웹에 그 페이지를 만든 뒤 아래 주소(페이지 번호)를 실제 값으로 바꿔주세요.
+const LOGIN_URL = 'https://camnak.com/30';      // 임시: 게임 페이지(로그인은 됨). 전용 페이지 만들면 교체
 const SHARED_PW = 'KreftMasterPassword123!';    // 게임과 동일한 공용 비밀번호
 
 const app = initializeApp({
