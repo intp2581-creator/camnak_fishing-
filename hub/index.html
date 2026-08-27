@@ -228,7 +228,7 @@
   <div class="wrap nav-in">
     <a class="logo" href="#top"><img class="title" src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
     <nav class="menu" id="menu">
-      <a href="#notice">공지<span class="n">N</span></a>
+      <a href="notice.html">공지<span class="n">N</span></a>
       <a href="#guide">게임가이드</a>
       <a href="#event">이벤트</a>
       <a href="#guild">길드홀</a>
@@ -246,7 +246,7 @@
 <!-- 스크롤 시 내려오는 컴팩트 흰색 메뉴바 -->
 <div class="navmini" id="navmini">
   <div class="row">
-    <a href="#notice">공지</a>
+    <a href="notice.html">공지</a>
     <a href="#guide">게임가이드</a>
     <a href="#event">이벤트</a>
     <a href="#guild">길드홀</a>
@@ -318,7 +318,7 @@
   <div class="wrap">
     <div class="qnews" id="qnews"><div class="qh">📢 공지 · 업데이트</div></div>
     <div class="qicons">
-      <a class="qic" href="#notice"><span class="ei">🔔</span><span class="el">공지사항</span></a>
+      <a class="qic" href="notice.html"><span class="ei">🔔</span><span class="el">공지사항</span></a>
       <a class="qic" href="#event"><span class="ei">🎁</span><span class="el">이벤트</span></a>
       <a class="qic" data-store href="#"><span class="ei">🛒</span><span class="el">게임스토어</span></a>
       <a class="qic" data-play href="#"><span class="ei">🏆</span><span class="el">랭킹</span></a>
@@ -387,7 +387,7 @@
     </div>
     <div>
       <div style="color:#fff;font-family:'Noto Sans KR';margin-bottom:8px">바로가기</div>
-      <a href="#notice">공지</a> · <a href="#event">이벤트</a><br>
+      <a href="notice.html">공지</a> · <a href="#event">이벤트</a><br>
       <a data-store href="#">게임스토어</a> · <a data-mall href="#">쇼핑몰</a><br>
       <a data-yt href="#">소개영상</a> · <a data-support href="#">고객지원</a>
     </div>
@@ -419,10 +419,20 @@
     {type:'notice', t:'캠피싱 KREFT 정식 서비스 오픈 안내', d:'2026.08.15'},
   ];
   var pillTxt={update:'업데이트',event:'이벤트',notice:'공지'};
-  document.getElementById('qnews').insertAdjacentHTML('beforeend', NOTICES.map(function(n){
-    return '<a href="#notice"><span class="np '+n.type+'">'+pillTxt[n.type]+'</span>'
-      +'<span>'+n.t+'</span><span class="qd">'+n.d+'</span></a>';
-  }).join(''));
+  function escH(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function paintNotices(items){
+    var box=document.getElementById('qnews');
+    box.querySelectorAll('a').forEach(function(a){a.remove();});
+    if(!items.length){box.insertAdjacentHTML('beforeend','<a href="notice.html"><span>등록된 공지가 없습니다</span></a>');return;}
+    box.insertAdjacentHTML('beforeend', items.slice(0,4).map(function(n){
+      return '<a href="notice.html?id='+encodeURIComponent(n.id)+'"><span class="np '+n.type+'">'+(pillTxt[n.type]||'공지')+'</span>'
+        +'<span>'+escH(n.title)+'</span><span class="qd">'+escH(n.date||'')+'</span></a>';
+    }).join(''));
+  }
+  // 📢 실제 공지 불러오기(관리자 페이지에서 작성) — 실패 시 조용히 비움
+  fetch('https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi?list=1&limit=6')
+    .then(function(r){return r.json()}).then(function(j){paintNotices(j.items||[])})
+    .catch(function(){paintNotices([])});
 
   /* ====== 이벤트 데이터 (여기 배열만 수정) ====== */
   var EVENTS = [

@@ -651,3 +651,120 @@ exports.rampStarMult = functions.scheduler.onSchedule(
 //   원복: config/event.betaNotice를 정식서비스 문구만 남게 되돌리기.
 
 // (임시 함수 refundArenaTicketTemp 는 빨강테리 아레나 입장권 1장 복구[평준화 버그 허탕] 후 제거됨 — 2026-08-24)
+
+// ═══════════════════════════════════════════════════════════════
+// 📢 [게임 홈페이지 공지 API] camfishing.web.app 공지 목록/상세/작성
+//   컬렉션: site_notices/{id}
+//   GET  ?list=1[&limit=20]  → 공개 목록(발행된 것만)
+//   GET  ?id=<문서id>        → 공개 상세(조회수 +1)
+//   POST (Authorization: Bearer <FirebaseIdToken>) → 작성/수정/삭제 (users/{uid}.isGm === true 필요)
+//   ⚠️ Firestore 보안규칙을 건드리지 않기 위해 전부 서버(admin SDK) 경유로 처리.
+// ═══════════════════════════════════════════════════════════════
+exports.noticesApi = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+
+  const db = admin.firestore();
+  const col = db.collection("site_notices");
+
+  try {
+    // ── 공개 조회 ────────────────────────────────
+    if (req.method === "GET") {
+      res.set("Cache-Control", "no-store");
+      if (req.query.id) {
+        const doc = await col.doc(String(req.query.id)).get();
+        if (!doc.exists) return res.status(404).json({ ok: false, err: "not found" });
+        const d = doc.data();
+        if (d.published === false) return res.status(404).json({ ok: false, err: "not found" });
+        col.doc(doc.id).update({ views: admin.firestore.FieldValue.increment(1) }).catch(() => {});
+        return res.json({ ok: true, item: { id: doc.id, ...d, createdAt: d.createdAt ? d.createdAt.toMillis() : null } });
+      }
+      let limit = parseInt(req.query.limit, 10);
+      if (!Number.isFinite(limit) || limit < 1 || limit > 100) limit = 30;
+      const snap = await col.orderBy("createdAt", "desc").limit(limit).get();
+      const items = [];
+      snap.forEach((doc) => {
+        const d = doc.data();
+        if (d.published === false) return;
+        items.push({
+          id: doc.id, type: d.type || "notice", title: d.title || "",
+          date: d.date || (d.createdAt ? d.createdAt.toDate().toISOString().substring(0, 10) : ""),
+          pinned: d.pinned === true, views: d.views || 0,
+          createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
+        });
+      });
+      items.sort((a, b) => (b.pinned - a.pinned) || (b.createdAt - a.createdAt));
+      return res.json({ ok: true, items });
+    }
+
+    // ── 관리자 쓰기 ──────────────────────────────
+    if (req.method !== "POST") return res.status(405).json({ ok: false, err: "method" });
+
+    const authHeader = String(req.get("Authorization") || "");
+    const m = authHeader.match(/^Bearer\s+(.+)$/i);
+    if (!m) return res.status(401).json({ ok: false, err: "로그인이 필요합니다" });
+    let decoded;
+    try {
+      decoded = await admin.auth().verifyIdToken(m[1]);
+    } catch (e) {
+      return res.status(401).json({ ok: false, err: "인증 실패(다시 로그인해 주세요)" });
+    }
+    const uref = await db.collection("users").doc(decoded.uid).get();
+    if (!uref.exists || uref.data().isGm !== true) {
+      return res.status(403).json({ ok: false, err: "관리자 계정만 사용할 수 있습니다" });
+    }
+    const nick = (uref.data().nickname || "운영자").toString();
+
+    const b = req.body || {};
+    const action = String(b.action || "save");
+
+    if (action === "delete") {
+      if (!b.id) return res.status(400).json({ ok: false, err: "id 없음" });
+      await col.doc(String(b.id)).delete();
+      return res.json({ ok: true, deleted: String(b.id) });
+    }
+
+    // 목록(관리자용: 미발행 포함)
+    if (action === "adminList") {
+      const snap = await col.orderBy("createdAt", "desc").limit(100).get();
+      const items = [];
+      snap.forEach((doc) => {
+        const d = doc.data();
+        items.push({ id: doc.id, type: d.type || "notice", title: d.title || "",
+          date: d.date || "", pinned: d.pinned === true, published: d.published !== false,
+          views: d.views || 0, body: d.body || "" });
+      });
+      return res.json({ ok: true, items });
+    }
+
+    const title = String(b.title || "").trim();
+    const body = String(b.body || "").trim();
+    if (!title) return res.status(400).json({ ok: false, err: "제목을 입력해 주세요" });
+    if (title.length > 200) return res.status(400).json({ ok: false, err: "제목이 너무 깁니다" });
+    if (body.length > 30000) return res.status(400).json({ ok: false, err: "본문이 너무 깁니다" });
+    const type = ["notice", "update", "event"].includes(String(b.type)) ? String(b.type) : "notice";
+
+    const payload = {
+      type, title, body,
+      pinned: b.pinned === true,
+      published: b.published !== false,
+      date: String(b.date || "").match(/^\d{4}[.-]\d{2}[.-]\d{2}$/) ? String(b.date).replace(/-/g, ".") : getTodayKST().replace(/-/g, "."),
+      author: nick,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (b.id) {
+      await col.doc(String(b.id)).set(payload, { merge: true });
+      return res.json({ ok: true, id: String(b.id), updated: true });
+    }
+    payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+    payload.views = 0;
+    const ref = await col.add(payload);
+    return res.json({ ok: true, id: ref.id, created: true });
+  } catch (e) {
+    console.error("[noticesApi]", e);
+    return res.status(500).json({ ok: false, err: String(e) });
+  }
+});

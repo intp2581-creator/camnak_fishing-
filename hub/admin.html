@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>공지 관리 — 캠피싱 KREFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--blue:#2fb8e6;--blue-ink:#0f6f96;--emerald:#31c98d;--yellow-deep:#f7b500;
+    --ink:#20414d;--ink-soft:#4d6b78;--line:#dfeaef;--bg:#eef4f7;--card:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans KR",system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  .wrap{width:min(1000px,94vw);margin:0 auto;padding:22px 0 70px}
+  h1{font-weight:900;font-size:22px;margin:0}
+  .top{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .top .who{margin-left:auto;color:var(--ink-soft);font-size:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 4px 16px rgba(15,80,110,.08);margin-bottom:18px}
+  label{display:block;font-weight:700;font-size:14px;margin:14px 0 6px;color:var(--ink-soft)}
+  input[type=text],input[type=email],input[type=password],textarea,select{
+    width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff}
+  textarea{min-height:280px;line-height:1.75;resize:vertical}
+  .rowf{display:flex;gap:12px;flex-wrap:wrap}
+  .rowf>div{flex:1;min-width:150px}
+  .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-soft);margin-top:12px}
+  .btn{border:none;border-radius:11px;padding:12px 22px;font-family:inherit;font-weight:800;font-size:15px;cursor:pointer;transition:.15s}
+  .btn.primary{background:var(--blue-ink);color:#fff}
+  .btn.primary:hover{background:#0c5a7c}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.danger{background:#fff;border:1px solid #f3c0c0;color:#c0392b}
+  .btns{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+  .msg{padding:12px 16px;border-radius:10px;margin:12px 0;font-size:14.5px;font-weight:700;display:none}
+  .msg.ok{background:#e6f8f0;color:#1c8b5f;display:block}
+  .msg.err{background:#fdeaea;color:#c0392b;display:block}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--ink-soft);font-size:13px}
+  tr:hover td{background:#f7fbfd}
+  .pill{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:12px;color:#fff}
+  .pill.update{background:var(--blue)}.pill.event{background:var(--emerald)}.pill.notice{background:var(--yellow-deep)}
+  .muted{color:#9fb6bf;font-size:13px}
+  .linkbtn{background:none;border:none;color:var(--blue-ink);font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:4px 6px}
+  .hide{display:none}
+  .login{max-width:420px;margin:60px auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 로그인 -->
+  <div id="loginBox" class="login">
+    <div class="card">
+      <h1>🔐 공지 관리자 로그인</h1>
+      <p class="muted" style="margin:10px 0 0">캠피싱 관리자(GM) 계정으로 로그인하세요.</p>
+      <label>이메일</label>
+      <input type="email" id="email" autocomplete="username" placeholder="관리자 이메일">
+      <label>비밀번호</label>
+      <input type="password" id="pw" autocomplete="current-password" placeholder="비밀번호">
+      <div class="msg" id="loginMsg"></div>
+      <div class="btns"><button class="btn primary" id="loginBtn" style="width:100%">로그인</button></div>
+    </div>
+  </div>
+
+  <!-- 관리 화면 -->
+  <div id="adminBox" class="hide">
+    <div class="top">
+      <h1>📢 공지 관리</h1>
+      <a class="btn ghost" href="notice.html" target="_blank" style="text-decoration:none">공지 페이지 보기 ↗</a>
+      <span class="who" id="who"></span>
+      <button class="btn ghost" id="logoutBtn">로그아웃</button>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800;font-size:16px" id="formTitle">새 글 작성</div>
+      <div class="rowf">
+        <div>
+          <label>분류</label>
+          <select id="f-type">
+            <option value="notice">공지</option>
+            <option value="update">업데이트</option>
+            <option value="event">이벤트</option>
+          </select>
+        </div>
+        <div>
+          <label>날짜 (비우면 오늘)</label>
+          <input type="text" id="f-date" placeholder="2026.08.27">
+        </div>
+      </div>
+      <label>제목</label>
+      <input type="text" id="f-title" placeholder="예) 기본 능력치 상향 안내">
+      <label>내용</label>
+      <textarea id="f-body" placeholder="공지 내용을 입력하세요. 줄바꿈은 그대로 표시됩니다."></textarea>
+      <div class="chk"><input type="checkbox" id="f-pinned"><label for="f-pinned" style="margin:0">📌 상단 고정</label></div>
+      <div class="chk"><input type="checkbox" id="f-published" checked><label for="f-published" style="margin:0">✅ 발행(체크 해제 시 비공개 저장)</label></div>
+      <div class="msg" id="saveMsg"></div>
+      <div class="btns">
+        <button class="btn primary" id="saveBtn">저장하기</button>
+        <button class="btn ghost hide" id="cancelBtn">새 글로 전환</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800;font-size:16px;margin-bottom:6px">작성된 글</div>
+      <div id="listBox"><p class="muted">불러오는 중…</p></div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const API='https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi';
+const app=initializeApp({
+  apiKey:"AIzaSyD5yu1DAIAiMXmZWB03ddZsZYgNmECRtwc",
+  authDomain:"camnak-fishing.firebaseapp.com",
+  projectId:"camnak-fishing",
+  storageBucket:"camnak-fishing.firebasestorage.app",
+  messagingSenderId:"755892653855",
+  appId:"1:755892653855:web:3d959549607ea08be5aa2a"
+});
+const auth=getAuth(app);
+const $=id=>document.getElementById(id);
+const PILL={notice:'공지',update:'업데이트',event:'이벤트'};
+let editId=null;
+
+function msg(el,text,ok){el.className='msg '+(ok?'ok':'err');el.textContent=text;
+  if(ok)setTimeout(()=>{el.className='msg';},3000);}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+$('loginBtn').onclick=async()=>{
+  const e=$('email').value.trim(), p=$('pw').value;
+  if(!e||!p)return msg($('loginMsg'),'이메일과 비밀번호를 입력하세요',false);
+  $('loginBtn').disabled=true;
+  try{ await signInWithEmailAndPassword(auth,e,p); }
+  catch(err){ msg($('loginMsg'),'로그인 실패: 이메일/비밀번호를 확인하세요',false); }
+  $('loginBtn').disabled=false;
+};
+$('pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('loginBtn').click();});
+$('logoutBtn').onclick=()=>signOut(auth);
+
+async function api(body){
+  const t=await auth.currentUser.getIdToken();
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
+    body:JSON.stringify(body)});
+  return r.json();
+}
+
+async function loadList(){
+  const j=await api({action:'adminList'});
+  const box=$('listBox');
+  if(!j.ok){box.innerHTML='<p class="muted">'+esc(j.err||'불러오기 실패')+'</p>';return;}
+  if(!j.items.length){box.innerHTML='<p class="muted">아직 작성된 글이 없습니다.</p>';return;}
+  box.innerHTML='<table><tr><th>분류</th><th>제목</th><th>날짜</th><th>상태</th><th>조회</th><th></th></tr>'
+    +j.items.map(n=>'<tr><td><span class="pill '+n.type+'">'+(PILL[n.type]||'공지')+'</span></td>'
+      +'<td>'+(n.pinned?'📌 ':'')+esc(n.title)+'</td><td class="muted">'+esc(n.date||'')+'</td>'
+      +'<td>'+(n.published?'공개':'<span class="muted">비공개</span>')+'</td>'
+      +'<td class="muted">'+(n.views||0)+'</td>'
+      +'<td style="white-space:nowrap"><button class="linkbtn" data-edit="'+n.id+'">수정</button>'
+      +'<button class="linkbtn" style="color:#c0392b" data-del="'+n.id+'">삭제</button></td></tr>').join('')+'</table>';
+  window.__items=j.items;
+  box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>startEdit(b.dataset.edit));
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>del(b.dataset.del));
+}
+
+function startEdit(id){
+  const n=(window.__items||[]).find(x=>x.id===id); if(!n)return;
+  editId=id;
+  $('formTitle').textContent='글 수정 중';
+  $('f-type').value=n.type; $('f-date').value=n.date||''; $('f-title').value=n.title||'';
+  $('f-body').value=n.body||''; $('f-pinned').checked=!!n.pinned; $('f-published').checked=!!n.published;
+  $('cancelBtn').classList.remove('hide');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function resetForm(){
+  editId=null; $('formTitle').textContent='새 글 작성';
+  $('f-title').value=''; $('f-body').value=''; $('f-date').value='';
+  $('f-pinned').checked=false; $('f-published').checked=true; $('f-type').value='notice';
+  $('cancelBtn').classList.add('hide');
+}
+$('cancelBtn').onclick=resetForm;
+
+async function del(id){
+  const n=(window.__items||[]).find(x=>x.id===id);
+  if(!confirm('정말 삭제할까요?\n\n"'+(n?n.title:'')+'"\n\n삭제하면 되돌릴 수 없습니다.'))return;
+  const j=await api({action:'delete',id});
+  if(j.ok){msg($('saveMsg'),'삭제했습니다',true);if(editId===id)resetForm();loadList();}
+  else msg($('saveMsg'),j.err||'삭제 실패',false);
+}
+
+$('saveBtn').onclick=async()=>{
+  const title=$('f-title').value.trim();
+  if(!title)return msg($('saveMsg'),'제목을 입력해 주세요',false);
+  $('saveBtn').disabled=true;
+  const j=await api({action:'save',id:editId||undefined,type:$('f-type').value,title,
+    body:$('f-body').value,date:$('f-date').value.trim(),
+    pinned:$('f-pinned').checked,published:$('f-published').checked});
+  $('saveBtn').disabled=false;
+  if(j.ok){msg($('saveMsg'),editId?'수정했습니다 ✅':'등록했습니다 ✅',true);resetForm();loadList();}
+  else msg($('saveMsg'),j.err||'저장 실패',false);
+};
+
+onAuthStateChanged(auth,async u=>{
+  if(!u){$('loginBox').classList.remove('hide');$('adminBox').classList.add('hide');return;}
+  // GM 여부는 서버가 검사 — adminList 호출로 확인
+  const probe=await api({action:'adminList'});
+  if(!probe.ok){
+    msg($('loginMsg'),probe.err||'관리자 권한이 없습니다',false);
+    await signOut(auth); return;
+  }
+  $('loginBox').classList.add('hide');$('adminBox').classList.remove('hide');
+  $('who').textContent=u.email;
+  loadList();
+});
+</script>
+</body>
+</html>

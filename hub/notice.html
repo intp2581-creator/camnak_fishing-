@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>공지 · 업데이트 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 공지사항 및 업데이트 소식">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#2fb8e6; --blue-deep:#1a9fd4; --blue-ink:#0f6f96;
+    --emerald:#31c98d; --yellow:#ffd23f; --yellow-deep:#f7b500;
+    --ink:#20414d; --ink-soft:#4d6b78; --line:#e0eef3;
+    --bg:#f2fafc; --card:#fff; --sky1:#e8f7fb;
+    --shadow:0 14px 40px rgba(15,80,110,.16); --shadow-sm:0 4px 16px rgba(15,80,110,.1);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Noto Sans KR",system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%}
+  .wrap{width:min(1000px,92vw);margin:0 auto}
+  h1,h2,h3{font-weight:900;letter-spacing:-.02em}
+
+  /* 헤더 */
+  header{background:linear-gradient(180deg,#0b1a22,#123645);color:#fff}
+  header .bar{display:flex;align-items:center;gap:18px;height:70px;
+    width:100%;padding:0 clamp(20px,3.5vw,56px)}
+  header .logo img{height:44px;display:block}
+  header nav{margin-left:14px;display:flex;gap:4px;flex-wrap:wrap}
+  header nav a{padding:8px 13px;border-radius:9px;color:#cfe1e8;font-weight:700;font-size:15.5px;white-space:nowrap}
+  header nav a:hover,header nav a.on{color:#fff;background:rgba(255,255,255,.12)}
+  header .play{margin-left:auto;background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));
+    color:#5a3d00;font-weight:800;padding:11px 20px;border-radius:12px;white-space:nowrap}
+
+  /* 페이지 타이틀 */
+  .phead{background:linear-gradient(120deg,#2fb8e6,#31c98d);color:#fff;padding:34px 0 30px;margin-bottom:26px}
+  .phead h1{margin:0 0 6px;font-size:clamp(26px,4vw,36px)}
+  .phead p{margin:0;opacity:.92;font-size:15px}
+
+  /* 필터 */
+  .tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-family:inherit;
+    font-weight:700;font-size:14.5px;padding:9px 17px;border-radius:20px;cursor:pointer;transition:.15s}
+  .tabs button:hover{border-color:var(--blue)}
+  .tabs button.on{background:var(--blue-ink);border-color:var(--blue-ink);color:#fff}
+
+  /* 목록 */
+  .list{background:var(--card);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  .row{display:flex;align-items:center;gap:14px;padding:17px 22px;border-bottom:1px solid var(--line);cursor:pointer;transition:.13s}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:var(--sky1)}
+  .pill{flex:none;font-size:12px;font-weight:700;padding:4px 11px;border-radius:14px;color:#fff}
+  .pill.update{background:var(--blue)} .pill.event{background:var(--emerald)} .pill.notice{background:var(--yellow-deep)}
+  .row .t{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .pin{flex:none;color:var(--yellow-deep);font-size:14px}
+  .row .d{margin-left:auto;color:#9fb6bf;font-size:13px;flex:none}
+  .empty{padding:60px 20px;text-align:center;color:#9fb6bf}
+
+  /* 상세 */
+  .detail{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);overflow:hidden}
+  .detail .dhead{padding:26px 30px 20px;border-bottom:2px solid var(--line)}
+  .detail .dhead h2{margin:10px 0 10px;font-size:clamp(20px,3vw,27px);line-height:1.35}
+  .detail .meta{color:#9fb6bf;font-size:13.5px;display:flex;gap:14px;flex-wrap:wrap}
+  .detail .dbody{padding:28px 30px 34px;font-size:16px;line-height:1.85;color:#33525f;white-space:pre-wrap;word-break:break-word}
+  .detail .dbody img{border-radius:12px;margin:10px 0}
+  .backrow{display:flex;gap:10px;margin:20px 0 44px}
+  .btn{display:inline-block;border:1px solid var(--line);background:#fff;color:var(--ink);
+    font-weight:700;font-size:15px;padding:12px 22px;border-radius:12px;cursor:pointer;font-family:inherit}
+  .btn:hover{border-color:var(--blue);color:var(--blue-ink)}
+  .btn.primary{background:var(--blue-ink);border-color:var(--blue-ink);color:#fff}
+  .loading{padding:50px;text-align:center;color:#9fb6bf}
+
+  footer{margin-top:40px;background:#14303b;color:#a9c6d0;padding:30px 0 50px;font-size:13px;line-height:1.9}
+  footer a{color:#8fd0e6}
+  @media (max-width:760px){
+    header .bar{height:auto;padding:12px clamp(14px,4vw,20px);flex-wrap:wrap;gap:10px}
+    header nav{width:100%;margin-left:0;overflow-x:auto;flex-wrap:nowrap}
+    header .play{margin-left:0;padding:9px 15px;font-size:14px}
+    .row{padding:15px 16px} .row .d{display:none}
+    .detail .dhead,.detail .dbody{padding-left:18px;padding-right:18px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a class="on" href="notice.html">공지</a>
+      <a href="index.html#guide">게임가이드</a>
+      <a href="index.html#event">이벤트</a>
+      <a href="index.html#guild">길드홀</a>
+      <a href="index.html#store">게임스토어</a>
+      <a href="index.html#youtube">미디어</a>
+    </nav>
+    <a class="play" data-play href="#">🎮 지금 플레이</a>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1 id="ph-title">📢 공지 · 업데이트</h1>
+  <p id="ph-sub">캠피싱 KREFT의 새로운 소식을 확인하세요</p>
+</div></div>
+
+<div class="wrap">
+  <!-- 목록 -->
+  <div id="listView">
+    <div class="tabs" id="tabs">
+      <button class="on" data-f="all">전체</button>
+      <button data-f="notice">공지</button>
+      <button data-f="update">업데이트</button>
+      <button data-f="event">이벤트</button>
+    </div>
+    <div class="list" id="list"><div class="loading">불러오는 중…</div></div>
+  </div>
+
+  <!-- 상세 -->
+  <div id="detailView" style="display:none">
+    <div class="detail" id="detail"></div>
+    <div class="backrow"><a class="btn" href="notice.html">← 목록으로</a></div>
+  </div>
+</div>
+
+<footer><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a data-play href="#">지금 플레이</a><br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT.</span>
+</div></footer>
+
+<script>
+  var API='https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi';
+  var GAME_URL='https://camnak.com/login';
+  document.querySelectorAll('[data-play]').forEach(function(a){a.href=GAME_URL;a.target='_blank';a.rel='noopener';});
+
+  var PILL={notice:'공지',update:'업데이트',event:'이벤트'};
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+
+  var ALL=[], filter='all';
+
+  function renderList(){
+    var box=document.getElementById('list');
+    var items=ALL.filter(function(n){return filter==='all'||n.type===filter;});
+    if(!items.length){box.innerHTML='<div class="empty">등록된 글이 없습니다.</div>';return;}
+    box.innerHTML=items.map(function(n){
+      return '<div class="row" onclick="location.href=\'notice.html?id='+encodeURIComponent(n.id)+'\'">'
+        +'<span class="pill '+n.type+'">'+(PILL[n.type]||'공지')+'</span>'
+        +(n.pinned?'<span class="pin">📌</span>':'')
+        +'<span class="t">'+esc(n.title)+'</span>'
+        +'<span class="d">'+esc(n.date||'')+'</span></div>';
+    }).join('');
+  }
+
+  document.getElementById('tabs').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b)return;
+    filter=b.dataset.f;
+    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
+    renderList();
+  });
+
+  var id=new URLSearchParams(location.search).get('id');
+  if(id){
+    document.getElementById('listView').style.display='none';
+    document.getElementById('detailView').style.display='';
+    document.getElementById('detail').innerHTML='<div class="loading">불러오는 중…</div>';
+    fetch(API+'?id='+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(j){
+      if(!j.ok){document.getElementById('detail').innerHTML='<div class="loading">글을 찾을 수 없습니다.</div>';return;}
+      var n=j.item;
+      document.getElementById('ph-title').textContent='📢 공지 · 업데이트';
+      document.getElementById('ph-sub').textContent='';
+      document.title=n.title+' — 캠피싱 KREFT';
+      document.getElementById('detail').innerHTML=
+        '<div class="dhead"><span class="pill '+n.type+'">'+(PILL[n.type]||'공지')+'</span>'
+        +'<h2>'+esc(n.title)+'</h2>'
+        +'<div class="meta"><span>'+esc(n.date||'')+'</span><span>작성 '+esc(n.author||'운영자')+'</span>'
+        +'<span>조회 '+(n.views||0)+'</span></div></div>'
+        +'<div class="dbody">'+esc(n.body||'').replace(/\n/g,'\n')+'</div>';
+    }).catch(function(){document.getElementById('detail').innerHTML='<div class="loading">불러오지 못했습니다.</div>';});
+  }else{
+    fetch(API+'?list=1&limit=50').then(function(r){return r.json()}).then(function(j){
+      ALL=(j.items||[]); renderList();
+    }).catch(function(){document.getElementById('list').innerHTML='<div class="empty">불러오지 못했습니다.</div>';});
+  }
+</script>
+</body>
+</html>
