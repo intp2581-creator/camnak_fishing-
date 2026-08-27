@@ -716,8 +716,8 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
       return res.status(403).json({ ok: false, err: "관리자 계정만 사용할 수 있습니다" });
     }
     // 📝 공지 작성자는 항상 "운영자"로 고정 — 관리자의 개인 게임 닉네임(미르페스카 등) 노출 방지.
-    //    (관리자 계정이 여러 개라도 공지엔 일관되게 "운영자"로 표기)
-    const nick = "운영자";
+    //    (관리자 계정이 여러 개라도 공지엔 일관되게 "캠피싱"으로 표기 — 광장 GM 캐릭터명, 친근감)
+    const nick = "캠피싱";
 
     const b = req.body || {};
     const action = String(b.action || "save");
