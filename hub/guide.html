@@ -59,10 +59,19 @@
   table.tb th{background:var(--sky1);color:var(--blue-ink);font-weight:800;font-size:13.5px}
   table.tb td b{color:var(--ink)}
 
+  .rankgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;margin:0 0 16px}
+  .rankgrid .rg{display:flex;flex-direction:column;align-items:center;gap:8px;
+    background:var(--sky1);border-radius:16px;padding:14px 6px 12px;transition:.18s}
+  .rankgrid .rg:hover{transform:translateY(-4px)}
+  .rankgrid .rg img{width:100%;max-width:80px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.12))}
+  .rankgrid .rg b{font-size:14px;color:var(--blue-ink);font-weight:800}
+  .rankgrid .rg.god{background:linear-gradient(135deg,#fff0bf,#ffd23f)}
+  .rankgrid .rg.god b{color:#5a3d00}
   .navbtns{display:flex;gap:10px;justify-content:space-between;margin:26px 0 10px;flex-wrap:wrap}
   @media (max-width:820px){
     .cats{grid-template-columns:repeat(2,1fr)}
     .thumbs,.kv{grid-template-columns:1fr}
+    .rankgrid{grid-template-columns:repeat(4,1fr)}
     .cat .ci{height:76px;font-size:32px}
   }
 </style>
@@ -305,9 +314,16 @@
 
     rank:{ i:'🏅', t:'등급 시스템', n:'PART 7', html:
       '<div class="panel"><h3>8단계 성장</h3>'
-     +'<div class="rankline"><span class="rk">초보</span><i>›</i><span class="rk">하수</span><i>›</i>'
-     +'<span class="rk">중수</span><i>›</i><span class="rk">고수</span><i>›</i><span class="rk">프로</span><i>›</i>'
-     +'<span class="rk">마스터</span><i>›</i><span class="rk">레전드</span><i>›</i><span class="rk god">낚시의 신</span></div>'
+     +'<div class="rankgrid">'
+     +'<div class="rg"><img src="assets/r-beginner.png" alt=""><b>초보</b></div>'
+     +'<div class="rg"><img src="assets/r-novice.png" alt=""><b>하수</b></div>'
+     +'<div class="rg"><img src="assets/r-intermediate.png" alt=""><b>중수</b></div>'
+     +'<div class="rg"><img src="assets/r-expert.png" alt=""><b>고수</b></div>'
+     +'<div class="rg"><img src="assets/r-pro.png" alt=""><b>프로</b></div>'
+     +'<div class="rg"><img src="assets/r-master.png" alt=""><b>마스터</b></div>'
+     +'<div class="rg"><img src="assets/r-legend.png" alt=""><b>레전드</b></div>'
+     +'<div class="rg god"><img src="assets/r-god.png" alt=""><b>낚시의 신</b></div>'
+     +'</div>'
      +'<p>캐릭터 이름 앞에 붙는 칭호입니다. 광장과 채팅에서 모두에게 보여요.</p></div>'
      +'<div class="panel"><h3>📜 승급하는 법</h3>'
      +'<p>광장의 <b>아라</b> 또는 퀘스트 포탈에서 승급 퀘스트를 받습니다.</p>'

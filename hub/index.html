@@ -189,13 +189,17 @@
   .feat h3{margin:0 0 8px;font-size:19px;color:var(--blue-ink);font-weight:800}
   .feat p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.7}
   /* 성장 단계 */
-  .rankline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;
+  .rankline{display:grid;grid-template-columns:repeat(8,1fr);gap:10px;
     background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
-    padding:26px 22px;box-shadow:var(--shadow-sm)}
-  .rankline .rk{background:var(--sky1);color:var(--blue-ink);font-weight:800;font-size:15px;
-    padding:9px 18px;border-radius:20px}
-  .rankline .rk.god{background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#5a3d00}
-  .rankline i{color:#b9cdd6;font-style:normal;font-weight:800}
+    padding:22px 18px;box-shadow:var(--shadow-sm)}
+  .rankline .rk{display:flex;flex-direction:column;align-items:center;gap:8px;
+    background:var(--sky1);border-radius:16px;padding:14px 6px 12px;transition:.18s}
+  .rankline .rk:hover{transform:translateY(-4px);box-shadow:var(--shadow-sm)}
+  .rankline .rk img{width:100%;max-width:86px;height:auto;display:block;
+    filter:drop-shadow(0 3px 6px rgba(0,0,0,.12))}
+  .rankline .rk b{font-size:14.5px;color:var(--blue-ink);font-weight:800}
+  .rankline .rk.god{background:linear-gradient(135deg,#fff0bf,#ffd23f)}
+  .rankline .rk.god b{color:#5a3d00}
   .ranknote{text-align:center;color:var(--ink-soft);font-size:14.5px;line-height:1.8;margin:14px 0 0}
   .ranknote a{color:var(--emerald);font-weight:700}
   /* 유튜브 밴드 */
@@ -294,6 +298,8 @@
     .grid.n2,.grid.n3{grid-template-columns:1fr}
     .corners{grid-template-columns:repeat(2,1fr)}
     .featgrid{grid-template-columns:1fr}
+    .rankline{grid-template-columns:repeat(4,1fr);padding:16px 12px}
+    .rankline .rk b{font-size:13px}
     .ytband{grid-template-columns:1fr}
     .yttx{padding:22px 20px}
     .rankline .rk{font-size:13.5px;padding:7px 13px}
@@ -446,9 +452,14 @@
     <span class="sub">초보에서 낚시의 신까지</span>
   </div>
   <div class="rankline">
-    <span class="rk">초보</span><i>›</i><span class="rk">하수</span><i>›</i><span class="rk">중수</span><i>›</i>
-    <span class="rk">고수</span><i>›</i><span class="rk">프로</span><i>›</i><span class="rk">마스터</span><i>›</i>
-    <span class="rk">레전드</span><i>›</i><span class="rk god">낚시의 신</span>
+    <div class="rk"><img src="assets/r-beginner.png" alt=""><b>초보</b></div>
+    <div class="rk"><img src="assets/r-novice.png" alt=""><b>하수</b></div>
+    <div class="rk"><img src="assets/r-intermediate.png" alt=""><b>중수</b></div>
+    <div class="rk"><img src="assets/r-expert.png" alt=""><b>고수</b></div>
+    <div class="rk"><img src="assets/r-pro.png" alt=""><b>프로</b></div>
+    <div class="rk"><img src="assets/r-master.png" alt=""><b>마스터</b></div>
+    <div class="rk"><img src="assets/r-legend.png" alt=""><b>레전드</b></div>
+    <div class="rk god"><img src="assets/r-god.png" alt=""><b>낚시의 신</b></div>
   </div>
   <p class="ranknote">레벨과 대장급 어종 조건을 채우면 승급에 도전할 수 있어요.
     등급이 오를수록 더 좋은 스킨과 장비를 착용할 수 있습니다.
