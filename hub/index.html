@@ -33,11 +33,21 @@
   .wrap{width:min(1200px,92vw);margin:0 auto}
 
   /* ===== NAV (dark, cinematic) ===== */
-  header.nav{position:fixed;top:0;left:0;right:0;z-index:60;
-    background:linear-gradient(180deg,rgba(4,12,17,.8) 0%,rgba(4,12,17,.34) 100%);transition:background .3s ease}
-  header.nav.solid{background:rgba(11,23,30,.95);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.08)}
+  /* 상단 다크바: 페이지와 함께 스크롤되어 위로 사라짐(고정 아님) */
+  header.nav{position:absolute;top:0;left:0;right:0;z-index:40;
+    background:linear-gradient(180deg,rgba(4,12,17,.8) 0%,rgba(4,12,17,.34) 100%)}
   .util a,nav.menu a,.logo .title{text-shadow:0 1px 8px rgba(0,0,0,.55)}
-  header.nav.solid .util a,header.nav.solid nav.menu a{text-shadow:none}
+
+  /* 스크롤 시 내려오는 컴팩트 메뉴바 (흰 배경·회색 글씨·메뉴만) */
+  .navmini{position:fixed;top:0;left:0;right:0;z-index:55;background:#ffffff;
+    border-bottom:1px solid #e6eef2;box-shadow:0 3px 14px rgba(0,0,0,.09);
+    transform:translateY(-100%);transition:transform .32s ease}
+  .navmini.show{transform:translateY(0)}
+  .navmini .row{display:flex;align-items:center;justify-content:center;gap:6px;height:52px;
+    padding:0 clamp(16px,3.5vw,56px);overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none}
+  .navmini .row::-webkit-scrollbar{display:none}
+  .navmini a{color:#5f6f77;font-weight:700;font-size:16px;padding:8px 15px;border-radius:8px;white-space:nowrap;transition:.15s}
+  .navmini a:hover{color:#0f6f96;background:#eef7fb}
   header.nav .wrap{width:100%;max-width:none;padding:0 clamp(20px,3.5vw,56px)}
   .util{border-bottom:1px solid rgba(255,255,255,.07)}
   .util .wrap{display:flex;justify-content:flex-end;gap:18px;height:36px;align-items:center}
@@ -230,6 +240,19 @@
     </div>
   </div>
 </header>
+
+<!-- 스크롤 시 내려오는 컴팩트 흰색 메뉴바 -->
+<div class="navmini" id="navmini">
+  <div class="row">
+    <a href="#notice">공지</a>
+    <a href="#guide">게임가이드</a>
+    <a href="#event">이벤트</a>
+    <a href="#guild">길드홀</a>
+    <a href="#store">게임스토어</a>
+    <a href="#youtube">미디어</a>
+    <a data-mall href="#">캠피싱쇼핑몰 ↗</a>
+  </div>
+</div>
 
 <a id="top"></a>
 <!-- HERO (full-screen splash) -->
@@ -429,9 +452,9 @@
   h.addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
   h.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40)go(cur+(dx<0?1:-1));});
 
-  /* 상단바는 항상 보임 — 히어로 위에선 반투명, 스크롤해 밝은 영역 오면 배경 진하게(가독성) */
-  var topnav=document.getElementById('topnav');
-  function onScroll(){topnav.classList.toggle('solid', window.scrollY > (window.innerHeight-70));}
+  /* 상단 다크바는 스크롤과 함께 올라가 사라지고, 흰색 컴팩트 메뉴바가 내려와 고정 */
+  var navmini=document.getElementById('navmini');
+  function onScroll(){navmini.classList.toggle('show', window.scrollY > 108);}
   window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
   /* 모바일 햄버거 */
   document.getElementById('hamb').onclick=function(){document.getElementById('menu').classList.toggle('open')};
