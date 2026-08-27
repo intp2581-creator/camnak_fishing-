@@ -143,6 +143,21 @@
   .qic .ei{font-size:26px}
   .qic .el{font-weight:700;font-size:13.5px;color:var(--ink)}
 
+  /* 가이드 카드 · 길드 박스 */
+  .gcard{padding:24px 24px 26px}
+  .gcard .gi{font-size:32px;margin-bottom:10px}
+  .gcard h3{margin:0 0 8px;font-size:19px;color:var(--blue-ink)}
+  .gcard p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.7}
+  .gcard b{color:var(--ink)}
+  .guildbox{display:grid;grid-template-columns:1.05fr .95fr;gap:0;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm)}
+  .guildbox .gtxt{padding:32px 34px}
+  .guildbox h3{margin:0 0 10px;font-size:20px;color:var(--blue-ink)}
+  .guildbox p{margin:0;color:var(--ink-soft);font-size:15px;line-height:1.85}
+  .guildbox b{color:var(--ink)}
+  .guildbox .gimg{position:relative;min-height:260px;background:#0a1f28}
+  .guildbox .gimg img{width:100%;height:100%;object-fit:cover}
+
   /* ===== SECTIONS ===== */
   section.blk{padding:52px 0 6px}
   .sec-head{display:flex;align-items:flex-end;gap:12px;margin-bottom:22px}
@@ -206,6 +221,9 @@
     .playstrip .btn-play{margin-left:0} .playstrip .chips{display:none}
     .quick .wrap{grid-template-columns:1fr;gap:24px}
     .grid.n2,.grid.n3{grid-template-columns:1fr}
+    .guildbox{grid-template-columns:1fr}
+    .guildbox .gimg{min-height:180px;order:-1}
+    .guildbox .gtxt{padding:24px 20px}
     .yt{grid-template-columns:1fr} .yt .thumb{min-height:200px;order:-1}
   }
 
@@ -336,8 +354,77 @@
   <div class="sec-head">
     <h2>🎁 진행 중인 이벤트</h2>
     <span class="sub">지금 참여하세요</span>
+    <a class="more" href="notice.html">전체보기 ›</a>
   </div>
   <div class="grid n3" id="eventList"></div>
+</section>
+
+<!-- GUIDE -->
+<section class="blk wrap" id="guide">
+  <div class="sec-head">
+    <h2>📖 게임 가이드</h2>
+    <span class="sub">처음이신가요? 여기부터 보세요</span>
+  </div>
+  <div class="grid n3">
+    <div class="card gcard">
+      <div class="gi">🎣</div>
+      <h3>낚시 기본</h3>
+      <p>캐스팅 → 입질 → <b>챔질</b> → 밀당으로 물고기를 제압합니다.
+      물고기가 발악·저항할 때 힘 조절이 핵심이에요.</p>
+    </div>
+    <div class="card gcard">
+      <div class="gi">💪</div>
+      <h3>제압력</h3>
+      <p><b>힘 · 컨트롤 · 감도</b> 세 가지 합계가 제압력입니다.
+      기본 능력치 + 장착 장비 + 레벨 + 길드 + 랭킹 보너스로 올라갑니다.</p>
+    </div>
+    <div class="card gcard">
+      <div class="gi">🏅</div>
+      <h3>등급 승급</h3>
+      <p>초보 → 하수 → 중수 → 고수 → 프로 → 마스터 → 레전드 → <b>낚시의 신</b>.
+      레벨과 대장급 어종 조건을 채우면 승급 도전이 가능합니다.</p>
+    </div>
+    <div class="card gcard">
+      <div class="gi">⭐</div>
+      <h3>낚시터 난이도</h3>
+      <p>전국 낚시터마다 <b>★ 난이도</b>가 다릅니다.
+      별이 높을수록 큰 물고기가 나오지만 그만큼 제압이 어려워요.</p>
+    </div>
+    <div class="card gcard">
+      <div class="gi">🎪</div>
+      <h3>루어낚시</h3>
+      <p>민물 낚시터에서 <b>루어 모드</b>로 전환하면 손 낚싯대로 즐길 수 있어요.
+      쏘가리·꺽지·무지개송어 등 루어 전용 어종이 있습니다.</p>
+    </div>
+    <div class="card gcard">
+      <div class="gi">⚔️</div>
+      <h3>아레나</h3>
+      <p>장비가 <b>평준화</b>되는 실시간 대전. 순수 실력으로 겨룹니다.
+      하루 무료 1회 + 입장권 1회 참가 가능해요.</p>
+    </div>
+  </div>
+</section>
+
+<!-- GUILD -->
+<section class="blk wrap" id="guild">
+  <div class="sec-head">
+    <h2>🏰 길드홀</h2>
+    <span class="sub">함께하면 더 강해집니다</span>
+  </div>
+  <div class="guildbox">
+    <div class="gtxt">
+      <h3>길드에 가입하면</h3>
+      <p>· 길드원이 물고기를 잡을 때마다 <b>길드 경험치</b>가 쌓이고, 레벨이 오르면 <b>길드원 전체 능력치</b>가 올라갑니다.<br>
+         · 주간 <b>길드 리그</b> 상위 길드는 한 주 동안 추가 보너스를 받습니다.<br>
+         · 길드 전용 채팅으로 조황 정보를 나눌 수 있어요.</p>
+      <h3 style="margin-top:20px">⚔️ 길드 보스레이드</h3>
+      <p>길드원이 힘을 합쳐 거대 보스를 제압하는 <b>주 1회</b> 콘텐츠입니다.<br>
+         <b>무르가돈 → 아비쿠라 → 바스라곤 → 카르곤 → 볼카르</b> 5개 존을 차례로 도전하며,
+         제압에 성공하면 길드홀에 <b>트로피 깃발</b>이 걸립니다.</p>
+      <a class="btn btn-play" data-play href="#" style="margin-top:18px">🎮 길드 만나러 가기</a>
+    </div>
+    <div class="gimg"><img src="assets/slide1-boss.png" alt="길드 보스레이드"></div>
+  </div>
 </section>
 
 <!-- STORE / MALL -->
@@ -436,21 +523,38 @@
     }).join(''));
   }
   // 📢 실제 공지 불러오기(관리자 페이지에서 작성) — 실패 시 조용히 비움
-  fetch('https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi?list=1&limit=6')
-    .then(function(r){return r.json()}).then(function(j){paintNotices(j.items||[])})
-    .catch(function(){paintNotices([])});
+  fetch('https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi?list=1&limit=20')
+    .then(function(r){return r.json()}).then(function(j){
+      var all = j.items || [];
+      paintNotices(all);
+      paintEvents(all.filter(function(n){return n.type==='event';}));
+    })
+    .catch(function(){ paintNotices([]); paintEvents([]); });
 
   /* ====== 이벤트 데이터 (여기 배열만 수정) ====== */
   var EVENTS = [
     {img:'assets/event1.jpg', badge:'진행중', t:'주간 랭킹 이벤트', p:'주간·월간·연간 종합랭킹에 도전해 상위 조사님이 되어보세요.'},
     {img:'assets/event2.jpg', badge:'상시',  t:'랜덤 상자', p:'수상한 상자를 열어 다양한 아이템을 획득하세요.'},
-    {img:'assets/event3.jpg',  badge:'길드',  t:'보스레이드', p:'길드원과 함께 5존 보스를 제압하고 보상을 받으세요.'},
+    {img:'assets/event3.jpg', badge:'길드',  t:'보스레이드', p:'길드원과 함께 5존 보스를 제압하고 보상을 받으세요.'},
   ];
-  document.getElementById('eventList').innerHTML = EVENTS.map(function(e){
-    return '<div class="card event-card"><div class="thumb"><img src="'+e.img+'" alt="">'
-      +'<span class="badge">'+e.badge+'</span></div>'
-      +'<div class="body"><h3>'+e.t+'</h3><p>'+e.p+'</p></div></div>';
-  }).join('');
+  var EV_IMG = ['assets/event1.jpg','assets/event2.jpg','assets/event3.jpg'];
+  function evCard(img,badge,title,desc,href){
+    var inner = '<div class="thumb"><img src="'+img+'" alt=""><span class="badge">'+escH(badge)+'</span></div>'
+      +'<div class="body"><h3>'+escH(title)+'</h3><p>'+escH(desc)+'</p></div>';
+    return href ? '<a class="card event-card" href="'+href+'">'+inner+'</a>'
+                : '<div class="card event-card">'+inner+'</div>';
+  }
+  function paintEvents(items){
+    var box=document.getElementById('eventList');
+    if(items && items.length){
+      box.innerHTML = items.slice(0,3).map(function(n,i){
+        return evCard(EV_IMG[i%3], n.date||'이벤트', n.title, '자세한 내용을 확인해 보세요.',
+                      'notice.html?id='+encodeURIComponent(n.id));
+      }).join('');
+    } else {
+      box.innerHTML = EVENTS.map(function(e){ return evCard(e.img,e.badge,e.t,e.p,null); }).join('');
+    }
+  }
 
   /* ====== 히어로 슬라이더 ====== */
   var slides=document.querySelectorAll('.hslide'), cur=0, timer;
