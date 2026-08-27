@@ -76,7 +76,16 @@ onAuthStateChanged(auth, async (u) => {
 // 로그인/로그아웃 버튼 연결
 document.addEventListener('click', (e) => {
   const out = e.target.closest('[data-do-logout]');
-  if (out) { e.preventDefault(); signOut(auth); return; }
+  if (out) {
+    e.preventDefault();
+    signOut(auth);
+    // 🔓 캠피싱(아임웹) 세션도 함께 로그아웃 — 백그라운드 탭에서 처리 후 자동 닫기
+    try {
+      const w = window.open('https://camnak.com/logout', 'camnakLogout', 'width=480,height=360');
+      if (w) setTimeout(() => { try { w.close(); } catch (e) {} }, 2500);
+    } catch (e) {}
+    return;
+  }
   const inn = e.target.closest('[data-do-login]');
   if (inn) { e.preventDefault(); location.href = LOGIN_URL; }
 });
