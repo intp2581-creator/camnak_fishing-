@@ -74,7 +74,7 @@
   .hamb{display:none;background:none;border:none;font-size:26px;color:#fff;cursor:pointer}
 
   /* ===== HERO (full-screen splash) ===== */
-  .hero{position:relative;width:100%;height:100vh;height:100svh;overflow:hidden;background:#0a1f28}
+  .hero{position:relative;width:100%;height:52vh;height:52svh;min-height:340px;overflow:hidden;background:#0a1f28}
   .floatlogo{position:absolute;top:22px;left:26px;z-index:20;display:block;transition:opacity .3s ease}
   .floatlogo img{height:46px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))}
   .hslide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
@@ -84,7 +84,7 @@
     linear-gradient(90deg,rgba(6,20,28,.82) 0%,rgba(6,20,28,.5) 38%,rgba(6,20,28,.05) 66%,rgba(6,20,28,.1) 100%),
     linear-gradient(0deg,rgba(6,20,28,.85) 0%,rgba(6,20,28,0) 34%)}
   .hslide .inner{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;
-    padding-bottom:96px}
+    padding-top:70px;padding-bottom:78px}
   .hslide .tag{display:inline-block;width:max-content;background:var(--yellow);color:#5a3d00;font-family:"Noto Sans KR";
     font-size:14px;padding:5px 14px;border-radius:20px;margin-bottom:16px}
   .hslide h2{color:#fff;font-size:clamp(30px,5vw,62px);line-height:1.08;margin:0 0 14px;
@@ -96,7 +96,7 @@
   .cta.blue{background:linear-gradient(135deg,var(--blue),var(--blue-deep));color:#fff}
   /* 완성 아트(제목·로고가 그려진 이미지) 슬라이드: 텍스트 오버레이 없이 그림 살리고 버튼만 */
   .hslide.art .scrim{background:linear-gradient(0deg,rgba(6,18,25,.8) 0%,rgba(6,18,25,0) 26%)}
-  .hslide.art .inner{justify-content:flex-end;padding-bottom:104px}
+  .hslide.art .inner{justify-content:flex-end;padding-bottom:84px}
   .hslide.art h2,.hslide.art .sub,.hslide.art .tag{display:none}
 
   /* hero bottom navigator (Lineage M style) */
@@ -456,7 +456,7 @@
 
   /* 상단 다크바는 스크롤과 함께 올라가 사라지고, 흰색 컴팩트 메뉴바가 내려와 고정 */
   var navmini=document.getElementById('navmini');
-  function onScroll(){navmini.classList.toggle('show', window.scrollY > 108);}
+  function onScroll(){navmini.classList.toggle('show', window.scrollY > 96);}
   window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
   /* 모바일 햄버거 */
   document.getElementById('hamb').onclick=function(){document.getElementById('menu').classList.toggle('open')};
