@@ -33,8 +33,10 @@
   .wrap{width:min(1200px,92vw);margin:0 auto}
 
   /* ===== NAV (dark, cinematic) ===== */
-  header.nav{position:sticky;top:0;z-index:60;background:rgba(12,25,32,.92);backdrop-filter:blur(10px);
-    border-bottom:1px solid rgba(255,255,255,.08)}
+  header.nav{position:fixed;top:0;left:0;right:0;z-index:60;background:rgba(12,25,32,.94);backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(255,255,255,.08);transform:translateY(-108%);opacity:0;
+    transition:transform .38s ease,opacity .38s ease}
+  header.nav.show{transform:translateY(0);opacity:1}
   .util{border-bottom:1px solid rgba(255,255,255,.07)}
   .util .wrap{display:flex;justify-content:flex-end;gap:16px;height:34px;align-items:center}
   .util a{color:#9db6c1;font-size:12.5px;font-weight:500}
@@ -42,8 +44,7 @@
   .util .sep{color:#3a5561}
   .nav-in{display:flex;align-items:center;gap:20px;height:60px}
   .logo{display:flex;align-items:center;gap:9px;font-family:"Noto Sans KR";font-size:22px;color:#fff}
-  .logo .mark{height:44px;width:auto;display:block}
-  .logo .title{height:28px;width:auto;display:block}
+  .logo .title{height:36px;width:auto;display:block}
   .logo .dot{width:34px;height:34px;border-radius:11px;display:grid;place-items:center;
     background:linear-gradient(135deg,var(--blue),var(--emerald));font-size:19px;box-shadow:var(--shadow-sm)}
   .logo b{color:var(--yellow)}
@@ -58,8 +59,10 @@
   .btn-play:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(247,181,0,.4)}
   .hamb{display:none;background:none;border:none;font-size:26px;color:#fff;cursor:pointer}
 
-  /* ===== HERO (full-bleed cinematic) ===== */
-  .hero{position:relative;width:100%;height:clamp(440px,66vh,660px);overflow:hidden;background:#0a1f28}
+  /* ===== HERO (full-screen splash) ===== */
+  .hero{position:relative;width:100%;height:100vh;height:100svh;overflow:hidden;background:#0a1f28}
+  .floatlogo{position:absolute;top:22px;left:26px;z-index:20;display:block;transition:opacity .3s ease}
+  .floatlogo img{height:46px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))}
   .hslide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
   .hslide.on{opacity:1}
   .hslide .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
@@ -201,15 +204,15 @@
 </head>
 <body>
 
-<!-- NAV -->
-<header class="nav">
+<!-- NAV (스크롤 시 등장) -->
+<header class="nav" id="topnav">
   <div class="util"><div class="wrap">
     <a data-login href="#">로그인</a><span class="sep">|</span>
     <a data-join href="#">회원가입</a><span class="sep">|</span>
     <a data-support href="#">고객지원</a>
   </div></div>
   <div class="wrap nav-in">
-    <a class="logo" href="#top"><img class="mark" src="assets/logo-mark.png" alt="캠피싱"><img class="title" src="assets/logo-title.png" alt="KREFT"></a>
+    <a class="logo" href="#top"><img class="title" src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
     <nav class="menu" id="menu">
       <a href="#notice">공지<span class="n">N</span></a>
       <a href="#event">이벤트</a>
@@ -225,8 +228,9 @@
 </header>
 
 <a id="top"></a>
-<!-- HERO -->
+<!-- HERO (full-screen splash) -->
 <div class="hero" id="hero">
+  <a class="floatlogo" href="#top"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
   <div class="hslide on art">
     <img class="bg" src="assets/slide1-boss.png" alt="">
     <div class="scrim"></div>
@@ -422,8 +426,14 @@
   h.addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
   h.addEventListener('touchend',function(e){var dx=e.changedTouches[0].clientX-sx;if(Math.abs(dx)>40)go(cur+(dx<0?1:-1));});
 
+  /* 🔽 스크롤하면 상단 메뉴바 등장(스플래시→네비), 맨 위에선 로고만 */
+  var topnav=document.getElementById('topnav'), flogo=document.querySelector('.floatlogo');
+  function onScroll(){var show=window.scrollY>100;topnav.classList.toggle('show',show);if(flogo)flogo.style.opacity=show?'0':'1';}
+  window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+  /* 모바일 햄버거 */
   document.getElementById('hamb').onclick=function(){document.getElementById('menu').classList.toggle('open')};
   document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){document.getElementById('menu').classList.remove('open')})});
+
 </script>
 </body>
 </html>
