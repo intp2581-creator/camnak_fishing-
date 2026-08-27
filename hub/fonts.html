@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캠피싱 폰트 고르기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Do+Hyeon&family=Black+Han+Sans&family=Gugi&family=Gamja+Flower&family=Gowun+Dodum&family=Hi+Melody&family=Nanum+Pen+Script&family=Dongle:wght@700&family=Single+Day&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#eef9fc;color:#20414d;font-family:"Noto Sans KR",sans-serif;padding:24px 16px 80px}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-family:"Do Hyeon";color:#0f6f96;font-size:26px;text-align:center;margin:6px 0 4px}
+  .lead{text-align:center;color:#4d6b78;font-size:14px;margin-bottom:24px}
+  .card{background:#fff;border-radius:18px;box-shadow:0 6px 20px rgba(15,80,110,.1);border:1px solid #e0eef3;
+    padding:22px 24px;margin-bottom:18px}
+  .name{display:inline-block;background:#0f6f96;color:#fff;font-family:"Noto Sans KR";font-weight:700;
+    font-size:13px;padding:5px 12px;border-radius:14px;margin-bottom:14px}
+  .name b{color:#ffd23f}
+  .logo{font-size:30px;color:#0f6f96}
+  .logo b{color:#f7b500}
+  .title{font-size:clamp(28px,6vw,44px);line-height:1.12;color:#20414d;margin:10px 0}
+  .head{font-size:24px;color:#0f6f96;margin:8px 0}
+  .body{font-family:"Noto Sans KR";font-size:15px;color:#4d6b78;margin:6px 0}
+  .btn{display:inline-block;margin-top:10px;background:linear-gradient(135deg,#ffd23f,#f7b500);color:#5a3d00;
+    padding:11px 22px;border-radius:13px;font-size:17px}
+  /* 폰트 지정 */
+  .f-jua .logo,.f-jua .title,.f-jua .head,.f-jua .btn{font-family:"Jua"}
+  .f-dohyeon .logo,.f-dohyeon .title,.f-dohyeon .head,.f-dohyeon .btn{font-family:"Do Hyeon"}
+  .f-blackhan .logo,.f-blackhan .title,.f-blackhan .head,.f-blackhan .btn{font-family:"Black Han Sans"}
+  .f-gugi .logo,.f-gugi .title,.f-gugi .head,.f-gugi .btn{font-family:"Gugi"}
+  .f-gowun .logo,.f-gowun .title,.f-gowun .head,.f-gowun .btn{font-family:"Gowun Dodum"}
+  .f-himelody .logo,.f-himelody .title,.f-himelody .head,.f-himelody .btn{font-family:"Hi Melody"}
+  .f-gamja .logo,.f-gamja .title,.f-gamja .head,.f-gamja .btn{font-family:"Gamja Flower"}
+  .f-pen .logo,.f-pen .title,.f-pen .head,.f-pen .btn{font-family:"Nanum Pen Script"}
+  .f-dongle .logo,.f-dongle .title,.f-dongle .head,.f-dongle .btn{font-family:"Dongle"}
+  .f-single .logo,.f-single .title,.f-single .head,.f-single .btn{font-family:"Single Day"}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎣 캠피싱 홈페이지 글씨체 고르기</h1>
+  <p class="lead">아래 후보들 중 마음에 드는 번호를 알려주세요. (제목·로고·버튼용 폰트 / 본문은 가독성 위해 기본 유지)</p>
+  <div id="list"></div>
+</div>
+<script>
+  var FONTS=[
+    ['1. Jua (현재 · 동글동글 귀여움)','f-jua'],
+    ['2. Do Hyeon (묵직·단단한 게임체) ⭐추천','f-dohyeon'],
+    ['3. Black Han Sans (아주 굵고 임팩트)','f-blackhan'],
+    ['4. Gugi (개성·판타지 게임 느낌)','f-gugi'],
+    ['5. Gowun Dodum (깔끔·모던 라운드)','f-gowun'],
+    ['6. Hi Melody (말랑말랑 귀여움)','f-himelody'],
+    ['7. Gamja Flower (손글씨 감자꽃)','f-gamja'],
+    ['8. Nanum Pen Script (펜 손글씨)','f-pen'],
+    ['9. Dongle (동글 굵은 귀여움)','f-dongle'],
+    ['10. Single Day (개성 손글씨)','f-single'],
+  ];
+  document.getElementById('list').innerHTML = FONTS.map(function(f){
+    return '<div class="card '+f[1]+'">'
+      +'<span class="name">'+f[0]+'</span>'
+      +'<div class="logo">캠피싱 <b>KREFT</b></div>'
+      +'<div class="title">지금 바로<br>낚시하러 갈까요?</div>'
+      +'<div class="head">📢 공지 · 업데이트</div>'
+      +'<div class="body">설치 없이 브라우저에서 바로 즐기는 웹 낚시게임. (본문 글씨는 이 폰트로 유지됩니다)</div>'
+      +'<span class="btn">🎮 지금 플레이</span>'
+      +'</div>';
+  }).join('');
+</script>
+</body>
+</html>
