@@ -630,7 +630,7 @@ for (var fish in availableFishes) {
     String myRank = '',                       // 🎖️ 스킨 착용조건(승급) 판정용
     bool isArena = false,                     // ⚔️ 아레나=평준화: 지급된 마스터 스킨·휘장을 조건 무시하고 적용
   }) {
-    int totalStr = 10; int totalCtrl = 10; int totalSens = 10;
+    int totalStr = 30; int totalCtrl = 30; int totalSens = 30; // 🔧 기본 스텟 10→30(2026-08-27, 착용기반 전환 보상 +60 제압력)
 
     void addStats(Map<String, dynamic>? item) {
       if (item == null || item['stats'] == null) return;

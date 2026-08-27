@@ -4125,7 +4125,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0]) {
-    final total = 10 + equipV + levelV + guildV + champV + rankV + eventV;
+    final total = 30 + equipV + levelV + guildV + champV + rankV + eventV; // 기본 30(2026-08-27)
     Widget chip(String t, Color c) => Text(t,
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
     return Padding(
@@ -4143,7 +4143,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         const SizedBox(width: 10),
         Expanded(
           child: Wrap(spacing: 6, children: [
-            chip('기본 10', Colors.white54),
+            chip('기본 30', Colors.white54),
             if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
             if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
@@ -4181,9 +4181,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       ownedInventory: null, // 💳 착용기반 — 착용한 스킨·뱃지(조건 충족 시)만. 로그인 시 최고 자동착용됨.
       myLevel: _level > 0 ? _level : 1, myRank: _rank,
     );
-    final eP = (equip['strength'] ?? 10) - 10;
-    final eC = (equip['control'] ?? 10) - 10;
-    final eS = (equip['sensitivity'] ?? 10) - 10;
+    final eP = (equip['strength'] ?? 30) - 30; // 기본 30 제외 = 장비 순수기여(2026-08-27)
+    final eC = (equip['control'] ?? 30) - 30;
+    final eS = (equip['sensitivity'] ?? 30) - 30;
 
     Widget body(int gLevel) {
       final lvB = _level < 0 ? 0 : _level; // 🆙 레벨 보너스(각 +레벨) — Lv과 일치·낚시 전투력과 동일(2026-08-24)
@@ -4192,7 +4192,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
       final evB = eventItemBonus(_inventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 자동)
       final evP = evB['P'] ?? 0, evC = evB['C'] ?? 0, evS = evB['S'] ?? 0;
-      final totP = 10 + eP + lvB + gB + cB + rB + evP, totC = 10 + eC + lvB + gB + cB + rB + evC, totS = 10 + eS + lvB + gB + cB + rB + evS;
+      final totP = 30 + eP + lvB + gB + cB + rB + evP, totC = 30 + eC + lvB + gB + cB + rB + evC, totS = 30 + eS + lvB + gB + cB + rB + evS; // 기본 30(2026-08-27)
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
