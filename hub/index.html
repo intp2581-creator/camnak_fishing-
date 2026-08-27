@@ -214,6 +214,19 @@
   .yttx span{color:var(--ink-soft);font-size:15px;line-height:1.7}
   .yttx em{font-style:normal;color:var(--emerald);font-weight:700;font-size:15px;margin-top:6px}
 
+  /* 영상 카드 */
+  .vcard{display:block;overflow:hidden}
+  .vcard:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
+  .vthumb{position:relative;aspect-ratio:16/9;background:#0a323f;overflow:hidden}
+  .vthumb img{width:100%;height:100%;object-fit:cover;transition:.25s}
+  .vcard:hover .vthumb img{transform:scale(1.04)}
+  .vthumb .ply{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;color:#e33;z-index:1}
+  .vthumb .ply::before{content:'';position:absolute;width:66px;height:66px;border-radius:50%;
+    background:rgba(255,255,255,.94);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  .vbody{padding:18px 20px 22px;display:flex;flex-direction:column;gap:5px}
+  .vbody b{font-size:18px;color:var(--ink);font-weight:800}
+  .vbody span{font-size:14px;color:var(--ink-soft);line-height:1.6}
+
   /* ===== SECTIONS ===== */
   section.blk{padding:52px 0 6px}
   .sec-head{display:flex;align-items:flex-end;gap:12px;margin-bottom:22px}
@@ -317,7 +330,7 @@
       <a href="event.html">이벤트</a>
       <a href="guild.html">길드홀</a>
       <a data-store href="#">게임스토어</a>
-      <a data-yt href="#">미디어</a>
+      <a href="#media">미디어</a>
       <a data-mall href="#">캠피싱쇼핑몰 ↗</a>
     </nav>
     <div class="navcta">
@@ -335,7 +348,7 @@
     <a href="event.html">이벤트</a>
     <a href="guild.html">길드홀</a>
     <a data-store href="#">게임스토어</a>
-    <a data-yt href="#">미디어</a>
+    <a href="#media">미디어</a>
     <a data-mall href="#">캠피싱쇼핑몰 ↗</a>
   </div>
 </div>
@@ -394,7 +407,7 @@
       <a class="corner" href="guide.html"><i>📖</i><b>게임 가이드</b><span>낚시 방법과 성장</span></a>
       <a class="corner" href="guild.html"><i>🏰</i><b>길드홀</b><span>길드와 보스레이드</span></a>
       <a class="corner" data-store href="#"><i>🛒</i><b>게임 스토어</b><span>스킨 · 이용권</span></a>
-      <a class="corner" data-yt href="#"><i>🎬</i><b>미디어</b><span>소개 영상</span></a>
+      <a class="corner" href="#media"><i>🎬</i><b>미디어</b><span>소개 영상 2편</span></a>
     </div>
   </div>
 </div>
@@ -442,15 +455,17 @@
 
 <!-- 소개 영상 -->
 <section class="blk wrap" id="media">
-  <div class="sec-head"><h2>🎬 소개 영상</h2><span class="sub">1분이면 감이 옵니다</span></div>
-  <a class="ytband" data-yt href="#">
-    <div class="ythumb"><img src="assets/media-thumb.jpg" alt=""><span class="ply">▶</span></div>
-    <div class="yttx">
-      <b>캠피싱 KREFT 트레일러</b>
-      <span>6등급 성장 서사를 담은 공식 소개 영상</span>
-      <em>유튜브에서 보기 ↗</em>
-    </div>
-  </a>
+  <div class="sec-head"><h2>🎬 소개 영상</h2><span class="sub">영상으로 먼저 만나보세요</span></div>
+  <div class="grid n2">
+    <a class="card vcard" href="https://youtu.be/0AkDc5tvcNw" target="_blank" rel="noopener">
+      <div class="vthumb"><img src="https://img.youtube.com/vi/0AkDc5tvcNw/hqdefault.jpg" alt=""><span class="ply">▶</span></div>
+      <div class="vbody"><b>캠피싱 KREFT 낚시게임</b><span>어떤 게임인지 1분이면 감이 옵니다</span></div>
+    </a>
+    <a class="card vcard" href="https://youtu.be/dkpYxiKfuz8" target="_blank" rel="noopener">
+      <div class="vthumb"><img src="https://img.youtube.com/vi/dkpYxiKfuz8/hqdefault.jpg" alt=""><span class="ply">▶</span></div>
+      <div class="vbody"><b>길드 보스레이드</b><span>길드원이 힘을 합쳐 거대 보스에 도전</span></div>
+    </a>
+  </div>
 </section>
 
 <!-- 쇼핑몰 배너 -->
