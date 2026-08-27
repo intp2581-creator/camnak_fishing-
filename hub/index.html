@@ -220,9 +220,11 @@
   .vthumb{position:relative;aspect-ratio:16/9;background:#0a323f;overflow:hidden}
   .vthumb img{width:100%;height:100%;object-fit:cover;transition:.25s}
   .vcard:hover .vthumb img{transform:scale(1.04)}
-  .vthumb .ply{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;color:#e33;z-index:1}
-  .vthumb .ply::before{content:'';position:absolute;width:66px;height:66px;border-radius:50%;
-    background:rgba(255,255,255,.94);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+  .vthumb .ply{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:66px;height:66px;border-radius:50%;background:rgba(255,255,255,.95);
+    box-shadow:0 6px 18px rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;
+    color:#e33;font-size:26px;padding-left:5px;transition:.2s;z-index:2}
+  .vcard:hover .vthumb .ply{background:#fff;transform:translate(-50%,-50%) scale(1.08)}
   .vbody{padding:18px 20px 22px;display:flex;flex-direction:column;gap:5px}
   .vbody b{font-size:18px;color:var(--ink);font-weight:800}
   .vbody span{font-size:14px;color:var(--ink-soft);line-height:1.6}
