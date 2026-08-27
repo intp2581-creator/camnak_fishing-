@@ -558,6 +558,7 @@ Widget _whisperUnreadBadge() {
   // 🛡️ 길드 버프 (길드 레벨 + 주간 리그 챔피언)
   String _guildId = '';
   int _guildLevel = 0;
+  int _guildBossCount = 0; // 🏴 길드가 클리어한 보스 수(clearedBosses) → 깃발 제압력 보너스(마리당 +5)
   bool _isChampionGuild = false; // 지난주 길드 리그 1위(👑 표시용)
   int _myLeagueRank = 0;         // 지난주 길드 리그 내 길드 순위(0=없음/1~3=보상) → PCS 보너스
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
@@ -588,6 +589,7 @@ Widget _whisperUnreadBadge() {
       if (gid.isEmpty) return;
       final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(gid).get();
       final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
+      final gBossCnt = (gdoc.data()?['clearedBosses'] is List) ? (gdoc.data()!['clearedBosses'] as List).length : 0; // 🏴 깃발 보너스용
       // 🏆 주간 리그 내 길드 순위(top3 보상)
       int leagueRank = 0;
       try {
@@ -601,6 +603,7 @@ Widget _whisperUnreadBadge() {
           _guildId = gid;
           if (gid.isEmpty && _currentChatTab == 4) _currentChatTab = 0; // 길드 없으면 길드탭→전체
           _guildLevel = FishingLogic.guildLevelFromExp(gexp);
+          _guildBossCount = gBossCnt;
           _myLeagueRank = leagueRank;
           _isChampionGuild = leagueRank == 1;
         });
@@ -633,6 +636,7 @@ Widget _whisperUnreadBadge() {
     if (widget.title != widget.locationName) return s;
     int b = FishingLogic.guildStatBonus(_guildLevel);
     b += FishingLogic.guildLeagueBonus(_myLeagueRank); // 🏆 주간 길드 리그 top3 보너스(1위+10/2위+5/3위+2)
+    b += FishingLogic.guildBossBonus(_guildBossCount); // 🏴 보스 처치 깃발 보너스(마리당 +5, 최대 +25)
     b += garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
     final evB = eventItemBonus(_latestInventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 적용)
     if (b <= 0 && (evB['P'] ?? 0) == 0 && (evB['C'] ?? 0) == 0 && (evB['S'] ?? 0) == 0) return s;

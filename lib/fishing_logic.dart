@@ -766,6 +766,10 @@ for (var fish in availableFishes) {
   // 길드 레벨이 주는 능력치 보너스(힘/컨트롤/감도 각각 +레벨)
   static int guildStatBonus(int guildLevel) => guildLevel.clamp(0, guildMaxLevel);
 
+  // 🏴 [2026-08-27] 보스 처치 깃발 보너스: 길드가 클리어한 보스(clearedBosses) 1마리당 힘/컨/감 각 +5(누적, 길드원 전체).
+  //    보스 총 5마리 → 최대 각 +25(총 제압력 +75). 중복(같은 보스 재처치)은 clearedBosses가 arrayUnion(distinct)이라 한 번만.
+  static int guildBossBonus(int clearedCount) => (clearedCount * 5).clamp(0, 25);
+
   // 길드 레벨에 비례한 최대 가입 인원 (Lv1~9:20, 10~19:30, 20~29:40, 30:50)
   static int guildMaxMembers(int guildLevel) {
     if (guildLevel >= 30) return 50;

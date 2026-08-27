@@ -376,7 +376,8 @@ class _GuildInfoBody extends StatelessWidget {
             final isChamp = champId == gid;
             final lr = stData?['leagueRanks'];
             final gRank = (lr is Map && lr[gid] is num) ? (lr[gid] as num).toInt() : 0;
-            final bonus = levelBonus + FishingLogic.guildLeagueBonus(gRank); // 🏆 리그 top3 순위별
+            final bossCnt = (g['clearedBosses'] is List) ? (g['clearedBosses'] as List).length : 0;
+            final bonus = levelBonus + FishingLogic.guildLeagueBonus(gRank) + FishingLogic.guildBossBonus(bossCnt); // 🏆 리그 top3 + 🏴 보스깃발(마리당 +5)
             return Column(
               children: [
                 _header(context, name, champ: isChamp),

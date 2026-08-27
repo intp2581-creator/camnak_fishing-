@@ -240,6 +240,8 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
           final gdoc = await FirebaseFirestore.instance.collection('guilds').doc(widget.guildId).get();
           final gexp = (gdoc.data()?['guildExp'] is num) ? (gdoc.data()!['guildExp'] as num).toInt() : 0;
           statBonus += FishingLogic.guildStatBonus(FishingLogic.guildLevelFromExp(gexp)); // 길드 레벨
+          final gBossCnt = (gdoc.data()?['clearedBosses'] is List) ? (gdoc.data()!['clearedBosses'] as List).length : 0;
+          statBonus += FishingLogic.guildBossBonus(gBossCnt); // 🏴 보스 처치 깃발 보너스(마리당 +5, 최대 +25)
           final st = await FirebaseFirestore.instance.collection('guild_league').doc('state').get();
           final active = (st.data()?['activeWeek'] ?? '') == FishingLogic.weekKey(DateTime.now());
           final lr = st.data()?['leagueRanks'];

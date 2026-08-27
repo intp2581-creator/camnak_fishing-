@@ -4124,8 +4124,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
-  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0]) {
-    final total = 30 + equipV + levelV + guildV + champV + rankV + eventV; // 기본 30(2026-08-27)
+  Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0, int bossV = 0]) {
+    final total = 30 + equipV + levelV + guildV + champV + rankV + eventV + bossV; // 기본 30(2026-08-27) + 🏴깃발
     Widget chip(String t, Color c) => Text(t,
         style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
     return Padding(
@@ -4147,6 +4147,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
             if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
+            if (bossV != 0) chip('🏴 깃발 +$bossV', const Color(0xFFB0FF7F)),
             if (champV != 0) chip('🏆 +$champV', _kGold),
             if (rankV != 0) chip('🏆 +$rankV', const Color(0xFFFFE082)),
             if (eventV != 0) chip('🎁 이벤트 +$eventV', const Color(0xFFFFAB91)),
@@ -4190,9 +4191,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final gB = FishingLogic.guildStatBonus(gLevel);
       final cB = FishingLogic.guildLeagueBonus(_myLeagueRank);
       final rB = garamRankBonus(_myGaramRank); // 🎖️ 주간 개인랭킹 보너스(1주일)
+      final bB = FishingLogic.guildBossBonus(_clearedBosses.length); // 🏴 보스 처치 깃발 보너스(마리당 +5, 최대 +25)
       final evB = eventItemBonus(_inventory); // 🎁 이벤트 아이템 보유 버프(가방에 있으면 자동)
       final evP = evB['P'] ?? 0, evC = evB['C'] ?? 0, evS = evB['S'] ?? 0;
-      final totP = 30 + eP + lvB + gB + cB + rB + evP, totC = 30 + eC + lvB + gB + cB + rB + evC, totS = 30 + eS + lvB + gB + cB + rB + evS; // 기본 30(2026-08-27)
+      final totP = 30 + eP + lvB + gB + cB + rB + bB + evP, totC = 30 + eC + lvB + gB + cB + rB + bB + evC, totS = 30 + eS + lvB + gB + cB + rB + bB + evS; // 기본 30(2026-08-27) + 🏴깃발
       return Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -4229,12 +4231,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   style: TextStyle(color: _isChampionGuild ? _kGold : Color(_guildColor), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
           const Divider(color: Colors.white12, height: 18),
-          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 챔피언 + 주간랭킹 + 이벤트)',
+          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 🏴깃발 + 챔피언 + 주간랭킹 + 이벤트)',
               style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB, evP),
-          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB, evC),
-          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB, evS),
+          _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB, evP, bB),
+          _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB, evC, bB),
+          _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB, evS, bB),
         ]),
       );
     }
@@ -5503,7 +5505,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   Widget _guildPerksTab(int gLevel, int guildExp) {
     final levelBonus = FishingLogic.guildStatBonus(gLevel);
     final champBonus = FishingLogic.guildLeagueBonus(_myLeagueRank); // 🏆 리그 top3 순위별
-    final bonus = levelBonus + champBonus;
+    final bossBonus = FishingLogic.guildBossBonus(_clearedBosses.length); // 🏴 보스 처치 깃발(마리당 +5, 최대 +25)
+    final bonus = levelBonus + champBonus + bossBonus;
     final bool inLeague = _myLeagueRank >= 1 && _myLeagueRank <= 3;
     final String leagueMark = _myLeagueRank == 1 ? '👑' : _myLeagueRank == 2 ? '🥈' : '🥉';
     final isMax = gLevel >= FishingLogic.guildMaxLevel;
@@ -5573,9 +5576,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           ],
           const SizedBox(height: 16),
           Text(
-              inLeague
-                  ? '길드원 전체 능력치 보너스 (레벨 +$levelBonus, 리그 $_myLeagueRank위 +$champBonus)'
-                  : '길드원 전체 능력치 보너스',
+              '길드원 전체 능력치 보너스 (레벨 +$levelBonus'
+                  '${inLeague ? ', 리그 $_myLeagueRank위 +$champBonus' : ''}'
+                  '${bossBonus > 0 ? ', 🏴깃발 +$bossBonus' : ''})',
               style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Container(
