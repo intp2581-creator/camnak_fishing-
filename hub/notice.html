@@ -113,6 +113,8 @@
       <button data-f="notice">공지</button>
       <button data-f="update">업데이트</button>
       <button data-f="event">이벤트</button>
+      <a id="writeBtn" class="btn primary" href="admin.html"
+         style="margin-left:auto;text-decoration:none;padding:9px 18px;display:none">✏️ 글쓰기</a>
     </div>
     <div class="list" id="list"><div class="loading">불러오는 중…</div></div>
   </div>
@@ -159,6 +161,23 @@
     this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
     renderList();
   });
+
+  // ✏️ 관리자(GM)로 로그인돼 있으면 글쓰기 버튼 노출 — 일반 유저에겐 안 보임
+  (function(){
+    var s=document.createElement('script'); s.type='module';
+    s.textContent=
+      "import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';"
+     +"import {getAuth,onAuthStateChanged} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';"
+     +"const a=getAuth(initializeApp({apiKey:'AIzaSyD5yu1DAIAiMXmZWB03ddZsZYgNmECRtwc',"
+     +"authDomain:'camnak-fishing.firebaseapp.com',projectId:'camnak-fishing',"
+     +"storageBucket:'camnak-fishing.firebasestorage.app',messagingSenderId:'755892653855',"
+     +"appId:'1:755892653855:web:3d959549607ea08be5aa2a'}));"
+     +"onAuthStateChanged(a,async u=>{if(!u)return;try{const t=await u.getIdToken();"
+     +"const r=await fetch('"+API+"',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},"
+     +"body:JSON.stringify({action:'adminList'})});const j=await r.json();"
+     +"if(j.ok){const b=document.getElementById('writeBtn');if(b)b.style.display='inline-block';}}catch(e){}});";
+    document.body.appendChild(s);
+  })();
 
   var id=new URLSearchParams(location.search).get('id');
   if(id){
