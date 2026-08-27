@@ -79,10 +79,20 @@ document.addEventListener('click', (e) => {
   if (out) {
     e.preventDefault();
     signOut(auth);
-    // 🔓 캠피싱(아임웹) 세션도 함께 로그아웃 — 백그라운드 탭에서 처리 후 자동 닫기
+    // 🔓 캠피싱(아임웹) 세션도 함께 로그아웃.
+    //    ⚠️ ?gohub=1 을 절대 붙이지 않음(붙이면 아임웹 스크립트가 되돌려보내 재로그인됨)
     try {
-      const w = window.open('https://camnak.com/logout', 'camnakLogout', 'width=480,height=360');
-      if (w) setTimeout(() => { try { w.close(); } catch (e) {} }, 2500);
+      const w = window.open('https://camnak.com/logout', 'camnakLogout',
+                            'width=420,height=300,left=20,top=20');
+      if (w) { setTimeout(() => { try { w.close(); } catch (e) {} }, 2000); }
+      else {
+        // 팝업이 차단된 경우: 숨은 iframe으로 시도(쿠키 정책상 실패할 수 있음)
+        const f = document.createElement('iframe');
+        f.style.display = 'none';
+        f.src = 'https://camnak.com/logout';
+        document.body.appendChild(f);
+        setTimeout(() => { try { f.remove(); } catch (e) {} }, 3000);
+      }
     } catch (e) {}
     return;
   }
