@@ -768,3 +768,34 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
     return res.status(500).json({ ok: false, err: String(e) });
   }
 });
+
+// 👤 [홈페이지 내정보 API] 로그인한 유저의 표시용 정보만 반환(닉네임·레벨·등급·GM여부)
+//    Authorization: Bearer <FirebaseIdToken> 필요. 포인트/경험치 등 민감정보는 제외.
+exports.meApi = functions.https.onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Cache-Control", "no-store");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  try {
+    const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
+    if (!m) return res.status(401).json({ ok: false, err: "no token" });
+    let decoded;
+    try { decoded = await admin.auth().verifyIdToken(m[1]); }
+    catch (e) { return res.status(401).json({ ok: false, err: "invalid token" }); }
+    const doc = await admin.firestore().collection("users").doc(decoded.uid).get();
+    if (!doc.exists) return res.json({ ok: true, registered: false, email: decoded.email || "" });
+    const d = doc.data();
+    return res.json({
+      ok: true, registered: true,
+      email: decoded.email || "",
+      nickname: d.nickname || "",
+      rank: d.rank || "초보",
+      level: calcLevel(d.exp || 0),
+      isGm: d.isGm === true,
+    });
+  } catch (e) {
+    console.error("[meApi]", e);
+    return res.status(500).json({ ok: false, err: String(e) });
+  }
+});

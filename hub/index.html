@@ -221,9 +221,12 @@
 <!-- NAV (스크롤 시 등장) -->
 <header class="nav" id="topnav">
   <div class="util"><div class="wrap">
-    <a data-login href="#">로그인</a><span class="sep">|</span>
-    <a data-join href="#">회원가입</a><span class="sep">|</span>
+    <span data-auth-in style="display:none;color:#ffd23f;font-weight:700" data-me-nick></span>
+    <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+    <a data-auth-out data-do-login href="#">로그인</a><span class="sep" data-auth-out>|</span>
+    <a data-auth-out data-join href="#">회원가입</a><span class="sep">|</span>
     <a data-support href="#">고객지원</a>
+    <a data-gm-only style="display:none;color:#8ede4f;font-weight:700" href="admin.html">⚙️ 관리</a>
   </div></div>
   <div class="wrap nav-in">
     <a class="logo" href="#top"><img class="title" src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
@@ -473,5 +476,6 @@
   document.querySelectorAll('#menu a').forEach(function(a){a.addEventListener('click',function(){document.getElementById('menu').classList.remove('open')})});
 
 </script>
+<script type="module" src="auth.js"></script>
 </body>
 </html>
