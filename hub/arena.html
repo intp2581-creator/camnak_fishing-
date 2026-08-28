@@ -61,6 +61,23 @@
     .rules .r{padding:15px 16px}
     .money{padding:20px 18px}
   }
+
+  .shots{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:24px}
+  .shots .sv{background:#0b1a22;aspect-ratio:16/9}
+  .shots .sv img{width:100%;height:100%;object-fit:contain;display:block}
+  .shots .sc{display:flex;align-items:center;gap:12px;padding:14px 14px 8px}
+  .shots .sc button{flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+    background:#fff;color:var(--blue-ink);font-size:21px;font-weight:900;cursor:pointer;
+    font-family:inherit;line-height:1}
+  .shots .sc button:hover{background:var(--sky1);border-color:var(--blue)}
+  .shots .st{flex:1;min-width:0;text-align:center}
+  .shots .st b{display:block;font-size:16px;color:var(--ink);margin-bottom:3px}
+  .shots .st span{font-size:13.5px;color:var(--ink-soft);line-height:1.6}
+  .shots .sd{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;padding:0 14px 16px}
+  .shots .sd i{width:8px;height:8px;border-radius:50%;background:var(--line);cursor:pointer;
+    transition:.15s}
+  .shots .sd i.on{background:var(--blue-ink);transform:scale(1.25)}
 </style>
 </head>
 <body>
@@ -96,7 +113,7 @@
     <img src="assets/slide3-arena.jpg" alt="캠피싱 KREFT 아레나">
     <div class="cap">
       <b>실력만으로 겨루는 10분</b>
-      <span>길드도, 랭킹도, 이벤트 버프도 통하지 않습니다. 오직 장비와 손끝만.</span>
+      <span>장비도 버프도 전원 동일하게 맞춥니다. 남는 건 오직 손끝의 판단.</span>
     </div>
   </div>
 
@@ -104,7 +121,7 @@
     <div><i>⏱️</i><b>10분</b><span>경기 시간</span></div>
     <div><i>🐟</i><b>최대어</b><span>가장 큰 한 마리로 승부</span></div>
     <div><i>🎟️</i><b>하루 2회</b><span>무료 1회 + 입장권 1회</span></div>
-    <div><i>✨</i><b>1.5배</b><span>경험치 · 포인트 배율</span></div>
+    <div><i>✨</i><b>1.5배</b><span>경험치 · 포인트 보너스</span></div>
   </div>
 
   <div class="sec-head"><h2>이렇게 진행돼요</h2></div>
@@ -119,11 +136,29 @@
       <p>제한 시간이 끝나면 자동 정산. 우승자에게 상금이, 완주자 전원에게 참가 보상이 지급돼요.</p></div>
   </div>
 
+
+  <div class="sec-head" style="margin-top:36px">
+    <h2>화면으로 따라가기</h2><span class="sub">13단계 · 화살표로 넘겨보세요</span>
+  </div>
+  <div class="shots" id="shots">
+    <div class="sv"><img id="shImg" src="assets/arena/a01.jpg" alt=""></div>
+    <div class="sc">
+      <button id="shPrev" aria-label="이전">‹</button>
+      <div class="st"><b id="shTitle"></b><span id="shDesc"></span></div>
+      <button id="shNext" aria-label="다음">›</button>
+    </div>
+    <div class="sd" id="shDots"></div>
+  </div>
+
   <div class="sec-head" style="margin-top:34px"><h2>꼭 알아두실 규칙</h2></div>
   <div class="rules">
-    <div class="r"><i>⚖️</i><div><b>완전 평준화 — 버프가 통하지 않아요</b>
-      <p>아레나에서는 <b>길드 보너스 · 레이드 깃발 · 길드랭킹 · 개인랭킹 · 이벤트 아이템</b> 효과가 모두 빠집니다.
-         오직 <b>장비 능력치</b>만 적용돼요. 고인물도 신입도 같은 출발선에 섭니다.</p></div></div>
+    <div class="r"><i>⚖️</i><div><b>완전 평준화 — 레벨 1도 마스터와 대등하게</b>
+      <p>입장하는 순간 <b>대회 전용 장비 풀세트</b>가 모두에게 똑같이 지급됩니다.
+         마스터 조사 스킨 · KREFT 정예 휘장 · 최상급 낚싯대까지 전원 동일해요.
+         내가 가진 장비는 <b>전혀 쓰이지 않습니다.</b></p>
+      <p style="margin-top:7px">여기에 <b>길드 보너스 · 레이드 깃발 · 길드랭킹 · 개인랭킹 · 이벤트 아이템</b> 효과도 모두 빠지고,
+         아이스박스 · 뜰채 · 벨트 · 장갑 · 낚시줄 · 밑밥처럼 개인차가 나는 장비도 제거돼요.
+         <b>남는 건 오직 손끝의 판단</b>뿐입니다.</p></div></div>
     <div class="r"><i>🎖️</i><div><b>등급이 비슷한 사람끼리</b>
       <p>방장 등급 기준 <b>위아래 한 단계까지만</b> 입장할 수 있어요.
          (예: 방장이 '중수'면 하수 · 중수 · 고수까지) 실력 차가 지나치게 벌어지지 않도록 한 장치예요.</p></div></div>
@@ -181,6 +216,41 @@
 <script>
   var GAME_URL='play.html';
   document.querySelectorAll('[data-play]').forEach(function(a){ a.href=GAME_URL; });
+
+  // 📸 아레나 진행 스크린샷 13단계
+  var SHOTS=[
+   ['광장에서 한별을 만나요','광장의 아레나 안내 NPC 한별. 여기서 대회장으로 들어갑니다.'],
+   ['대회장 입장','열려 있는 대회 목록이 보여요. 참가하거나 직접 방을 열 수 있습니다.'],
+   ['대회방 개설','내가 방장이 되어 대회를 엽니다.'],
+   ['방 제목 정하기','어떤 대회인지 알 수 있게 제목을 적어주세요.'],
+   ['낚시 종류 · 낚시터 선택','민물인지 바다인지, 어느 낚시터에서 겨룰지 고릅니다.'],
+   ['우승 조건','무엇으로 승부를 가릴지 정해요.'],
+   ['참가 인원 · 참가비','몇 명까지 받을지, 참가비를 얼마로 할지 정합니다. 모인 참가비가 우승 상금이 돼요.'],
+   ['대기실','방이 열렸어요. 참가자가 모일 때까지 기다립니다.'],
+   ['참가자 입장','조사님들이 하나씩 들어옵니다.'],
+   ['대회 시작','방장이 시작을 누르면 전원 동시에 출발합니다.'],
+   ['대회 전용 장비 지급','끝판왕 풀세트가 자동 착용돼요. 모두가 완전히 같은 장비로 겨룹니다.'],
+   ['캐스팅 시작','제한 시간 안에 최대한 큰 놈을 노리세요.'],
+   ['아레나 보너스 x1.5','잡을 때마다 경험치·포인트가 1.5배로 들어옵니다.']
+  ];
+  (function(){
+    var i=0, img=document.getElementById('shImg'), t=document.getElementById('shTitle'),
+        de=document.getElementById('shDesc'), dots=document.getElementById('shDots');
+    if(!img) return;
+    dots.innerHTML=SHOTS.map(function(_,k){return '<i data-k="'+k+'"></i>';}).join('');
+    function draw(){
+      img.src='assets/arena/a'+(i+1<10?'0':'')+(i+1)+'.jpg';
+      img.alt=SHOTS[i][0];
+      t.textContent=(i+1)+'. '+SHOTS[i][0];
+      de.textContent=SHOTS[i][1];
+      dots.querySelectorAll('i').forEach(function(d,k){d.classList.toggle('on',k===i);});
+    }
+    document.getElementById('shPrev').onclick=function(){i=(i-1+SHOTS.length)%SHOTS.length;draw();};
+    document.getElementById('shNext').onclick=function(){i=(i+1)%SHOTS.length;draw();};
+    dots.onclick=function(e){var d=e.target.closest('i'); if(d){i=+d.dataset.k;draw();}};
+    draw();
+  })();
+
 </script>
 <script type="module" src="auth.js"></script>
 </body>
