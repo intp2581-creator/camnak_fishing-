@@ -1,0 +1,104 @@
+<!--
+  🎣 캠피싱 낚시게임 페이지(/30) → 게임 전용 사이트로 자동 이동
+     · 기존 iframe 임베드를 대체합니다. 이 코드로 통째로 교체하세요.
+     · window.MEMBER_UID(회원 이메일)를 그대로 넘겨 로그인 상태가 이어집니다.
+     · 북마크로 들어온 기존 유저도 자동으로 새 사이트로 넘어갑니다.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=Cinzel:wght@600;900&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+.cfgo-wrap {
+  position: relative; left: 50%; margin-left: -50vw; width: 100vw;
+  background: #0a0f0a; padding: 90px 20px; overflow: hidden;
+  min-height: 62vh; display: flex; align-items: center; justify-content: center;
+  font-family: 'Noto Sans KR', sans-serif;
+}
+.cfgo-wrap::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 70% at 30% 40%, rgba(29,158,117,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 70% at 70% 60%, rgba(24,95,165,0.07) 0%, transparent 60%);
+}
+.cfgo-box {
+  position: relative; z-index: 1; max-width: 560px; width: 100%;
+  text-align: center; padding: 52px 38px;
+  border: 1px solid rgba(201,162,39,0.18); border-radius: 20px;
+  background: rgba(240,240,232,0.02);
+}
+.cfgo-spin {
+  width: 46px; height: 46px; margin: 0 auto 22px; border-radius: 50%;
+  border: 3px solid rgba(201,162,39,0.22); border-top-color: #c9a227;
+  animation: cfgoSpin 0.9s linear infinite;
+}
+@keyframes cfgoSpin { to { transform: rotate(360deg); } }
+.cfgo-badge {
+  display: inline-block; font-family: 'Cinzel', serif; font-size: 11px;
+  letter-spacing: 0.28em; color: #0a0f0a; background: #c9a227;
+  padding: 6px 16px; border-radius: 30px; font-weight: 900;
+  text-transform: uppercase; margin-bottom: 22px;
+}
+.cfgo-title {
+  font-family: 'Noto Serif KR', serif; font-size: clamp(22px, 4.2vw, 32px);
+  font-weight: 900; color: #f0f0e8; line-height: 1.35; margin: 0 0 16px;
+}
+.cfgo-desc {
+  font-size: clamp(14px, 2vw, 15.5px); color: rgba(240,240,232,0.6);
+  line-height: 1.95; margin: 0 0 28px;
+}
+.cfgo-desc b { color: #c9a227; font-weight: 700; }
+.cfgo-btn {
+  display: inline-block; font-family: 'Cinzel', serif; font-weight: 900;
+  font-size: clamp(14px, 2.2vw, 17px); letter-spacing: 0.1em;
+  color: #0a0f0a; background: #c9a227; text-decoration: none;
+  padding: 16px 40px; border-radius: 40px; transition: all .2s;
+  box-shadow: 0 6px 22px rgba(201,162,39,.22);
+}
+.cfgo-btn:hover { background: #e0b933; transform: translateY(-2px); }
+.cfgo-sub { display: block; margin-top: 16px; font-size: 13px; color: rgba(240,240,232,0.38); }
+@media (max-width: 480px) { .cfgo-box { padding: 38px 22px; } .cfgo-wrap { padding: 60px 16px; } }
+</style>
+
+<div class="cfgo-wrap">
+  <div class="cfgo-box">
+    <div class="cfgo-spin"></div>
+    <span class="cfgo-badge">CamFishing KREFT</span>
+    <h2 class="cfgo-title">게임 전용 홈페이지로<br>이동하고 있어요</h2>
+    <p class="cfgo-desc">
+      캠피싱 KREFT는 이제 <b>전용 사이트</b>에서 즐기실 수 있습니다.<br>
+      로그인 상태 그대로 이어지니 다시 로그인하지 않으셔도 돼요.
+    </p>
+    <a class="cfgo-btn" id="cfgoBtn" href="https://camfishing.web.app">바로 이동하기</a>
+    <span class="cfgo-sub">잠시 후 자동으로 넘어갑니다</span>
+  </div>
+</div>
+
+<script>
+(function () {
+  var HUB = "https://camfishing.web.app";
+
+  // 회원 이메일(window.MEMBER_UID)이 준비될 때까지 잠깐 기다렸다가 이동
+  function target() {
+    var uid = (typeof window.MEMBER_UID !== "undefined" && window.MEMBER_UID)
+                ? String(window.MEMBER_UID).trim() : "";
+    return uid.length > 0 ? HUB + "/?uid=" + encodeURIComponent(uid) : HUB;
+  }
+
+  var tries = 0;
+  var t = setInterval(function () {
+    var uid = (typeof window.MEMBER_UID !== "undefined" && window.MEMBER_UID) ? String(window.MEMBER_UID).trim() : "";
+    // 이메일을 받았거나(회원) 2초가 지났으면(비회원) 이동
+    if (uid.length > 0 || ++tries > 20) {
+      clearInterval(t);
+      var url = target();
+      document.getElementById("cfgoBtn").href = url;
+      // replace: 뒤로가기 눌렀을 때 이 페이지로 되돌아와 다시 튕기는 것 방지
+      location.replace(url);
+    }
+  }, 100);
+
+  // 버튼을 직접 누르는 경우에도 최신 주소로
+  document.getElementById("cfgoBtn").addEventListener("click", function (e) {
+    e.preventDefault();
+    location.replace(target());
+  });
+})();
+</script>

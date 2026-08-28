@@ -275,7 +275,19 @@
   }
   document.getElementById('writeBtn').onclick=async function(){
     if(!(window.__auth && window.__auth.currentUser)){
-      alert('글을 쓰려면 로그인이 필요합니다.\n우측 상단 [로그인]을 눌러주세요.');
+      // 🙋 비회원 — 글쓰기 화면 자리에 안내(목록 로딩과 충돌하지 않도록 writeView에 렌더)
+      document.getElementById('writeView').innerHTML =
+        '<div class="wbox" style="text-align:center;padding:48px 26px">'
+        + '<div style="font-size:36px;margin-bottom:14px">✍️</div>'
+        + '<h3 style="margin:0 0 10px;font-size:19px;color:var(--ink)">글쓰기는 로그인이 필요해요</h3>'
+        + '<p style="margin:0 0 22px;color:var(--ink-soft);font-size:14.5px;line-height:1.85">'
+        + '글과 댓글은 <b>누구나 자유롭게 읽으실 수 있어요.</b><br>'
+        + '직접 글을 남기시려면 캠피싱 회원으로 로그인해 주세요.</p>'
+        + '<div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap">'
+        + '<a class="btn btn-play" data-do-login href="#">로그인하고 글쓰기</a>'
+        + '<button class="btn btn-line" id="backList">← 목록으로</button></div></div>';
+      show('write');
+      document.getElementById('backList').onclick=function(){ location.href='community.html#'+cur; };
       return;
     }
     document.getElementById('wBoard').value=cur;
