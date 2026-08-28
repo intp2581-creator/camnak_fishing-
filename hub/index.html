@@ -77,7 +77,8 @@
   .hero{position:relative;width:100%;aspect-ratio:2400/620;overflow:hidden;background:#0a1f28}
   .floatlogo{position:absolute;top:22px;left:26px;z-index:20;display:block;transition:opacity .3s ease}
   .floatlogo img{height:46px;width:auto;display:block;filter:drop-shadow(0 3px 10px rgba(0,0,0,.55))}
-  .hslide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
+  .hslide{position:absolute;inset:0;opacity:0;transition:opacity .8s ease;pointer-events:none;display:block}
+  .hslide.on{pointer-events:auto;cursor:pointer}
   .hslide.on{opacity:1}
   .hslide .bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
   .hslide .scrim{position:absolute;inset:0;background:
@@ -367,36 +368,26 @@
 <a id="top"></a>
 <!-- HERO (full-screen splash) -->
 <div class="hero" id="hero">
-  <div class="hslide on art">
-    <img class="bg" src="assets/slide1-boss.jpg" alt="">
+  <a class="hslide on art" href="guide.html#spot">
+    <img class="bg" src="assets/slide1-spot.jpg" alt="캠피싱 낚시터">
     <div class="scrim"></div>
-    <div class="inner wrap">
-    </div>
-  </div>
-  <div class="hslide">
-    <img class="bg" src="assets/slide2-play.jpg" alt="">
+    <div class="inner wrap"></div>
+  </a>
+  <a class="hslide art" href="guild.html">
+    <img class="bg" src="assets/slide2-raid.jpg" alt="길드 보스레이드">
     <div class="scrim"></div>
-    <div class="inner wrap">
-      <span class="tag">설치 없는 웹 낚시게임</span>
-      <h2 class="hanb">지금 바로<br>낚시하러 갈까요?</h2>
-      <p class="sub">다운로드도 복잡한 절차도 없이, 브라우저에서 버튼 하나면 캠피싱이 시작됩니다.</p>
-    </div>
-  </div>
-  <div class="hslide art">
-    <img class="bg" src="assets/slide3-event.jpg" alt="">
+    <div class="inner wrap"></div>
+  </a>
+  <a class="hslide art" href="guide.html#arena">
+    <img class="bg" src="assets/slide3-arena.jpg" alt="아레나">
     <div class="scrim"></div>
-    <div class="inner wrap">
-    </div>
-  </div>
-  <div class="hslide">
-    <img class="bg" src="assets/slide4-community.jpg" alt="">
+    <div class="inner wrap"></div>
+  </a>
+  <a class="hslide art" href="event.html">
+    <img class="bg" src="assets/slide4-event.jpg" alt="이벤트">
     <div class="scrim"></div>
-    <div class="inner wrap">
-      <span class="tag">커뮤니티</span>
-      <h2 class="hanb">조사님들과 함께<br>즐기는 낚시터</h2>
-      <p class="sub">광장에서 만나고, 랭킹으로 겨루고, 길드로 뭉치세요. 캠피싱 커뮤니티.</p>
-    </div>
-  </div>
+    <div class="inner wrap"></div>
+  </a>
   <!-- bottom navigator -->
   <div class="hnav">
     <div class="wrap">
@@ -532,7 +523,7 @@
   wire('[data-yt]',YOUTUBE_URL);wire('[data-login]',LOGIN_URL);wire('[data-join]',JOIN_URL);wire('[data-support]',SUPPORT_URL);
 
   /* ====== 슬라이드 라벨 ====== */
-  var LABELS = ['길드 보스레이드','지금 플레이','이벤트','커뮤니티'];
+  var LABELS = ['캠피싱 낚시터','길드 보스레이드','아레나','이벤트'];
 
   /* ====== 공지 데이터 (여기 배열만 수정) ====== */
   var NOTICES = [
