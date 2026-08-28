@@ -45,6 +45,9 @@
   .how-t span{color:var(--ink-soft);font-size:14.5px}
   .how-t b{color:var(--ink)}
 
+  .tiebreak{margin:0;padding-left:22px;color:#33525f;font-size:15px;line-height:2}
+  .tiebreak li b{color:var(--blue-ink)}
+
   /* 경품 카드 */
   .prizegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   .pz{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
@@ -241,8 +244,14 @@
 
       <p class="tip">💡 레벨만 높다고 1등이 아니에요. <b>여러 어종에서 최대어 기록</b>을 가지고 있으면
         점수가 폭넓게 쌓입니다. 다양한 낚시터에서 다양한 물고기를 노려보세요!</p>
-      <p class="pz-note" style="margin-top:12px">※ 최종 순위는 <b>2026년 8월 월간 랭킹 마감 기록</b>을 기준으로 하며,
-        동점자가 발생한 경우 레벨이 높은 조사님을 상위로 합니다.</p>
+      <div class="pe-sec" style="margin-top:20px">■ 동점자 처리</div>
+      <p style="margin:0 0 10px;color:#33525f;font-size:15px;line-height:1.8">
+        종합 점수가 같은 조사님이 있을 경우 아래 순서로 순위를 결정합니다.</p>
+      <ol class="tiebreak">
+        <li><b>레벨</b>이 높은 조사님</li>
+        <li>레벨도 같다면 <b>누적 경험치</b>가 많은 조사님</li>
+      </ol>
+      <p class="pz-note" style="margin-top:12px">※ 최종 순위는 <b>2026년 8월 월간 랭킹 마감 기록</b>을 기준으로 합니다.</p>
     </div>
 
     <div class="sec-head"><h2>🎁 경품 상세</h2><span class="sub">실제 캠피싱 쇼핑몰 판매 상품입니다</span></div>
