@@ -37,6 +37,14 @@
   .prize ol{margin:0;padding-left:20px;color:#33525f;font-size:14.5px;line-height:1.9}
   .prize ol b{display:inline;color:var(--ink);font-size:inherit}
 
+  /* 순위 산정 */
+  .how{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+  .how-i{flex:none;width:30px;height:30px;border-radius:50%;background:var(--blue-ink);color:#fff;
+    display:grid;place-items:center;font-weight:800;font-size:14px}
+  .how-t{font-size:15.5px;line-height:1.7;color:var(--ink)}
+  .how-t span{color:var(--ink-soft);font-size:14.5px}
+  .how-t b{color:var(--ink)}
+
   /* 경품 카드 */
   .prizegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   .pz{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
@@ -187,7 +195,7 @@
         <div class="evrow"><span class="lb">당첨 발표</span>
           <span class="vl">2026. 09. 01 · <a href="#win" id="toWin" style="color:var(--emerald);font-weight:700">🏆 당첨자 발표</a> 페이지</span></div>
         <div class="evrow"><span class="lb">순위 기준</span>
-          <span class="vl">레벨 랭킹 + 21종 물고기 최대 사이즈 랭킹</span></div>
+          <span class="vl"><b>2026년 8월 월간 종합 랭킹</b> (레벨 + 어종별 최대어)</span></div>
         <div class="evrow"><span class="lb">확인 방법</span>
           <span class="vl">광장 NPC <b>가람</b>에게서 수시로 확인 가능</span></div>
 
@@ -208,6 +216,33 @@
           <button class="btn btn-line" id="zoomBtn">🔍 포스터 크게 보기</button>
         </div>
       </div>
+    </div>
+
+    <div class="sec-head"><h2>📊 순위 산정 방식</h2><span class="sub">이렇게 점수가 매겨집니다</span></div>
+    <div class="panel">
+      <p>이벤트 순위는 게임 내 <b>월간 종합 랭킹(2026년 8월)</b>을 그대로 사용합니다.
+        광장 NPC <b>가람</b>에게서 언제든 내 순위를 확인할 수 있어요.</p>
+
+      <div class="how">
+        <div class="how-i">1</div>
+        <div class="how-t"><b>보드별로 순위를 매깁니다</b><br>
+          <span>레벨 보드 + 민물·바다 <b>어종별 최대어 보드</b>(어종마다 하나씩)</span></div>
+      </div>
+      <div class="how">
+        <div class="how-i">2</div>
+        <div class="how-t"><b>각 보드에서 점수를 받습니다</b><br>
+          <span>보드 1위 = 10점, 2위 = 9점 … 10위 = 1점 (11위부터는 0점)</span></div>
+      </div>
+      <div class="how">
+        <div class="how-i">3</div>
+        <div class="how-t"><b>모든 보드 점수를 더한 값이 종합 점수</b><br>
+          <span>주간 점수가 매주 월간으로 누적되어 <b>월간 종합 순위</b>가 결정됩니다</span></div>
+      </div>
+
+      <p class="tip">💡 레벨만 높다고 1등이 아니에요. <b>여러 어종에서 최대어 기록</b>을 가지고 있으면
+        점수가 폭넓게 쌓입니다. 다양한 낚시터에서 다양한 물고기를 노려보세요!</p>
+      <p class="pz-note" style="margin-top:12px">※ 최종 순위는 <b>2026년 8월 월간 랭킹 마감 기록</b>을 기준으로 하며,
+        동점자가 발생한 경우 레벨이 높은 조사님을 상위로 합니다.</p>
     </div>
 
     <div class="sec-head"><h2>🎁 경품 상세</h2><span class="sub">실제 캠피싱 쇼핑몰 판매 상품입니다</span></div>
