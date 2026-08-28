@@ -352,7 +352,9 @@
     .logo img.title,.logo img{max-height:34px;width:auto}
     nav.menu.open{display:flex;position:absolute;top:60px;left:0;right:0;flex-direction:column;
       background:#0e222b;padding:10px;gap:2px;border-bottom:1px solid rgba(255,255,255,.1)}
-    .navcta{margin-left:0}
+    /* ⚠️ margin-left:0 으로 두면 로고 바로 옆에 붙어 우측 공간이 통째로 빈다.
+          auto 로 유지해 플레이버튼·햄버거가 오른쪽 끝으로 가야 함. */
+    .navcta{margin-left:auto}
     .hslide h2{max-width:88%} .hslide .sub{max-width:80%}
     .hslide .inner{padding-bottom:80px}
     .hlabels .lbl:not(.on){display:none}
