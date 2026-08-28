@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아레나 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 아레나 — 조사님들과 10분 최대어 대결. 완전 평준화 경기, 상금 정산, 참가 방법 안내">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .hero{position:relative;border-radius:18px;overflow:hidden;margin-bottom:28px;
+    box-shadow:var(--shadow)}
+  .hero img{width:100%;display:block}
+  .hero .cap{position:absolute;left:0;right:0;bottom:0;padding:26px 26px 20px;
+    background:linear-gradient(to top,rgba(4,16,22,.88),rgba(4,16,22,.45) 55%,transparent);
+    color:#fff}
+  .hero .cap b{display:block;font-size:clamp(20px,3.4vw,30px);font-weight:900;margin-bottom:5px}
+  .hero .cap span{font-size:clamp(13px,1.8vw,15px);opacity:.9}
+
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:30px}
+  .kpi div{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:18px 16px;text-align:center;box-shadow:var(--shadow-sm)}
+  .kpi div i{font-style:normal;font-size:24px;display:block;margin-bottom:7px}
+  .kpi div b{display:block;font-size:20px;color:var(--blue-ink);font-weight:900}
+  .kpi div span{font-size:13px;color:var(--ink-soft)}
+
+  .flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:12px}
+  .flow .f{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 18px;box-shadow:var(--shadow-sm);position:relative}
+  .flow .f em{position:absolute;top:14px;right:16px;font-style:normal;font-size:30px;
+    font-weight:900;color:var(--sky1)}
+  .flow .f b{display:block;font-size:16px;color:var(--ink);margin-bottom:6px}
+  .flow .f p{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.75}
+
+  .rules{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:22px}
+  .rules .r{display:flex;gap:14px;padding:18px 22px;border-bottom:1px solid var(--line)}
+  .rules .r:last-child{border-bottom:none}
+  .rules .r i{font-style:normal;font-size:22px;flex:none;width:30px;text-align:center}
+  .rules .r div b{display:block;font-size:15.5px;color:var(--ink);margin-bottom:4px}
+  .rules .r div p{margin:0;font-size:14px;color:var(--ink-soft);line-height:1.8}
+  .rules .r div p b{display:inline;color:var(--blue-ink)}
+
+  .money{background:linear-gradient(135deg,#0f6f96,#31c98d);color:#fff;border-radius:16px;
+    padding:24px 26px;margin-bottom:22px;box-shadow:var(--shadow)}
+  .money h3{margin:0 0 14px;font-size:19px;color:#fff}
+  .money table{width:100%;border-collapse:collapse;font-size:14.5px}
+  .money td{padding:9px 0;border-bottom:1px solid rgba(255,255,255,.18)}
+  .money tr:last-child td{border-bottom:none;font-weight:900;font-size:16px}
+  .money td:last-child{text-align:right;font-weight:800}
+  .money .note{margin:14px 0 0;font-size:13px;opacity:.85;line-height:1.7}
+
+  .warn{background:#fff6f4;border:1px solid #f7d5cc;border-radius:14px;padding:18px 22px;
+    margin-bottom:40px}
+  .warn b{color:#c0392b}
+  .warn ul{margin:9px 0 0;padding-left:19px}
+  .warn li{font-size:14px;color:#8a5a50;line-height:1.9}
+  @media (max-width:760px){
+    .rules .r{padding:15px 16px}
+    .money{padding:20px 18px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a class="on" href="arena.html">아레나</a>
+      <a href="store.html">게임스토어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>⚔️ 아레나</h1>
+  <p>조사님들과 정면 승부. 10분 안에 가장 큰 놈을 올리세요.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="hero">
+    <img src="assets/slide3-arena.jpg" alt="캠피싱 KREFT 아레나">
+    <div class="cap">
+      <b>실력만으로 겨루는 10분</b>
+      <span>길드도, 랭킹도, 이벤트 버프도 통하지 않습니다. 오직 장비와 손끝만.</span>
+    </div>
+  </div>
+
+  <div class="kpi">
+    <div><i>⏱️</i><b>10분</b><span>경기 시간</span></div>
+    <div><i>🐟</i><b>최대어</b><span>가장 큰 한 마리로 승부</span></div>
+    <div><i>🎟️</i><b>하루 2회</b><span>무료 1회 + 입장권 1회</span></div>
+    <div><i>✨</i><b>1.5배</b><span>경험치 · 포인트 배율</span></div>
+  </div>
+
+  <div class="sec-head"><h2>이렇게 진행돼요</h2></div>
+  <div class="flow">
+    <div class="f"><em>1</em><b>방 만들기 · 참가</b>
+      <p>광장의 아레나 포탈로 들어가면 대회 목록이 있어요. 직접 방을 열거나 열려 있는 방에 참가하세요.</p></div>
+    <div class="f"><em>2</em><b>참가비 걸기</b>
+      <p>방장이 정한 참가비를 모두가 냅니다. 모인 참가비가 그대로 <b>우승 상금</b>이 돼요.</p></div>
+    <div class="f"><em>3</em><b>10분 승부</b>
+      <p>동시에 낚시를 시작합니다. 잡은 물고기 중 <b>가장 큰 한 마리</b>의 크기로 순위를 가려요.</p></div>
+    <div class="f"><em>4</em><b>정산</b>
+      <p>제한 시간이 끝나면 자동 정산. 우승자에게 상금이, 완주자 전원에게 참가 보상이 지급돼요.</p></div>
+  </div>
+
+  <div class="sec-head" style="margin-top:34px"><h2>꼭 알아두실 규칙</h2></div>
+  <div class="rules">
+    <div class="r"><i>⚖️</i><div><b>완전 평준화 — 버프가 통하지 않아요</b>
+      <p>아레나에서는 <b>길드 보너스 · 레이드 깃발 · 길드랭킹 · 개인랭킹 · 이벤트 아이템</b> 효과가 모두 빠집니다.
+         오직 <b>장비 능력치</b>만 적용돼요. 고인물도 신입도 같은 출발선에 섭니다.</p></div></div>
+    <div class="r"><i>🎖️</i><div><b>등급이 비슷한 사람끼리</b>
+      <p>방장 등급 기준 <b>위아래 한 단계까지만</b> 입장할 수 있어요.
+         (예: 방장이 '중수'면 하수 · 중수 · 고수까지) 실력 차가 지나치게 벌어지지 않도록 한 장치예요.</p></div></div>
+    <div class="r"><i>🎟️</i><div><b>하루 두 번까지</b>
+      <p>무료 입장 <b>1회</b>가 매일 주어집니다. 다 쓰셨다면 <b>아레나 입장권</b>으로 하루 <b>1회</b> 더 참가할 수 있어요.
+         입장권은 <b>낚시시간 20분</b>도 함께 채워주니, 시간이 없어도 바로 뛰어들 수 있습니다.</p></div></div>
+    <div class="r"><i>⏳</i><div><b>낚시시간 10분이 필요해요</b>
+      <p>경기를 시작하면 낚시시간 <b>10분</b>이 차감됩니다. 중간에 나가도 쓴 만큼만 깎여요.</p></div></div>
+    <div class="r"><i>✨</i><div><b>보상이 1.5배</b>
+      <p>아레나에서 잡은 물고기는 일반 낚시터보다 <b>경험치 · 포인트를 1.5배</b> 줍니다.
+         승부와 별개로 파밍 효율이 좋아요.</p></div></div>
+  </div>
+
+  <div class="money">
+    <h3>💰 상금은 이렇게 정산돼요</h3>
+    <table>
+      <tr><td>참가자들이 낸 참가비 합계</td><td>총 상금</td></tr>
+      <tr><td>운영 수수료</td><td>− 10%</td></tr>
+      <tr><td>우승자 실수령</td><td>총 상금의 90%</td></tr>
+    </table>
+    <p class="note">
+      · <b>무승부</b>(아무도 못 잡음): 참가비의 90%가 환불됩니다.<br>
+      · <b>참가자 부족</b>(혼자 남음): 대회가 무효 처리되고 참가비는 <b>전액 환불</b>돼요.<br>
+      · <b>상대 전원 기권</b>: 남은 분이 기권승으로 상금을 받습니다.<br>
+      · 완주하신 분은 <b>순위와 관계없이</b> 참가 보상을 받아요.
+    </p>
+  </div>
+
+  <div class="warn">
+    <b>⚠️ 참가 전 확인해 주세요</b>
+    <ul>
+      <li>경기가 <b>시작되는 순간</b> 참가비 · 입장 횟수 · 낚시시간이 차감됩니다. (시작 전엔 차감되지 않아요)</li>
+      <li>대기실 창을 닫으면 방이 사라질 수 있어요. 시작 전까지 창을 유지해 주세요.</li>
+      <li>무료 1회를 다 쓴 상태에서 경기를 시작하면 <b>입장권 1장이 사용</b>됩니다.</li>
+    </ul>
+  </div>
+
+  <div class="wrow" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:46px">
+    <a class="btn btn-play" data-play href="#">🎮 아레나 하러 가기</a>
+    <a class="btn btn-line" href="store.html#ticket">🎟️ 아레나 입장권 보기</a>
+    <a class="btn btn-line" href="guide.html">📖 게임 가이드북</a>
+  </div>
+</div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='play.html';
+  document.querySelectorAll('[data-play]').forEach(function(a){ a.href=GAME_URL; });
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>
