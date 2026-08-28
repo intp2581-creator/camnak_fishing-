@@ -802,9 +802,5 @@ exports.meApi = functions.https.onRequest(async (req, res) => {
   }
 });
 
-
-
-
-
-
-
+// 💬 커뮤니티 게시판 API (community.js)
+exports.communityApi = require("./community").communityApi;

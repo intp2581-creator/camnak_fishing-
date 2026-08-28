@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>커뮤니티 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 커뮤니티 — 자유게시판, 팁·노하우, 조과자랑, 길드소식, 건의·문의">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  /* 게시판 탭 */
+  .btabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:18px;overflow-x:auto;
+    -ms-overflow-style:none;scrollbar-width:none}
+  .btabs::-webkit-scrollbar{display:none}
+  .btabs button{border:none;background:none;font-family:inherit;font-weight:700;font-size:15.5px;
+    color:var(--ink-soft);padding:14px 22px;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;
+    margin-bottom:-2px;transition:.15s}
+  .btabs button:hover{color:var(--blue-ink)}
+  .btabs button.on{color:var(--blue-ink);border-bottom-color:var(--blue-ink)}
+
+  .btop{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .btop .bdesc{color:var(--ink-soft);font-size:14.5px;line-height:1.6}
+  .btop .wbtn{margin-left:auto}
+
+  /* 목록 */
+  .plist{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm)}
+  .prow{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid var(--line);
+    cursor:pointer;transition:.13s}
+  .prow:last-child{border-bottom:none}
+  .prow:hover{background:var(--sky1)}
+  .prow .tt{flex:1;min-width:0}
+  .prow .tt b{display:block;font-size:16px;color:var(--ink);font-weight:700;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .prow .tt .meta{margin-top:5px;color:#9fb6bf;font-size:13px;display:flex;gap:10px;flex-wrap:wrap}
+  .prow .tt .meta .nk{color:var(--blue-ink);font-weight:700}
+  .prow .th{flex:none;width:58px;height:58px;border-radius:10px;overflow:hidden;background:#eaf5f8}
+  .prow .th img{width:100%;height:100%;object-fit:cover}
+  .prow .cm{flex:none;background:var(--sky1);color:var(--blue-ink);font-weight:800;font-size:12.5px;
+    padding:4px 10px;border-radius:12px}
+  .bd-tag{flex:none;font-size:11.5px;font-weight:800;padding:4px 10px;border-radius:12px;
+    background:#eef4f7;color:#5f7a86}
+
+  .empty{padding:60px 20px;text-align:center;color:#9fb6bf;line-height:1.9}
+
+  /* 글쓰기 */
+  .wbox{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:26px 28px;margin-bottom:20px}
+  .wbox h3{margin:0 0 16px;font-size:19px;color:var(--blue-ink)}
+  .wbox label{display:block;font-weight:700;font-size:14px;color:var(--ink-soft);margin:14px 0 6px}
+  .wbox input[type=text],.wbox textarea,.wbox select{width:100%;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff}
+  .wbox textarea{min-height:170px;line-height:1.75;resize:vertical}
+  .wimgs{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .wimg{position:relative;width:92px;height:92px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
+  .wimg img{width:100%;height:100%;object-fit:cover}
+  .wimg button{position:absolute;top:3px;right:3px;width:22px;height:22px;border:none;border-radius:50%;
+    background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:13px;line-height:1}
+  .msg{padding:11px 15px;border-radius:10px;margin:12px 0 0;font-size:14.5px;font-weight:700;display:none}
+  .msg.ok{background:#e6f8f0;color:#1c8b5f;display:block}
+  .msg.err{background:#fdeaea;color:#c0392b;display:block}
+  .wrow{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+
+  /* 상세 */
+  .pdet{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:18px}
+  .pdet .ph{padding:24px 28px 18px;border-bottom:2px solid var(--line)}
+  .pdet .ph h2{margin:8px 0 10px;font-size:clamp(19px,3vw,25px);line-height:1.4;color:var(--ink)}
+  .pdet .ph .meta{color:#9fb6bf;font-size:13.5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .pdet .ph .meta .nk{color:var(--blue-ink);font-weight:800}
+  .pdet .pb{padding:26px 28px;font-size:16px;line-height:1.85;color:#33525f;white-space:pre-wrap;word-break:break-word}
+  .pdet .pimgs{padding:0 28px 22px;display:flex;flex-direction:column;gap:12px}
+  .pdet .pimgs img{width:100%;border-radius:12px;cursor:zoom-in}
+
+  /* 댓글 */
+  .cbox{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:22px 26px;margin-bottom:18px}
+  .cbox h3{margin:0 0 14px;font-size:17px;color:var(--blue-ink)}
+  .cm-item{padding:13px 0;border-bottom:1px solid var(--line)}
+  .cm-item:last-of-type{border-bottom:none}
+  .cm-hd{display:flex;gap:10px;align-items:center;margin-bottom:5px;flex-wrap:wrap}
+  .cm-hd .nk{color:var(--blue-ink);font-weight:800;font-size:14.5px}
+  .cm-hd .dt{color:#9fb6bf;font-size:12.5px}
+  .cm-hd .del{margin-left:auto;background:none;border:none;color:#c0392b;font-size:12.5px;
+    cursor:pointer;font-family:inherit;font-weight:700}
+  .cm-bd{font-size:15px;color:#33525f;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+  .cm-write{display:flex;gap:10px;margin-top:16px;align-items:flex-start}
+  .cm-write textarea{flex:1;border:1px solid var(--line);border-radius:10px;padding:11px 14px;
+    font-family:inherit;font-size:15px;min-height:62px;resize:vertical}
+
+  .lb2{position:fixed;inset:0;background:rgba(8,20,26,.92);display:none;align-items:center;
+    justify-content:center;z-index:200;padding:20px;cursor:zoom-out}
+  .lb2.on{display:flex}
+  .lb2 img{max-width:96vw;max-height:92vh;border-radius:10px}
+
+  .loginhint{background:var(--sky1);border-radius:12px;padding:16px 20px;color:var(--blue-ink);
+    font-size:14.5px;line-height:1.7;text-align:center}
+  .loginhint a{color:var(--emerald);font-weight:800;cursor:pointer}
+  @media (max-width:760px){
+    .prow .th{width:48px;height:48px}
+    .wbox,.pdet .ph,.pdet .pb,.cbox{padding-left:18px;padding-right:18px}
+    .pdet .pimgs{padding-left:18px;padding-right:18px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
+      <a class="on" href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a data-store href="#">게임스토어</a>
+      <a href="index.html#media">미디어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>💬 커뮤니티</h1>
+  <p>조사님들과 이야기 나누고, 조과를 자랑하고, 노하우를 나누세요.</p>
+</div></div>
+
+<div class="wrap">
+  <!-- 목록 화면 -->
+  <div id="listView">
+    <div class="btabs" id="btabs">
+      <button class="on" data-b="free">자유게시판</button>
+      <button data-b="tip">팁 · 노하우</button>
+      <button data-b="catch">조과 자랑</button>
+      <button data-b="guild">길드 소식</button>
+      <button data-b="ask">건의 · 문의</button>
+    </div>
+
+    <div class="btop">
+      <span class="bdesc" id="bdesc"></span>
+      <button class="btn btn-play wbtn" id="writeBtn">✏️ 글쓰기</button>
+    </div>
+
+    <div class="plist" id="plist"><div class="empty">불러오는 중…</div></div>
+  </div>
+
+  <!-- 글쓰기 화면 -->
+  <div id="writeView" style="display:none">
+    <div class="wbox">
+      <h3 id="wTitle">✏️ 글쓰기</h3>
+      <label>게시판</label>
+      <select id="wBoard">
+        <option value="free">자유게시판</option>
+        <option value="tip">팁 · 노하우</option>
+        <option value="catch">조과 자랑</option>
+        <option value="guild">길드 소식</option>
+        <option value="ask">건의 · 문의</option>
+      </select>
+      <label>제목</label>
+      <input type="text" id="wSubject" placeholder="제목을 입력하세요" maxlength="100">
+      <label>내용</label>
+      <textarea id="wBody" placeholder="내용을 입력하세요"></textarea>
+      <label>사진 첨부 <span style="font-weight:500;color:#9fb6bf">(최대 5장 · 자동으로 크기 조절됩니다)</span></label>
+      <input type="file" id="wFile" accept="image/*" multiple>
+      <div class="wimgs" id="wPrev"></div>
+      <div class="msg" id="wMsg"></div>
+      <div class="wrow">
+        <button class="btn btn-play" id="wSubmit">등록하기</button>
+        <button class="btn btn-line" id="wCancel">취소</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 상세 화면 -->
+  <div id="detailView" style="display:none">
+    <div id="detailBody"></div>
+    <div class="wrow" style="margin:0 0 44px"><a class="btn btn-line" href="community.html">← 목록으로</a></div>
+  </div>
+</div>
+
+<div class="lb2" id="lb2"><img src="" alt=""></div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137';
+  var API='https://us-central1-camnak-fishing.cloudfunctions.net/communityApi';
+  function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
+  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL);
+
+  var BOARD={free:['자유게시판','조사님들과 자유롭게 이야기 나눠보세요.'],
+             tip:['팁 · 노하우','나만의 낚시 요령과 공략을 공유해 주세요.'],
+             catch:['조과 자랑','오늘의 조과를 사진과 함께 자랑해 보세요!'],
+             guild:['길드 소식','길드원 모집과 길드 활동 소식을 알려주세요.'],
+             ask:['건의 · 문의','운영에 대한 의견을 남겨주세요. 모든 글에 답변드리지는 못하지만 모두 읽고 있습니다.']};
+  var cur='free', myUid='', myIsGm=false;
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function ago(ms){
+    if(!ms) return '';
+    var d=Math.floor((Date.now()-ms)/1000);
+    if(d<60) return '방금';
+    if(d<3600) return Math.floor(d/60)+'분 전';
+    if(d<86400) return Math.floor(d/3600)+'시간 전';
+    if(d<86400*7) return Math.floor(d/86400)+'일 전';
+    var t=new Date(ms);
+    return t.getFullYear()+'.'+('0'+(t.getMonth()+1)).slice(-2)+'.'+('0'+t.getDate()).slice(-2);
+  }
+  async function token(){
+    var u = window.__auth && window.__auth.currentUser;
+    return u ? await u.getIdToken() : null;
+  }
+  async function post(body){
+    var t=await token();
+    if(!t) return {ok:false, err:'로그인이 필요합니다'};
+    var r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
+      body:JSON.stringify(body)});
+    return r.json();
+  }
+  function msg(el,text,ok){el.className='msg '+(ok?'ok':'err');el.textContent=text;
+    if(ok) setTimeout(function(){el.className='msg';},3000);}
+
+  /* ── 목록 ── */
+  function loadList(){
+    document.getElementById('bdesc').textContent = BOARD[cur][1];
+    var box=document.getElementById('plist');
+    box.innerHTML='<div class="empty">불러오는 중…</div>';
+    fetch(API+'?list=1&board='+cur+'&limit=30').then(function(r){return r.json()}).then(function(j){
+      var it=j.items||[];
+      if(!it.length){
+        box.innerHTML='<div class="empty">아직 등록된 글이 없습니다.<br><span style="font-size:14px">첫 글을 남겨보세요!</span></div>';
+        return;
+      }
+      box.innerHTML=it.map(function(n){
+        return '<div class="prow" onclick="location.href=\'community.html?id='+encodeURIComponent(n.id)+'\'">'
+          + (n.thumb?'<div class="th"><img src="'+n.thumb+'" alt=""></div>':'')
+          + '<div class="tt"><b>'+esc(n.title)+(n.hasImage?' 🖼️':'')+'</b>'
+          + '<div class="meta"><span class="nk">'+esc(n.rank?n.rank+' ':'')+esc(n.author)+'</span>'
+          + '<span>'+ago(n.createdAt)+'</span><span>조회 '+n.views+'</span></div></div>'
+          + (n.comments?'<span class="cm">💬 '+n.comments+'</span>':'')
+          + '</div>';
+      }).join('');
+    }).catch(function(){ box.innerHTML='<div class="empty">불러오지 못했습니다.</div>'; });
+  }
+  document.getElementById('btabs').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    cur=b.dataset.b;
+    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
+    if(history.replaceState) history.replaceState(null,'','community.html#'+cur);
+    loadList();
+  });
+
+  /* ── 글쓰기 ── */
+  var files=[];
+  function show(v){
+    document.getElementById('listView').style.display = v==='list'?'':'none';
+    document.getElementById('writeView').style.display = v==='write'?'':'none';
+    document.getElementById('detailView').style.display = v==='detail'?'':'none';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.getElementById('writeBtn').onclick=async function(){
+    if(!(window.__auth && window.__auth.currentUser)){
+      alert('글을 쓰려면 로그인이 필요합니다.\n우측 상단 [로그인]을 눌러주세요.');
+      return;
+    }
+    document.getElementById('wBoard').value=cur;
+    files=[]; renderPrev();
+    document.getElementById('wSubject').value='';
+    document.getElementById('wBody').value='';
+    show('write');
+  };
+  document.getElementById('wCancel').onclick=function(){show('list')};
+
+  function renderPrev(){
+    document.getElementById('wPrev').innerHTML=files.map(function(f,i){
+      return '<div class="wimg"><img src="'+f+'" alt=""><button data-i="'+i+'">×</button></div>';
+    }).join('');
+    document.querySelectorAll('.wimg button').forEach(function(b){
+      b.onclick=function(){files.splice(+b.dataset.i,1);renderPrev();};
+    });
+  }
+  document.getElementById('wFile').onchange=function(e){
+    var list=Array.prototype.slice.call(e.target.files||[]);
+    list.slice(0,5-files.length).forEach(function(file){
+      var img=new Image(), rd=new FileReader();
+      rd.onload=function(){ img.onload=function(){
+        var max=1200, w=img.width, h=img.height;
+        if(w>max){ h=Math.round(h*max/w); w=max; }
+        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+        cv.getContext('2d').drawImage(img,0,0,w,h);
+        files.push(cv.toDataURL('image/jpeg',0.82));
+        renderPrev();
+      }; img.src=rd.result; };
+      rd.readAsDataURL(file);
+    });
+    e.target.value='';
+  };
+  document.getElementById('wSubmit').onclick=async function(){
+    var el=document.getElementById('wMsg');
+    var title=document.getElementById('wSubject').value.trim();
+    if(!title) return msg(el,'제목을 입력해 주세요',false);
+    this.disabled=true; msg(el,'등록 중입니다…',true);
+    var j=await post({action:'write',board:document.getElementById('wBoard').value,
+      title:title, body:document.getElementById('wBody').value, images:files});
+    this.disabled=false;
+    if(j.ok){ location.href='community.html?id='+encodeURIComponent(j.id); }
+    else msg(el,j.err||'등록 실패',false);
+  };
+
+  /* ── 상세 ── */
+  function renderDetail(j){
+    var n=j.item, cs=j.comments||[];
+    var canDel = (myUid && n.authorUid===myUid) || myIsGm;
+    var html='<div class="pdet">'
+      +'<div class="ph"><span class="bd-tag">'+BOARD[n.board][0]+'</span>'
+      +'<h2>'+esc(n.title)+'</h2>'
+      +'<div class="meta"><span class="nk">'+esc(n.rank?n.rank+' ':'')+esc(n.author)+'</span>'
+      +'<span>'+ago(n.createdAt)+'</span><span>조회 '+n.views+'</span>'
+      +(canDel?'<button class="del" id="delPost" style="margin-left:auto;background:none;border:none;color:#c0392b;font-weight:700;cursor:pointer;font-family:inherit">글 삭제</button>':'')
+      +'</div></div>'
+      +'<div class="pb">'+esc(n.body||'')+'</div>';
+    if(n.images && n.images.length){
+      html+='<div class="pimgs">'+n.images.map(function(u){return '<img src="'+u+'" alt="">';}).join('')+'</div>';
+    }
+    html+='</div>';
+
+    html+='<div class="cbox"><h3>💬 댓글 '+cs.length+'</h3>';
+    html+= cs.length ? cs.map(function(c){
+      var cd=(myUid&&c.authorUid===myUid)||myIsGm;
+      return '<div class="cm-item"><div class="cm-hd"><span class="nk">'+esc(c.rank?c.rank+' ':'')+esc(c.author)+'</span>'
+        +'<span class="dt">'+ago(c.createdAt)+'</span>'
+        +(cd?'<button class="del" data-c="'+c.id+'">삭제</button>':'')
+        +'</div><div class="cm-bd">'+esc(c.body)+'</div></div>';
+    }).join('') : '<p style="color:#9fb6bf;font-size:14.5px;margin:0">첫 댓글을 남겨보세요.</p>';
+
+    if(window.__auth && window.__auth.currentUser){
+      html+='<div class="cm-write"><textarea id="cmBody" placeholder="댓글을 입력하세요" maxlength="500"></textarea>'
+        +'<button class="btn btn-play" id="cmSend">등록</button></div><div class="msg" id="cmMsg"></div>';
+    }else{
+      html+='<div class="loginhint" style="margin-top:16px">댓글을 쓰려면 <a data-do-login href="#">로그인</a>이 필요합니다.</div>';
+    }
+    html+='</div>';
+    document.getElementById('detailBody').innerHTML=html;
+
+    document.querySelectorAll('.pimgs img').forEach(function(im){
+      im.onclick=function(){var lb=document.getElementById('lb2');lb.querySelector('img').src=im.src;lb.classList.add('on');};
+    });
+    var dp=document.getElementById('delPost');
+    if(dp) dp.onclick=async function(){
+      if(!confirm('이 글을 삭제할까요?')) return;
+      var r=await post({action:'delete',id:n.id});
+      if(r.ok) location.href='community.html#'+n.board; else alert(r.err||'삭제 실패');
+    };
+    document.querySelectorAll('[data-c]').forEach(function(b){
+      b.onclick=async function(){
+        if(!confirm('댓글을 삭제할까요?')) return;
+        var r=await post({action:'deleteComment',id:b.dataset.c});
+        if(r.ok) location.reload(); else alert(r.err||'삭제 실패');
+      };
+    });
+    var send=document.getElementById('cmSend');
+    if(send) send.onclick=async function(){
+      var t=document.getElementById('cmBody').value.trim();
+      var el=document.getElementById('cmMsg');
+      if(!t) return msg(el,'내용을 입력해 주세요',false);
+      send.disabled=true;
+      var r=await post({action:'comment',postId:n.id,body:t});
+      send.disabled=false;
+      if(r.ok) location.reload(); else msg(el,r.err||'등록 실패',false);
+    };
+  }
+
+  /* ── 시작 ── */
+  var qid=new URLSearchParams(location.search).get('id');
+  if(qid){
+    show('detail');
+    document.getElementById('detailBody').innerHTML='<div class="empty">불러오는 중…</div>';
+    fetch(API+'?id='+encodeURIComponent(qid)).then(function(r){return r.json()}).then(function(j){
+      if(!j.ok){document.getElementById('detailBody').innerHTML='<div class="empty">글을 찾을 수 없습니다.</div>';return;}
+      window.__detail=j; renderDetail(j);
+    });
+  }else{
+    var h=(location.hash||'').replace('#','');
+    if(BOARD[h]){ cur=h; document.querySelectorAll('#btabs button').forEach(function(b){b.classList.toggle('on',b.dataset.b===h);}); }
+    loadList();
+  }
+  var lb=document.getElementById('lb2');
+  lb.onclick=function(){lb.classList.remove('on')};
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')lb.classList.remove('on')});
+
+  /* 로그인되면 내 uid 파악(삭제 버튼 표시용) */
+  document.addEventListener('camfishing:login',function(e){
+    var u=window.__auth && window.__auth.currentUser;
+    myUid = u ? u.uid : '';
+    myIsGm = !!(e.detail && e.detail.isGm);
+    if(window.__detail) renderDetail(window.__detail);
+  });
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>
