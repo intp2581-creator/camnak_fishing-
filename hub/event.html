@@ -50,6 +50,25 @@
   .evcard p{margin:0;color:var(--ink-soft);font-size:14.5px;line-height:1.65}
   .evcard .d{margin-top:10px;color:#9fb6bf;font-size:13px}
 
+  /* 지난 이벤트 */
+  .pastev{display:grid;grid-template-columns:200px 1fr;gap:0;background:var(--card);
+    border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm);
+    overflow:hidden;margin-bottom:18px}
+  .pastev .pe-img{background:linear-gradient(135deg,#eef6f9,#e3f1f6);display:flex;
+    align-items:center;justify-content:center;padding:22px}
+  .pastev .pe-img img{width:100%;max-width:140px;filter:grayscale(.15) drop-shadow(0 4px 10px rgba(0,0,0,.15))}
+  .pastev .pe-body{padding:24px 28px}
+  .pe-tag{display:inline-block;font-weight:800;font-size:12.5px;padding:5px 13px;border-radius:14px;margin-bottom:10px}
+  .pe-tag.end{background:#e3ebef;color:#7b929d}
+  .pastev h3{margin:0 0 10px;font-size:19px;color:var(--ink)}
+  .pastev p{margin:0 0 12px;color:var(--ink-soft);font-size:15px;line-height:1.75}
+  .pastev p b{color:var(--ink)}
+  .pe-stat{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 10px}
+  .ps{background:var(--sky1);color:var(--blue-ink);font-weight:700;font-size:13.5px;
+    padding:7px 14px;border-radius:16px}
+  .ps.total{background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#5a3d00;font-weight:800}
+  .pe-note{color:#9fb6bf !important;font-size:13.5px !important;margin:0 !important}
+
   /* 당첨자 */
   .winbox{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     box-shadow:var(--shadow-sm);padding:28px 30px;margin-bottom:18px}
@@ -80,6 +99,10 @@
     .evmain{grid-template-columns:1fr}
     .evmain .info{padding:24px 20px}
     .evlist,.always{grid-template-columns:1fr}
+    .pastev{grid-template-columns:1fr}
+    .pastev .pe-img{padding:20px}
+    .pastev .pe-img img{max-width:110px}
+    .pastev .pe-body{padding:20px}
   }
 </style>
 </head>
@@ -171,9 +194,45 @@
 
   <!-- ───── 지난 이벤트 ───── -->
   <div id="t-past" style="display:none">
-    <div class="empty">
-      아직 종료된 이벤트가 없습니다.<br>
-      <span style="font-size:14px">진행 중인 이벤트가 끝나면 이곳에서 다시 볼 수 있어요.</span>
+    <p style="color:var(--ink-soft);font-size:15px;line-height:1.8;margin:0 0 20px">
+      그동안 진행했던 이벤트입니다. 기간이 끝난 아이템은 <b>효과가 종료</b>되며 가방에서 자동으로 사라집니다.</p>
+
+    <div class="pastev">
+      <div class="pe-img"><img src="assets/ev-badge-open.png" alt="캠피싱 오픈기념 뱃지"></div>
+      <div class="pe-body">
+        <span class="pe-tag end">종료된 이벤트</span>
+        <h3>🎉 캠피싱 오픈기념 뱃지</h3>
+        <p>캠피싱 KREFT 정식 오픈을 기념해 배포한 한정 뱃지입니다.
+           상점에서 <b>100P</b>에 구매할 수 있었고, <b>가방에 넣어두기만 해도</b> 능력치가 올라갔어요.</p>
+        <div class="pe-stat">
+          <span class="ps">💪 힘 +10</span><span class="ps">🎯 컨트롤 +10</span><span class="ps">📡 감도 +10</span>
+          <span class="ps total">= 제압력 +30</span>
+        </div>
+        <p class="pe-note">※ 이벤트 기간 종료로 현재는 효과가 적용되지 않습니다.</p>
+      </div>
+    </div>
+
+    <div class="pastev">
+      <div class="pe-img"><img src="assets/ev-badge-flag.png" alt="광복절 태극기 뱃지"></div>
+      <div class="pe-body">
+        <span class="pe-tag end">종료된 이벤트</span>
+        <h3>🇰🇷 광복절 기념 태극기 뱃지</h3>
+        <p>8·15 광복절을 기념해 배포한 한정 뱃지입니다.
+           상점에서 <b>100P</b>에 구매할 수 있었고, <b>가방에 보유</b>하고 있으면 효과가 자동 적용됐어요.</p>
+        <div class="pe-stat">
+          <span class="ps">💪 힘 +10</span><span class="ps">🎯 컨트롤 +10</span><span class="ps">📡 감도 +10</span>
+          <span class="ps total">= 제압력 +30</span>
+        </div>
+        <p class="pe-note">※ 이벤트 기간 종료로 현재는 효과가 적용되지 않습니다.</p>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:20px">
+      <h3>💡 이벤트 아이템이란?</h3>
+      <p>기간 한정으로 상점에 등장하는 특별 아이템입니다. 일반 장비와 달리
+         <b>착용하지 않고 가방에 보유만 해도</b> 능력치가 자동으로 적용돼요.</p>
+      <p>다만 <b>이벤트 기간이 끝나면 효과가 사라지고</b> 가방에서도 자동으로 정리됩니다.
+         다음 이벤트 아이템이 나오면 놓치지 마세요!</p>
     </div>
   </div>
 
