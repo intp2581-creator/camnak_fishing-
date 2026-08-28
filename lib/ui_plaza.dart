@@ -4130,52 +4130,34 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
-  // 📊 스탯 1줄 — 합계 + '어디서 왔는지' 알약 칩. 항목마다 아이콘·라벨을 달리해 한눈에 구분.
+  // 📊 스탯 1줄 — 합계 + '어디서 왔는지' 텍스트 칩.
+  //   ⚠️ 왼쪽 패널이 좁아(칩 영역 ~200px) 배경·테두리를 넣으면 두 줄로 밀리고,
+  //      위 슬롯 영역(Expanded)이 눌려 겹친다. 반드시 담백한 텍스트로 유지할 것.
   Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0, int bossV = 0]) {
-    final total = 30 + equipV + levelV + guildV + champV + rankV + eventV + bossV; // 기본 30(2026-08-27) + 🏴깃발
-    Widget chip(String label, int v, Color c) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(
-            color: c.withOpacity(0.13),
-            borderRadius: BorderRadius.circular(7),
-            border: Border.all(color: c.withOpacity(0.38), width: 0.8),
-          ),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(label, style: TextStyle(color: c.withOpacity(0.85), fontSize: 10.5, fontWeight: FontWeight.w600)),
-            const SizedBox(width: 3),
-            Text(v >= 0 ? '+$v' : '$v',
-                style: TextStyle(color: c, fontSize: 11.5, fontWeight: FontWeight.w900)),
-          ]),
-        );
+    final total = 30 + equipV + levelV + guildV + champV + rankV + eventV + bossV; // 기본 30(2026-08-27) + 레이드 깃발
+    Widget chip(String label, int v, Color c) => Text('$label ${v >= 0 ? '+' : ''}$v',
+        style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w700));
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
+      padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
             width: 74,
             child: Padding(
-              padding: const EdgeInsets.only(top: 3),
+              padding: const EdgeInsets.only(top: 2),
               child: Text(name,
                   maxLines: 1, overflow: TextOverflow.visible, softWrap: false,
                   style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)),
             )),
         SizedBox(
-          width: 44,
+          width: 42,
           child: Text('$total',
               style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 4),
         Expanded(
-          child: Wrap(spacing: 5, runSpacing: 5, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(color: Colors.white24, width: 0.8),
-              ),
-              child: const Text('기본 30',
-                  style: TextStyle(color: Colors.white60, fontSize: 10.5, fontWeight: FontWeight.w700)),
-            ),
+          child: Wrap(spacing: 7, runSpacing: 3, children: [
+            const Text('기본 30',
+                style: TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600)),
             if (equipV != 0) chip('장비', equipV, const Color(0xFF7FB0FF)),
             if (levelV != 0) chip('레벨', levelV, const Color(0xFFFFC078)),
             if (guildV != 0) chip('길드', guildV, const Color(0xFF7FFFB0)),
