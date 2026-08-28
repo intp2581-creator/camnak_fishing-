@@ -37,6 +37,25 @@
   .prize ol{margin:0;padding-left:20px;color:#33525f;font-size:14.5px;line-height:1.9}
   .prize ol b{display:inline;color:var(--ink);font-size:inherit}
 
+  /* 경품 카드 */
+  .prizegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+  .pz{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden;box-shadow:var(--shadow-sm);transition:.18s;display:flex;flex-direction:column}
+  .pz:hover{transform:translateY(-5px);box-shadow:var(--shadow);border-color:var(--blue)}
+  .pz-rk{padding:10px 14px;font-weight:800;font-size:14px;color:#fff;text-align:center}
+  .pz-rk.gold{background:linear-gradient(135deg,#f5c342,#d99a1a)}
+  .pz-rk.silver{background:linear-gradient(135deg,#c3ccd4,#8fa0ad)}
+  .pz-rk.bronze{background:linear-gradient(135deg,#d8a273,#b1764a)}
+  .pz-rk.draw{background:linear-gradient(135deg,#5fc9e8,#2f9fd0);font-size:13px}
+  .pz-img{aspect-ratio:1/1;background:#fff;display:flex;align-items:center;justify-content:center;padding:12px}
+  .pz-img img{width:100%;height:100%;object-fit:contain}
+  .pz-bd{padding:14px 16px 18px;display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line)}
+  .pz-bd b{font-size:14.5px;color:var(--ink);line-height:1.45}
+  .pz-pr{color:var(--blue-ink);font-weight:800;font-size:15px}
+  .pz-go{margin-top:2px;color:var(--emerald);font-weight:700;font-size:13px}
+  .pz-note{color:#9fb6bf;font-size:13.5px;line-height:1.8;margin:14px 0 0}
+  .pz-note a{color:var(--emerald);font-weight:700}
+
   /* 목록 카드 */
   .evlist{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
   .evcard{overflow:hidden;display:block}
@@ -109,6 +128,7 @@
     .evmain{grid-template-columns:1fr}
     .evmain .info{padding:24px 20px}
     .evlist,.always{grid-template-columns:1fr}
+    .prizegrid{grid-template-columns:repeat(2,1fr)}
     .pastev{grid-template-columns:1fr}
     .pastev .pe-img{padding:20px}
     .pastev .pe-img img{max-width:110px}
@@ -174,10 +194,10 @@
         <div class="prize">
           <b>🎁 경품</b>
           <ol>
-            <li><b>1위</b> — 리얼프레임 전투낚시 텐트</li>
+            <li><b>1위</b> — 리얼프레임 오토 익스텐션 프리미엄 전투낚시 텐트</li>
             <li><b>2위</b> — 동일레저 나이스 자립발판</li>
             <li><b>3위</b> — 글라우코스 쭈갑 낚시대</li>
-            <li><b>4위 이하</b> — <b>10명 추첨</b> · 무사시 하이퍼 핑크 (낚시줄)</li>
+            <li><b>4위 이하</b> — <b>10명 추첨</b> · 무사시 하이퍼 핑크 원줄</li>
           </ol>
         </div>
 
@@ -189,6 +209,48 @@
         </div>
       </div>
     </div>
+
+    <div class="sec-head"><h2>🎁 경품 상세</h2><span class="sub">실제 캠피싱 쇼핑몰 판매 상품입니다</span></div>
+    <div class="prizegrid">
+      <a class="pz" href="https://camnak.com/47/?idx=234" target="_blank" rel="noopener">
+        <div class="pz-rk gold">🥇 1위</div>
+        <div class="pz-img"><img src="assets/prize1-tent.jpg" alt="리얼프레임 전투낚시 텐트"></div>
+        <div class="pz-bd">
+          <b>리얼프레임 오토 익스텐션<br>프리미엄 전투낚시 텐트</b>
+          <span class="pz-pr">421,200원</span>
+          <span class="pz-go">상품 보러가기 →</span>
+        </div>
+      </a>
+      <a class="pz" href="https://camnak.com/47/?idx=239" target="_blank" rel="noopener">
+        <div class="pz-rk silver">🥈 2위</div>
+        <div class="pz-img"><img src="assets/prize2-platform.png" alt="동일레저 나이스 자립발판"></div>
+        <div class="pz-bd">
+          <b>동일레저<br>나이스 자립발판</b>
+          <span class="pz-pr">350,000원</span>
+          <span class="pz-go">상품 보러가기 →</span>
+        </div>
+      </a>
+      <a class="pz" href="https://camnak.com/46/?idx=207" target="_blank" rel="noopener">
+        <div class="pz-rk bronze">🥉 3위</div>
+        <div class="pz-img"><img src="assets/prize3-rod.jpg" alt="글라우코스 쭈갑 낚시대"></div>
+        <div class="pz-bd">
+          <b>글라우코스<br>쭈갑 낚시대</b>
+          <span class="pz-pr">98,000원</span>
+          <span class="pz-go">상품 보러가기 →</span>
+        </div>
+      </a>
+      <a class="pz" href="https://camnak.com/46/?idx=235" target="_blank" rel="noopener">
+        <div class="pz-rk draw">🎲 4위 이하 · 10명 추첨</div>
+        <div class="pz-img"><img src="assets/prize4-line.jpg" alt="무사시 하이퍼 핑크 원줄"></div>
+        <div class="pz-bd">
+          <b>FUGA 무사시<br>하이퍼 핑크 원줄</b>
+          <span class="pz-pr">30,000원</span>
+          <span class="pz-go">상품 보러가기 →</span>
+        </div>
+      </a>
+    </div>
+    <p class="pz-note">※ 경품은 <a href="https://camnak.com" target="_blank" rel="noopener">캠피싱 쇼핑몰</a>에서 판매 중인 실제 상품입니다.
+      사정에 따라 동등한 가치의 다른 상품으로 대체될 수 있습니다.</p>
 
     <div class="sec-head"><h2>♾️ 상시 콘텐츠</h2><span class="sub">언제든 참여할 수 있어요</span></div>
     <div class="always">
