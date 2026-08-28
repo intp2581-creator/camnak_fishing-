@@ -52,6 +52,10 @@
   .row:last-child{border-bottom:none}
   .row:hover{background:var(--sky1)}
   .pill{flex:none;font-size:12px;font-weight:700;padding:4px 11px;border-radius:14px;color:#fff}
+  .evlink{align-self:center;margin-left:4px;color:var(--emerald);font-weight:800;
+    font-size:14px;text-decoration:none;padding:9px 14px;border-radius:20px;
+    border:1px solid rgba(49,201,141,.35);transition:.15s;white-space:nowrap}
+  .evlink:hover{background:rgba(49,201,141,.1);border-color:var(--emerald)}
   .pill.update{background:var(--blue)} .pill.event{background:var(--emerald)} .pill.notice{background:var(--yellow-deep)}
   .row .t{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .row .pin{flex:none;color:var(--yellow-deep);font-size:14px}
@@ -90,10 +94,10 @@
     <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
     <nav>
       <a class="on" href="notice.html">공지</a>
-      <a href="index.html#guide">게임가이드</a>
-      <a href="index.html#event">이벤트</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
       <a href="community.html">커뮤니티</a>
-      <a href="index.html#guild">길드홀</a>
+      <a href="guild.html">길드홀</a>
       <a href="arena.html">아레나</a>
       <a href="store.html">게임스토어</a>
       <a href="index.html#youtube">미디어</a>
@@ -114,7 +118,7 @@
       <button class="on" data-f="all">전체</button>
       <button data-f="notice">공지</button>
       <button data-f="update">업데이트</button>
-      <button data-f="event">이벤트</button>
+      <a href="event.html" class="evlink">🎁 이벤트 보러가기 →</a>
       <a id="writeBtn" data-gm-only class="btn primary" href="admin.html"
          style="margin-left:auto;text-decoration:none;padding:9px 18px;display:none">✏️ 글쓰기</a>
     </div>
