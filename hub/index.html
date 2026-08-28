@@ -178,14 +178,43 @@
   .corner b{font-size:15.5px;color:var(--ink);font-weight:800}
   .corner span{font-size:12.5px;color:var(--ink-soft)}
   /* 쇼핑몰 배너 */
-  .mallband{display:flex;align-items:center;gap:16px;padding:22px 28px;border-radius:var(--radius);
-    background:linear-gradient(135deg,#26262e,#c9a24a);color:#fff;box-shadow:var(--shadow);transition:.16s;flex-wrap:wrap}
-  .mallband:hover{transform:translateY(-3px)}
-  .mallband .mtx{display:flex;flex-direction:column;gap:3px}
-  .mallband .mtx b{font-size:19px;font-weight:800}
-  .mallband .mtx span{font-size:14px;opacity:.92}
-  .mallband .mgo{margin-left:auto;font-weight:800;font-size:15px;background:rgba(255,255,255,.18);
-    padding:10px 18px;border-radius:12px}
+  /* 🏆 캠피싱 쇼핑몰 배너 — camnak.com의 블랙&골드 정체성을 그대로.
+        밝은 게임사이트 안에서 확실히 대비되도록 어둡게 간다. */
+  .mallband{display:block;position:relative;overflow:hidden;border-radius:18px;
+    padding:34px clamp(24px,4vw,44px);text-decoration:none;
+    background:#0a0f0a;border:1px solid rgba(201,162,39,.28);
+    box-shadow:0 16px 44px rgba(10,15,10,.28);transition:.22s}
+  .mallband::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:
+      radial-gradient(ellipse 55% 75% at 88% 50%, rgba(201,162,39,.16) 0%, transparent 62%),
+      radial-gradient(ellipse 50% 70% at 12% 40%, rgba(29,158,117,.10) 0%, transparent 60%)}
+  .mallband::after{content:'';position:absolute;left:0;right:0;top:0;height:2px;
+    background:linear-gradient(90deg,transparent,#c9a227,transparent);opacity:.75}
+  .mallband:hover{transform:translateY(-3px);border-color:rgba(201,162,39,.6);
+    box-shadow:0 22px 56px rgba(10,15,10,.4)}
+  .mallband .mrow{position:relative;z-index:1;display:flex;align-items:center;
+    gap:20px;flex-wrap:wrap}
+  .mallband .mtx{flex:1;min-width:230px}
+  .mallband .meye{display:inline-flex;align-items:center;gap:9px;margin-bottom:11px}
+  .mallband .meye i{font-style:normal;width:26px;height:1px;background:#c9a227;display:inline-block}
+  .mallband .meye span{font-size:10.5px;letter-spacing:.28em;color:#c9a227;font-weight:800}
+  .mallband .mtx b{display:block;font-size:clamp(21px,2.8vw,28px);font-weight:900;
+    color:#f0f0e8;letter-spacing:-.02em;margin-bottom:8px}
+  .mallband .mtx b em{font-style:normal;color:#c9a227}
+  .mallband .mtx p{margin:0 0 15px;font-size:14.5px;color:rgba(240,240,232,.58);line-height:1.75}
+  .mallband .mtags{display:flex;gap:7px;flex-wrap:wrap}
+  .mallband .mtags span{font-size:11.5px;font-weight:700;color:rgba(240,240,232,.72);
+    border:1px solid rgba(201,162,39,.3);padding:4px 11px;border-radius:20px}
+  .mallband .mtags span.soon{color:#c9a227;border-color:rgba(201,162,39,.5)}
+  .mallband .mgo{flex:none;display:inline-flex;align-items:center;gap:9px;
+    font-weight:900;font-size:15.5px;color:#0a0f0a;background:#c9a227;
+    padding:15px 30px;border-radius:40px;transition:.22s;
+    box-shadow:0 8px 24px rgba(201,162,39,.24)}
+  .mallband:hover .mgo{background:#e0b933;gap:14px;box-shadow:0 12px 30px rgba(201,162,39,.36)}
+  @media (max-width:640px){
+    .mallband{padding:26px 20px}
+    .mallband .mgo{width:100%;justify-content:center}
+  }
 
   /* 게임 특징 카드 */
   .featgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
@@ -495,8 +524,19 @@
 <!-- 쇼핑몰 배너 -->
 <div class="wrap" style="margin:34px auto 10px">
   <a class="mallband" data-mall href="#">
-    <div class="mtx"><b>🎣 캠피싱 쇼핑몰</b><span>프리미엄 실물 낚시용품을 만나보세요</span></div>
-    <span class="mgo">바로가기 →</span>
+    <div class="mrow">
+      <div class="mtx">
+        <span class="meye"><i></i><span>CAMFISHING SHOP</span></span>
+        <b>물 밖에서 쓰는 장비는<br><em>캠피싱 쇼핑몰</em>에서</b>
+        <p>게임 속 조사님이 쓰는 장비, 실제로도 손에 쥐어보세요.<br>
+           검증된 낚시용품부터 KREFT가 직접 만드는 제품까지.</p>
+        <div class="mtags">
+          <span>민물낚시</span><span>바다낚시</span>
+          <span>채비 · 소품</span><span class="soon">KREFT 자체제작 준비 중</span>
+        </div>
+      </div>
+      <span class="mgo">쇼핑몰 둘러보기 →</span>
+    </div>
   </a>
 </div>
 
