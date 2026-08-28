@@ -4,7 +4,8 @@
 //   GET  ?list=1&board=free[&limit=20][&after=<ms>]  → 목록
 //   GET  ?id=<문서id>                                → 상세(+조회수, 댓글 포함)
 //   POST (Authorization: Bearer <IdToken>)           → write/comment/delete/deleteComment
-//   이미지: base64로 받아 Storage에 저장(admin SDK) → 공개 URL 반환. 보안규칙 불필요.
+//   이미지: 글당 1장만. 본문용(가로 900px) + 목록용 썸네일(가로 240px) 두 벌 저장.
+//         base64로 받아 Storage에 저장(admin SDK) → 공개 URL 반환. 보안규칙 불필요.
 // ═══════════════════════════════════════════════════════════════
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -30,26 +31,21 @@ async function requireUser(req) {
   };
 }
 
-async function saveImages(postId, images) {
-  if (!Array.isArray(images) || !images.length) return [];
+// 💾 이미지 저장: 본문용 1장 + 목록용 썸네일 1장 (요금 절감 — 5장→1장, 목록은 썸네일만 로드)
+async function saveOne(postId, dataUri, tag) {
+  const m = String(dataUri || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!m) return "";
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 1.5 * 1024 * 1024) return "";   // 1.5MB 초과 거부
   const bucket = admin.storage().bucket();
-  const urls = [];
-  for (let i = 0; i < Math.min(images.length, 5); i++) {
-    const raw = String(images[i] || "");
-    const m = raw.match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
-    if (!m) continue;
-    const buf = Buffer.from(m[2], "base64");
-    if (buf.length > 3 * 1024 * 1024) continue;
-    const ext = m[1] === "image/png" ? "png" : (m[1] === "image/webp" ? "webp" : "jpg");
-    const path = "community/" + postId + "/" + Date.now() + "_" + i + "." + ext;
-    const file = bucket.file(path);
-    await file.save(buf, {
-      metadata: { contentType: m[1], cacheControl: "public,max-age=31536000" },
-    });
-    await file.makePublic();
-    urls.push("https://storage.googleapis.com/" + bucket.name + "/" + path);
-  }
-  return urls;
+  const ext = m[1] === "image/png" ? "png" : (m[1] === "image/webp" ? "webp" : "jpg");
+  const path = "community/" + postId + "/" + tag + "." + ext;
+  const file = bucket.file(path);
+  await file.save(buf, {
+    metadata: { contentType: m[1], cacheControl: "public,max-age=31536000,immutable" },
+  });
+  await file.makePublic();
+  return "https://storage.googleapis.com/" + bucket.name + "/" + path;
 }
 
 exports.communityApi = functions.https.onRequest(async (req, res) => {
@@ -113,7 +109,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
           id: doc.id, board: d.board, title: d.title || "",
           author: d.author || "", rank: d.rank || "",
           views: d.views || 0, comments: d.commentCount || 0,
-          thumb: (Array.isArray(d.images) && d.images[0]) || "",
+          thumb: d.thumb || "",   // ⚠️ 원본 대신 썸네일만 (다운로드 요금 절감)
           hasImage: Array.isArray(d.images) && d.images.length > 0,
           createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
         });
@@ -160,14 +156,18 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         views: 0, commentCount: 0, deleted: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      let urls = [];
+      let img = "", thumb = "";
       try {
-        urls = await saveImages(ref.id, b.images);
-        if (urls.length) await ref.update({ images: urls });
+        const src = Array.isArray(b.images) ? b.images[0] : b.image;
+        if (src) {
+          img = await saveOne(ref.id, src, "img");
+          thumb = await saveOne(ref.id, b.thumb, "thumb");
+          if (img) await ref.update({ images: [img], thumb: thumb || img });
+        }
       } catch (e) {
         console.error("[communityApi] image save failed", e);
       }
-      return res.json({ ok: true, id: ref.id, images: urls.length });
+      return res.json({ ok: true, id: ref.id, images: img ? 1 : 0 });
     }
 
     if (action === "comment") {

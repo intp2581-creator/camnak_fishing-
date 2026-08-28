@@ -167,8 +167,8 @@
       <input type="text" id="wSubject" placeholder="제목을 입력하세요" maxlength="100">
       <label>내용</label>
       <textarea id="wBody" placeholder="내용을 입력하세요"></textarea>
-      <label>사진 첨부 <span style="font-weight:500;color:#9fb6bf">(최대 5장 · 자동으로 크기 조절됩니다)</span></label>
-      <input type="file" id="wFile" accept="image/*" multiple>
+      <label>사진 첨부 <span style="font-weight:500;color:#9fb6bf">(1장 · 자동으로 크기가 조절됩니다)</span></label>
+      <input type="file" id="wFile" accept="image/*">
       <div class="wimgs" id="wPrev"></div>
       <div class="msg" id="wMsg"></div>
       <div class="wrow">
@@ -265,7 +265,7 @@
   });
 
   /* ── 글쓰기 ── */
-  var files=[];
+  var files=[], thumbData='';
   function show(v){
     document.getElementById('listView').style.display = v==='list'?'':'none';
     document.getElementById('writeView').style.display = v==='write'?'':'none';
@@ -278,7 +278,7 @@
       return;
     }
     document.getElementById('wBoard').value=cur;
-    files=[]; renderPrev();
+    files=[]; thumbData=''; renderPrev();
     document.getElementById('wSubject').value='';
     document.getElementById('wBody').value='';
     show('write');
@@ -290,23 +290,25 @@
       return '<div class="wimg"><img src="'+f+'" alt=""><button data-i="'+i+'">×</button></div>';
     }).join('');
     document.querySelectorAll('.wimg button').forEach(function(b){
-      b.onclick=function(){files.splice(+b.dataset.i,1);renderPrev();};
+      b.onclick=function(){files=[];thumbData='';renderPrev();};
     });
   }
+  function shrink(img,max,q){
+    var w=img.width,h=img.height;
+    if(w>max){h=Math.round(h*max/w);w=max;}
+    var cv=document.createElement('canvas');cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    return cv.toDataURL('image/jpeg',q);
+  }
   document.getElementById('wFile').onchange=function(e){
-    var list=Array.prototype.slice.call(e.target.files||[]);
-    list.slice(0,5-files.length).forEach(function(file){
-      var img=new Image(), rd=new FileReader();
-      rd.onload=function(){ img.onload=function(){
-        var max=1200, w=img.width, h=img.height;
-        if(w>max){ h=Math.round(h*max/w); w=max; }
-        var cv=document.createElement('canvas'); cv.width=w; cv.height=h;
-        cv.getContext('2d').drawImage(img,0,0,w,h);
-        files.push(cv.toDataURL('image/jpeg',0.82));
-        renderPrev();
-      }; img.src=rd.result; };
-      rd.readAsDataURL(file);
-    });
+    var file=(e.target.files||[])[0]; if(!file) return;
+    var img=new Image(), rd=new FileReader();
+    rd.onload=function(){ img.onload=function(){
+      files=[shrink(img,900,0.8)];        // 본문용
+      thumbData=shrink(img,240,0.72);     // 목록용 썸네일(요금 절감)
+      renderPrev();
+    }; img.src=rd.result; };
+    rd.readAsDataURL(file);
     e.target.value='';
   };
   document.getElementById('wSubmit').onclick=async function(){
@@ -315,7 +317,7 @@
     if(!title) return msg(el,'제목을 입력해 주세요',false);
     this.disabled=true; msg(el,'등록 중입니다…',true);
     var j=await post({action:'write',board:document.getElementById('wBoard').value,
-      title:title, body:document.getElementById('wBody').value, images:files});
+      title:title, body:document.getElementById('wBody').value, images:files, thumb:thumbData});
     this.disabled=false;
     if(j.ok){ location.href='community.html?id='+encodeURIComponent(j.id); }
     else msg(el,j.err||'등록 실패',false);
