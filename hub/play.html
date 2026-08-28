@@ -11,7 +11,7 @@
 <style>
   :root{ --gold:#d4af37; --ink:#0b1a22; }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html,body{height:100%;height:100dvh}
   body{margin:0;background:#07131a;color:#eaf4f8;
     font-family:"Noto Sans KR",system-ui,sans-serif;
     display:flex;flex-direction:column;overflow:hidden}
@@ -53,13 +53,20 @@
   .panel .sub{display:block;margin-top:16px;color:#7f9dab;font-size:13px;text-decoration:none}
   .panel .sub:hover{color:#cfe1e8}
 
-  @media (max-width:760px){
-    .pbar{height:44px;padding:0 11px;gap:9px}
+  /* 📱 모바일: 16:9로 가두지 않고 화면을 꽉 채움(게임이 내부에서 스스로 맞춤).
+        아임웹 /30 페이지가 하던 강제 전체화면과 동일한 경험. */
+  @media (max-width:900px){
+    .pbar{height:42px;padding:0 11px;gap:9px}
     .pbar a.home span{display:none}
     .pbar .nick{font-size:12.5px}
     .stage{padding:0}
-    .frame{border-radius:0;max-width:100%}
+    .frame{width:100%;max-width:none;height:100%;max-height:none;
+      aspect-ratio:auto;border-radius:0;box-shadow:none}
   }
+  @media (max-width:900px) and (orientation:portrait){
+    .pbar .rot{display:inline-flex}
+  }
+  .pbar .rot{display:none;align-items:center;gap:5px;color:#ffd23f;font-size:12px;font-weight:700}
 </style>
 </head>
 <body>
@@ -67,6 +74,7 @@
 <div class="pbar">
   <a class="home" href="index.html">← <span>캠피싱 KREFT</span></a>
   <span class="nick" data-auth-in style="display:none" data-me-nick></span>
+  <span class="rot">📱 가로로 돌리면 더 크게 보여요</span>
   <button id="fsBtn" title="전체화면">⛶ 전체화면</button>
 </div>
 
