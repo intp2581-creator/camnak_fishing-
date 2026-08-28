@@ -137,10 +137,9 @@
 </div></footer>
 
 <script>
-  var GAME_URL='https://camnak.com/30';
+  var GAME_URL='play.html';
   var BUY='https://camnak.com/shop_view/?idx=';
-  document.querySelectorAll('[data-play]').forEach(function(a){
-    a.href=GAME_URL;a.target='_blank';a.rel='noopener';});
+  document.querySelectorAll('[data-play]').forEach(function(a){ a.href=GAME_URL; });
 
   // 게임 상품 목록 (game_config.dart의 kMallProductIdx / storeSkinItems와 동일)
   var ITEMS=[

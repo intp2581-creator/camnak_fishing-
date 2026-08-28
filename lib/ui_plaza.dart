@@ -942,12 +942,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       await fs.runTransaction((tx) async {
         final s = await tx.get(stateRef);
         if ((s.data()?['activeWeek'] ?? '') == cur) return; // 다른 클라가 먼저 정산함
+        // ⚠️ merge:true 로 쓰면 지난 주 랭커가 ranks에 남아 '유령 순위·유령 보너스'가 됨.
+        //    ranks/list는 매주 통째로 교체해야 한다(2026-08-28 수정).
         tx.set(stateRef, {
           'activeWeek': cur,
           'ranks': ranks,
           'list': list,
           'settledAt': FieldValue.serverTimestamp(),
-        }, SetOptions(merge: true));
+        });
       });
     } catch (e) {
       debugPrint('🎖️ 가람 개인랭킹 정산 실패: $e');
@@ -4128,33 +4130,59 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ]);
   }
 
+  // 📊 스탯 1줄 — 합계 + '어디서 왔는지' 알약 칩. 항목마다 아이콘·라벨을 달리해 한눈에 구분.
   Widget _statBreakRow(String name, Color color, int equipV, int levelV, int guildV, int champV, [int rankV = 0, int eventV = 0, int bossV = 0]) {
     final total = 30 + equipV + levelV + guildV + champV + rankV + eventV + bossV; // 기본 30(2026-08-27) + 🏴깃발
-    Widget chip(String t, Color c) => Text(t,
-        style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w600));
+    Widget chip(String label, int v, Color c) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+          decoration: BoxDecoration(
+            color: c.withOpacity(0.13),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: c.withOpacity(0.38), width: 0.8),
+          ),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(label, style: TextStyle(color: c.withOpacity(0.85), fontSize: 10.5, fontWeight: FontWeight.w600)),
+            const SizedBox(width: 3),
+            Text(v >= 0 ? '+$v' : '$v',
+                style: TextStyle(color: c, fontSize: 11.5, fontWeight: FontWeight.w900)),
+          ]),
+        );
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(children: [
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         SizedBox(
             width: 74,
-            child: Text(name,
-                maxLines: 1,
-                overflow: TextOverflow.visible,
-                softWrap: false,
-                style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900))),
-        Text('$total',
-            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
-        const SizedBox(width: 10),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(name,
+                  maxLines: 1, overflow: TextOverflow.visible, softWrap: false,
+                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)),
+            )),
+        SizedBox(
+          width: 44,
+          child: Text('$total',
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+        ),
+        const SizedBox(width: 6),
         Expanded(
-          child: Wrap(spacing: 6, children: [
-            chip('기본 30', Colors.white54),
-            if (equipV != 0) chip('장비 +$equipV', const Color(0xFF7FB0FF)),
-            if (levelV != 0) chip('레벨 +$levelV', const Color(0xFFFFC078)),
-            if (guildV != 0) chip('길드 +$guildV', const Color(0xFF7FFFB0)),
-            if (bossV != 0) chip('🏴 깃발 +$bossV', const Color(0xFFB0FF7F)),
-            if (champV != 0) chip('🏆 +$champV', _kGold),
-            if (rankV != 0) chip('🏆 +$rankV', const Color(0xFFFFE082)),
-            if (eventV != 0) chip('🎁 이벤트 +$eventV', const Color(0xFFFFAB91)),
+          child: Wrap(spacing: 5, runSpacing: 5, children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(color: Colors.white24, width: 0.8),
+              ),
+              child: const Text('기본 30',
+                  style: TextStyle(color: Colors.white60, fontSize: 10.5, fontWeight: FontWeight.w700)),
+            ),
+            if (equipV != 0) chip('장비', equipV, const Color(0xFF7FB0FF)),
+            if (levelV != 0) chip('레벨', levelV, const Color(0xFFFFC078)),
+            if (guildV != 0) chip('길드', guildV, const Color(0xFF7FFFB0)),
+            if (bossV != 0) chip('레이드', bossV, const Color(0xFFB0FF7F)),
+            if (champV != 0) chip('길드랭킹', champV, _kGold),
+            if (rankV != 0) chip('개인랭킹', rankV, const Color(0xFFFFE082)),
+            if (eventV != 0) chip('이벤트', eventV, const Color(0xFFFFAB91)),
           ]),
         ),
       ]),
@@ -4235,9 +4263,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   style: TextStyle(color: _isChampionGuild ? _kGold : Color(_guildColor), fontSize: 12, fontWeight: FontWeight.bold)),
           ]),
           const Divider(color: Colors.white12, height: 18),
-          const Text('능력치 (기본 + 장비 + 레벨 + 길드 + 🏴깃발 + 챔피언 + 주간랭킹 + 이벤트)',
-              style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
+          Row(children: const [
+            Text('능력치 상세',
+                style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900)),
+            SizedBox(width: 6),
+            Expanded(
+              child: Text('어디서 얼마나 붙었는지 보여줘요',
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white38, fontSize: 11)),
+            ),
+          ]),
+          const SizedBox(height: 6),
           _statBreakRow('💪 힘', const Color(0xFFFF8A80), eP, lvB, gB, cB, rB, evP, bB),
           _statBreakRow('🎯 컨트롤', const Color(0xFFFFD180), eC, lvB, gB, cB, rB, evC, bB),
           _statBreakRow('📡 감도', const Color(0xFF80D8FF), eS, lvB, gB, cB, rB, evS, bB),
