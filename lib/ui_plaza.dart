@@ -363,7 +363,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
-  bool _isGm = false;    // 🛡️ 운영자(GM) 계정 여부 → 머리 위 GM 배지
+  bool _isGm = false;    // 🛡️ 운영자(GM) 계정 여부(권한)
+  bool _showGmBadge = false; // 🕵️ 머리 위 GM 배지 표시 여부(hideGmBadge로 끌 수 있음)
   Map<String, int> _daejangCatch = {}; // #13 6대장 누적 카운트
   bool _fwDone = false; // 📋 오늘 민물 일일 완료
   bool _seaDone = false; // 📋 오늘 바다 일일 완료
@@ -725,7 +726,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
-      _isGm = data['isGm'] == true; // 🛡️ 운영자 GM 배지
+      _isGm = data['isGm'] == true; // 🛡️ 운영자 권한(공지 작성 등)
+      // 🕵️ 배지 숨김: isGm이어도 users/{uid}.hideGmBadge==true 면 광장에 GM 배지 안 뜸
+      //    (부계정으로 조용히 플레이할 때. 권한 자체는 유지)
+      _showGmBadge = _isGm && data['hideGmBadge'] != true;
       // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비)
       if (widget.startTutorial && !data.containsKey('tutStep')) {
         await doc.reference.set({'tutStep': 0, 'tutCleared': false}, SetOptions(merge: true));
@@ -1455,7 +1459,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'guild': _guildName,
       'gcolor': _guildColor, // 🎨 길드명 색상(머리 위 태그용)
       'rank': _rank, // 🎨 등급(칭호) — 닉네임 색용
-      'gm': _isGm, // 🛡️ 운영자 GM 배지
+      'gm': _showGmBadge, // 🛡️ 운영자 GM 배지(hideGmBadge면 false)
       'champ': _isChampionGuild,
       'garam': _myGaramRank, // 🎖️ 주간 개인랭킹 순위마크(0=없음)
       'x': _charPos.dx,
@@ -3104,7 +3108,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                         child: Center(
                                           child: _nameTag(widget.nickname, _guildName,
                                               isMe: true, champ: _isChampionGuild,
-                                              garamRank: _myGaramRank, rank: _rank, gm: _isGm,
+                                              garamRank: _myGaramRank, rank: _rank, gm: _showGmBadge,
                                               guildColorVal: _guildColor),
                                         ),
                                       ),
