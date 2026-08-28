@@ -57,6 +57,13 @@
     header nav{width:100%;margin-left:0;overflow-x:auto;flex-wrap:nowrap}
     header .play{margin-left:0;padding:9px 15px;font-size:14px}
   }
+  .tblwrap{overflow-x:auto;margin:10px 0 4px}
+  .itbl{width:100%;border-collapse:collapse;font-size:14px}
+  .itbl th,.itbl td{border:1px solid var(--line);padding:9px 11px;text-align:left;vertical-align:middle}
+  .itbl th{background:var(--sky1);color:var(--blue-ink);font-weight:800;white-space:nowrap}
+  .itbl.grid td{white-space:nowrap}
+  .itbl td.pr{text-align:right;font-weight:800;color:var(--blue-ink)}
+  .itbl tbody tr:nth-child(even){background:#fafdfe}
 </style>
 </head>
 <body>
@@ -86,6 +93,7 @@
     <a href="#" id="tabTerms" class="on">이용약관</a>
     <a href="#" id="tabPrivacy">개인정보처리방침</a>
     <a href="#" id="tabEvent">이벤트 운영 규정</a>
+    <a href="#" id="tabItem">유료 아이템 · 환불</a>
   </div>
 
   <!-- ─────────── 이용약관 ─────────── -->
@@ -430,6 +438,73 @@
   </div>
 </div>
 
+
+  <!-- ─────────── 유료 아이템 · 청약철회/환불 ─────────── -->
+  <div class="doc" id="docItem" style="display:none">
+    <p class="note">「전자상거래 등에서의 소비자보호에 관한 법률」에 따른 유료 아이템 상품정보 및 청약철회·환불 안내입니다.</p>
+
+    <h2>판매자 정보</h2>
+    <div class="tblwrap">
+    <table class="itbl">
+      <tr><th>상호</th><td>(주)안테모사</td></tr>
+      <tr><th>대표자</th><td>이명선</td></tr>
+      <tr><th>사업자등록번호</th><td>499-87-02378</td></tr>
+      <tr><th>통신판매업 신고번호</th><td>제2026-충북청주-1745호</td></tr>
+      <tr><th>게임물제작업 등록번호</th><td>제2026-000020호</td></tr>
+      <tr><th>주소</th><td>(28166) 충북 청주시 흥덕구 오송읍 오송가락로 235, 상가동 203호</td></tr>
+      <tr><th>고객문의</th><td>02-487-2581 · intoas@naver.com (평일 09:00~18:00)</td></tr>
+      <tr><th>통화</th><td>원화(KRW) · 부가세(VAT) 포함 가격</td></tr>
+      <tr><th>판매 형태</th><td>(주)안테모사가 직접 제공하는 게임 「캠피싱 KREFT」 내 디지털 아이템 (직접판매)</td></tr>
+    </table>
+    </div>
+
+    <h2>유료 아이템 상품정보</h2>
+    <div class="tblwrap">
+    <table class="itbl grid">
+      <thead><tr><th>상품명</th><th>가격</th><th>지급</th><th>사용처</th><th>이용조건</th><th>제공(이용)기간</th></tr></thead>
+      <tbody>
+        <tr><td>낚시 1시간 이용권</td><td class="pr">1,100원</td><td>1회분</td><td>게임 내 낚시시간 1시간 추가</td><td>계정당 1일 1회 사용</td><td>결제 즉시 지급 · 유효기간 1년</td></tr>
+        <tr><td>아레나 입장권</td><td class="pr">1,100원</td><td>1장</td><td>게임 내 아레나 추가 참가</td><td>하루 1장 사용 · 여러 장 보관 가능</td><td>결제 즉시 지급 · 유효기간 1년</td></tr>
+        <tr><td>캠피싱 뱃지</td><td class="pr">2,200원</td><td>1개</td><td>게임 캐릭터 장착</td><td>Lv.10 이상</td><td>구매일로부터 1년</td></tr>
+        <tr><td>캠피싱 휘장</td><td class="pr">5,500원</td><td>1개</td><td>게임 캐릭터 장착</td><td>Lv.30 이상</td><td>구매일로부터 1년</td></tr>
+        <tr><td>KREFT 정예 휘장</td><td class="pr">11,000원</td><td>1개</td><td>게임 캐릭터 장착</td><td>Lv.50 이상</td><td>구매일로부터 1년</td></tr>
+        <tr><td>하수 조사 (스킨)</td><td class="pr">2,200원</td><td>1개</td><td>게임 캐릭터 외형 · 능력치</td><td>Lv.10 이상 · '하수' 승급</td><td>구매일로부터 1년</td></tr>
+        <tr><td>중수 조사 (스킨)</td><td class="pr">5,500원</td><td>1개</td><td>게임 캐릭터 외형 · 능력치</td><td>Lv.30 이상 · '중수' 승급</td><td>구매일로부터 1년</td></tr>
+        <tr><td>고수 조사 (스킨)</td><td class="pr">11,000원</td><td>1개</td><td>게임 캐릭터 외형 · 능력치</td><td>Lv.50 이상 · '고수' 승급</td><td>구매일로부터 1년</td></tr>
+        <tr><td>프로 조사 (스킨)</td><td class="pr">22,000원</td><td>1개</td><td>게임 캐릭터 외형 · 능력치</td><td>Lv.70 이상 · '프로' 승급</td><td>구매일로부터 1년</td></tr>
+        <tr><td>마스터 조사 (스킨)</td><td class="pr">55,000원</td><td>1개</td><td>게임 캐릭터 외형 · 능력치</td><td>Lv.100 이상 · '마스터' 승급</td><td>구매일로부터 1년</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="note">
+      ※ 스킨 · 뱃지 · 휘장 등 소장형 아이템의 이용제공기간은 <b>구매일로부터 1년</b>입니다.
+      서비스가 계속 운영되는 경우 별도 조치 없이 계속 이용하실 수 있으며,
+      회사가 서비스를 종료할 경우 <b>종료 30일 전 공지</b>하고 미사용분은 아래 환불 규정에 따라 처리합니다.<br>
+      ※ 낚시 1시간 이용권 · 아레나 입장권 등 소모성 아이템의 <b>유효기간은 구매일로부터 1년</b>이며, 유효기간 내 미사용 시 소멸합니다.<br>
+      ※ 모든 아이템은 계정에 지급되는 디지털 콘텐츠이며 <b>실물 배송은 없습니다.</b>
+    </p>
+
+    <h2>청약철회 · 환불 규정</h2>
+    <h3>① 기본</h3>
+    <p>유료 아이템 결제 후 <b>7일 이내</b>, 아이템을 <b>사용하지 않은 경우</b> 전액 환불(청약철회)이 가능합니다.</p>
+    <h3>② 사용을 개시했거나 일부만 사용한 경우</h3>
+    <p>· <b>소모성 아이템</b>(낚시 1시간 이용권 · 아레나 입장권 등): 사용을 개시하면 청약철회가 제한됩니다.
+       여러 개를 구매하신 뒤 일부만 사용하신 경우, <b>미사용분은 개당 단가 기준으로 환불</b>해 드립니다.</p>
+    <p>· <b>소장형 아이템</b>(스킨 · 뱃지 · 휘장): 캐릭터에 <b>장착(사용 개시)</b>하신 경우 청약철회가 제한됩니다.
+       다만 결제 후 7일 이내 <b>장착하지 않으신 상태</b>라면 전액 환불됩니다.</p>
+    <h3>③ 판매자 귀책</h3>
+    <p>아이템 미지급 · 오지급 · 중복결제 등 회사 귀책으로 문제가 발생한 경우, 확인 즉시 <b>전액 환불 또는 정상 재지급</b>해 드립니다.</p>
+    <h3>④ 환불 방법 및 기간</h3>
+    <p>원결제수단 취소를 원칙으로 하며, 접수 · 확인 후 <b>영업일 기준 3~5일 이내</b> 처리됩니다.
+       (카드사 · 결제대행사 사정에 따라 실제 계좌 반영은 며칠 더 걸릴 수 있습니다.)</p>
+    <h3>⑤ 문의</h3>
+    <p>(주)안테모사 · 전화 <b>02-487-2581</b> · 이메일 <b>intoas@naver.com</b> (평일 09:00~18:00)</p>
+
+    <h2>미성년자 결제 안내</h2>
+    <p>미성년자가 법정대리인의 동의 없이 결제한 경우, 관련 법령에 따라 본인 또는 법정대리인이 취소할 수 있습니다.
+       위 연락처로 문의해 주시면 확인 후 처리해 드립니다.</p>
+  </div>
+
 <footer><div class="wrap">
   <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
   <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> · <a data-play href="#">지금 플레이</a><br>
@@ -447,7 +522,8 @@
 
   var TAB={terms:['tabTerms','docTerms','📄 이용약관','이용약관'],
            privacy:['tabPrivacy','docPrivacy','🔒 개인정보처리방침','개인정보처리방침'],
-           event:['tabEvent','docEvent','🎁 이벤트 운영 규정','이벤트 운영 규정']};
+           event:['tabEvent','docEvent','🎁 이벤트 운영 규정','이벤트 운영 규정'],
+           item:['tabItem','docItem','💳 유료 아이템 · 환불 안내','유료 아이템·환불 안내']};
   function show(k){
     if(!TAB[k]) k='terms';
     Object.keys(TAB).forEach(function(x){
