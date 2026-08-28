@@ -165,7 +165,7 @@
         <div class="evrow"><span class="lb">기간</span>
           <span class="vl">2026. 08. 01 ~ 08. 31</span></div>
         <div class="evrow"><span class="lb">당첨 발표</span>
-          <span class="vl">2026. 09. 01 · 홈페이지 <a href="notice.html" style="color:var(--emerald);font-weight:700">공지사항</a></span></div>
+          <span class="vl">2026. 09. 01 · <a href="#win" id="toWin" style="color:var(--emerald);font-weight:700">🏆 당첨자 발표</a> 페이지</span></div>
         <div class="evrow"><span class="lb">순위 기준</span>
           <span class="vl">레벨 랭킹 + 21종 물고기 최대 사이즈 랭킹</span></div>
         <div class="evrow"><span class="lb">확인 방법</span>
@@ -303,8 +303,8 @@
         <tr><td class="rk">🥉 3위</td><td>글라우코스 쭈갑 낚시대</td><td style="color:#9fb6bf">발표 예정</td></tr>
         <tr><td class="rk">4위 이하<br><span style="font-weight:500;font-size:13px;color:#9fb6bf">10명 추첨</span></td><td>무사시 하이퍼 핑크 (낚시줄)</td><td style="color:#9fb6bf">발표 예정</td></tr>
       </table>
-      <p class="tip" style="margin-top:16px">📅 <b>2026년 9월 1일</b>에 홈페이지 공지사항으로 발표됩니다.
-        당첨되신 조사님께는 개별 안내를 드릴 예정이에요.</p>
+      <p class="tip" style="margin-top:16px">📅 <b>2026년 9월 1일</b> 이 페이지에서 당첨자를 발표합니다.
+        당첨되신 조사님께는 경품 배송을 위해 개별 안내를 드릴 예정이에요.</p>
     </div>
   </div>
 
@@ -344,6 +344,8 @@
   });
   var h=(location.hash||'').replace('#','');
   if(TABS.indexOf(h)>-1){ document.querySelector('.tabs button[data-t="'+h+'"]').click(); }
+  var toWin=document.getElementById('toWin');
+  if(toWin) toWin.onclick=function(e){e.preventDefault();document.querySelector('.tabs button[data-t="win"]').click();};
 
   /* 포스터 확대 */
   var lb=document.getElementById('lightbox');
