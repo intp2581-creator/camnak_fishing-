@@ -513,7 +513,7 @@
 <script>
   /* ====== 링크 설정 (여기만 바꾸면 전 버튼 일괄 반영) ====== */
   var GAME_URL   = 'https://camnak.com/30';       // 🎮 지금 플레이
-  var STORE_URL  = 'https://camnak.com/137';          // 🛒 게임스토어(아임웹)
+  var STORE_URL  = 'store.html';                       // 🛒 게임스토어(게임 사이트 자체 페이지)
   var MALL_URL   = 'https://camnak.com';              // 🎣 실물 쇼핑몰
   var YOUTUBE_URL= 'https://youtu.be/W4PUbMzAALw';    // 🎬 소개영상
   var LOGIN_URL  = 'https://camnak.com/30';        // 로그인
@@ -521,7 +521,7 @@
   var SUPPORT_URL= 'https://camnak.com';              // 고객지원
 
   function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
-  wire('[data-play]',GAME_URL);wire('[data-store]',STORE_URL);wire('[data-mall]',MALL_URL);
+  wire('[data-play]',GAME_URL);document.querySelectorAll('[data-store]').forEach(function(a){a.href=STORE_URL;});wire('[data-mall]',MALL_URL);
   wire('[data-yt]',YOUTUBE_URL);wire('[data-login]',LOGIN_URL);wire('[data-join]',JOIN_URL);wire('[data-support]',SUPPORT_URL);
 
   /* ====== 슬라이드 라벨 ====== */

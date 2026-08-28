@@ -142,9 +142,9 @@
 </div></footer>
 
 <script>
-  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137', YT_URL='https://youtu.be/W4PUbMzAALw';
+  var GAME_URL='https://camnak.com/30', STORE_URL='store.html', YT_URL='https://youtu.be/W4PUbMzAALw';
   function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
-  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL); wire('[data-yt]',YT_URL);
+  wire('[data-play]',GAME_URL); document.querySelectorAll('[data-store]').forEach(function(a){a.href=STORE_URL;}); wire('[data-yt]',YT_URL);
 </script>
 <script type="module" src="auth.js"></script>
 </body>

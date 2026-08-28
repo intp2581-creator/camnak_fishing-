@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>게임스토어 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 게임스토어 — 이용권·입장권, 조사 스킨, 뱃지·휘장">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .stabs{display:flex;gap:0;border-bottom:2px solid var(--line);margin-bottom:20px;overflow-x:auto;
+    -ms-overflow-style:none;scrollbar-width:none}
+  .stabs::-webkit-scrollbar{display:none}
+  .stabs button{border:none;background:none;font-family:inherit;font-weight:700;font-size:15.5px;
+    color:var(--ink-soft);padding:14px 22px;cursor:pointer;white-space:nowrap;
+    border-bottom:3px solid transparent;margin-bottom:-2px;transition:.15s}
+  .stabs button:hover{color:var(--blue-ink)}
+  .stabs button.on{color:var(--blue-ink);border-bottom-color:var(--blue-ink)}
+
+  .sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;margin-bottom:34px}
+  .scard{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    box-shadow:var(--shadow-sm);display:flex;flex-direction:column;transition:.18s}
+  .scard:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+  .scard .im{background:linear-gradient(160deg,#eaf6fa,#dcf0f6);aspect-ratio:1/1;
+    display:flex;align-items:center;justify-content:center;padding:14px;position:relative}
+  .scard .im img{max-width:100%;max-height:100%;width:auto;object-fit:contain;border-radius:10px}
+  .scard .lv{position:absolute;top:10px;left:10px;background:rgba(15,111,150,.92);color:#fff;
+    font-size:11.5px;font-weight:800;padding:4px 9px;border-radius:11px}
+  .scard .bd{padding:15px 16px 17px;display:flex;flex-direction:column;flex:1}
+  .scard .bd b{font-size:16.5px;color:var(--ink);display:block;margin-bottom:5px}
+  .scard .bd p{margin:0 0 12px;font-size:13.5px;color:var(--ink-soft);line-height:1.6;flex:1}
+  .scard .pr{font-size:19px;font-weight:900;color:var(--blue-ink);margin-bottom:11px}
+  .scard .pr small{font-size:11.5px;font-weight:600;color:#9fb6bf;margin-left:4px}
+  .scard .buy{display:block;text-align:center;padding:11px;border-radius:10px;font-weight:800;
+    font-size:14.5px;background:linear-gradient(135deg,var(--yellow),var(--yellow-deep));color:#5a3d00}
+  .scard .buy:hover{filter:brightness(1.05)}
+
+  .sec-note{background:var(--sky1);border-radius:14px;padding:18px 22px;color:var(--blue-ink);
+    font-size:14.5px;line-height:1.8;margin-bottom:26px}
+  .sec-note b{color:var(--ink)}
+
+  .terms{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:26px 28px;margin-bottom:44px}
+  .terms h3{margin:0 0 14px;font-size:18px;color:var(--blue-ink)}
+  .terms dl{margin:0}
+  .terms dt{font-weight:800;font-size:14.5px;color:var(--ink);margin-top:14px}
+  .terms dt:first-child{margin-top:0}
+  .terms dd{margin:5px 0 0;font-size:14px;color:var(--ink-soft);line-height:1.75}
+  @media (max-width:760px){
+    .sgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+    .scard .bd{padding:12px 13px 14px}
+    .scard .bd b{font-size:15px}
+    .terms{padding:20px 18px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="event.html">이벤트</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a class="on" href="store.html">게임스토어</a>
+      <a href="index.html#media">미디어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🛒 게임스토어</h1>
+  <p>캠피싱 KREFT 게임 안에서 사용하는 아이템이에요.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="sec-note">
+    🎣 구매하신 아이템은 <b>결제 즉시 게임 계정으로 자동 지급</b>됩니다.<br>
+    구매에 사용한 <b>캠피싱 회원 계정(이메일)</b>과 게임 계정이 같아야 지급되니, 로그인 상태를 확인해 주세요.
+  </div>
+
+  <div class="stabs" id="stabs">
+    <button class="on" data-c="all">전체</button>
+    <button data-c="ticket">이용권 · 입장권</button>
+    <button data-c="skin">조사 스킨</button>
+    <button data-c="badge">뱃지 · 휘장</button>
+  </div>
+
+  <div class="sgrid" id="sgrid"></div>
+
+  <div class="terms">
+    <h3>📋 구매 전 확인해 주세요</h3>
+    <dl>
+      <dt>판매자</dt>
+      <dd>(주)안테모사 | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+          통신판매업신고 제2026-충북청주-1745호 | 문의 intoas@naver.com · 02-487-2581 (평일 09:00~18:00)</dd>
+      <dt>이용조건</dt>
+      <dd>상품별로 표시된 <b>레벨 조건</b>을 충족해야 게임 안에서 사용할 수 있습니다.
+          스킨은 해당 <b>승급(칭호)</b>까지 마쳐야 장착됩니다. 조건 미달 상태로 구매하지 않도록 확인해 주세요.</dd>
+      <dt>공급 시기</dt>
+      <dd>결제 완료 즉시 게임 계정으로 자동 지급됩니다. (지급이 지연되면 위 연락처로 문의해 주세요)</dd>
+      <dt>이용 기간</dt>
+      <dd>구매일로부터 1년. 기간 내 미사용분은 소멸됩니다.</dd>
+      <dt>청약철회 · 환불</dt>
+      <dd>스킨·뱃지·휘장은 <b>구매 후 7일 이내, 장착하지 않은 경우</b> 전액 환불됩니다.
+          장착(사용 개시) 이후에는 「전자상거래법」 제17조 제2항에 따라 청약철회가 제한됩니다.<br>
+          이용권·입장권은 <b>미사용분에 한해</b> 전액 환불되며, 사용을 개시한 분량은 환불되지 않습니다.</dd>
+      <dt>결제 통화</dt>
+      <dd>모든 금액은 원화(KRW)이며 부가세(VAT)가 포함된 가격입니다.</dd>
+    </dl>
+    <p style="margin:16px 0 0;font-size:13.5px;color:#9fb6bf">
+      자세한 내용은 <a href="policy.html#terms" style="color:var(--emerald);font-weight:700">이용약관</a> ·
+      <a href="policy.html#privacy" style="color:var(--emerald);font-weight:700">개인정보처리방침</a>을 확인해 주세요.
+    </p>
+  </div>
+</div>
+
+<footer class="site"><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="notice.html">공지</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a><br>
+  <b>(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script>
+  var GAME_URL='https://camnak.com/30';
+  var BUY='https://camnak.com/shop_view/?idx=';
+  document.querySelectorAll('[data-play]').forEach(function(a){
+    a.href=GAME_URL;a.target='_blank';a.rel='noopener';});
+
+  // 게임 상품 목록 (game_config.dart의 kMallProductIdx / storeSkinItems와 동일)
+  var ITEMS=[
+    {c:'ticket', idx:223, n:'낚시 1시간 이용권', p:1100,  lv:0,   img:'st-ticket1h.jpg',
+     d:'낚시 시간을 1시간 늘려주는 이용권이에요. 계정당 하루 1회 사용할 수 있어요.'},
+    {c:'ticket', idx:245, n:'아레나 입장권',     p:1100,  lv:0,   img:'st-arena.jpg',
+     d:'무료 입장을 다 쓴 뒤 하루 한 번 더 아레나에 참가해요. 낚시시간 20분도 함께 채워줘요.'},
+    {c:'skin',   idx:224, n:'하수 조사',         p:2200,  lv:10,  img:'st-skin1.jpg',
+     d:'낚시에 맛을 들인 조사님의 복장이에요.'},
+    {c:'skin',   idx:225, n:'중수 조사',         p:5500,  lv:30,  img:'st-skin2.jpg',
+     d:'포인트 보는 눈이 생긴 조사님의 복장이에요.'},
+    {c:'skin',   idx:226, n:'고수 조사',         p:11000, lv:50,  img:'st-skin3.jpg',
+     d:'어디서든 한 마리는 낚아내는 고수의 복장이에요.'},
+    {c:'skin',   idx:227, n:'프로 조사',         p:22000, lv:70,  img:'st-skin4.jpg',
+     d:'스폰서를 받는 프로 앵글러의 복장이에요.'},
+    {c:'skin',   idx:228, n:'마스터 조사',       p:55000, lv:100, img:'st-skin5.jpg',
+     d:'낚시계의 살아있는 전설, 마스터의 복장이에요.'},
+    {c:'badge',  idx:244, n:'캠피싱 뱃지',       p:2200,  lv:10,  img:'st-badge1.jpg',
+     d:'캠피싱 조사임을 증명하는 입문 뱃지예요. 제압력 P·C·S +10 (민물·바다 공용)'},
+    {c:'badge',  idx:242, n:'캠피싱 휘장',       p:5500,  lv:30,  img:'st-badge2.jpg',
+     d:'한 단계 성장한 조사의 휘장이에요. 제압력 P·C·S +30 (민물·바다 공용)'},
+    {c:'badge',  idx:243, n:'KREFT 정예 휘장',   p:11000, lv:50,  img:'st-badge3.jpg',
+     d:'KREFT 정예 조사임을 증명하는 휘장이에요. 제압력 P·C·S +50 (민물·바다 공용)'}
+  ];
+
+  function won(n){return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+  function render(cat){
+    var list = cat==='all' ? ITEMS : ITEMS.filter(function(i){return i.c===cat;});
+    document.getElementById('sgrid').innerHTML = list.map(function(i){
+      return '<div class="scard">'
+        +'<div class="im">'+(i.lv?'<span class="lv">Lv.'+i.lv+' 이상</span>':'')
+        +'<img src="assets/'+i.img+'" alt="'+i.n+'" loading="lazy"></div>'
+        +'<div class="bd"><b>'+i.n+'</b><p>'+i.d+'</p>'
+        +'<div class="pr">₩'+won(i.p)+'<small>VAT 포함</small></div>'
+        +'<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener">구매하기</a>'
+        +'</div></div>';
+    }).join('');
+  }
+  document.getElementById('stabs').addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
+    render(b.dataset.c);
+    if(history.replaceState) history.replaceState(null,'','store.html#'+b.dataset.c);
+  });
+  var h=(location.hash||'').replace('#','');
+  if(['ticket','skin','badge'].indexOf(h)>-1){
+    document.querySelectorAll('#stabs button').forEach(function(b){b.classList.toggle('on',b.dataset.c===h);});
+    render(h);
+  } else render('all');
+</script>
+<script type="module" src="auth.js"></script>
+</body>
+</html>

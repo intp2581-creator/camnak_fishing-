@@ -198,10 +198,10 @@
 </div></footer>
 
 <script>
-  var GAME_URL='https://camnak.com/30', STORE_URL='https://camnak.com/137';
+  var GAME_URL='https://camnak.com/30', STORE_URL='store.html';
   var API='https://us-central1-camnak-fishing.cloudfunctions.net/communityApi';
   function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
-  wire('[data-play]',GAME_URL); wire('[data-store]',STORE_URL);
+  wire('[data-play]',GAME_URL); document.querySelectorAll('[data-store]').forEach(function(a){a.href=STORE_URL;});
 
   var BOARD={free:['자유게시판','조사님들과 자유롭게 이야기 나눠보세요.'],
              tip:['팁 · 노하우','나만의 낚시 요령과 공략을 공유해 주세요.'],
