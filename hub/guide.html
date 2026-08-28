@@ -37,6 +37,8 @@
   .shot img{width:100%;display:block}
   .shot .cap{padding:10px 14px;font-size:13px;color:var(--ink-soft);background:#fff}
 
+  .twoshot{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 0 18px}
+  .twoshot .shot{margin:0}
   .thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:6px 0 18px}
   .thumb{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-align:center}
   .thumb img{height:120px;width:auto;margin:0 auto 10px;object-fit:contain}
@@ -73,7 +75,7 @@
   .navbtns{display:flex;gap:10px;justify-content:space-between;margin:26px 0 10px;flex-wrap:wrap}
   @media (max-width:820px){
     .cats{grid-template-columns:repeat(2,1fr)}
-    .thumbs,.kv{grid-template-columns:1fr}
+    .thumbs,.kv,.twoshot{grid-template-columns:1fr}
     .rankgrid{grid-template-columns:repeat(4,1fr)}
     .cat .ci{height:76px;font-size:32px}
   }
@@ -145,7 +147,7 @@
 
   var DOC = {
     intro:{ i:'🎣', t:'게임 소개 · 시작하기', n:'PART 1', html:
-      '<div class="shot"><img src="assets/g-plaza.jpg" alt=""><div class="cap">조사님들이 모이는 광장</div></div>'
+      '<div class="shot"><img src="assets/plaza-fw.jpg" alt=""><div class="cap">조사님들이 모이는 광장 — 모든 콘텐츠의 출발점</div></div>'
      +'<div class="panel"><h3>캠피싱 KREFT는 어떤 게임인가요?</h3>'
      +'<p>전국의 낚시터를 돌며 물고기를 잡고, 캐릭터를 키우고, 다른 조사님들과 겨루는 <b>실시간 웹 낚시게임</b>입니다. '
      +'앱 설치가 필요 없어서 PC·모바일 어디서든 브라우저만 있으면 바로 즐길 수 있어요.</p>'
@@ -163,7 +165,10 @@
      +'낚시 시간은 하루 <b>1시간</b>이 기본으로 주어집니다.</p></div>' },
 
     plaza:{ i:'🏛️', t:'광장 시스템', n:'PART 2', html:
-      '<div class="shot"><img src="assets/g-plaza.jpg" alt=""><div class="cap">광장 — 모든 콘텐츠의 출발점</div></div>'
+      '<div class="twoshot">'
+     +'<div class="shot"><img src="assets/plaza-fw.jpg" alt=""><div class="cap">🏞️ 민물 광장 — 소나무와 저수지 풍경</div></div>'
+     +'<div class="shot"><img src="assets/plaza-sea.jpg" alt=""><div class="cap">🌊 바다 광장 — 야자수와 항구 풍경</div></div>'
+     +'</div>'
      +'<div class="panel"><h3>광장이란?</h3>'
      +'<p>게임에 접속하면 도착하는 <b>중앙 허브</b>입니다. 다른 조사님들이 실제로 돌아다니는 게 보이고, '
      +'각 포탈을 통해 낚시터·아레나·길드 등 모든 콘텐츠로 이동할 수 있어요.</p>'
