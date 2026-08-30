@@ -613,13 +613,6 @@
   /* ====== 슬라이드 라벨 ====== */
   var LABELS = ['캠피싱 낚시터','길드 보스레이드','아레나','이벤트'];
 
-  /* ====== 공지 데이터 (여기 배열만 수정) ====== */
-  var NOTICES = [
-    {type:'update', t:'기본 능력치 상향 — 전 회원 제압력 +60', d:'2026.08.27'},
-    {type:'update', t:'문어 밸런스 개편 및 기록 초기화 안내', d:'2026.08.24'},
-    {type:'event',  t:'랜덤 상자 · 실시간 랭킹 자막 업데이트', d:'2026.08.18'},
-    {type:'notice', t:'캠피싱 KREFT 정식 서비스 오픈 안내', d:'2026.08.15'},
-  ];
   var pillTxt={update:'업데이트',event:'이벤트',notice:'공지'};
   function escH(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function paintNotices(items){
@@ -634,7 +627,11 @@
   // 📢 실제 공지 불러오기(관리자 페이지에서 작성) — 실패 시 조용히 비움
   fetch('https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi?list=1&limit=20')
     .then(function(r){return r.json()}).then(function(j){
-      paintNotices(j.items || []);
+      // 📌 홈 위젯은 4개만 보이므로 고정핀을 따르지 않고 '최신순'으로 다시 정렬한다.
+      //    (API는 고정핀 우선 정렬이라, 핀 2개가 위를 차지하면 정작 최신 공지가 밀려난다)
+      //    핀 표시는 공지 페이지(notice.html)에서 📌로 계속 보인다.
+      var its = (j.items || []).slice().sort(function(a,b){ return (b.createdAt||0)-(a.createdAt||0); });
+      paintNotices(its);
     })
     .catch(function(){ paintNotices([]); });
 
