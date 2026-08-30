@@ -4035,21 +4035,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final bool hasGuild = _guildName.isNotEmpty;
 
     // 간판 글씨 공통 스타일(원래 그려져 있던 남색 계열 + 옅은 흰 그림자로 나무판에서 뜨게)
-    TextStyle signStyle(double size) => TextStyle(
+    TextStyle signStyle(double size, {bool tight = false}) => TextStyle(
           color: const Color(0xFF15486E),
           fontSize: size,
+          // 🪧 tight=1.0 → 기본 줄간격(약 1.2)이 먹던 위아래 여백을 없앤다.
+          //    FittedBox는 '상자 높이'에 맞춰 줄이므로, 여백이 크면 글자가 그만큼 작아진다.
+          height: tight ? 1.0 : null,
           fontWeight: FontWeight.w900,
           letterSpacing: -0.5,
           shadows: const [Shadow(color: Color(0x55FFFFFF), offset: Offset(0, 1.2), blurRadius: 1.5)],
         );
 
     // 간판 영역 안에 한 줄 앉히기 — 긴 길드명은 scaleDown이 알아서 줄인다.
-    Widget line(String text, double top, double height, double fontSize) => Positioned(
+    Widget line(String text, double top, double height, double fontSize, {bool tight = false}) =>
+        Positioned(
           left: w * 0.440, top: h * top, width: w * 0.260, height: h * height,
           child: Center(
             child: FittedBox(
               fit: BoxFit.scaleDown,
-              child: Text(text, maxLines: 1, style: signStyle(h * fontSize)),
+              child: Text(text, maxLines: 1, style: signStyle(h * fontSize, tight: tight)),
             ),
           ),
         );
@@ -4072,8 +4076,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (!hasGuild)
                 line('길드홀', 0.203, 0.115, 0.112)    // 미가입자: 가운데 한 줄
               else if (_guildName.characters.length <= 6) ...[
-                line('길드홀', 0.198, 0.046, 0.050),   // 윗줄 작게(너무 작아 보여 키움)
-                line(_guildName, 0.244, 0.088, 0.092), // 아랫줄 크게(간판을 꽉 채우게)
+                line('길드홀', 0.188, 0.048, 0.048, tight: true), // 윗줄 — 여백 없이 꽉 채워 키움
+                line(_guildName, 0.236, 0.090, 0.094),            // 아랫줄(위치·크기 유지)
               ] else ...[
                 // 🪧 안전망 — 지금은 길드명이 6자로 제한돼 여기 올 일이 거의 없다.
                 //    (제한 이전에 만들어진 긴 이름 대비) '길드홀' 줄을 빼고 두 줄로 쪼개 간판 전체를 쓴다.
