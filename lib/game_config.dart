@@ -886,7 +886,9 @@ final List<Map<String, dynamic>> storeAuxItems = [
 // 👕 스킨/티켓 탭 — 조사 스킨 · 이용권 · 입장권
 // 🛒 게임 내 상점 "쇼핑몰 구매" 버튼이 여는 주소 (스킨·이용권 캐시 구매처)
 //    정확한 게임스토어 페이지 URL이 있으면 여기만 바꾸면 됨.
-const String kGameStoreUrl = 'https://camnak.com/137';
+// ⚠️ camnak.com/137(구 게임스토어)은 사이트 2분화로 숨김 처리됨(2026-08-30).
+//    → 게임 전용 홈페이지의 게임스토어로 연결.
+const String kGameStoreUrl = 'https://game.camnak.com/store.html';
 
 // 🛒 상품별 쇼핑몰 상세페이지 딥링크 — 게임 아이템명 → 아임웹 상품번호(idx)
 //    구매 버튼 누르면 목록이 아니라 해당 상품 구매창으로 바로 이동.

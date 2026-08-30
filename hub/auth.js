@@ -1,5 +1,5 @@
 // 🔐 캠피싱 홈페이지 공용 로그인 (게임과 동일 방식)
-//   camnak.com → camfishing.web.app/?uid=이메일 로 들어오면 자동 로그인.
+//   camnak.com → game.camnak.com/?uid=이메일 로 들어오면 자동 로그인.
 //   한 번 로그인하면 브라우저에 유지되므로 다음부터는 uid 없이 들어와도 로그인 상태.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,

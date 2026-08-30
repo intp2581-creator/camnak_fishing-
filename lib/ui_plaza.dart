@@ -1947,7 +1947,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  // 🚪 게임 종료: "종료할까요?"(기록 자동저장 안내) → 저장 정리 → "저장 완료" → camnak.com
+  // 🚪 게임 종료: "종료할까요?"(기록 자동저장 안내) → 저장 정리 → 게임 전용 홈페이지(허브)
   Future<void> _confirmExitGame() async {
     audioManager.playSfx('sfx_click.mp3');
     // 🚪 계정 전환은 시도했다가 제거(2026-08-16) — 아임웹 로그아웃은 성공하지만
@@ -1976,7 +1976,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (ok != true) return;
     _leavePlazaPresence();
     if (!mounted) return;
-    const exitUrl = 'https://camnak.com';
+    // 🏠 사이트 2분화(2026-08-30) — 게임은 전용 허브 안에서 돌아간다.
+    //    camnak.com(실물 쇼핑몰)으로 나가버리면 공지·커뮤니티로 돌아갈 길이 끊긴다.
+    const exitUrl = 'https://game.camnak.com/';
     try {
       html.window.top?.location.href = exitUrl;
     } catch (_) {
