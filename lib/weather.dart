@@ -167,9 +167,14 @@ void _showLocationGuide(BuildContext context) {
           style: TextStyle(color: gold, fontSize: 17, fontWeight: FontWeight.bold)),
       content: const SingleChildScrollView(
         child: Text(
-          '실시간 날씨(비·눈)를 게임에 반영하려면 위치 권한이 필요해요. 지금은 꺼져 있어요.\n\n'
-          '켜는 방법\n'
-          '• PC·안드로이드: 주소창 자물쇠🔒(또는 ⓘ) → 사이트 설정/권한 → 위치 → "허용" → 새로고침\n'
+          // ⚠️ Chrome은 오래전에 주소창 '자물쇠'를 없앴다(슬라이더/⚙ 아이콘으로 바뀜).
+          //    설정 경로를 앞세우면 유저가 못 찾는다 → '다시 시도'를 1순위로 안내(2026-08-30).
+          '실시간 날씨(비·눈)를 게임에 반영하려면 위치 권한이 필요해요.\n\n'
+          '가장 쉬운 방법\n'
+          '아래 [다시 시도]를 누르면 브라우저가 위치를 물어봐요. "허용"만 누르시면 끝!\n\n'
+          '이미 "차단"을 누르셨다면\n'
+          '• PC·안드로이드: 주소창 왼쪽 끝의 작은 아이콘(⚙ 또는 ⓘ)을 눌러\n'
+          '  위치를 "허용"으로 바꾸고 새로고침(F5)해 주세요.\n'
           '• 아이폰: 설정 앱 → Safari → 위치 → 허용\n\n'
           '위치를 안 켜도 게임은 정상 작동하고, 날씨만 기본값으로 나와요. 🙂',
           style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.55),
