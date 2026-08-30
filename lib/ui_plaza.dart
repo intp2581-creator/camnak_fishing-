@@ -4006,6 +4006,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏞️ 시설 포털(배경 위 장식) — 바닥 중앙을 (cx,cy) 발높이에 맞춰 세움. 캐릭터/NPC보다 뒤에 그려짐.
+  // 🪧 긴 길드명을 간판 두 줄로 쪼갠다. 띄어쓰기가 있으면 그 지점을 우선(단어 안 잘리게).
+  (String, String) _splitSign(String name) {
+    final cs = name.characters.toList();
+    final half = (cs.length / 2).ceil();
+    // 가운데에 가장 가까운 공백을 찾아 거기서 자른다
+    int cut = -1;
+    for (int i = 0; i < cs.length; i++) {
+      if (cs[i].trim().isEmpty && (cut < 0 || (i - half).abs() < (cut - half).abs())) cut = i;
+    }
+    if (cut > 0 && cut < cs.length - 1) {
+      return (cs.sublist(0, cut).join().trim(), cs.sublist(cut + 1).join().trim());
+    }
+    return (cs.sublist(0, half).join(), cs.sublist(half).join());
+  }
+
   // 🏛️ 길드홀 건물 — 간판 글자를 코드로 얹는다.
   //    그림(house_guild_fw.png)의 간판은 '비워둔' 상태여야 한다. 예전엔 "길드 아지트 / 아쿠아 헌터스"가
   //    그림에 박혀 있어서, 어느 길드원이 봐도 남의 길드 이름이 걸려 있었다(2026-08-30 개선).
@@ -4054,11 +4069,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     fit: BoxFit.contain,
                     errorBuilder: (a, b, c) => const SizedBox.shrink()),
               ),
-              if (hasGuild) ...[
-                line('길드홀', 0.202, 0.040, 0.036),   // 윗줄 작게
-                line(_guildName, 0.245, 0.075, 0.072), // 아랫줄 크게
-              ] else
-                line('길드홀', 0.215, 0.095, 0.090),   // 미가입자: 가운데 한 줄
+              if (!hasGuild)
+                line('길드홀', 0.203, 0.115, 0.112)    // 미가입자: 가운데 한 줄
+              else if (_guildName.characters.length <= 6) ...[
+                line('길드홀', 0.194, 0.045, 0.043),   // 윗줄 작게
+                line(_guildName, 0.236, 0.090, 0.094), // 아랫줄 크게(간판을 꽉 채우게)
+              ] else ...[
+                // 🪧 안전망 — 지금은 길드명이 6자로 제한돼 여기 올 일이 거의 없다.
+                //    (제한 이전에 만들어진 긴 이름 대비) '길드홀' 줄을 빼고 두 줄로 쪼개 간판 전체를 쓴다.
+                line(_splitSign(_guildName).$1, 0.196, 0.062, 0.062),
+                line(_splitSign(_guildName).$2, 0.260, 0.062, 0.062),
+              ]
             ]),
           ),
         ),
@@ -5946,10 +5967,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           children: [
             TextField(
               controller: ctrl,
-              maxLength: 12,
+              // 🪧 6자 제한 — 길드명은 광장 건물 간판에 그대로 걸린다(2026-08-30).
+              //    길면 간판 안에서 깨알만 해져서 알아볼 수가 없다.
+              maxLength: 6,
               style: const TextStyle(color: Colors.white),
               decoration: const InputDecoration(
-                hintText: '길드 이름 (최대 12자)',
+                hintText: '길드 이름 (최대 6자)',
                 hintStyle: TextStyle(color: Colors.white38),
                 counterStyle: TextStyle(color: Colors.white38),
                 enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
