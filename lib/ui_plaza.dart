@@ -4072,8 +4072,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (!hasGuild)
                 line('길드홀', 0.203, 0.115, 0.112)    // 미가입자: 가운데 한 줄
               else if (_guildName.characters.length <= 6) ...[
-                line('길드홀', 0.194, 0.045, 0.043),   // 윗줄 작게
-                line(_guildName, 0.236, 0.090, 0.094), // 아랫줄 크게(간판을 꽉 채우게)
+                line('길드홀', 0.198, 0.046, 0.050),   // 윗줄 작게(너무 작아 보여 키움)
+                line(_guildName, 0.244, 0.088, 0.092), // 아랫줄 크게(간판을 꽉 채우게)
               ] else ...[
                 // 🪧 안전망 — 지금은 길드명이 6자로 제한돼 여기 올 일이 거의 없다.
                 //    (제한 이전에 만들어진 긴 이름 대비) '길드홀' 줄을 빼고 두 줄로 쪼개 간판 전체를 쓴다.
