@@ -103,7 +103,10 @@
     if (launched) return;
     launched = true;
     var st = document.getElementById('stage');
-    st.innerHTML = '<div class="frame"><iframe id="gameFrame" allow="autoplay; fullscreen"'
+    // ⚠️ geolocation 필수 — 빠지면 실시간 날씨(비·눈)가 iframe 안에서 동작하지 않는다.
+    //    (아임웹 /30 페이지가 쓰던 allow와 동일하게 유지할 것, 2026-08-30)
+    st.innerHTML = '<div class="frame"><iframe id="gameFrame"'
+      + ' allow="autoplay; fullscreen; geolocation"'
       + ' allowfullscreen src="' + GAME_ORIGIN + '/?k=' + b64url(email) + '"></iframe></div>';
   }
 
