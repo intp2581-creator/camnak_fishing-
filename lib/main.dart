@@ -1,4 +1,5 @@
 
+import 'dart:convert'; // 🔐 진입 파라미터(base64url) 디코드
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -57,7 +58,18 @@ class MyApp extends StatelessWidget {
       home: Builder(
         builder: (context) {
           // 🌐 실제 운영 환경에서는 kDebugMode 조건을 지우고 URL 파라미터만 확인합니다.
+          // 🔐 진입 식별값
+          //   · k = base64url(이메일)  ← 신규(피싱 오탐 방지, 2026-08-29)
+          //   · uid = 이메일 그대로     ← 구방식(기존 링크·북마크 하위호환)
           String? urlUid = Uri.base.queryParameters['uid'];
+          final String? k = Uri.base.queryParameters['k'];
+          if ((urlUid == null || urlUid.isEmpty) && k != null && k.isNotEmpty) {
+            try {
+              String t = k.replaceAll('-', '+').replaceAll('_', '/');
+              while (t.length % 4 != 0) { t += '='; }
+              urlUid = utf8.decode(base64.decode(t));
+            } catch (_) {}
+          }
 
           // 🛡️ 개발(디버그) 중 로컬 테스트용 자동 uid — 코드에 계정 이메일을 남기지 않도록 환경변수로 받음.
           //    로컬 실행 시 지정: flutter run -d chrome --dart-define=DEV_UID=<접속할 이메일>

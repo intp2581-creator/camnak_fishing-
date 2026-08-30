@@ -94,12 +94,17 @@
   function panel(html){ document.getElementById('panel').innerHTML = html; }
 
   // 🎮 게임 띄우기 — 이메일은 iframe 주소 안에만 들어가므로 주소창에 노출되지 않음
+  // 🔐 이메일을 URL에 그대로 싣지 않는다(피싱 오탐 방지, 2026-08-29) → base64url
+  function b64url(v){
+    return btoa(unescape(encodeURIComponent(v)))
+      .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
   function launch(email){
     if (launched) return;
     launched = true;
     var st = document.getElementById('stage');
     st.innerHTML = '<div class="frame"><iframe id="gameFrame" allow="autoplay; fullscreen"'
-      + ' allowfullscreen src="' + GAME_ORIGIN + '/?uid=' + encodeURIComponent(email) + '"></iframe></div>';
+      + ' allowfullscreen src="' + GAME_ORIGIN + '/?k=' + b64url(email) + '"></iframe></div>';
   }
 
   function askLogin(){

@@ -25,11 +25,41 @@ const app = initializeApp({
 const auth = getAuth(app);
 window.__auth = auth;
 
-// URL의 ?uid=이메일 로 자동 로그인 (게임과 같은 진입 방식)
+// 🔐 진입 시 회원 식별값 수신
+//   ⚠️ 예전에는 ?uid=이메일 을 그대로 URL에 실었는데, 이 형태가 피싱 패턴으로 오인되어
+//      Google 세이프브라우징에 '사기성 페이지'로 차단됨(2026-08-29).
+//      이제는 #k=<base64url(이메일)> 로 받는다. '#' 뒤는 서버로 전송되지 않고 로그에도 안 남는다.
+function b64urlDecode(v) {
+  try {
+    var t = String(v).replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    return decodeURIComponent(escape(atob(t)));
+  } catch (e) { return ''; }
+}
+
+function readIncomingEmail() {
+  // 1) 신규 방식: #k=<base64url>
+  var h = (location.hash || '').replace(/^#/, '');
+  var m = h.match(/(?:^|&)k=([^&]+)/);
+  if (m) return { email: b64urlDecode(m[1]), from: 'hash' };
+  // 2) 구방식 하위호환(기존 북마크·캐시 대응) — 곧 제거
+  var p = new URLSearchParams(location.search);
+  var e = (p.get('uid') || p.get('email') || '').trim();
+  if (e) return { email: e, from: 'query' };
+  return { email: '', from: '' };
+}
+
 async function autoLoginFromUrl() {
-  const p = new URLSearchParams(location.search);
-  const email = (p.get('uid') || p.get('email') || '').trim();
-  if (!email || !email.includes('@')) return;
+  var got = readIncomingEmail();
+  var email = (got.email || '').trim();
+  // 흔적은 무조건 지운다(성공/실패 무관) — 주소창·히스토리에 계정이 남지 않도록
+  function scrub() {
+    var p = new URLSearchParams(location.search);
+    p.delete('uid'); p.delete('email');
+    var q = p.toString();
+    history.replaceState(null, '', location.pathname + (q ? '?' + q : ''));
+  }
+  if (!email || !email.includes('@')) { if (got.from) scrub(); return; }
   try {
     await setPersistence(auth, browserLocalPersistence);
     if (!auth.currentUser || auth.currentUser.email !== email) {
@@ -38,10 +68,7 @@ async function autoLoginFromUrl() {
   } catch (e) {
     console.warn('자동 로그인 실패:', e.code || e);
   } finally {
-    // 주소창에서 uid 제거(이메일 노출 방지)
-    p.delete('uid'); p.delete('email');
-    const q = p.toString();
-    history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+    scrub();
   }
 }
 

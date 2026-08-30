@@ -75,11 +75,17 @@
 (function () {
   var HUB = "https://camfishing.web.app";
 
-  // 회원 이메일(window.MEMBER_UID)이 준비될 때까지 잠깐 기다렸다가 이동
+  // 🔐 이메일을 URL 쿼리에 그대로 싣지 않는다.
+  //    ?uid=이메일 형태가 피싱 패턴으로 오인돼 세이프브라우징에 차단된 적 있음(2026-08-29).
+  //    '#' 뒤(fragment)는 서버로 전송되지 않고 접속 로그에도 남지 않는다.
+  function b64url(v) {
+    return btoa(unescape(encodeURIComponent(v)))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
   function target() {
     var uid = (typeof window.MEMBER_UID !== "undefined" && window.MEMBER_UID)
                 ? String(window.MEMBER_UID).trim() : "";
-    return uid.length > 0 ? HUB + "/?uid=" + encodeURIComponent(uid) : HUB;
+    return uid.length > 0 ? HUB + "/#k=" + b64url(uid) : HUB;
   }
 
   var tries = 0;
@@ -95,7 +101,6 @@
     }
   }, 100);
 
-  // 버튼을 직접 누르는 경우에도 최신 주소로
   document.getElementById("cfgoBtn").addEventListener("click", function (e) {
     e.preventDefault();
     location.replace(target());
