@@ -865,7 +865,13 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
         if (t > bt) rod = item;
       }
     }
-    else if (name.contains('선글라스')) sunglasses ??= item;
+    // 🕶️ 선글라스도 등급 비교(레인보우 편광 20/20/20 > 일반 10/10/10).
+    //    ⚠️ 예전엔 `??=`라 인벤토리에서 먼저 나온 것이 잡혀, 상급을 갖고도 하급이 적용됐음(2026-08-30 수정).
+    else if (name.contains('선글라스')) {
+      final p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
+      final bp = (sunglasses?['stats']?['P'] as num?)?.toInt() ?? -1;
+      if (sunglasses == null || p > bp) sunglasses = item;
+    }
     else if (name.contains('휘장') || name.contains('뱃지')) {
       final p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
       final bp = (badge?['stats']?['P'] as num?)?.toInt() ?? -1;
