@@ -4076,7 +4076,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (!hasGuild)
                 line('길드홀', 0.203, 0.115, 0.112)    // 미가입자: 가운데 한 줄
               else if (_guildName.characters.length <= 6) ...[
-                line('길드홀', 0.188, 0.048, 0.048, tight: true), // 윗줄 — 여백 없이 꽉 채워 키움
+                // 윗줄 — 나무판 안쪽 크림색 영역이 0.197부터 시작한다. 그보다 위로 올리면 테두리를 넘는다.
+                line('길드홀', 0.199, 0.043, 0.043, tight: true),
                 line(_guildName, 0.236, 0.090, 0.094),            // 아랫줄(위치·크기 유지)
               ] else ...[
                 // 🪧 안전망 — 지금은 길드명이 6자로 제한돼 여기 올 일이 거의 없다.
