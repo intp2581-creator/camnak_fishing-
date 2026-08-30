@@ -3044,7 +3044,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             // 🏞️ 민물광장 시설 포털
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.405, _plazaPortal(worldW, worldH, sizeRef, 0.290, 0.405, 'house_guild_fw.png', 0.51))); // 🏛️ 길드 아지트(아쿠아 헌터스) 건물
+                            sprites.add(MapEntry(0.405, _guildHousePortal(worldW, worldH, sizeRef, 0.290, 0.405, 0.51))); // 🏛️ 길드홀 건물(간판=길드명)
                             sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.390, _plazaPortal(worldW, worldH, sizeRef, 0.760, 0.390, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
@@ -3060,7 +3060,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
                             sprites.add(MapEntry(0.910, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.910, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.500, _plazaPortal(worldW, worldH, sizeRef, 0.140, 0.500, 'house_guild_fw.png', 0.48))); // 🏛️ 길드 아지트 건물(바다)
+                            sprites.add(MapEntry(0.500, _guildHousePortal(worldW, worldH, sizeRef, 0.140, 0.500, 0.48))); // 🏛️ 길드홀 건물(바다)
                             sprites.add(MapEntry(0.330, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.330, 'portal_fishing_fw.png', 0.40)));
                             sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
                             sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
@@ -4006,6 +4006,66 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🏞️ 시설 포털(배경 위 장식) — 바닥 중앙을 (cx,cy) 발높이에 맞춰 세움. 캐릭터/NPC보다 뒤에 그려짐.
+  // 🏛️ 길드홀 건물 — 간판 글자를 코드로 얹는다.
+  //    그림(house_guild_fw.png)의 간판은 '비워둔' 상태여야 한다. 예전엔 "길드 아지트 / 아쿠아 헌터스"가
+  //    그림에 박혀 있어서, 어느 길드원이 봐도 남의 길드 이름이 걸려 있었다(2026-08-30 개선).
+  //    · 길드원   → 윗줄 작게 "길드홀" / 아랫줄 크게 우리 길드 이름
+  //    · 미가입자 → 가운데 한 줄로 "길드홀"
+  //    간판 안쪽 좌표는 원본 1687x1195에서 실측한 비율.
+  Widget _guildHousePortal(double worldW, double worldH, double sizeRef,
+      double cx, double cy, double hFrac) {
+    final double h = sizeRef * hFrac;
+    const double kAspect = 1687 / 1195;      // 건물 그림 가로세로비
+    final double w = h * kAspect;
+    final bool hasGuild = _guildName.isNotEmpty;
+
+    // 간판 글씨 공통 스타일(원래 그려져 있던 남색 계열 + 옅은 흰 그림자로 나무판에서 뜨게)
+    TextStyle signStyle(double size) => TextStyle(
+          color: const Color(0xFF15486E),
+          fontSize: size,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          shadows: const [Shadow(color: Color(0x55FFFFFF), offset: Offset(0, 1.2), blurRadius: 1.5)],
+        );
+
+    // 간판 영역 안에 한 줄 앉히기 — 긴 길드명은 scaleDown이 알아서 줄인다.
+    Widget line(String text, double top, double height, double fontSize) => Positioned(
+          left: w * 0.440, top: h * top, width: w * 0.260, height: h * height,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(text, maxLines: 1, style: signStyle(h * fontSize)),
+            ),
+          ),
+        );
+
+    return Positioned(
+      left: cx * worldW,
+      top: cy * worldH,
+      child: IgnorePointer(
+        child: FractionalTranslation(
+          translation: const Offset(-0.5, -1.0), // 바닥 중앙 앵커(다른 포털과 동일)
+          child: SizedBox(
+            width: w,
+            height: h,
+            child: Stack(children: [
+              Positioned.fill(
+                child: Image.asset('assets/plaza/house_guild_fw.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (a, b, c) => const SizedBox.shrink()),
+              ),
+              if (hasGuild) ...[
+                line('길드홀', 0.202, 0.040, 0.036),   // 윗줄 작게
+                line(_guildName, 0.245, 0.075, 0.072), // 아랫줄 크게
+              ] else
+                line('길드홀', 0.215, 0.095, 0.090),   // 미가입자: 가운데 한 줄
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac, {bool flip = false}) {
     return Positioned(
       left: cx * worldW,
