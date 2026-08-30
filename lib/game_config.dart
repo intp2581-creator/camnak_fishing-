@@ -610,18 +610,23 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
 // 🐲 건틀릿: 매주 1존부터, 보스당 10분. 클리어하면 다음 보스 자동(새 10분). 실패=길드홀 강퇴·종료. 주 1회.
 //    hp는 존별로 상승(난이도). minutes는 전부 10(건틀릿).
 // 🐲 power = 안내용 '필요 합산 제압력(/초)' · hp = 실제 목표 제압치.
-//   ⚠️ 발악·저항 때문에 실효율이 약 50%(실측: 제압력 3400으로 10분에 74%).
+//   ⚠️ 실측 제압 효율 약 75%(2026-08-30 붕애다: 합산 2,648로 950,000을 8분에 처리).
+//      → 10분 커트라인 = hp ÷ 450. 'power' 표기는 이 커트라인과 같게 둔다(안내와 실제를 일치).
+//   🎯 [2026-08-30 재설계] 존마다 '인접한 두 등급 10명씩 20명'이 10분에 간신히 잡는 난이도.
+//      1존=맛보기(신규 길드 서비스) · 2존=하수10+중수10 · 3존=중수10+고수10
+//      4존=고수10+프로10 · 5존=프로10+마스터10. (다음: 마스터+레전드 22M · 레전드+신 29M)
+//      1인 제압력 기준: 하수480 · 중수720 · 고수1095 · 프로1485 · 마스터2010 (길드버프 별도 +90)
 //      → hp = power × 600초 × 0.5 (= power × 300). 표기 power = 실제 필요 합산 제압력.
 //   water: [멀리, 중간, 가까이] 수면선(화면 높이 비율) — 배경마다 물 높이가 달라 존별로 지정.
 //   📊 난이도는 '오늘 기준'이 아니라 성장 목표로 설계 — 오픈 초반엔 1존도 벅차고,
 //      길드원이 렙업·장비·레이드대 티어업(20→60)으로 제압력을 올리면서 한 존씩 뚫는다.
 //      (실유저 평균 제압력 250 기준: 1존 16명 · 2존 32명 — 성장하면 같은 인원으로 도달)
 const List<Map<String, dynamic>> raidBosses = [
-  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3000,  'hp': 950000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
-  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 6000,  'hp': 2400000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
-  {'id': 'basragon', 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 18000, 'hp': 8000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
-  {'id': 'kargon',   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 30000, 'hp': 13000000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
-  {'id': 'volkar',   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 50000, 'hp': 18000000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
+  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3300,  'hp': 1500000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
+  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 13800,  'hp': 6200000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
+  {'id': 'basragon', 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 20000, 'hp': 9000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
+  {'id': 'kargon',   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 27600, 'hp': 12400000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
+  {'id': 'volkar',   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 36700, 'hp': 16500000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
 ];
 
 // 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 전원 지급 (사용자 확정 2026-08-15 상향)

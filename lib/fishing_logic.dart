@@ -818,7 +818,22 @@ for (var fish in availableFishes) {
 // statBonus = 길드레벨 + 길드리그랭킹 + 개인랭킹(가람) 보너스의 합(스탯 1개당). 일반 낚시와 동일하게 3스탯 각각에 더해진다.
 Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool isSea = false, int statBonus = 0}) {
   final inv = (userData['inventory'] as List?) ?? [];
-  final int level = (userData['level'] is num) ? (userData['level'] as num).toInt() : 1;
+  // 🆕 users.level은 가입 시 1로 박힌 뒤 갱신되지 않는다(2026-08-30 발견).
+  //    화면의 레벨·등급은 전부 exp에서 계산하므로 여기도 exp 기준으로 맞춘다.
+  //    ⚠️ 1로 굳어 있으면 레벨 보너스가 0이 되고, reqLevel 있는 휘장·스킨이 통째로 무효화됐다.
+  final int level = calcLevelFromExp((userData['exp'] is num) ? (userData['exp'] as num).toInt() : 0);
+  final String myRankStr = (userData['rank'] ?? '초보').toString();
+
+  // 🎖️ 착용조건(레벨·승급) 미달 캐시템은 능력치가 안 붙는다(getMyTotalStats.statEligible).
+  //    그러니 선택 단계에서도 걸러야 '내 장비' 패널과 실제 제압력이 어긋나지 않는다.
+  //    (예전엔 조건 미달인 중수 스킨·휘장이 패널에 뜨는데 제압력 기여는 0이었음 — 2026-08-30 수정)
+  bool cashEligible(Map<String, dynamic> it) {
+    final int rl = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
+    if (rl > 0 && level < rl) return false;
+    final String rr = cashReqRank((it['name'] ?? '').toString());
+    if (rr.isNotEmpty && rankIndex(myRankStr) < rankIndex(rr)) return false;
+    return true;
+  }
 
   int rodTierFw(String n) { n = n.replaceAll(' ', '').replaceAll('-', '').toUpperCase();
     if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40;
@@ -849,6 +864,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     if (!isSea && cat == 'SEA') continue;
 
     if (isSkinItem(item)) {
+      if (!cashEligible(item)) continue; // 🎖️ 조건 미달 스킨은 아예 후보에서 제외(표시·계산 일치)
       if (skin == null || skinTierByName(name) > skinTierByName((skin['name'] ?? '').toString())) skin = item;
     } else if (name.contains('찌')) {
       if (float == null || floatTier(name) > floatTier((float['name'] ?? '').toString())) float = item;
@@ -873,6 +889,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
       if (sunglasses == null || p > bp) sunglasses = item;
     }
     else if (name.contains('휘장') || name.contains('뱃지')) {
+      if (!cashEligible(item)) continue; // 🎖️ 조건 미달 휘장·뱃지 제외
       final p = (item['stats']?['P'] as num?)?.toInt() ?? 0;
       final bp = (badge?['stats']?['P'] as num?)?.toInt() ?? -1;
       if (badge == null || p > bp) badge = item;
@@ -889,7 +906,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     equippedSunglasses: sunglasses, equippedBadge: badge, equippedCooler: cooler,
     equippedNet: net, equippedBelt: belt, equippedGloves: gloves, equippedLine: line,
     ownedInventory: null, // 💳 착용기반 — 자동장착이 고른 스킨·뱃지(조건 충족)만
-    myLevel: level, myRank: (userData['rank'] ?? '초보').toString(),
+    myLevel: level, myRank: myRankStr,
   );
   final lvBonus = (level > 0 ? level : 1) * 3; // 🆙 Lv당 +3(각 스탯 +레벨), Lv과 일치(2026-08-24)
   // 🛡️ 길드레벨·길드랭킹·개인랭킹 보너스(statBonus)는 일반 낚시처럼 3스탯 각각에 적용 → power엔 ×3

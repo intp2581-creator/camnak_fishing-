@@ -11,7 +11,7 @@ import 'game_config.dart';    // raidBossById, raidBosses
 import 'fishing_logic.dart'; // resolveRaidGearPower (전투화면과 동일한 제압력 계산)
 
 const Color _kGold = Color(0xFFD4AF37);
-const int kRaidBossHp = 900000; // 1존(무르가돈) 필요 제압치 — 로스터 raidBosses[murgadon].hp와 동일하게 유지
+// 🐲 보스 HP는 game_config.raidBosses[*].hp 하나만 본다(예전 kRaidBossHp 상수는 미사용이라 제거, 2026-08-30).
 const int kRaidSeconds = 600;    // 🐲 보스당 10분(건틀릿 — 클리어하면 다음 보스 새 10분)
 
 class RaidOverlay extends StatefulWidget {
