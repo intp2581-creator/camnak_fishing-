@@ -128,3 +128,95 @@ document.addEventListener('click', (e) => {
 });
 
 autoLoginFromUrl();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   🔔 새 글 N 배지 (2026-08-30)
+      공지·커뮤니티에 '내가 아직 안 본 글'이 있으면 메뉴에 빨간 N을 띄운다.
+      · 해당 페이지를 열면 읽은 것으로 보고 N이 사라진다(기기별 localStorage).
+      · 처음 오신 분은 '최근 하루' 글만 새 글로 취급 — 옛날 글 때문에 N이
+        영영 붙어 있는 걸 막는다.
+      · 예전엔 index.html에 <span class="n">N</span>이 그냥 박혀 있어서
+        새 글이 있든 없든 항상 떠 있었다(=아무 의미 없는 표시).
+      💰 함수 호출을 아끼려고 결과를 5분간 캐시한다(페이지 이동마다 호출 X).
+   ═══════════════════════════════════════════════════════════════════════ */
+(function () {
+  var FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/';
+  var SRC = [
+    { api: FN + 'noticesApi?list=1&limit=10',   key: 'cf_seen_notice',    file: 'notice.html' },
+    { api: FN + 'communityApi?list=1&limit=10', key: 'cf_seen_community', file: 'community.html' }
+  ];
+  var DAY = 86400000;
+  var CACHE_MS = 5 * 60 * 1000;
+
+  function num(k) { try { return parseInt(localStorage.getItem(k) || '0', 10) || 0; } catch (e) { return 0; } }
+  function put(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+
+  var st = document.createElement('style');
+  st.textContent =
+    '.cf-n{display:inline-block;margin-left:3px;color:#ff3b30;font-size:10px;font-weight:900;' +
+    'vertical-align:super;line-height:1;animation:cfNblink 1.5s ease-in-out infinite}' +
+    '@keyframes cfNblink{0%,100%{opacity:1}50%{opacity:.3}}';
+  document.head.appendChild(st);
+
+  function badge(file, on) {
+    // 상단 메뉴 + 스크롤 시 내려오는 컴팩트 메뉴(.navmini) 둘 다. 푸터 링크는 제외.
+    var links = document.querySelectorAll(
+      'nav a[href$="' + file + '"], .navmini a[href$="' + file + '"]');
+    for (var i = 0; i < links.length; i++) {
+      var cur = links[i].querySelector('.cf-n');
+      if (on && !cur) {
+        var s = document.createElement('span');
+        s.className = 'cf-n';
+        s.textContent = 'N';
+        links[i].appendChild(s);
+      } else if (!on && cur) {
+        cur.parentNode.removeChild(cur);
+      }
+    }
+  }
+
+  function newestOf(items) {
+    var m = 0;
+    for (var i = 0; i < (items || []).length; i++) {
+      var t = +items[i].createdAt || 0;
+      if (t > m) m = t;
+    }
+    return m;
+  }
+
+  // 최신 글 시각을 얻는다 — 5분 이내면 캐시 사용(함수 호출 절감)
+  function newest(src) {
+    var ck = 'cf_last_' + src.key;
+    var c = num(ck + '_t');
+    if (c && Date.now() - c < CACHE_MS) return Promise.resolve(num(ck));
+    return fetch(src.api)
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j || !j.ok) return 0;
+        var v = newestOf(j.items);
+        if (v) { put(ck, v); put(ck + '_t', Date.now()); }
+        return v;
+      })
+      .catch(function () { return num(ck); });
+  }
+
+  function run() {
+    var here = (location.pathname || '').split('/').pop() || 'index.html';
+    SRC.forEach(function (src) {
+      // 이 페이지를 보고 있다 = 읽음 처리
+      if (here === src.file) {
+        put(src.key, Date.now());
+        badge(src.file, false);
+        return;
+      }
+      newest(src).then(function (v) {
+        if (!v) return;
+        var seen = num(src.key) || (Date.now() - DAY); // 첫 방문자는 최근 하루치만
+        badge(src.file, v > seen);
+      });
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
