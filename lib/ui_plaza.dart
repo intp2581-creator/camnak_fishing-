@@ -3204,7 +3204,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               _joystick(),
 
               // 🏛️ [GM 전용] 길드 아지트 바로가기 — 캠피싱(isGm)만 보임. (길드홀 안에선 숨김)
-              if (_isGm && !_isGuildHall)
+              //   🙈 hideGmBadge(부캐로 일반 플레이) 계정은 이 버튼도 숨긴다 —
+              //      스크린샷·화면공유에 찍혀 GM인 게 드러나는 걸 막기 위함(2026-08-30).
+              if (_showGmBadge && !_isGuildHall)
                 Positioned(
                   left: 12,
                   top: 132,

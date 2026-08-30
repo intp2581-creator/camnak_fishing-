@@ -1364,7 +1364,9 @@ class _StoreScreenState extends State<StoreScreen> {
       final u = FirebaseAuth.instance.currentUser;
       if (u == null) return;
       final d = await FirebaseFirestore.instance.collection('users').doc(u.uid).get();
-      final gm = d.data()?['isGm'] == true;
+      // 🙈 hideGmBadge(부캐로 일반 플레이) 계정은 GM 특권을 쓰지 않는다.
+      //    → 최상급 판매 보호를 일반 유저와 똑같이 적용(실수 판매 방지, 2026-08-30).
+      final gm = d.data()?['isGm'] == true && d.data()?['hideGmBadge'] != true;
       final pd = Map<String, dynamic>.from(d.data()?['purchaseDates'] ?? {});
       if (mounted) setState(() { _isGm = gm; _purchaseDates = pd; });
     } catch (_) {}
