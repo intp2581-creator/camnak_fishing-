@@ -521,7 +521,7 @@ class _RaidOverlayState extends State<RaidOverlay> {
             ),
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               const Text('🐋 ', style: TextStyle(fontSize: 18)),
-              Text('[${widget.guildName}] 보스 레이드 모임터',
+              Text('[${widget.guildName}] 보스 레이드',
                   style: const TextStyle(color: _kGold, fontSize: 15, fontWeight: FontWeight.w900)),
             ]),
           ),

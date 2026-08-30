@@ -18,7 +18,7 @@ import 'ui_lobby.dart'; // StoreScreen
 import 'ui_arena.dart'; // ArenaScreen
 import 'ui_boss_raid.dart'; // 🐋 길드 보스 레이드(1단계 테스트)
 import 'raid_overlay.dart';
-import 'screenshot.dart'; // 📸 화면 스샷(JPG 저장) // 🐋 아마존 모임터(광장 재활용) 위 레디/시작 오버레이
+import 'screenshot.dart'; // 📸 화면 스샷(JPG 저장) // 🐋 길드홀 레이드 모임(광장 재활용) 위 레디/시작 오버레이
 import 'ui_guild_shop.dart'; // 🏪 길드 전용 아이템 상점
 import 'ui_ranking.dart'; // RankingScreen (명예의 전당)
 import 'ui_tutorial_npc.dart'; // NpcTutorialOverlay (아라 일일퀘스트)
@@ -3150,8 +3150,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             _onGaramTap,
                             scale: 1.0),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.120 : 0.294,
-                            widget.isSea ? 0.540 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드 아지트',
-                            () => _openNpcIntro('npc_guild.png', 'guild', '길드 아지트 입장', _enterGuildHall),
+                            widget.isSea ? 0.540 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드홀',
+                            () => _openNpcIntro('npc_guild.png', 'guild', '길드홀 입장', _enterGuildHall),
                             scale: 0.85),
                         _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.350 : 0.500,
                             widget.isSea ? 0.340 : 0.270, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
@@ -6395,11 +6395,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 모달(길드창 등) 위에서도 잘 보이는 안내 팝업 — 토스트가 모달 뒤로 가려지는 문제 대응
-  // 🐋 [GM 전용] 길드 보스 레이드 테스트 진입 → 아마존 모임터(2a). 캠피싱은 무소속이라 테스트 길드로.
-  // 🏛️ 길드 아지트(길드홀) 입장 — 길드원 공용 허브. 미가입자는 길드 가입부터.
+  // 🐋 [GM 전용] 길드 보스 레이드 테스트 진입 → 길드홀 레이드 모임(2a). 캠피싱은 무소속이라 테스트 길드로.
+  // 🏛️ 길드홀 입장 — 길드원 공용 허브. 미가입자는 길드 가입부터.
   Future<void> _enterGuildHall() async {
     if (_guildId.isEmpty && !_isGm) {
-      _infoPopup('길드 아지트', '아직 소속 길드가 없어요.\n먼저 길드에 가입하거나 길드를 만들어 주세요! 🛡️');
+      _infoPopup('길드홀', '아직 소속 길드가 없어요.\n먼저 길드에 가입하거나 길드를 만들어 주세요! 🛡️');
       _openGuild();
       return;
     }

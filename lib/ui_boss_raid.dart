@@ -739,7 +739,7 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
           style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14)),
           onPressed: () { Navigator.pop(c); Navigator.pop(context); },
-          child: const Text('모임터로', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          child: const Text('길드홀로', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
         ))],
       ),
     );
