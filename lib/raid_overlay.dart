@@ -55,6 +55,11 @@ class _RaidOverlayState extends State<RaidOverlay> {
   bool get _isHost => _hostUid.isNotEmpty && _hostUid == _uid;
   String _bossId = 'murgadon'; // 🐲 이번에 도전할 보스(클리어하면 방 문서에 다음 보스가 기록됨)
 
+  // 💬 레이드 대기중 소통 — 길드 채팅(guilds/{gid}/chat)을 그대로 쓴다.
+  //    새 컬렉션을 만들면 보안규칙(콘솔 관리)을 건드려야 하고, 어차피 참가자는 전원 같은 길드다.
+  final TextEditingController _chatCtrl = TextEditingController();
+  final FocusNode _chatFocus = FocusNode();
+
   @override
   void initState() {
     super.initState();
@@ -113,6 +118,8 @@ class _RaidOverlayState extends State<RaidOverlay> {
 
   @override
   void dispose() {
+    _chatCtrl.dispose();
+    _chatFocus.dispose();
     // 모임터 나가면 참가자 목록에서 빠짐(대기 상태일 때만 — 전투 중이면 유지)
     if (_uid.isNotEmpty) {
       _roomRef.get().then((snap) {
@@ -177,6 +184,227 @@ class _RaidOverlayState extends State<RaidOverlay> {
         _started = false; // 레이드 끝나 대기로 리셋되면 다음 판 재입장 가능
       }
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 👥 [참가자 명단] 누가 레디했는지 한눈에 — 숫자(6/7)만으론 누굴 불러야 할지 모른다.
+  //    길드장은 각 줄의 ✕로 유령 참가자(접속 끊고 목록에 남은 사람)를 뺄 수 있다.
+  // ═══════════════════════════════════════════════════════════════
+  Widget _rosterPanel() {
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _roomRef.collection('participants').snapshots(),
+      builder: (c, ps) {
+        final docs = [...(ps.data?.docs ?? [])];
+        // 레디 안 한 사람을 위로 — 길드장이 바로 연락할 수 있게
+        docs.sort((a, b) {
+          final ar = a.data()['isReady'] == true ? 1 : 0;
+          final br = b.data()['isReady'] == true ? 1 : 0;
+          if (ar != br) return ar - br;
+          return ((b.data()['power'] as num?) ?? 0).compareTo((a.data()['power'] as num?) ?? 0);
+        });
+        final readyCnt = docs.where((d) => d.data()['isReady'] == true).length;
+        final allReady = docs.isNotEmpty && readyCnt == docs.length;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF14110C).withOpacity(0.92),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _kGold.withOpacity(0.55), width: 1.2),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+            Row(children: [
+              const Text('👥 참가자', style: TextStyle(color: _kGold, fontSize: 15, fontWeight: FontWeight.w900)),
+              const Spacer(),
+              Text('레디 $readyCnt/${docs.length}',
+                  style: TextStyle(
+                      color: allReady ? const Color(0xFF7FFFB0) : Colors.orangeAccent,
+                      fontSize: 13, fontWeight: FontWeight.w900)),
+              const SizedBox(width: 4),
+            ]),
+            const SizedBox(height: 6),
+            Divider(color: _kGold.withOpacity(0.2), height: 1),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(top: 4),
+                itemCount: docs.length,
+                itemBuilder: (c2, i) {
+                  final d = docs[i].data();
+                  final ready = d['isReady'] == true;
+                  final nick = (d['nick'] ?? '?').toString();
+                  final pow = ((d['power'] as num?) ?? 0).toInt();
+                  final isMe = docs[i].id == _uid;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3.5),
+                    child: Row(children: [
+                      Text(ready ? '✅' : '⏳', style: const TextStyle(fontSize: 13)),
+                      const SizedBox(width: 6),
+                      if (d['isLeader'] == true) const Text('👑 ', style: TextStyle(fontSize: 11)),
+                      Expanded(
+                        child: Text(nick,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: ready ? rankColor((d['rank'] ?? '').toString()) : Colors.white38,
+                                fontSize: 13,
+                                fontWeight: isMe ? FontWeight.w900 : FontWeight.w700)),
+                      ),
+                      if (pow > 0)
+                        Text('$pow',
+                            style: TextStyle(
+                                color: ready ? const Color(0xFF7FFFB0) : Colors.white24,
+                                fontSize: 12, fontWeight: FontWeight.w900)),
+                      if (_isHost && !isMe)
+                        InkWell(
+                          onTap: () => _kick(docs[i].id, nick),
+                          child: const Padding(
+                            padding: EdgeInsets.only(left: 6, right: 2),
+                            child: Icon(Icons.close, color: Colors.white24, size: 15),
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 6),
+                    ]),
+                  );
+                },
+              ),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+
+  // 👑 길드장이 참가자를 목록에서 뺀다 — 접속이 끊겼는데 남아 있어 '전원 레디'가 안 될 때.
+  Future<void> _kick(String uid, String nick) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
+        title: const Text('참가자 빼기', style: TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+        content: Text('$nick 님을 이번 레이드 참가자에서 뺄까요?\n\n접속이 끊겼는데 목록에 남아 있으면\n전원 레디가 안 돼 시작할 수 없어요.',
+            style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false),
+              child: const Text('취소', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () => Navigator.pop(c, true),
+            child: const Text('빼기', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _roomRef.collection('participants').doc(uid).delete();
+      _snack('$nick 님을 참가자에서 뺐어요.');
+    } catch (e) {
+      _snack('빼기에 실패했어요. 잠시 후 다시 시도해 주세요.');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 💬 [레이드 채팅] 레디해두고 기다리는 동안 대화가 안 됐다(셋팅창을 닫아야만 채팅 가능).
+  //    길드 채팅(guilds/{gid}/chat)을 그대로 띄워 창을 닫지 않고 소통하게 한다.
+  //    ⚠️ 새 컬렉션을 만들면 콘솔에서 관리하는 보안규칙을 건드려야 한다 — 기존 것 재사용이 안전.
+  // ═══════════════════════════════════════════════════════════════
+  Widget _chatPanel() {
+    final col = FirebaseFirestore.instance
+        .collection('guilds').doc(widget.guildId).collection('chat');
+    return Container(
+      height: 196,
+      decoration: BoxDecoration(
+        color: const Color(0xFF14110C).withOpacity(0.92),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kGold.withOpacity(0.55), width: 1.2),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 9, 10, 9),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('💬 길드 채팅', style: TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 5),
+        Expanded(
+          child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: col.orderBy('timestamp', descending: true).limit(30).snapshots(),
+            builder: (c, snap) {
+              final docs = snap.data?.docs ?? [];
+              if (docs.isEmpty) {
+                return const Center(
+                  child: Text('레이드 전에 인사 한마디! 🎣',
+                      style: TextStyle(color: Colors.white24, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                );
+              }
+              return ListView.builder(
+                reverse: true,
+                itemCount: docs.length,
+                itemBuilder: (c2, i) {
+                  final d = docs[i].data();
+                  final nick = (d['nickname'] ?? '?').toString();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: RichText(
+                      text: TextSpan(style: const TextStyle(fontSize: 12.5, height: 1.35), children: [
+                        TextSpan(text: '$nick ',
+                            style: TextStyle(
+                                color: nick == widget.myNick ? _kGold : const Color(0xFF7FFFB0),
+                                fontWeight: FontWeight.w900)),
+                        TextSpan(text: (d['message'] ?? '').toString(),
+                            style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                      ]),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 5),
+        SizedBox(
+          height: 32,
+          child: TextField(
+            controller: _chatCtrl,
+            focusNode: _chatFocus,
+            maxLength: 60,
+            style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w700),
+            decoration: InputDecoration(
+              counterText: '',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              hintText: '메시지 입력 후 엔터',
+              hintStyle: const TextStyle(color: Colors.white24, fontSize: 12.5),
+              filled: true,
+              fillColor: Colors.black38,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(9),
+                  borderSide: BorderSide(color: _kGold.withOpacity(0.4))),
+              enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(9),
+                  borderSide: BorderSide(color: _kGold.withOpacity(0.3))),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(9),
+                  borderSide: BorderSide(color: _kGold.withOpacity(0.8))),
+            ),
+            onSubmitted: (_) => _sendChat(),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  void _sendChat() {
+    final raw = _chatCtrl.text.trim();
+    if (raw.isEmpty) return;
+    FirebaseFirestore.instance
+        .collection('guilds').doc(widget.guildId).collection('chat')
+        .add({
+      'nickname': widget.myNick,
+      'message': FishingLogic.cleanChat(raw), // 🛡️ 광장 채팅과 동일한 비속어 필터
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+    _chatCtrl.clear();
+    _chatFocus.requestFocus(); // 연달아 쓰기 편하게 포커스 유지
   }
 
   // 🟢 레디 토글(길드원)
@@ -311,6 +539,17 @@ class _RaidOverlayState extends State<RaidOverlay> {
               child: const Icon(Icons.close, color: Colors.white70, size: 22),
             ),
           ),
+        ]),
+      ),
+
+      // 👥💬 [왼쪽 열] 참가자 명단 + 길드 채팅 — 셋팅창을 닫지 않고도 누가 안 왔는지 보고 대화한다.
+      //     (예전엔 레디 숫자만 보여서 누굴 불러야 할지 몰랐고, 채팅하려면 창을 닫아야 했다 — 2026-08-30)
+      Positioned(
+        left: 16, top: 92, bottom: 14, width: 268,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Flexible(child: _rosterPanel()),
+          const SizedBox(height: 10),
+          _chatPanel(),
         ]),
       ),
 
