@@ -3445,7 +3445,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               // 🌧️ 실시간 날씨 오버레이(비/눈) + 지역·날씨 뱃지
               //   🏠 길드홀은 실내라 날씨 렌더 스킵(지붕 통과해서 비 내리면 이상함)
               if (!_isGuildHall) const Positioned.fill(
-                child: IgnorePointer(child: WeatherOverlay()),
+                child: IgnorePointer(child: WeatherOverlay(cloudy: false)), // ☁️ 광장은 낮 배경 — 빗줄기만
               ),
               if (!_isGuildHall) const Positioned(
                 top: 8, left: 0, right: 0,
