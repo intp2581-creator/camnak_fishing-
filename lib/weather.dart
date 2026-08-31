@@ -309,7 +309,7 @@ class _WeatherOverlayState extends State<WeatherOverlay>
     if (_w.isClear) return const SizedBox.shrink();
     final double darken = _w.isSnow ? 0.05 : 0.07;
     return CustomPaint(
-      painter: _WeatherPainter(_drops, _time, darken),
+      painter: _WeatherPainter(_drops, _time, darken, _w.isSnow),
       size: Size.infinite,
     );
   }
@@ -332,7 +332,8 @@ class _WeatherPainter extends CustomPainter {
   final List<_Drop> drops;
   final double time; // 경과 초
   final double darken;
-  _WeatherPainter(this.drops, this.time, this.darken);
+  final bool snow;   // ☁️ 구름 색·농도를 눈/비에 맞게 조절
+  _WeatherPainter(this.drops, this.time, this.darken, this.snow);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -340,6 +341,27 @@ class _WeatherPainter extends CustomPainter {
     canvas.drawRect(
       Offset.zero & size,
       Paint()..color = Colors.black.withOpacity(darken),
+    );
+    // ☁️ [2026-08-31] 하늘을 구름으로 덮는다.
+    //    낚시터 배경이 전부 '맑은 밤하늘'로 그려져 있어서, 비가 와도 별·은하수·달이
+    //    그대로 보였다("비 오는데 별이 총총하다"는 유저 제보).
+    //    낚시터마다 비 버전 배경을 따로 그리면 이미지가 20장 늘어 용량 제한(100MB)에 걸리므로,
+    //    상단에 먹구름 그라데이션을 얹어 가리는 방식으로 처리한다.
+    final double skyH = size.height * 0.62;      // 수평선 위쪽(하늘)만 덮는다
+    final Color cloud = snow ? const Color(0xFF2A3340) : const Color(0xFF19222E);
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, skyH),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            cloud.withOpacity(snow ? 0.80 : 0.88),  // 꼭대기 = 가장 두꺼운 구름
+            cloud.withOpacity(snow ? 0.42 : 0.48),
+            cloud.withOpacity(0.0),                 // 수평선 근처에서 사라짐
+          ],
+          stops: const [0.0, 0.45, 1.0],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, skyH)),
     );
     final flakePaint = Paint()
       ..color = Colors.white.withOpacity(0.9)
