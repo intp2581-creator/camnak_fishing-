@@ -338,7 +338,11 @@
            '<p class="hint" style="margin:6px 0 10px">환불이라면 <b>회수를 먼저</b> 하고 결제를 취소하세요. '+
            '회수 내역은 되돌릴 수 있도록 기록에 남습니다.</p>'+
            '<button class="btn g" id="gInv">인벤토리 조회</button>'+
-           '<div id="gInvOut" style="margin-top:12px"></div></div>';
+           '<div id="gInvOut" style="margin-top:12px"></div>'+
+           '<hr style="border:none;border-top:1px solid #f0dcdc;margin:16px 0 12px">'+
+           '<button class="btn g" id="gDel" style="color:#b03a3a;border-color:#e3b7b7">이 문의 삭제</button>'+
+           '<span class="hint" style="margin-left:10px">배송이 끝난 문의는 지워서 주소를 남기지 않는 편이 안전합니다.</span>'+
+           '</div>';
     }
     h += '<button class="btn g" onclick="go(\'mine\')">목록으로</button>';
     $('dBox').innerHTML = h;
@@ -353,6 +357,17 @@
     if ($('rClose')) $('rClose').onclick = async () => {
       if (!confirm('처리 완료로 변경할까요?')) return;
       await api('', {action:'close', id}); openTicket(id);
+    };
+
+    if ($('gDel')) $('gDel').onclick = async () => {
+      if (!confirm('이 문의를 삭제합니다.' + NL + NL +
+                   '「' + t.title + '」 · ' + t.nick + NL + NL +
+                   '답변까지 함께 지워지며 되돌릴 수 없습니다. 진행할까요?')) return;
+      $('gDel').disabled = true;
+      const r = await api('', {action:'gmDelete', id});
+      if (!r.ok) { alert(r.err); $('gDel').disabled = false; return; }
+      alert('삭제했습니다.');
+      go('mine');
     };
 
     if ($('gInv')) $('gInv').onclick = async () => {

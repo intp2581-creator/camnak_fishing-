@@ -8,6 +8,7 @@
 // POST {action:"close", id}     처리 완료 (GM만)
 // POST {action:"gmInv", id}     문의자 인벤토리 조회 (GM만)
 // POST {action:"gmRevoke", ...} 아이템 회수 — 환불 처리용 (GM만, 로그 필수)
+// POST {action:"gmDelete", id}  문의 삭제 (GM만, 답변까지 함께 삭제)
 
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
@@ -193,6 +194,26 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       return res.json({ok: true, itemName, count, before, after});
+    }
+
+    // ── [운영자] 문의 삭제 ──────────────────────
+    //   테스트 글 정리용이자, 배송이 끝난 뒤 주소가 담긴 문의를 지우는 용도.
+    //   되돌릴 수 없으므로 GM만, 답변까지 함께 지운다.
+    if (action === "gmDelete") {
+      if (!u.isGm) return res.status(403).json({ok: false, err: "운영자만 가능합니다"});
+      const id = String(b.id || "");
+      const ref = col.doc(id);
+      const doc = await ref.get();
+      if (!doc.exists) return res.status(404).json({ok: false, err: "문의를 찾을 수 없습니다"});
+      const v = doc.data();
+      const rs = await ref.collection("replies").get();
+      const batch = db.batch();
+      rs.forEach((d) => batch.delete(d.ref));
+      batch.delete(ref);
+      await batch.commit();
+      console.log("[문의 삭제] " + id + " / " + (v.nick || "") + " / " + (v.title || "") +
+                  " (by " + u.nick + ")");
+      return res.json({ok: true});
     }
 
     // ── 처리 완료(운영자) ───────────────────────
