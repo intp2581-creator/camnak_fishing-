@@ -14,6 +14,11 @@ const admin = require("firebase-admin");
 const PORTONE_API = "https://api.portone.io";
 const STORE_ID = "store-e9532395-b849-4a65-9ef8-957c94000051";
 
+// 🚧 [안전장치] 현재 포트원 '테스트 채널'이라 결제해도 돈이 안 나간다.
+//    이 상태로 일반 유저에게 열면 공짜로 아이템을 가져갈 수 있으므로 GM만 허용한다.
+//    ⚠️ 실연동 PG 심사가 끝나고 실채널로 바꾼 뒤에만 false로 내릴 것. (2026-09-01)
+const TEST_MODE_GM_ONLY = true;
+
 // 📦 판매 상품 — 가격의 '유일한 근거'. 홈페이지·게임 표시가 달라도 이 값이 기준이다.
 //   limitType: ONCE=계정당 1개 · STACK=수량 누적
 const PRODUCTS = {
@@ -43,6 +48,15 @@ async function requireUser(req) {
   return {uid: decoded.uid, email: (decoded.email || "").toLowerCase()};
 }
 
+// 🚧 테스트 채널 동안은 GM 계정만 결제 가능
+async function requirePayable(user) {
+  if (!TEST_MODE_GM_ONLY) return;
+  const d = await admin.firestore().collection("users").doc(user.uid).get();
+  if (!d.exists || d.data().isGm !== true) {
+    throw new Error("결제 준비 중입니다. 잠시 후 다시 이용해 주세요.");
+  }
+}
+
 function portoneHeaders() {
   const secret = process.env.PORTONE_API_SECRET;
   if (!secret) throw new Error("PORTONE_API_SECRET 미설정");
@@ -58,6 +72,7 @@ exports.payPrepare = onRequest({region: "us-central1", cors: true}, async (req, 
   if (req.method === "OPTIONS") return res.status(204).send("");
   try {
     const user = await requireUser(req);
+    await requirePayable(user);            // 🚧 테스트 채널 동안 GM만
     const itemKey = String((req.body || {}).itemKey || "");
     const qty = Math.max(1, Math.min(10, parseInt((req.body || {}).qty || "1", 10)));
     const p = PRODUCTS[itemKey];
@@ -100,6 +115,7 @@ exports.payVerify = onRequest({region: "us-central1", cors: true}, async (req, r
   const db = admin.firestore();
   try {
     const user = await requireUser(req);
+    await requirePayable(user);            // 🚧 테스트 채널 동안 GM만
     const orderId = String((req.body || {}).orderId || "");
     if (!orderId) return res.status(400).json({ok: false, err: "주문번호 없음"});
 
