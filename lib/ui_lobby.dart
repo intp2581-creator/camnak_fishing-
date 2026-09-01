@@ -1031,7 +1031,7 @@ filteredItems.sort((a, b) {
                             .replaceAll('😊', '')
                             .replaceAll('✨', '')
                             .replaceAll('☀', '')
-                            .replaceAll('P', '포인트');
+                            .replaceAll('P', 'KREFT');
 
                         try {
                           // 🚨 웹 전용 순정 마이크 소환!
@@ -1163,7 +1163,7 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
               ),
               // 🚨 사장님이 실수로 날려버리신 낚시터 리스트 복구!!
               Expanded(child: ListView.builder(padding: const EdgeInsets.all(16), itemCount: currentList.length, itemBuilder: (context, index) { return _locationCard(currentList[index]); })),
-              Container(padding: const EdgeInsets.all(12), color: Colors.black, child: const Text('✨ 다음 업데이트 예정: 포인트 선택 기능 !', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold))),
+              Container(padding: const EdgeInsets.all(12), color: Colors.black, child: const Text('✨ 다음 업데이트 예정: KREFT 선택 기능 !', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold))),
             ],
           ),
         ),
@@ -1565,7 +1565,7 @@ class _StoreScreenState extends State<StoreScreen> {
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('🛒 KREFT OFFICIAL STORE', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)), backgroundColor: Colors.black, iconTheme: const IconThemeData(color: Colors.white),
-        actions: [Center(child: Padding(padding: const EdgeInsets.only(right: 20), child: Text('내 포인트: $myDisplayGold P', style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold, fontSize: 16))))],
+        actions: [Center(child: Padding(padding: const EdgeInsets.only(right: 20), child: Text('내 KREFT: $myDisplayGold K', style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold, fontSize: 16))))],
       ),
       body: Column(
         children: [
@@ -1656,7 +1656,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   ),
                 ],
               ])
-            : const Text('💡 필요 없는 장비를 팔아 포인트로! (판매가 = 정가의 30%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
+            : const Text('💡 필요 없는 장비를 팔아 KREFT로! (판매가 = 정가의 30%)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold)),
       ),
       Expanded(
         child: list.isEmpty
@@ -2094,7 +2094,7 @@ class _StoreScreenState extends State<StoreScreen> {
 
     // 🛑 포인트 부족 시 럭셔리 팝업!
     if (item['price'] > 0 && myDisplayGold < item['price']) {
-      _showNotificationPopup('🚫 구매 불가', '포인트가 부족합니다!\n열심히 고기를 잡으세요!', Colors.redAccent);
+      _showNotificationPopup('🚫 구매 불가', 'KREFT가 부족합니다!\n열심히 고기를 잡으세요!', Colors.redAccent);
       return;
     }
 

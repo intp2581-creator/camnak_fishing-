@@ -307,7 +307,7 @@ Future<void> loadGameEvent() async {
 const List<String> dailyFwFish = ['붕어', '떡붕어', '블루길', '살치', '베스', '강준치', '잉어', '메기', '가물치'];
 const List<String> dailySeaFish = ['고등어', '우럭', '갈치', '참돔', '광어', '감성돔', '갑오징어', '주꾸미', '문어', '벵에돔'];
 const int dailyMissionCount = 3;   // 각 미션 목표 마릿수
-const int dailyMissionPrize = 500; // 각 미션 보상 포인트
+const int dailyMissionPrize = 500; // 각 미션 보상 KREFT
 
 // ⚔️ 아레나 = '경험치 던전': 잡은 물고기 exp·포인트를 일반 낚시터의 이 배율로 지급(마스터 장비 10분 파밍).
 //    (오픈 후 레벨업 속도 보고 조정 가능. maxCatch 개인기록엔 반영 안 함=평준화 장비라 기록 오염 방지)
@@ -333,7 +333,7 @@ Map<String, dynamic> getTodaySeaMission() {
 const List<String> bobaeFishPool = [...dailyFwFish, ...dailySeaFish];
 const int bobaeCount = 3;          // 목표 마릿수
 const int bobaeExp = 200;          // 완료 보상 경험치
-const int bobaePtsPerFish = 200;   // 마리당 포인트
+const int bobaePtsPerFish = 200;   // 마리당 KREFT
 
 // 오늘의 보배 지정 어종 (민물+바다 통합, 다른 시드)
 Map<String, dynamic> getTodayBobaeFish() {

@@ -160,7 +160,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
         String status = snapshot.data()?['status'] ?? 'waiting';
         _status = status;
         if (status == 'playing' && !_hasTransitioned) {
-          if (!_charged) { _charged = true; _chargeArenaEntry(); } // 🪙 시작 시 각자 차감(시간·포인트·입장횟수)
+          if (!_charged) { _charged = true; _chargeArenaEntry(); } // 🪙 시작 시 각자 차감(시간·KREFT·입장횟수)
           final pe = (snapshot.data()?['playEndAt'] is num) ? (snapshot.data()!['playEndAt'] as num).toInt() : 0;
           _goToFishing(pe);
         }

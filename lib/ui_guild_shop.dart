@@ -59,7 +59,7 @@ class _GuildShopScreenState extends State<GuildShopScreen> {
     // 🆙 레벨 제한 — 라이트닝 Lv.50 · 인페르노 Lv.100 (레벨 미달 시 구매 불가)
     final int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
     if (_level < reqLv) { _popup('🔒 레벨 부족', 'Lv.$reqLv 부터 구매할 수 있어요!\n(현재 Lv.$_level)\n레벨을 더 올려서 도전하세요 🎣', Colors.orangeAccent); return; }
-    if (_gold < price) { _popup('🚫 포인트 부족', '포인트가 부족해요!\n열심히 고기를 잡아 모아보세요.', Colors.redAccent); return; }
+    if (_gold < price) { _popup('🚫 KREFT 부족', 'KREFT가 부족해요!\n열심히 고기를 잡아 모아보세요.', Colors.redAccent); return; }
 
     setState(() => _buying = true);
     try {
@@ -67,7 +67,7 @@ class _GuildShopScreenState extends State<GuildShopScreen> {
       final snap = await ref.get();
       final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
       final int curGold = (snap.data()?['gold'] is num) ? (snap.data()!['gold'] as num).toInt() : 0;
-      if (curGold < price) { setState(() => _buying = false); _popup('🚫 포인트 부족', '포인트가 부족해요!', Colors.redAccent); return; }
+      if (curGold < price) { setState(() => _buying = false); _popup('🚫 KREFT 부족', 'KREFT가 부족해요!', Colors.redAccent); return; }
       if (inv.any((i) => (i['name'] ?? '') == item['name'])) {
         setState(() { _buying = false; _inventory = inv; }); _popup('🛑 구매 불가', '이미 보유 중이에요!', Colors.orangeAccent); return;
       }
@@ -106,7 +106,7 @@ class _GuildShopScreenState extends State<GuildShopScreen> {
             icon: const Icon(Icons.arrow_back, color: Colors.white70),
             onPressed: () => Navigator.pop(context),
           )),
-          Positioned(top: 16, right: 20, child: Text('내 포인트: $_gold P',
+          Positioned(top: 16, right: 20, child: Text('내 KREFT: $_gold K',
               style: const TextStyle(color: Colors.yellowAccent, fontWeight: FontWeight.bold, fontSize: 16))),
           Center(
             child: ConstrainedBox(

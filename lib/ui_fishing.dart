@@ -2336,7 +2336,7 @@ Widget _whisperUnreadBadge() {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.4)),
       title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  ($qty개)', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
       content: Text(mystery
-          ? '경험치 · 포인트 · 미끼가 들어있어요.\n몇 개 열어볼까요?'
+          ? '경험치 · KREFT · 미끼가 들어있어요.\n몇 개 열어볼까요?'
           : '미끼 · 밑밥 · 낚시줄 · 찌 · 릴 · 낚싯대\n· 이용권이 들어있어요!\n몇 개 열어볼까요?',
           style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
       actions: [
@@ -2384,7 +2384,7 @@ Widget _whisperUnreadBadge() {
     final bool mystery = boxName == '수상한 상자';
     final lines = <Widget>[];
     if (exp > 0) lines.add(_boxResultLine('🎣 경험치', '+$exp'));
-    if (gold > 0) lines.add(_boxResultLine('💰 포인트', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
+    if (gold > 0) lines.add(_boxResultLine('💰 KREFT', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
     items.forEach((k, v) => lines.add(_boxResultLine('🎁 $k', '×$v')));
     showDialog(context: context, builder: (dctx) => AlertDialog(
       backgroundColor: const Color(0xFF1A1A1A),
@@ -2905,7 +2905,14 @@ Positioned(
                           const SizedBox(height: 4),
                           Text('$realExp / $nextLevelExp EXP', style: const TextStyle(color: Colors.white, fontSize: 14)),
                           const SizedBox(height: 10),
-                          Text('point $realGold', style: const TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                          // 🪙 재화 표시 — 동전 아이콘 + 숫자 (2026-09-01 포인트→KREFT)
+                          Row(mainAxisSize: MainAxisSize.min, children: [
+                            Image.asset('assets/images/coin_kreft.png', width: 17, height: 17,
+                                errorBuilder: (a, b, c) => const Text('K',
+                                    style: TextStyle(color: Colors.cyanAccent, fontSize: 15, fontWeight: FontWeight.bold))),
+                            const SizedBox(width: 5),
+                            Text('$realGold', style: const TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                          ]),
                           // 🛡️ #3 길드 경험치 실시간 진행바 (길드원이 잡으면 바로 차오름)
                           if (_guildId.isNotEmpty)
                             Padding(

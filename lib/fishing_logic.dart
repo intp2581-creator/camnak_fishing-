@@ -284,9 +284,9 @@ class FishingLogic {
       if (k < 45) { // 경험치 45%
         final v = const [100, 200, 300, 400, 500][r.nextInt(5)];
         return {'kind': 'exp', 'amount': v, 'label': '경험치 +$v'};
-      } else if (k < 90) { // 포인트 45%
+      } else if (k < 90) { // KREFT 45%
         final v = const [200, 400, 600, 800, 1000][r.nextInt(5)];
-        return {'kind': 'point', 'amount': v, 'label': '$v 포인트'};
+        return {'kind': 'point', 'amount': v, 'label': '$v KREFT'};
       } else { // 미끼 10%
         final b = pick(_boxBaits);
         return {'kind': 'item', 'item': b, 'gear': false, 'label': '${b['name']} 50개'};

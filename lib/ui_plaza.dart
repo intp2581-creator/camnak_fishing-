@@ -331,12 +331,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'tutCleared': false,
     });
     if (next > _tutQuests.length && mounted) {
-      _infoPopup('🎉 튜토리얼 완료!', '🎁 보상 지급 완료 (경험치 +$_tutExp · 포인트 +$_tutPts)\n\n모든 미션을 마쳤어요!\n이제 자유롭게 즐겨보세요 🎣');
+      _infoPopup('🎉 튜토리얼 완료!', '🎁 보상 지급 완료 (경험치 +$_tutExp · KREFT +$_tutPts)\n\n모든 미션을 마쳤어요!\n이제 자유롭게 즐겨보세요 🎣');
     } else if (mounted) {
       // 🎓 보상 수령 + 다음 목표 NPC 안내 (팝업 하나로 합침)
       final nq = (next >= 1 && next <= _tutQuests.length) ? _tutQuests[next - 1] : null;
       if (nq != null) {
-        _infoPopup('🎁 보상 받기 완료!', '경험치 +$_tutExp · 포인트 +$_tutPts\n\n👉 다음! \'${nq['name']}\' 조사님을 만나보세요!\n(${nq['title']})');
+        _infoPopup('🎁 보상 받기 완료!', '경험치 +$_tutExp · KREFT +$_tutPts\n\n👉 다음! \'${nq['name']}\' 조사님을 만나보세요!\n(${nq['title']})');
       }
     }
   }
@@ -357,7 +357,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     {'npc': 'guild',   'name': '윤슬', 'title': '길드란?',     'desc': '조사님들이 모여 함께 크는 공동체예요!\n길드 화면을 열어보세요.', 'done': '길드를 둘러보셨네요! 👍'},
     {'npc': 'fishing', 'name': '나루', 'title': '첫 출조!',    'desc': '드디어 낚시예요!\n낚시터로 가서 첫 고기를 잡아오세요 🎣', 'done': '첫 고기 축하해요! 🎣'},
     {'npc': 'arena',   'name': '한별', 'title': '아레나 대회', 'desc': '실력을 겨루는 대회장이에요!\n아레나를 둘러보세요.', 'done': '아레나 구경 끝! ⚔️'},
-    {'npc': 'shop',    'name': '서윤', 'title': '장비 장만',   'desc': '그동안 모은 포인트로\n상점에서 아이템을 1개 장만해보세요!', 'done': '아이템을 구매 하셨네요! 🎁'},
+    {'npc': 'shop',    'name': '서윤', 'title': '장비 장만',   'desc': '그동안 모은 KREFT로\n상점에서 아이템을 1개 장만해보세요!', 'done': '아이템을 구매 하셨네요! 🎁'},
   ];
   static const int _tutExp = 200, _tutPts = 400; // 퀘스트당 보상
   bool _gotDailyReward = false; // 오늘 첫 접속 500P 지급됨
@@ -1960,7 +1960,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.2)),
         title: const Text('🚪 게임 종료', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 18)),
         content: const Text(
-            '게임을 종료할까요?\n\n지금까지의 기록(레벨·포인트·조과·인벤토리)은\n자동으로 저장돼 있어요. 다음에 접속하면 그대로예요! 😊',
+            '게임을 종료할까요?\n\n지금까지의 기록(레벨·KREFT·조과·인벤토리)은\n자동으로 저장돼 있어요. 다음에 접속하면 그대로예요! 😊',
             style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false),
@@ -3340,7 +3340,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (_showTutReward && _tutQuestNow != null)
                 Positioned.fill(
                   child: NpcTutorialOverlay(
-                    text: '${_tutQuestNow!['done']}\n\n🎁 보상: 경험치 $_tutExp · 포인트 $_tutPts',
+                    text: '${_tutQuestNow!['done']}\n\n🎁 보상: 경험치 $_tutExp · KREFT $_tutPts',
                     imagePath: 'assets/images/npc_manager_quest.png',
                     onTap: () {},
                     action: ElevatedButton(
@@ -4325,7 +4325,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           const SizedBox(height: 4),
           Row(children: [
             Flexible(
-              child: Text('경험치 $currentExp · 포인트 $_gold',
+              child: Text('경험치 $currentExp · KREFT $_gold',
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: Colors.white54, fontSize: 11)),
             ),
@@ -4375,7 +4375,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
       title: Text('${mystery ? '📦 수상한 상자' : '💎 보물상자'}  ($qty개)', style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.bold)),
       content: Text(mystery
-          ? '경험치 · 포인트 · 미끼가 들어있어요.\n몇 개 열어볼까요?'
+          ? '경험치 · KREFT · 미끼가 들어있어요.\n몇 개 열어볼까요?'
           : '미끼 · 밑밥 · 낚시줄 · 찌 · 릴 · 낚싯대\n· 이용권이 들어있어요!\n몇 개 열어볼까요?',
           style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.5)),
       actions: [
@@ -4424,7 +4424,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         ]));
     final lines = <Widget>[];
     if (exp > 0) lines.add(line('🎣 경험치', '+$exp'));
-    if (gold > 0) lines.add(line('💰 포인트', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
+    if (gold > 0) lines.add(line('💰 KREFT', '+$gold${sellback > 0 ? '  (되팔기 $sellback 포함)' : ''}'));
     items.forEach((k, v) => lines.add(line('🎁 $k', '×$v')));
     showDialog(context: context, builder: (dctx) => AlertDialog(
       backgroundColor: const Color(0xFF1A1A1A),
@@ -5045,7 +5045,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     foregroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 12)),
                 icon: const Icon(Icons.add),
-                label: const Text('길드 만들기 (Lv.5, 10,000 P)',
+                label: const Text('길드 만들기 (Lv.5, 10,000 K)',
                     style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14)),
                 onPressed: () => _createGuildDialog(uid),
               ),
@@ -5985,7 +5985,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 6),
-            const Text('조건: Lv.5 이상 · 생성 비용 10,000 P',
+            const Text('조건: Lv.5 이상 · 생성 비용 10,000 K',
                 style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -6018,7 +6018,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return;
     }
     if (_gold < 10000) {
-      _yunseulSay('길드 생성에는 10,000 P가 필요해요. 💰\n포인트를 좀 더 모아서 와주세요!\n\n(현재 $_gold P)');
+      _yunseulSay('길드 생성에는 10,000 K가 필요해요. 💰\nKREFT를 좀 더 모아서 와주세요!\n\n(현재 $_gold K)');
       return;
     }
     final fs = FirebaseFirestore.instance;
@@ -6683,7 +6683,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       showDialog(
         context: context,
         builder: (c) => NpcTutorialOverlay(
-          text: '🛍️ 오~ $fish $bobaeCount마리 다 잡아오셨네요!\n바로 정산해드릴게요. 👍\n\n💰 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp\n($fish $bobaeCount마리는 제가 가져갈게요)',
+          text: '🛍️ 오~ $fish $bobaeCount마리 다 잡아오셨네요!\n바로 정산해드릴게요. 👍\n\n💰 KREFT +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp\n($fish $bobaeCount마리는 제가 가져갈게요)',
           imagePath: 'assets/images/npc_shop.png',
           onTap: () {},
           action: ElevatedButton(
@@ -6698,7 +6698,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     // 안내 (진행도 + 상점 가기)
     final guide = _bobaeDone
         ? '오늘 의뢰는 이미 정산했어요! 내일 또 부탁해요 😊'
-        : '오늘은 [$fish] $bobaeCount마리를 잡아다 주세요.\n(현재 $cnt/$bobaeCount 마리)\n\n💰 정산하면 포인트 +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp';
+        : '오늘은 [$fish] $bobaeCount마리를 잡아다 주세요.\n(현재 $cnt/$bobaeCount 마리)\n\n💰 정산하면 KREFT +${bobaePtsPerFish * bobaeCount} · 경험치 +$bobaeExp';
     showDialog(
       context: context,
       builder: (c) => NpcTutorialOverlay(
@@ -6757,7 +6757,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         showDialog(
           context: context,
           builder: (c) => NpcTutorialOverlay(
-            text: '🎁 정산 완료!\n\n💰 포인트 +${bobaePtsPerFish * bobaeCount}\n⭐ 경험치 +$bobaeExp\n\n잘 받으셨죠? 내일도 부탁해요, 조사님! 😊',
+            text: '🎁 정산 완료!\n\n💰 KREFT +${bobaePtsPerFish * bobaeCount}\n⭐ 경험치 +$bobaeExp\n\n잘 받으셨죠? 내일도 부탁해요, 조사님! 😊',
             imagePath: 'assets/images/npc_shop.png',
             onTap: () {},
             action: ElevatedButton(
@@ -6855,7 +6855,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             '③ 점수는 주간 → 월간 → 연간으로 계속 누적!\n'
             '꾸준한 조사님이 유리해요 😊\n\n'
             '🎁 월간·연간 상위 랭커에게는\n'
-            '푸짐한 게임 내 보상(포인트·아이템)이 지급돼요!',
+            '푸짐한 게임 내 보상(KREFT·아이템)이 지급돼요!',
         imagePath: 'assets/images/npc_rank.png',
         onTap: () => Navigator.pop(c),
         action: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -6914,9 +6914,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (_hanbyeolClaimed) {
       guide = '오늘 아레나 일일 보상은 받으셨어요!\n대회는 계속 참가할 수 있어요 😊';
     } else if (_arenaCount >= 1) {
-      guide = '오늘 도전(1회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🎁 완주 보상: 승리 경험치+$hanbyeolExpWin·포인트+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·포인트+$hanbyeolPtsLose';
+      guide = '오늘 도전(1회)을 다 쓰셨네요.\n아쉽지만 내일 다시 도전!\n\n🎁 완주 보상: 승리 경험치+$hanbyeolExpWin·KREFT+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·KREFT+$hanbyeolPtsLose';
     } else {
-      guide = '오늘의 아레나 미션!\n대회 10분을 완주하면 참가 보상을 드려요.\n(오늘 도전 $_arenaCount/1)\n\n🏆 승리 경험치+$hanbyeolExpWin·포인트+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·포인트+$hanbyeolPtsLose';
+      guide = '오늘의 아레나 미션!\n대회 10분을 완주하면 참가 보상을 드려요.\n(오늘 도전 $_arenaCount/1)\n\n🏆 승리 경험치+$hanbyeolExpWin·KREFT+$hanbyeolPtsWin\n😅 패배 경험치+$hanbyeolExpLose·KREFT+$hanbyeolPtsLose';
     }
     showDialog(
       context: context,
@@ -6945,7 +6945,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         text: (_hanbyeolResult == 'win'
                 ? '⚔️ 우승 축하해요!! 🏆\n오늘 아레나에서 이기셨네요.\n약속한 보상을 드릴게요!'
                 : '⚔️ 완주 수고하셨어요! 💪\n이번엔 아쉬웠지만, 끝까지 뛴 참가 보상을 드릴게요.')
-            + '\n\n🎁 경험치 +$_hanbyeolExp · 포인트 +$_hanbyeolPts',
+            + '\n\n🎁 경험치 +$_hanbyeolExp · KREFT +$_hanbyeolPts',
         imagePath: 'assets/images/npc_arena.png',
         onTap: () {},
         action: ElevatedButton(
@@ -7001,7 +7001,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               Text('⭐ 경험치   +$_hanbyeolExp',
                   style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              Text('💰 포인트   +$_hanbyeolPts',
+              Text('💰 KREFT   +$_hanbyeolPts',
                   style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
             ]),
             actions: [
@@ -7178,8 +7178,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 style: const TextStyle(color: Colors.white70, fontSize: 10)),
             const SizedBox(height: 3),
             Row(children: [
-              const Text('포인트', style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12)),
-              const SizedBox(width: 6),
+              // 🪙 재화 아이콘 — 좁은 HUD라 글자 대신 동전으로(2026-09-01 포인트→KREFT)
+              Image.asset('assets/images/coin_kreft.png', width: 16, height: 16,
+                  errorBuilder: (a, b, c) => const Text('K',
+                      style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12))),
+              const SizedBox(width: 5),
               Text('$_gold', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
             ]),
           ]),
@@ -7335,9 +7338,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         style: const TextStyle(color: Colors.white70, fontSize: 10)),
                     const SizedBox(height: 3),
                     Row(children: [
-                      const Text('포인트',
-                          style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12)),
-                      const SizedBox(width: 6),
+                      // 🪙 재화 아이콘 — 좁은 HUD라 글자 대신 동전으로(2026-09-01 포인트→KREFT)
+                      Image.asset('assets/images/coin_kreft.png', width: 16, height: 16,
+                          errorBuilder: (a, b, c) => const Text('K',
+                              style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12))),
+                      const SizedBox(width: 5),
                       Text('$_gold',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                     ]),
