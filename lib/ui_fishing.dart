@@ -4592,7 +4592,7 @@ void _showTodayMissionInfo() {
                 children: [
                   const Text('보상이 지급되었습니다 💰', style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
-                  Text('+ ${mission['prize']} P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 30, fontWeight: FontWeight.w900)),
+                  Text('+ ${mission['prize']} K', style: const TextStyle(color: Colors.yellowAccent, fontSize: 30, fontWeight: FontWeight.w900)),
                 ],
               ),
             ),

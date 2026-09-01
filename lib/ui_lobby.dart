@@ -122,7 +122,7 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
          "🏆 오늘의 일일 퀘스트!\n"
          "🐟 ${mission['fish']} ${mission['count']}마리 잡기\n"
          "🎣 어느 낚시터든 OK!\n"
-         "✅ 오늘 안에 완료하면 500P 지급!";
+         "✅ 오늘 안에 완료하면 500K 지급!";
 }
   
   // 💰 매일 첫 접속 500P 지급 & 날짜 체크 로직
@@ -1684,7 +1684,7 @@ class _StoreScreenState extends State<StoreScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey.shade900,
         title: const Text('🐟 선택 물고기 팔기', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
-        content: Text('체크한 $kinds종 · $totalCount마리를 팔고\n$total P를 받습니다.\n(체크 해제한 물고기는 그대로 보관돼요)', style: const TextStyle(color: Colors.white70)),
+        content: Text('체크한 $kinds종 · $totalCount마리를 팔고\n$total K를 받습니다.\n(체크 해제한 물고기는 그대로 보관돼요)', style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
           TextButton(onPressed: () { Navigator.pop(ctx); _sellSelectedFish(names, total); }, child: const Text('판매', style: TextStyle(color: Color(0xFF7FFFB0), fontWeight: FontWeight.bold))),
@@ -1709,7 +1709,7 @@ class _StoreScreenState extends State<StoreScreen> {
         myInventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString()));
         myDisplayGold += total;
       });
-      _showNotificationPopup('🎉 판매 완료', '선택한 물고기를 팔고\n$total P를 받았습니다!', const Color(0xFF7FFFB0));
+      _showNotificationPopup('🎉 판매 완료', '선택한 물고기를 팔고\n$total K를 받았습니다!', const Color(0xFF7FFFB0));
     } catch (e) {
       debugPrint('선택판매 에러: $e');
     }
@@ -1780,7 +1780,7 @@ class _StoreScreenState extends State<StoreScreen> {
             padding: const EdgeInsets.all(14),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Center(child: Text(
-                sellable ? '+$price P' : (isTop ? '🔒 잠금' : (cashLocked ? '🔒 조건 미달' : '판매 불가')),
+                sellable ? '+$price K' : (isTop ? '🔒 잠금' : (cashLocked ? '🔒 조건 미달' : '판매 불가')),
                 style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : ((isTop || cashLocked) ? const Color(0xFFD4AF37) : Colors.white38),
                     fontSize: 18, fontWeight: FontWeight.w900))),
               const SizedBox(height: 8),
@@ -1831,8 +1831,8 @@ class _StoreScreenState extends State<StoreScreen> {
         title: const Text('💰 아이템 판매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
         content: Text(
             bait
-                ? '$name x$qty개를 팔고 $price P를 받습니다.\n판매하시겠습니까?'
-                : '$name 을(를) 팔고 $price P를 받습니다.\n판매하시겠습니까?',
+                ? '$name x$qty개를 팔고 $price K를 받습니다.\n판매하시겠습니까?'
+                : '$name 을(를) 팔고 $price K를 받습니다.\n판매하시겠습니까?',
             style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('취소', style: TextStyle(color: Colors.grey))),
@@ -1891,7 +1891,7 @@ class _StoreScreenState extends State<StoreScreen> {
         }
         myDisplayGold += price;
       });
-      _showNotificationPopup('🎉 판매 완료', '$name 을(를) 팔고\n$price P를 받았습니다!', const Color(0xFF7FFFB0));
+      _showNotificationPopup('🎉 판매 완료', '$name 을(를) 팔고\n$price K를 받았습니다!', const Color(0xFF7FFFB0));
     } catch (e) {
       print(e);
       _showNotificationPopup('오류', '판매 처리 중 문제가 발생했습니다.', Colors.redAccent);
@@ -1987,7 +1987,7 @@ class _StoreScreenState extends State<StoreScreen> {
                   return Column(
                     mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Center(child: Text('${item['price']} P', style: TextStyle(color: auxLvOk ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
+                      Center(child: Text('${item['price']} K', style: TextStyle(color: auxLvOk ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
                       // 🪱 보유 수량 표시(광장 안 나가고 부족한 것 미리 구매 — 랭킹1위 건의). 미끼·밑밥·낚시줄 등 소모품 + 장비 공통.
                       const SizedBox(height: 3),
                       Center(child: Text('보유 ${_ownedQty(itemName)}개', style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 13, fontWeight: FontWeight.bold))),
@@ -2008,11 +2008,11 @@ class _StoreScreenState extends State<StoreScreen> {
                                 bool isBait = itemCategory.contains('BAIT') || itemCategory.contains('미끼') || itemType.contains('BAIT') || itemType.contains('미끼') || ['지렁이', '글루텐', '옥수수'].contains(itemName);
                                 bool isTicket = itemCategory.contains('TICKET') || itemName.contains('입장권'); // 🎟️ 소비아이템(재구매·스택)
                                 int price = item['price'];
-                                if (isBait || isTicket) { showDialog(context: context, builder: (context) => AlertDialog(backgroundColor: Colors.grey.shade900, title: Text(isTicket ? '🎟️ 입장권 구매' : '🛒 미끼 구매', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 구매로 $price P가 차감됩니다.\n구매하시겠습니까?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(context); _buyItem(item); }, child: const Text('확인', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))])); } else {
+                                if (isBait || isTicket) { showDialog(context: context, builder: (context) => AlertDialog(backgroundColor: Colors.grey.shade900, title: Text(isTicket ? '🎟️ 입장권 구매' : '🛒 미끼 구매', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 구매로 $price K가 차감됩니다.\n구매하시겠습니까?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(context); _buyItem(item); }, child: const Text('확인', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))])); } else {
                                   bool isAlreadyOwned = myInventory.any((myItem) => myItem['name'] == itemName);
                                   if (isAlreadyOwned) { _showNotificationPopup('🛑 구매 불가!', '이미 보유 중인 장비입니다!\n인벤토리를 확인해주세요.', Colors.orangeAccent); return; }
                                   // 🛒 실수 클릭 방지 — 낚싯대·장비 포인트 구매도 확인창 거치게(미끼·입장권과 동일)
-                                  showDialog(context: context, builder: (dctx) => AlertDialog(backgroundColor: Colors.grey.shade900, title: const Text('🛒 구매 확인', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 을(를) $price P에 구매할까요?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(dctx); _buyItem(item); }, child: const Text('구매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))]));
+                                  showDialog(context: context, builder: (dctx) => AlertDialog(backgroundColor: Colors.grey.shade900, title: const Text('🛒 구매 확인', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), content: Text('$itemName 을(를) $price K에 구매할까요?', style: const TextStyle(color: Colors.white70)), actions: [TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('취소', style: TextStyle(color: Colors.grey))), TextButton(onPressed: () { Navigator.pop(dctx); _buyItem(item); }, child: const Text('구매', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)))]));
                                 }
                               },
                               child: Text(auxLvOk ? '🛒 구매하기' : '🔒 레벨 부족', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),

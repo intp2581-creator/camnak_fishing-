@@ -420,7 +420,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   String _getWelcomeText() {
     final fw = getTodayFwMission();
     return '${widget.nickname} 님, 어서오세요! 😊\n'
-        '🎁 접속 보상 500P 지급 완료!\n\n'
+        '🎁 접속 보상 500K 지급 완료!\n\n'
         '🏞️ 오늘의 민물 일일 퀘스트\n'
         '🐟 ${fw['fish']} ${fw['count']}마리 잡으세요\n'
         '✅ 민물 완료후 바다 퀘스트 열려요)\n\n'
@@ -7079,7 +7079,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 const SizedBox(height: 4),
                 ...rows,
                 const Divider(color: Colors.white12, height: 18),
-                Text('🎁 보상: +$reward P\n👕 [$targetRank 조사] 스킨 구매 자격', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold, height: 1.5)),
+                Text('🎁 보상: +$reward K\n👕 [$targetRank 조사] 스킨 구매 자격', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold, height: 1.5)),
               ]),
             ),
           ),
@@ -7119,7 +7119,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(color: _kGold.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: _kGold)),
-              child: Text('보상 +$reward P', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.w900)),
+              child: Text('보상 +$reward K', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.w900)),
             ),
             const SizedBox(height: 10),
             Text('이제 쇼핑몰에서 [$targetRank 조사] 스킨을\n구매할 수 있어요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),

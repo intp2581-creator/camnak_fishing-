@@ -202,7 +202,7 @@ class _GuildShopScreenState extends State<GuildShopScreen> {
         const SizedBox(width: 10),
         // 가격/구매
         Column(mainAxisSize: MainAxisSize.min, children: [
-          Text('$price P', style: TextStyle(color: canAfford || owned ? Colors.yellowAccent : Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)),
+          Text('$price K', style: TextStyle(color: canAfford || owned ? Colors.yellowAccent : Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
           SizedBox(width: 88, height: 34, child: ElevatedButton(
             style: ElevatedButton.styleFrom(
