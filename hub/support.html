@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>고객지원 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 고객지원 — 자주 묻는 질문과 1:1 문의">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .tabs{display:flex;gap:8px;margin:0 0 22px;flex-wrap:wrap}
+  .tabs button{padding:11px 20px;border-radius:24px;border:1px solid var(--line);
+    background:#fff;color:var(--ink-soft);font-family:inherit;font-size:14.5px;
+    font-weight:800;cursor:pointer}
+  .tabs button.on{background:var(--blue-ink);border-color:var(--blue-ink);color:#fff}
+
+  .faq{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:34px}
+  .faq details{border-bottom:1px solid var(--line)}
+  .faq details:last-child{border-bottom:none}
+  .faq summary{padding:17px 22px;cursor:pointer;font-size:15.5px;font-weight:700;
+    color:var(--ink);list-style:none;display:flex;gap:10px;align-items:flex-start}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary .q{color:var(--blue-ink);font-weight:900;flex:none}
+  .faq summary:hover{background:#f7fbfd}
+  .faq .a{padding:2px 22px 20px 52px;font-size:14.5px;color:var(--ink-soft);line-height:1.9}
+  .faq .a b{color:var(--ink)}
+  .cat{display:inline-block;font-size:11.5px;font-weight:900;padding:3px 9px;
+    border-radius:20px;background:#e8f3f9;color:#0f6f96;margin-right:8px;flex:none}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:24px;margin-bottom:18px}
+  .card h3{margin:0 0 6px;font-size:18px}
+  .card .hint{margin:0 0 18px;font-size:13.5px;color:var(--ink-soft);line-height:1.8}
+  .f{margin-bottom:14px}
+  .f label{display:block;font-size:14px;font-weight:800;margin-bottom:6px}
+  .f input,.f select,.f textarea{width:100%;padding:12px 14px;border:1px solid var(--line);
+    border-radius:10px;font-family:inherit;font-size:15px;background:#fff}
+  .f textarea{min-height:150px;resize:vertical;line-height:1.7}
+  .btn{padding:14px 30px;border:none;border-radius:12px;cursor:pointer;font-family:inherit;
+    font-size:16px;font-weight:900;background:linear-gradient(135deg,#0f6f96,#31c98d);color:#fff}
+  .btn:disabled{background:#c3d3dd;cursor:default}
+  .btn.g{background:#fff;border:1px solid var(--line);color:var(--ink)}
+
+  .tk{display:block;padding:16px 20px;border-bottom:1px solid var(--line);
+    text-decoration:none;color:inherit}
+  .tk:hover{background:#f7fbfd}
+  .tk:last-child{border-bottom:none}
+  .tk .t{font-size:15.5px;font-weight:700;margin-bottom:5px}
+  .tk .m{font-size:12.5px;color:var(--ink-soft)}
+  .st{display:inline-block;font-size:11.5px;font-weight:900;padding:3px 10px;border-radius:20px}
+  .st.open{background:#fff4e5;color:#b26a00}
+  .st.answered{background:#e6f6ee;color:#1f7a4d}
+  .st.closed{background:#eef1f3;color:#78868f}
+
+  .msg{padding:16px 18px;border-radius:12px;margin-bottom:14px;font-size:14.5px;line-height:1.8}
+  .msg.u{background:#f2f7fa;border:1px solid #e0ebf1}
+  .msg.g{background:#fffaf0;border:1px solid #f0e2c4}
+  .msg .who{font-size:12.5px;font-weight:900;margin-bottom:7px;color:var(--blue-ink)}
+  .msg.g .who{color:#a5761b}
+  .empty{padding:44px 20px;text-align:center;color:var(--ink-soft);font-size:14.5px;line-height:1.9}
+  .hide{display:none}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+      <a class="on" href="support.html">고객지원</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🎧 고객지원</h1>
+  <p>궁금한 점을 먼저 찾아보시고, 해결되지 않으면 1:1로 문의해 주세요.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="on" data-t="faq">자주 묻는 질문</button>
+    <button data-t="mine">내 문의 내역</button>
+    <button data-t="new">1:1 문의하기</button>
+  </div>
+
+  <!-- ─────────── FAQ ─────────── -->
+  <div id="vFaq">
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="on" data-f="all">전체</button>
+      <button data-f="payment">결제</button>
+      <button data-f="refund">환불</button>
+      <button data-f="account">계정</button>
+      <button data-f="game">게임 이용</button>
+    </div>
+    <div class="faq" id="faqBox"></div>
+
+    <div class="card">
+      <h3>원하는 답을 못 찾으셨나요?</h3>
+      <p class="hint">1:1 문의를 남겨주시면 확인 후 답변드립니다.
+        결제 관련 문의는 <b>주문번호</b>를 함께 적어주시면 더 빠르게 처리됩니다.</p>
+      <button class="btn" onclick="go('new')">1:1 문의하기</button>
+    </div>
+  </div>
+
+  <!-- ─────────── 내 문의 ─────────── -->
+  <div id="vMine" class="hide">
+    <div class="card" style="padding:0;overflow:hidden" id="tkList"></div>
+  </div>
+
+  <!-- ─────────── 문의 작성 ─────────── -->
+  <div id="vNew" class="hide">
+    <div class="card">
+      <h3>1:1 문의하기</h3>
+      <p class="hint">답변은 이 페이지 <b>내 문의 내역</b>에서 확인하실 수 있습니다.
+        문의 내용은 <b>본인과 운영자만</b> 볼 수 있습니다.</p>
+      <div class="f">
+        <label>문의 유형</label>
+        <select id="fCat">
+          <option value="payment">결제</option>
+          <option value="refund">환불</option>
+          <option value="account">계정 / 로그인</option>
+          <option value="game">게임 이용</option>
+          <option value="etc">기타</option>
+        </select>
+      </div>
+      <div class="f">
+        <label>주문번호 <span style="font-weight:500;color:var(--ink-soft)">(결제·환불 문의 시)</span></label>
+        <input id="fOrder" placeholder="KREFT1756... (모르시면 비워두세요)">
+      </div>
+      <div class="f">
+        <label>제목</label>
+        <input id="fTitle" maxlength="80" placeholder="어떤 문제인지 짧게 적어주세요">
+      </div>
+      <div class="f">
+        <label>내용</label>
+        <textarea id="fBody" maxlength="3000"
+          placeholder="언제, 어떤 상황에서 문제가 생겼는지 적어주시면 빠르게 도와드릴 수 있어요."></textarea>
+      </div>
+      <button class="btn" id="fSend">문의 보내기</button>
+      <button class="btn g" onclick="go('faq')">취소</button>
+    </div>
+  </div>
+
+  <!-- ─────────── 문의 상세 ─────────── -->
+  <div id="vDetail" class="hide">
+    <div class="card" id="dBox"></div>
+  </div>
+</div>
+
+<script type="module" src="auth.js"></script>
+<script>
+  // ══════════ FAQ (정적) ══════════
+  const FAQ = [
+    {c:'payment', q:'어떻게 결제하나요?',
+     a:'게임 안 상점이나 홈페이지 <b>게임스토어</b>에서 원하시는 상품의 [구매하기]를 누르시면 됩니다. 결제 후 아이템은 게임 계정으로 자동 지급됩니다.'},
+    {c:'payment', q:'결제했는데 아이템이 게임에 안 들어와요.',
+     a:'먼저 게임을 <b>새로고침</b>해 주세요. 그래도 없으면 1:1 문의에 <b>주문번호</b>와 결제하신 시각을 적어주시면 확인 후 바로 지급해 드립니다.'},
+    {c:'payment', q:'어떤 계정으로 지급되나요?',
+     a:'<b>결제 시 로그인한 계정</b>으로 지급됩니다. 여러 계정을 쓰신다면, 받으실 계정으로 로그인한 뒤 구매해 주세요.'},
+    {c:'payment', q:'결제 수단은 무엇이 있나요?',
+     a:'신용카드와 간편결제(토스페이 등)를 이용하실 수 있습니다. 결제창에서 원하시는 수단을 선택하시면 됩니다.'},
+    {c:'refund', q:'환불이 되나요?',
+     a:'<b>사용하지 않은 상품</b>은 결제 후 <b>7일 이내</b> 전액 환불됩니다. 이미 사용을 시작한 상품(이용권 사용, 스킨 착용 등)은 환불이 제한될 수 있습니다.'},
+    {c:'refund', q:'환불은 얼마나 걸리나요?',
+     a:'환불 승인 후 결제 수단에 따라 <b>3~7영업일</b> 정도 소요됩니다. 카드사 사정에 따라 달라질 수 있습니다.'},
+    {c:'refund', q:'환불은 어떻게 신청하나요?',
+     a:'1:1 문의에서 유형을 <b>환불</b>로 선택하시고 <b>주문번호</b>와 사유를 적어주세요. 확인 후 처리해 드립니다.'},
+    {c:'account', q:'로그인이 안 돼요.',
+     a:'캠피싱 회원 계정으로 로그인하셔야 합니다. 우측 상단 [로그인]을 눌러 진행해 주세요. 그래도 안 되면 1:1 문의로 알려주세요.'},
+    {c:'account', q:'닉네임을 바꾸고 싶어요.',
+     a:'게임 안에서 변경하실 수 있습니다. 닉네임은 다른 조사님과 중복될 수 없습니다.'},
+    {c:'account', q:'계정을 삭제하고 싶어요.',
+     a:'1:1 문의로 요청해 주시면 처리해 드립니다. <b>삭제 시 게임 데이터와 보유 아이템이 모두 사라지며 복구되지 않습니다.</b>'},
+    {c:'game', q:'낚시 시간은 어떻게 늘리나요?',
+     a:'매일 접속하시면 시간이 충전됩니다. 더 필요하시면 상점에서 <b>낚시 1시간 이용권</b>을 구매하실 수 있습니다.'},
+    {c:'game', q:'레벨과 등급은 어떻게 오르나요?',
+     a:'물고기를 잡으면 경험치가 쌓여 레벨이 오릅니다. 등급(초보→하수→중수…)은 조건을 채우면 승급하실 수 있습니다. 자세한 내용은 <a href="guide.html">게임가이드</a>를 참고해 주세요.'},
+    {c:'game', q:'보스레이드는 어떻게 참여하나요?',
+     a:'길드에 가입한 뒤 길드홀에서 참여하실 수 있습니다. <b>레이드 전용 낚싯대</b>가 있어야 참여가 가능합니다. 자세한 내용은 <a href="guild.html">길드홀</a> 안내를 봐주세요.'},
+  ];
+
+  const FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/supportApi';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const when = (ms) => { const d = new Date(ms);
+    return d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+
+           String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+
+           String(d.getMinutes()).padStart(2,'0'); };
+
+  function paintFaq(cat){
+    $('faqBox').innerHTML = FAQ.filter(f => cat==='all' || f.c===cat).map(f =>
+      '<details><summary><span class="q">Q</span>'+
+      '<span><span class="cat">'+({payment:'결제',refund:'환불',account:'계정',game:'게임 이용'}[f.c]||'기타')+'</span>'+
+      esc(f.q)+'</span></summary><div class="a">'+f.a+'</div></details>').join('');
+  }
+  paintFaq('all');
+  document.querySelectorAll('[data-f]').forEach(b => b.onclick = () => {
+    document.querySelectorAll('[data-f]').forEach(x => x.classList.remove('on'));
+    b.classList.add('on'); paintFaq(b.dataset.f);
+  });
+
+  // ══════════ 탭 ══════════
+  function go(t){
+    ['faq','mine','new','detail'].forEach(k =>
+      $('v'+k[0].toUpperCase()+k.slice(1)).classList.add('hide'));
+    $('v'+t[0].toUpperCase()+t.slice(1)).classList.remove('hide');
+    document.querySelectorAll('[data-t]').forEach(x =>
+      x.classList.toggle('on', x.dataset.t === t));
+    if (t === 'mine') loadMine();
+  }
+  window.go = go;
+  document.querySelectorAll('[data-t]').forEach(b => b.onclick = () => go(b.dataset.t));
+
+  // ══════════ 인증 ══════════
+  async function tok(){
+    const u = window.__auth && window.__auth.currentUser;
+    if (!u) throw new Error('로그인이 필요합니다');
+    return await u.getIdToken();
+  }
+  async function api(path, body){
+    const t = await tok();
+    const opt = body
+      ? {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},
+         body: JSON.stringify(body)}
+      : {headers:{'Authorization':'Bearer '+t}};
+    return (await fetch(FN + (path||''), opt)).json();
+  }
+
+  // ══════════ 내 문의 ══════════
+  async function loadMine(){
+    $('tkList').innerHTML = '<div class="empty">불러오는 중…</div>';
+    try{
+      const j = await api('?list=1');
+      if (!j.ok) throw new Error(j.err);
+      if (!j.rows.length){
+        $('tkList').innerHTML = '<div class="empty">아직 문의하신 내역이 없습니다.<br>'+
+          '궁금한 점이 있으시면 <b>1:1 문의하기</b>를 이용해 주세요.</div>'; return;
+      }
+      const LB={open:'답변 대기',answered:'답변 완료',closed:'처리 완료'};
+      $('tkList').innerHTML = j.rows.map(r =>
+        '<a class="tk" href="#" data-id="'+r.id+'">'+
+        '<div class="t">'+esc(r.title)+'</div>'+
+        '<div class="m"><span class="st '+r.status+'">'+LB[r.status]+'</span> · '+
+        r.categoryLabel+' · '+when(r.createdAt)+
+        (j.isGm ? ' · '+esc(r.nick) : '')+
+        (r.replyCount ? ' · 답변 '+r.replyCount : '')+'</div></a>').join('');
+      document.querySelectorAll('.tk').forEach(a => a.onclick = (e) => {
+        e.preventDefault(); openTicket(a.dataset.id);
+      });
+    }catch(e){ $('tkList').innerHTML = '<div class="empty">'+esc(e.message)+'</div>'; }
+  }
+
+  async function openTicket(id){
+    go('detail');
+    $('dBox').innerHTML = '<div class="empty">불러오는 중…</div>';
+    const j = await api('?id='+encodeURIComponent(id));
+    if (!j.ok){ $('dBox').innerHTML = '<div class="empty">'+esc(j.err)+'</div>'; return; }
+    const t = j.ticket;
+    const LB={open:'답변 대기',answered:'답변 완료',closed:'처리 완료'};
+    let h = '<div style="margin-bottom:16px">'+
+      '<span class="st '+t.status+'">'+LB[t.status]+'</span> '+
+      '<span class="cat" style="margin-left:6px">'+t.categoryLabel+'</span></div>'+
+      '<h3 style="margin:0 0 6px">'+esc(t.title)+'</h3>'+
+      '<p class="hint">'+when(t.createdAt)+(t.orderId?' · 주문번호 '+esc(t.orderId):'')+
+      (j.isGm && t.email ? ' · '+esc(t.email) : '')+'</p>'+
+      '<div class="msg u"><div class="who">'+esc(t.nick)+'</div>'+esc(t.body).replace(/\n/g,'<br>')+'</div>';
+    j.replies.forEach(r => {
+      h += '<div class="msg '+(r.byGm?'g':'u')+'"><div class="who">'+esc(r.nick)+'</div>'+
+           esc(r.body).replace(/\n/g,'<br>')+'</div>';
+    });
+    if (t.status !== 'closed'){
+      h += '<div class="f" style="margin-top:18px"><label>'+(j.isGm?'답변':'추가 문의')+'</label>'+
+           '<textarea id="rBody" maxlength="3000"></textarea></div>'+
+           '<button class="btn" id="rSend">'+(j.isGm?'답변 등록':'추가 문의 보내기')+'</button> ';
+      if (j.isGm) h += '<button class="btn g" id="rClose">처리 완료로 변경</button> ';
+    }
+    h += '<button class="btn g" onclick="go(\'mine\')">목록으로</button>';
+    $('dBox').innerHTML = h;
+    if ($('rSend')) $('rSend').onclick = async () => {
+      const body = $('rBody').value.trim();
+      if (!body) return alert('내용을 입력해 주세요.');
+      $('rSend').disabled = true;
+      const r = await api('', {action:'reply', id, body});
+      if (!r.ok) { alert(r.err); $('rSend').disabled = false; return; }
+      openTicket(id);
+    };
+    if ($('rClose')) $('rClose').onclick = async () => {
+      if (!confirm('처리 완료로 변경할까요?')) return;
+      await api('', {action:'close', id}); openTicket(id);
+    };
+  }
+
+  // ══════════ 문의 작성 ══════════
+  $('fSend').onclick = async () => {
+    const title = $('fTitle').value.trim(), body = $('fBody').value.trim();
+    if (!title || !body) return alert('제목과 내용을 입력해 주세요.');
+    $('fSend').disabled = true; $('fSend').textContent = '보내는 중…';
+    try{
+      const j = await api('', {action:'create', category:$('fCat').value,
+        orderId:$('fOrder').value.trim(), title, body});
+      if (!j.ok) throw new Error(j.err);
+      $('fTitle').value=''; $('fBody').value=''; $('fOrder').value='';
+      alert('문의가 접수되었습니다. 확인 후 답변드리겠습니다.');
+      go('mine');
+    }catch(e){ alert(e.message); }
+    $('fSend').disabled = false; $('fSend').textContent = '문의 보내기';
+  };
+</script>
+</body>
+</html>

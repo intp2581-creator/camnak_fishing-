@@ -809,3 +809,6 @@ exports.communityApi = require("./community").communityApi;
 exports.payPrepare = require("./payment").payPrepare;
 exports.payVerify  = require("./payment").payVerify;
 exports.myOrders   = require("./payment").myOrders;
+
+// 🎧 고객지원 1:1 문의 (support.js)
+exports.supportApi = require("./support").supportApi;
