@@ -177,7 +177,19 @@ class _RaidOverlayState extends State<RaidOverlay> {
       final hu = (d?['hostUid'] ?? '').toString();
       if (hu != _hostUid) setState(() => _hostUid = hu);
       final bid = (d?['bossId'] ?? '').toString();
-      if (bid.isNotEmpty && bid != _bossId) setState(() => _bossId = bid); // 진행도 반영
+      if (bid.isNotEmpty && bid != _bossId) {
+        // 🌊 존이 바뀌면(무르가돈 클리어 → 아비쿠라 등) 물 종류가 달라질 수 있으므로
+        //    장비·제압력을 다시 계산한다. 안 하면 이전 존 장비가 그대로 남는다(2026-09-01).
+        final bool waterChanged = raidBossIsSea(bid) != raidBossIsSea(_bossId);
+        setState(() { _bossId = bid; if (waterChanged) _gearLoading = true; });
+        _autoEquipRaidRod().then((_) {
+          if (waterChanged && mounted) {
+            _snack(raidBossIsSea(bid)
+                ? '🌊 바다 존이에요 — 바다 장비로 다시 맞췄어요'
+                : '🏞️ 민물 존이에요 — 민물 장비로 다시 맞췄어요');
+          }
+        });
+      }
       final status = (d?['status'] ?? 'waiting').toString();
       if (status == 'raiding' && !_started) {
         _started = true;
