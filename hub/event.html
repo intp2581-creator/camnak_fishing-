@@ -185,12 +185,40 @@
 
   <!-- ───── 진행 중 ───── -->
   <div id="t-now">
+    <div class="panel" style="text-align:center;padding:34px 20px;margin-bottom:26px">
+      <div style="font-size:34px;line-height:1">🎣</div>
+      <h3 style="margin:10px 0 8px;font-size:19px">지금은 진행 중인 경품 이벤트가 없습니다</h3>
+      <p style="margin:0;color:var(--ink-soft);font-size:15px;line-height:1.8">
+        8월 오픈 이벤트는 <b>2026년 9월 1일</b>에 마감되었습니다.
+        당첨자는 <a href="#win" class="toWinLink" style="color:var(--emerald);font-weight:700">🏆 당첨자 발표</a>에서 확인하실 수 있어요.<br>
+        <b>주간 · 월간 랭킹은 9월에도 계속됩니다.</b> 다음 이벤트는 준비되는 대로 알려드릴게요.</p>
+    </div>
+
+    <div class="sec-head"><h2>♾️ 상시 콘텐츠</h2><span class="sub">언제든 참여할 수 있어요</span></div>
+    <div class="always">
+      <div class="al"><div class="ai">🏆</div><h3>주간 · 월간 · 연간 랭킹</h3>
+        <p>잡은 물고기의 크기와 종류로 점수가 쌓입니다. 주간 랭킹 상위 조사님은 한 주 동안 <b>능력치 보너스</b>를 받아요.</p></div>
+      <div class="al"><div class="ai">🎁</div><h3>랜덤 상자</h3>
+        <p>낚시 중 만나는 <b>수상한 상자</b>를 열어보세요. 등급에 따라 다양한 아이템이 나옵니다.</p></div>
+      <div class="al"><div class="ai">⚔️</div><h3>길드 보스레이드</h3>
+        <p>길드원과 함께 5개 존의 보스에 도전하세요. 제압에 성공하면 <b>길드 전체 능력치</b>가 올라갑니다.</p></div>
+    </div>
+
+    <div class="sec-head"><h2>📢 이벤트 소식</h2><span class="sub">공지에 올라온 이벤트 글</span></div>
+    <div class="evlist" id="evFromNotice"><div class="empty" style="grid-column:1/-1">불러오는 중…</div></div>
+  </div>
+
+  <!-- ───── 지난 이벤트 ───── -->
+  <div id="t-past" style="display:none">
+    <p style="color:var(--ink-soft);font-size:15px;line-height:1.8;margin:0 0 20px">
+      그동안 진행했던 이벤트입니다. 기간이 끝난 아이템은 <b>효과가 종료</b>되며 가방에서 자동으로 사라집니다.</p>
+
     <div class="evmain">
       <div class="poster">
         <img src="assets/ev-open-ranking.jpg" alt="오픈 이벤트 KREFT 랭킹전" id="posterImg">
       </div>
       <div class="info">
-        <span class="badge">🔥 진행 중</span>
+        <span class="badge" style="background:#8b9aa3;color:#fff">✅ 종료된 이벤트</span>
         <h2>오픈 이벤트 — KREFT 랭킹전</h2>
         <p class="lead">"최고의 강태공에게 캠피싱이 준비한 푸짐한 선물!"<br>
           랭킹에 도전해 실물 낚시용품을 받아가세요.</p>
@@ -217,7 +245,7 @@
         <p class="pe-note" style="margin-top:14px">※ 본 이벤트는 캠피싱 KREFT
           <a href="policy.html#event" class="pe-link">이벤트 운영 규정</a>을 따릅니다.</p>
         <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-          <a class="btn btn-play" data-play href="#">🎮 지금 참여하기</a>
+          <button class="btn btn-play" data-t="win">🏆 당첨자 보기</button>
           <button class="btn btn-line" id="zoomBtn">🔍 포스터 크게 보기</button>
         </div>
       </div>
@@ -298,24 +326,6 @@
     <p class="pz-note">※ 경품은 <a href="https://camnak.com" target="_blank" rel="noopener">캠피싱 쇼핑몰</a>에서 판매 중인 실제 상품입니다.
       사정에 따라 동등한 가치의 다른 상품으로 대체될 수 있습니다.</p>
 
-    <div class="sec-head"><h2>♾️ 상시 콘텐츠</h2><span class="sub">언제든 참여할 수 있어요</span></div>
-    <div class="always">
-      <div class="al"><div class="ai">🏆</div><h3>주간 · 월간 · 연간 랭킹</h3>
-        <p>잡은 물고기의 크기와 종류로 점수가 쌓입니다. 주간 랭킹 상위 조사님은 한 주 동안 <b>능력치 보너스</b>를 받아요.</p></div>
-      <div class="al"><div class="ai">🎁</div><h3>랜덤 상자</h3>
-        <p>낚시 중 만나는 <b>수상한 상자</b>를 열어보세요. 등급에 따라 다양한 아이템이 나옵니다.</p></div>
-      <div class="al"><div class="ai">⚔️</div><h3>길드 보스레이드</h3>
-        <p>길드원과 함께 5개 존의 보스에 도전하세요. 제압에 성공하면 <b>길드 전체 능력치</b>가 올라갑니다.</p></div>
-    </div>
-
-    <div class="sec-head"><h2>📢 이벤트 소식</h2><span class="sub">공지에 올라온 이벤트 글</span></div>
-    <div class="evlist" id="evFromNotice"><div class="empty" style="grid-column:1/-1">불러오는 중…</div></div>
-  </div>
-
-  <!-- ───── 지난 이벤트 ───── -->
-  <div id="t-past" style="display:none">
-    <p style="color:var(--ink-soft);font-size:15px;line-height:1.8;margin:0 0 20px">
-      그동안 진행했던 이벤트입니다. 기간이 끝난 아이템은 <b>효과가 종료</b>되며 가방에서 자동으로 사라집니다.</p>
 
     <div class="pastev">
       <div class="pe-img"><img src="assets/ev-badge-flag.png" alt="광복절 태극기 뱃지"></div>
@@ -460,8 +470,12 @@
   });
   var h=(location.hash||'').replace('#','');
   if(TABS.indexOf(h)>-1){ document.querySelector('.tabs button[data-t="'+h+'"]').click(); }
+  // 🏆 당첨자 발표 탭으로 보내는 링크·버튼들(이벤트 카드 안, 안내문 안)
+  function goWin(e){ e.preventDefault(); document.querySelector('.tabs button[data-t="win"]').click(); }
   var toWin=document.getElementById('toWin');
-  if(toWin) toWin.onclick=function(e){e.preventDefault();document.querySelector('.tabs button[data-t="win"]').click();};
+  if(toWin) toWin.onclick=goWin;
+  document.querySelectorAll('.toWinLink, .evmain button[data-t="win"]')
+    .forEach(function(el){ el.onclick=goWin; });
 
   /* 포스터 확대 */
   var lb=document.getElementById('lightbox');
