@@ -6,6 +6,8 @@
 // POST {action:"create", ...}   문의 작성
 // POST {action:"reply", ...}    답변/추가문의 (본인 또는 GM)
 // POST {action:"close", id}     처리 완료 (GM만)
+// POST {action:"gmInv", id}     문의자 인벤토리 조회 (GM만)
+// POST {action:"gmRevoke", ...} 아이템 회수 — 환불 처리용 (GM만, 로그 필수)
 
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
@@ -127,6 +129,70 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       return res.json({ok: true});
+    }
+
+    // ── [운영자] 문의자의 인벤토리 조회 ──────────
+    //   환불 처리 전, 회수할 아이템이 실제로 남아 있는지 확인하는 용도.
+    if (action === "gmInv") {
+      if (!u.isGm) return res.status(403).json({ok: false, err: "운영자만 가능합니다"});
+      const doc = await col.doc(String(b.id || "")).get();
+      if (!doc.exists) return res.status(404).json({ok: false, err: "문의를 찾을 수 없습니다"});
+      const targetUid = doc.data().uid;
+      const ud = await db.collection("users").doc(targetUid).get();
+      if (!ud.exists) return res.status(404).json({ok: false, err: "회원 정보를 찾을 수 없습니다"});
+      const uv = ud.data();
+      const inv = Array.isArray(uv.inventory) ? uv.inventory : [];
+      const rows = [];
+      inv.forEach((i) => {
+        if ((i.type || "") === "FISH") return;          // 물고기는 회수 대상 아님
+        rows.push({name: String(i.name || ""), qty: Number(i.quantity || 1),
+          cash: i.cash === true, category: String(i.category || "")});
+      });
+      rows.sort((a, b2) => (b2.cash - a.cash) || a.name.localeCompare(b2.name));
+      return res.json({ok: true, uid: targetUid, nick: uv.nickname || "", items: rows});
+    }
+
+    // ── [운영자] 아이템 회수 ────────────────────
+    //   ⚠️ 환불과 짝이 되는 동작이다. 되돌릴 수 있어야 하므로
+    //      회수 전 수량을 item_revocations에 그대로 남긴다.
+    if (action === "gmRevoke") {
+      if (!u.isGm) return res.status(403).json({ok: false, err: "운영자만 가능합니다"});
+      const tid = String(b.id || "");
+      const itemName = String(b.itemName || "").trim();
+      const count = Math.max(1, Math.min(99, parseInt(b.count, 10) || 0));
+      const reason = String(b.reason || "").trim().slice(0, 200);
+      if (!itemName) return res.status(400).json({ok: false, err: "회수할 아이템을 지정해 주세요"});
+      if (!reason) return res.status(400).json({ok: false, err: "회수 사유를 입력해 주세요"});
+
+      const tdoc = await col.doc(tid).get();
+      if (!tdoc.exists) return res.status(404).json({ok: false, err: "문의를 찾을 수 없습니다"});
+      const targetUid = tdoc.data().uid;
+      const uref = db.collection("users").doc(targetUid);
+
+      let before = 0; let after = 0; let nick = "";
+      await db.runTransaction(async (tx) => {
+        const ud = await tx.get(uref);
+        if (!ud.exists) throw new Error("회원 정보를 찾을 수 없습니다");
+        const uv = ud.data();
+        nick = uv.nickname || "";
+        const inv = Array.isArray(uv.inventory) ? [...uv.inventory] : [];
+        const idx = inv.findIndex((i) => String(i.name || "") === itemName);
+        if (idx < 0) throw new Error("인벤토리에 '" + itemName + "'이(가) 없습니다");
+        before = Number(inv[idx].quantity || 1);
+        if (before < count) {
+          throw new Error("보유 수량이 " + before + "개뿐이라 " + count + "개를 회수할 수 없습니다");
+        }
+        after = before - count;
+        if (after <= 0) { inv.splice(idx, 1); } else { inv[idx] = {...inv[idx], quantity: after}; }
+        tx.update(uref, {inventory: inv});
+      });
+
+      await db.collection("item_revocations").add({
+        uid: targetUid, nick, ticketId: tid, itemName, count, before, after, reason,
+        byUid: u.uid, byNick: u.nick,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      return res.json({ok: true, itemName, count, before, after});
     }
 
     // ── 처리 완료(운영자) ───────────────────────
