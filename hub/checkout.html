@@ -94,9 +94,18 @@
       <div class="card">
         <h3>구매자</h3>
         <div class="row"><span>게임 계정</span><b id="uEmail">—</b></div>
-        <p style="margin:10px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.75">
+        <p style="margin:10px 0 14px;font-size:13px;color:var(--ink-soft);line-height:1.75">
           이 계정으로 아이템이 지급됩니다. 다른 계정으로 받으시려면
           해당 계정으로 로그인 후 구매해 주세요.</p>
+        <!-- 📱 이니시스 V2 일반결제는 구매자 휴대폰 번호가 필수 -->
+        <label style="display:block;font-size:14px;font-weight:800;margin-bottom:6px">
+          휴대폰 번호 <span style="color:#c0392b">*</span></label>
+        <input id="uPhone" type="tel" inputmode="numeric" maxlength="13"
+          placeholder="010-1234-5678"
+          style="width:100%;height:46px;padding:0 14px;border:1px solid var(--line);
+                 border-radius:10px;font-family:inherit;font-size:15.5px;font-weight:700">
+        <p style="margin:8px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.7">
+          결제 진행과 결제내역 확인에만 사용됩니다. 한 번 입력하시면 다음부터 자동으로 채워집니다.</p>
       </div>
 
       <div class="card">
@@ -180,14 +189,27 @@
     paint();
     $('qMinus').onclick = () => { if (qty > 1) { qty--; paint(); } };
     $('qPlus').onclick  = () => { if (qty < 10) { qty++; paint(); } };
-    $('agree').onchange = (e) => { $('payBtn').disabled = !e.target.checked; };
+    const phoneOK = () => /^01[016789]-?\d{3,4}-?\d{4}$/.test($('uPhone').value.replace(/\s/g,''));
+    const refresh = () => { $('payBtn').disabled = !($('agree').checked && phoneOK()); };
+    $('agree').onchange = refresh;
+    // 010-1234-5678 형태로 자동 하이픈
+    $('uPhone').oninput = (e) => {
+      let v = e.target.value.replace(/\D/g,'').slice(0,11);
+      if (v.length > 7)      v = v.slice(0,3)+'-'+v.slice(3,7)+'-'+v.slice(7);
+      else if (v.length > 3) v = v.slice(0,3)+'-'+v.slice(3);
+      e.target.value = v;
+      try { localStorage.setItem('kreft_phone', v); } catch(_){}
+      refresh();
+    };
+    try { const sv = localStorage.getItem('kreft_phone'); if (sv) { $('uPhone').value = sv; } } catch(_){}
   }
 
   // 로그인 확인
   let me = null;
   const poll = setInterval(() => {
     const u = window.__auth && window.__auth.currentUser;
-    if (u) { clearInterval(poll); me = u; $('uEmail').textContent = u.email; $('co').style.display='grid'; }
+    if (u) { clearInterval(poll); me = u; $('uEmail').textContent = u.email; $('co').style.display='grid';
+             if ($('uPhone')) $('uPhone').dispatchEvent(new Event('input')); }
   }, 250);
   setTimeout(() => { if (!me) fail('로그인이 필요합니다. 우측 상단에서 로그인해 주세요.'); }, 6000);
 
@@ -213,7 +235,10 @@
         totalAmount: prep.amount,
         currency: 'CURRENCY_KRW',
         payMethod: 'CARD',
-        customer: { email: me.email },
+        customer: {
+          email: me.email,
+          phoneNumber: $('uPhone').value.replace(/-/g,''), // ⚠️ 이니시스 V2 필수
+        },
       });
       if (rsp.code) throw new Error(rsp.message || '결제가 취소되었습니다');
 
