@@ -618,15 +618,17 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
 //      1인 제압력 기준: 하수480 · 중수720 · 고수1095 · 프로1485 · 마스터2010 (길드버프 별도 +90)
 //      → hp = power × 600초 × 0.5 (= power × 300). 표기 power = 실제 필요 합산 제압력.
 //   water: [멀리, 중간, 가까이] 수면선(화면 높이 비율) — 배경마다 물 높이가 달라 존별로 지정.
+//   sea: 그 존이 바다인지(true=바다장비만, false=민물장비만 적용). 홈페이지 guild.html 안내와 일치시킬 것.
+//     1 늪=민물 · 2 신비한바다=바다 · 3 수로=민물 · 4 폭풍호수=바다(이미지상 바다) · 5 용암심연=민물
 //   📊 난이도는 '오늘 기준'이 아니라 성장 목표로 설계 — 오픈 초반엔 1존도 벅차고,
 //      길드원이 렙업·장비·레이드대 티어업(20→60)으로 제압력을 올리면서 한 존씩 뚫는다.
 //      (실유저 평균 제압력 250 기준: 1존 16명 · 2존 32명 — 성장하면 같은 인원으로 도달)
 const List<Map<String, dynamic>> raidBosses = [
-  {'id': 'murgadon', 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3300,  'hp': 1500000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
-  {'id': 'abykura',  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 13800,  'hp': 6200000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
-  {'id': 'basragon', 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 20000, 'hp': 9000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
-  {'id': 'kargon',   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 27600, 'hp': 12400000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
-  {'id': 'volkar',   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 36700, 'hp': 16500000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
+  {'id': 'murgadon', 'sea': false, 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3300,  'hp': 1500000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
+  {'id': 'abykura', 'sea': true,  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 13800,  'hp': 6200000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
+  {'id': 'basragon', 'sea': false, 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 20000, 'hp': 9000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
+  {'id': 'kargon', 'sea': true,   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 27600, 'hp': 12400000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
+  {'id': 'volkar', 'sea': false,   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 36700, 'hp': 16500000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
 ];
 
 // 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 전원 지급 (사용자 확정 2026-08-15 상향)
@@ -639,6 +641,9 @@ const Map<String, Map<String, dynamic>> raidRewards = {
   'kargon':   {'exp': 8000,  'point': 40000, 'mystery': 8,  'treasure': 2},
   'volkar':   {'exp': 10000, 'point': 50000, 'mystery': 10, 'treasure': 3},
 };
+
+// 🌊 그 보스 존이 바다인지. 레이드 장비 판정(민물/바다)에 쓴다.
+bool raidBossIsSea(String id) => (raidBossById(id)['sea'] ?? false) == true;
 
 // 보스 id로 로스터 항목 조회. 없으면 첫 보스(무르가돈) 폴백.
 Map<String, dynamic> raidBossById(String id) {

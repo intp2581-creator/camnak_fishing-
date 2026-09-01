@@ -97,7 +97,10 @@ class _RaidOverlayState extends State<RaidOverlay> {
           statBonus += garamRankBonus((ranks[user.uid]['rank'] as num).toInt());
         }
       } catch (_) {}
-      final g = resolveRaidGearPower(d.data() ?? {}, statBonus: statBonus);
+      // 🌊 장비 판정은 '보스가 있는 존'의 물 종류를 따른다(길드홀이 민물광장이어도 아비쿠라는 바다).
+      //    예전엔 isSea를 안 넘겨 항상 민물로 계산돼, 홈페이지 안내와 실제가 달랐다(2026-09-01 수정).
+      final g = resolveRaidGearPower(d.data() ?? {},
+          isSea: raidBossIsSea(_bossId), statBonus: statBonus);
       final rod = g['raidRod'] as Map<String, dynamic>?;
       final int power = (g['power'] as num).toInt();
       final gl = (g['gearList'] as List?)?.cast<Map<String, dynamic>>() ?? <Map<String, dynamic>>[];
@@ -595,6 +598,25 @@ class _RaidOverlayState extends State<RaidOverlay> {
                   const SizedBox(height: 4),
                   Text('${boss['tier']}. ${boss['zone']} · ${boss['name']}',
                       style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.w700)),
+                  // 🌊 이 존이 민물인지 바다인지 — 안 보여주면 제압력이 왜 달라졌는지 모른다.
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: (boss['sea'] == true ? const Color(0xFF1E88E5) : const Color(0xFF2E9E6B))
+                          .withOpacity(0.18),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: (boss['sea'] == true ? const Color(0xFF64B5F6) : const Color(0xFF6FD3A3))
+                              .withOpacity(0.7)),
+                    ),
+                    child: Text(
+                      boss['sea'] == true ? '🌊 바다 존 — 바다 장비만 적용돼요' : '🏞️ 민물 존 — 민물 장비만 적용돼요',
+                      style: TextStyle(
+                          color: boss['sea'] == true ? const Color(0xFF90CAF9) : const Color(0xFF8FE3BC),
+                          fontSize: 12.5, fontWeight: FontWeight.w900),
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Divider(color: _kGold.withOpacity(0.25), height: 1),
                   const SizedBox(height: 12),

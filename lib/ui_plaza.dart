@@ -3818,7 +3818,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         guildId: widget.raidGuildId,
         guildName: widget.raidGuildName.isNotEmpty ? widget.raidGuildName : _guildName,
         nickname: widget.nickname,
-        isSea: false,
+        isSea: (boss['sea'] ?? false) == true, // 🌊 존별 민물/바다 장비 판정(예전엔 false 고정)
         isLeader: widget.raidIsLeader,
         endAt: endAt > 0 ? endAt : DateTime.now().add(const Duration(minutes: 10)).millisecondsSinceEpoch,
         bossHp: (boss['hp'] as num).toInt(),
