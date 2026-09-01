@@ -1,6 +1,7 @@
 // 🎧 [고객지원] 1:1 문의 — 결제·환불처럼 개인정보가 오가는 문의는 공개 게시판에 쓸 수 없다.
 //   community_posts(공개)와 별도로 support_tickets를 쓰며, 본인과 운영자만 조회 가능.
 //
+// GET  ?count=1                 미확인 건수 (GM=답변대기 / 회원=답변옴)
 // GET  ?list=1                  내 문의 목록 (GM은 전체)
 // GET  ?id=<티켓ID>             상세 + 답변 (본인/GM만)
 // POST {action:"create", ...}   문의 작성
@@ -38,6 +39,20 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
 
   try {
     const u = await me(req);
+
+    // ── 미확인 건수 (헤더 배지용) ───────────────
+    //   운영자 = 답변 대기중인 문의 수 / 일반 회원 = 내 문의 중 답변이 달린 수
+    if (req.method === "GET" && req.query.count) {
+      const snap = u.isGm
+        ? await col.where("status", "==", "open").limit(200).get()
+        : await col.where("uid", "==", u.uid).limit(100).get();
+      let n = 0;
+      snap.forEach((d) => {
+        const v = d.data();
+        if (u.isGm) { n++; } else if (v.status === "answered") { n++; }
+      });
+      return res.json({ok: true, isGm: u.isGm, count: n});
+    }
 
     // ── 목록 ──────────────────────────────────
     if (req.method === "GET" && req.query.list) {

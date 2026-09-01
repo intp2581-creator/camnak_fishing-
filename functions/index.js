@@ -812,3 +812,8 @@ exports.myOrders   = require("./payment").myOrders;
 
 // 🎧 고객지원 1:1 문의 (support.js)
 exports.supportApi = require("./support").supportApi;
+
+// 📬 운영자 알림 — 새 문의·커뮤니티 글이 올라오면 메일 (notify.js)
+exports.notifyTicket      = require("./notify").notifyTicket;
+exports.notifyTicketReply = require("./notify").notifyTicketReply;
+exports.notifyPost        = require("./notify").notifyPost;

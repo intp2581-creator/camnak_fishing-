@@ -158,7 +158,7 @@ autoLoginFromUrl();
     '@keyframes cfNblink{0%,100%{opacity:1}50%{opacity:.3}}';
   document.head.appendChild(st);
 
-  function badge(file, on) {
+  function badge(file, on, text) {
     // 상단 메뉴 + 스크롤 시 내려오는 컴팩트 메뉴(.navmini) 둘 다. 푸터 링크는 제외.
     var links = document.querySelectorAll(
       'nav a[href$="' + file + '"], .navmini a[href$="' + file + '"]');
@@ -167,8 +167,10 @@ autoLoginFromUrl();
       if (on && !cur) {
         var s = document.createElement('span');
         s.className = 'cf-n';
-        s.textContent = 'N';
+        s.textContent = text || 'N';
         links[i].appendChild(s);
+      } else if (on && cur) {
+        cur.textContent = text || 'N';
       } else if (!on && cur) {
         cur.parentNode.removeChild(cur);
       }
@@ -217,6 +219,33 @@ autoLoginFromUrl();
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
-  else run();
+  /* 🎧 고객지원 미확인 건수
+       운영자 = 답변 대기중인 문의 수 / 회원 = 답변이 달린 내 문의 수.
+       로그인해야 알 수 있는 값이라 인증이 끝난 뒤 한 번만 조회한다.
+       (공지·커뮤니티 배지와 달리 '읽음 시각'이 아니라 서버가 센 실제 건수) */
+  function supportBadge() {
+    var here = (location.pathname || '').split('/').pop() || 'index.html';
+    var auth = window.__auth;
+    if (!auth || !auth.currentUser) return;
+    auth.currentUser.getIdToken().then(function (t) {
+      return fetch(FN + 'supportApi?count=1', {headers: {Authorization: 'Bearer ' + t}});
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) return;
+      // 고객지원 페이지를 보고 있어도, 남은 건수는 그대로 알려주는 편이 낫다
+      // (여기서 처리하는 중이므로 숫자가 줄어드는 걸 보는 게 자연스럽다)
+      badge('support.html', j.count > 0, j.count > 99 ? '99+' : String(j.count));
+      if (here === 'support.html' && j.count === 0) badge('support.html', false);
+    }).catch(function () {});
+  }
+
+  var _sbTried = 0;
+  function waitAuth() {
+    if (window.__auth && window.__auth.currentUser) { supportBadge(); return; }
+    if (++_sbTried > 20) return;            // 최대 10초 대기 후 포기(비로그인)
+    setTimeout(waitAuth, 500);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { run(); waitAuth(); });
+  } else { run(); waitAuth(); }
 })();
