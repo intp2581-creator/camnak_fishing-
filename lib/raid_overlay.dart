@@ -342,7 +342,12 @@ class _RaidOverlayState extends State<RaidOverlay> {
         const SizedBox(height: 5),
         Expanded(
           child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-            stream: col.orderBy('timestamp', descending: true).limit(30).snapshots(),
+            // 🔄 이번 접속 이후 메시지만 — 재접속하면 지난 대화는 사라진다(광장·낚시터와 동일 규칙).
+            stream: col
+                .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
+                .orderBy('timestamp', descending: true)
+                .limit(30)
+                .snapshots(),
             builder: (c, snap) {
               final docs = snap.data?.docs ?? [];
               if (docs.isEmpty) {
