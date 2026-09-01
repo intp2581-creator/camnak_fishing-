@@ -604,7 +604,7 @@
   var YOUTUBE_URL= 'https://youtu.be/W4PUbMzAALw';    // 🎬 소개영상
   var LOGIN_URL  = 'https://camnak.com/?gohub=1';   // 로그인(아임웹 로그인 후 홈페이지로 자동 복귀)
   var JOIN_URL   = 'https://camnak.com/147';        // 회원가입
-  var SUPPORT_URL= 'https://camnak.com';              // 고객지원
+  var SUPPORT_URL= 'support.html';                    // 고객지원(자체 페이지 — FAQ + 1:1 문의)
 
   function wire(sel,url){document.querySelectorAll(sel).forEach(function(a){a.href=url;a.target='_blank';a.rel='noopener';});}
   document.querySelectorAll('[data-play]').forEach(function(a){a.href=GAME_URL;});document.querySelectorAll('[data-store]').forEach(function(a){a.href=STORE_URL;});wire('[data-mall]',MALL_URL);
