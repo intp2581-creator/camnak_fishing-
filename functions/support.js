@@ -13,7 +13,7 @@ const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 const CATEGORIES = ["prize", "payment", "refund", "account", "game", "etc"];
-const CAT_LABEL = {prize: "경품 배송", payment: "결제", refund: "환불",
+const CAT_LABEL = {prize: "이벤트 당첨", payment: "결제", refund: "환불",
   account: "계정", game: "게임 이용", etc: "기타"};
 
 async function me(req) {
