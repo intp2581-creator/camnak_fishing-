@@ -52,6 +52,7 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
         rows.push({id: d.id, category: v.category, categoryLabel: CAT_LABEL[v.category] || "기타",
           title: v.title, status: v.status, nick: v.nick,
           replyCount: v.replyCount || 0,
+          gmReplies: v.gmReplies || 0, userReplies: v.userReplies || 0,
           createdAt: v.createdAt ? v.createdAt.toMillis() : 0});
       });
       rows.sort((a, b) => b.createdAt - a.createdAt);
@@ -124,11 +125,15 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
         body, byGm: u.isGm, nick: u.isGm ? "캠피싱 운영자" : u.nick,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      await ref.update({
+      // ⚠️ 운영자 답변과 문의자의 추가 글을 한 숫자로 세면, 목록에서 '답변 1'로 보여
+      //    답을 준 것처럼 착각하게 된다. 따로 센다.
+      const upd = {
         replyCount: admin.firestore.FieldValue.increment(1),
         status: u.isGm ? "answered" : "open",     // 운영자가 답하면 답변완료, 유저가 쓰면 다시 대기
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      };
+      upd[u.isGm ? "gmReplies" : "userReplies"] = admin.firestore.FieldValue.increment(1);
+      await ref.update(upd);
       return res.json({ok: true});
     }
 

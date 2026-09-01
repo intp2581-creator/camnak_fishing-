@@ -302,7 +302,10 @@
         '<div class="m"><span class="st '+r.status+'">'+LB[r.status]+'</span> · '+
         r.categoryLabel+' · '+when(r.createdAt)+
         (j.isGm ? ' · '+esc(r.nick) : '')+
-        (r.replyCount ? ' · 답변 '+r.replyCount : '')+'</div></a>').join('');
+        (r.gmReplies ? ' · 답변 '+r.gmReplies : '')+
+        (r.userReplies ? ' · <b style="color:#c0392b">추가글 '+r.userReplies+'</b>' : '')+
+        (!r.gmReplies && !r.userReplies && r.replyCount ? ' · 댓글 '+r.replyCount : '')+
+        '</div></a>').join('');
       document.querySelectorAll('.tk').forEach(a => a.onclick = (e) => {
         e.preventDefault(); openTicket(a.dataset.id);
       });
