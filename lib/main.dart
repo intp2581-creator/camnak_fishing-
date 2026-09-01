@@ -36,6 +36,21 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(primary: Color(0xFFD4AF37)), // 영롱한 KREFT 골드!
+        // 🍞 토스트(스낵바) 공통 스타일 — 화면이 어두워서 기본 검정 배경이면 글씨가 안 보였다(2026-09-01).
+        //    앱 전체에서 16곳이 쓰므로 테마에서 한 번에 잡는다.
+        //    floating + 아래 여백: 하단 채팅창·당기기 버튼에 가리지 않게 띄운다.
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xF01A1408),          // 짙은 갈색빛 검정(불투명)
+          insetPadding: const EdgeInsets.fromLTRB(24, 0, 24, 96),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.6), // 골드 테두리
+          ),
+          contentTextStyle: const TextStyle(
+            color: Color(0xFFFFF3D0), fontSize: 16, fontWeight: FontWeight.w900, height: 1.35),
+          elevation: 10,
+        ),
       ),
       // 🖼️ 사장님 시안 비율(16:9)을 어떤 폰/모니터에서든 강제로 맞춰주는 마법의 액자!
       builder: (context, child) {
