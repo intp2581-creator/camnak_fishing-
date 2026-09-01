@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 완료 — 캠피싱 KREFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .done{max-width:560px;margin:56px auto 70px;text-align:center}
+  .done .ok{width:96px;height:96px;margin:0 auto 26px;border-radius:50%;
+    background:linear-gradient(135deg,#0f6f96,#31c98d);color:#fff;
+    font-size:48px;line-height:96px;box-shadow:0 10px 30px rgba(15,111,150,.28)}
+  .done h2{margin:0 0 12px;font-size:27px;font-weight:900;color:var(--ink)}
+  .done .sub{color:var(--ink-soft);font-size:15.5px;line-height:1.9;margin:0 0 26px}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:22px 24px;margin-bottom:24px;text-align:left}
+  .box .r{display:flex;justify-content:space-between;padding:9px 0;font-size:15px}
+  .box .r b{color:var(--blue-ink)}
+  .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btns a{padding:15px 30px;border-radius:30px;text-decoration:none;font-weight:900;font-size:16px}
+  .btns .p{background:linear-gradient(135deg,#ffd23f,#e9b219);color:#4a3200}
+  .btns .s{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .tip{margin-top:24px;font-size:13.5px;color:var(--ink-soft);line-height:1.85}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="done">
+    <div class="ok">✓</div>
+    <h2>결제가 완료되었습니다</h2>
+    <p class="sub">구매하신 아이템이 <b>게임 계정으로 바로 지급</b>되었습니다.<br>
+      게임에 접속해서 인벤토리를 확인해 주세요.</p>
+
+    <div class="box">
+      <div class="r"><span>상품</span><b id="dItem">—</b></div>
+      <div class="r"><span>수량</span><b id="dQty">—</b></div>
+      <div class="r"><span>지급 상태</span><b style="color:#2e9e6b">지급 완료</b></div>
+    </div>
+
+    <div class="btns">
+      <a class="p" data-play href="#">🎮 게임으로 돌아가기</a>
+      <a class="s" href="store.html">게임스토어 더 보기</a>
+    </div>
+
+    <p class="tip">
+      아이템이 보이지 않으면 게임을 <b>새로고침</b>해 주세요.<br>
+      그래도 지급되지 않았다면 홈페이지 <a href="community.html">커뮤니티</a>로 문의해 주시면
+      바로 확인해 드리겠습니다.
+    </p>
+  </div>
+</div>
+
+<script type="module" src="auth.js"></script>
+<script>
+  const q = new URLSearchParams(location.search);
+  document.getElementById('dItem').textContent = q.get('item') || '—';
+  document.getElementById('dQty').textContent  = (q.get('qty') || '1') + '개';
+</script>
+</body>
+</html>

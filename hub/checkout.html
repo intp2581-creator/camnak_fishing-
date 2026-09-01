@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>결제 — 캠피싱 KREFT</title>
+<meta name="description" content="캠피싱 KREFT 게임스토어 결제">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
+<style>
+  .co{display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start;margin-bottom:44px}
+  @media (max-width:900px){.co{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:22px 24px;margin-bottom:18px}
+  .card h3{margin:0 0 14px;font-size:17px;color:var(--ink)}
+  .item{display:flex;gap:16px;align-items:center}
+  .item img{width:88px;height:88px;object-fit:cover;border-radius:12px;background:#eef4f8;flex:none}
+  .item b{display:block;font-size:17px;margin-bottom:5px}
+  .item span{font-size:14px;color:var(--ink-soft)}
+  .qty{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .qty button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
+    background:#fff;font-size:18px;font-weight:900;cursor:pointer;color:var(--blue-ink)}
+  .qty button:disabled{opacity:.35;cursor:default}
+  .qty input{width:54px;height:32px;text-align:center;border:1px solid var(--line);
+    border-radius:8px;font-family:inherit;font-size:15px;font-weight:800}
+  .row{display:flex;justify-content:space-between;padding:9px 0;font-size:15px}
+  .row.total{border-top:1px solid var(--line);margin-top:8px;padding-top:14px;
+    font-size:19px;font-weight:900;color:var(--blue-ink)}
+  .pay{width:100%;height:56px;border:none;border-radius:14px;cursor:pointer;
+    background:linear-gradient(135deg,#0f6f96,#31c98d);color:#fff;
+    font-family:inherit;font-size:18px;font-weight:900;margin-top:6px}
+  .pay:disabled{background:#c3d3dd;cursor:default}
+  .agree{display:flex;gap:9px;align-items:flex-start;margin:14px 0 4px;font-size:13.5px;
+    color:var(--ink-soft);line-height:1.6}
+  .agree input{margin-top:3px;width:17px;height:17px;flex:none}
+  .notice{background:#f5fafd;border:1px solid #dceaf2;border-radius:12px;
+    padding:14px 16px;font-size:13px;color:var(--ink-soft);line-height:1.85}
+  .notice b{color:var(--ink)}
+  .warn{background:#fff6f4;border:1px solid #f7d5cc;color:#8a5a50}
+  #msg{display:none;margin-bottom:16px}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a class="on" href="store.html">게임스토어</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>💳 결제</h1>
+  <p>구매하신 아이템은 결제 즉시 게임 계정으로 지급됩니다.</p>
+</div></div>
+
+<div class="wrap">
+  <div class="notice warn" id="msg"></div>
+
+  <div class="co" id="co" style="display:none">
+    <div>
+      <div class="card">
+        <h3>주문 상품</h3>
+        <div class="item">
+          <img id="pImg" src="" alt="">
+          <div>
+            <b id="pName">—</b>
+            <span id="pDesc"></span>
+            <div class="qty" id="qtyBox">
+              <button id="qMinus">−</button>
+              <input id="qNum" value="1" readonly>
+              <button id="qPlus">＋</button>
+              <span style="font-size:13px;color:var(--ink-soft)">개</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>구매자</h3>
+        <div class="row"><span>게임 계정</span><b id="uEmail">—</b></div>
+        <p style="margin:10px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.75">
+          이 계정으로 아이템이 지급됩니다. 다른 계정으로 받으시려면
+          해당 계정으로 로그인 후 구매해 주세요.</p>
+      </div>
+
+      <div class="card">
+        <h3>구매 전 확인해 주세요</h3>
+        <div class="notice">
+          · 본 상품은 <b>게임 내에서만 사용되는 디지털 아이템</b>입니다. 배송은 없습니다.<br>
+          · 결제 완료 즉시 게임 계정으로 자동 지급됩니다.<br>
+          · <b>청약철회</b>: 미사용 상품은 결제 후 7일 이내 전액 환불됩니다.
+            사용을 개시한 상품은 환불이 제한됩니다.<br>
+          · <b>유효기간</b>: 구매일로부터 1년 (미사용 시 소멸)<br>
+          · 스킨·휘장은 <b>계정당 1개</b>만 보유할 수 있으며, 상품별 레벨·등급 조건이 있습니다.<br>
+          · 판매자: 주식회사 안테모사 · 문의: 홈페이지 고객지원
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card" style="position:sticky;top:16px">
+        <h3>결제 금액</h3>
+        <div class="row"><span>상품 금액</span><span id="sPrice">—</span></div>
+        <div class="row"><span>수량</span><span id="sQty">1개</span></div>
+        <div class="row total"><span>총 결제금액</span><span id="sTotal">—</span></div>
+
+        <label class="agree">
+          <input type="checkbox" id="agree">
+          <span>위 <b>구매 전 확인 사항</b>과 <a href="policy.html#item" target="_blank">청약철회·환불 안내</a>를
+            확인했으며, 결제 진행에 동의합니다. (필수)</span>
+        </label>
+
+        <button class="pay" id="payBtn" disabled>결제하기</button>
+        <p style="margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);text-align:center">
+          결제는 <b>포트원</b>을 통해 안전하게 처리됩니다</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="auth.js"></script>
+<script type="module">
+  import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+
+  const FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/';
+  const CHANNEL_KEY = 'channel-key-bda1f518-2031-435c-98bc-e2f2d66f189f'; // 테스트 채널
+
+  // 🛒 상품 표시 정보(가격은 서버가 정한다 — 여기 값은 화면용일 뿐)
+  const CATALOG = {
+    ticket_1h:    {n:'낚시 1시간 이용권', p:1100,  img:'assets/st-ticket1h.jpg', d:'낚시 시간을 1시간 늘려줍니다', stack:true},
+    ticket_arena: {n:'아레나 입장권',     p:1100,  img:'assets/st-arena.jpg',    d:'아레나에 하루 1회 더 참가', stack:true},
+    skin_novice:  {n:'하수 조사',   p:2200,  img:'assets/st-skin-novice.jpg', d:'Lv.10 · 하수 이상'},
+    skin_mid:     {n:'중수 조사',   p:5500,  img:'assets/st-skin-mid.jpg',    d:'Lv.30 · 중수 이상'},
+    skin_expert:  {n:'고수 조사',   p:11000, img:'assets/st-skin-expert.jpg', d:'Lv.50 · 고수 이상'},
+    skin_pro:     {n:'프로 조사',   p:22000, img:'assets/st-skin-pro.jpg',    d:'Lv.70 · 프로 이상'},
+    skin_master:  {n:'마스터 조사', p:55000, img:'assets/st-skin-master.jpg', d:'Lv.100 · 마스터 이상'},
+    badge_1:      {n:'캠피싱 뱃지',      p:2200,  img:'assets/st-badge1.jpg', d:'Lv.10 이상'},
+    badge_2:      {n:'캠피싱 휘장',      p:5500,  img:'assets/st-badge2.jpg', d:'Lv.30 이상'},
+    badge_3:      {n:'KREFT 정예 휘장', p:11000, img:'assets/st-badge3.jpg', d:'Lv.50 이상'},
+  };
+
+  const $ = (id) => document.getElementById(id);
+  const won = (n) => n.toLocaleString('ko-KR') + '원';
+  function fail(t){ const m=$('msg'); m.textContent=t; m.style.display='block'; $('co').style.display='none'; }
+
+  const itemKey = new URLSearchParams(location.search).get('item') || '';
+  const item = CATALOG[itemKey];
+  if (!item) fail('상품 정보를 찾을 수 없습니다. 게임스토어에서 다시 선택해 주세요.');
+
+  let qty = 1;
+  function paint(){
+    $('pName').textContent = item.n;
+    $('pDesc').textContent = item.d;
+    $('pImg').src = item.img;
+    $('sPrice').textContent = won(item.p);
+    $('sQty').textContent = qty + '개';
+    $('sTotal').textContent = won(item.p * qty);
+    $('qNum').value = qty;
+    $('qMinus').disabled = qty <= 1;
+    $('qPlus').disabled = !item.stack || qty >= 10;
+    if (!item.stack) $('qtyBox').style.display = 'none';
+  }
+  if (item) {
+    paint();
+    $('qMinus').onclick = () => { if (qty > 1) { qty--; paint(); } };
+    $('qPlus').onclick  = () => { if (qty < 10) { qty++; paint(); } };
+    $('agree').onchange = (e) => { $('payBtn').disabled = !e.target.checked; };
+  }
+
+  // 로그인 확인
+  let me = null;
+  const poll = setInterval(() => {
+    const u = window.__auth && window.__auth.currentUser;
+    if (u) { clearInterval(poll); me = u; $('uEmail').textContent = u.email; $('co').style.display='grid'; }
+  }, 250);
+  setTimeout(() => { if (!me) fail('로그인이 필요합니다. 우측 상단에서 로그인해 주세요.'); }, 6000);
+
+  $('payBtn').onclick = async () => {
+    const btn = $('payBtn');
+    btn.disabled = true; btn.textContent = '준비 중…';
+    try {
+      const token = await me.getIdToken();
+      const H = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+
+      // ① 서버가 주문번호와 금액을 확정
+      const prep = await fetch(FN+'payPrepare', {method:'POST', headers:H,
+        body: JSON.stringify({itemKey, qty})}).then(r=>r.json());
+      if (!prep.ok) throw new Error(prep.err || '주문 생성 실패');
+
+      // ② 결제창 (금액은 서버가 준 값 그대로)
+      btn.textContent = '결제창 여는 중…';
+      const rsp = await PortOne.requestPayment({
+        storeId: prep.storeId,
+        channelKey: CHANNEL_KEY,
+        paymentId: prep.orderId,
+        orderName: prep.itemName + (qty>1 ? ' x'+qty : ''),
+        totalAmount: prep.amount,
+        currency: 'CURRENCY_KRW',
+        payMethod: 'CARD',
+        customer: { email: me.email },
+      });
+      if (rsp.code) throw new Error(rsp.message || '결제가 취소되었습니다');
+
+      // ③ 서버 검증 + 지급
+      btn.textContent = '결제 확인 중…';
+      const ver = await fetch(FN+'payVerify', {method:'POST', headers:H,
+        body: JSON.stringify({orderId: prep.orderId})}).then(r=>r.json());
+      if (!ver.ok) throw new Error(ver.err || '결제 검증 실패');
+
+      location.href = 'done.html?item=' + encodeURIComponent(prep.itemName) + '&qty=' + qty;
+    } catch (e) {
+      alert(e.message || '결제에 실패했습니다.');
+      btn.disabled = false; btn.textContent = '결제하기';
+    }
+  };
+</script>
+</body>
+</html>

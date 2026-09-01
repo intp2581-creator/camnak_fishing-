@@ -804,3 +804,8 @@ exports.meApi = functions.https.onRequest(async (req, res) => {
 
 // 💬 커뮤니티 게시판 API (community.js)
 exports.communityApi = require("./community").communityApi;
+
+// 💳 자체 결제(포트원 V2) — kreft.co.kr 단일 도메인 결제·즉시지급
+exports.payPrepare = require("./payment").payPrepare;
+exports.payVerify  = require("./payment").payVerify;
+exports.myOrders   = require("./payment").myOrders;
