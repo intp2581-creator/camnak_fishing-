@@ -358,21 +358,13 @@
           if (cs === null) return;
           const cnt = parseInt(cs, 10);
           if (!(cnt > 0)) return alert('수량을 확인해 주세요.');
-          const reason = prompt('회수 사유를 적어주세요.
-(예: 아레나 입장권 결제 취소 · 주문번호 12345)', '결제 취소에 따른 회수');
+          const reason = prompt('회수 사유를 적어주세요.\n(예: 아레나 입장권 결제 취소 · 주문번호 12345)', '결제 취소에 따른 회수');
           if (!reason) return;
-          if (!confirm(nm+' '+cnt+'개를 회수합니다.
-
-사유: '+reason+'
-
-진행할까요?')) return;
+          if (!confirm(nm+' '+cnt+'개를 회수합니다.\n\n사유: '+reason+'\n\n진행할까요?')) return;
           btn.disabled = true;
           const rr = await api('', {action:'gmRevoke', id, itemName:nm, count:cnt, reason});
           if (!rr.ok) { alert(rr.err); btn.disabled = false; return; }
-          alert('회수 완료
-'+rr.itemName+' : '+rr.before+'개 → '+rr.after+'개
-
-이제 아임웹에서 결제를 취소하세요.');
+          alert('회수 완료\n'+rr.itemName+' : '+rr.before+'개 → '+rr.after+'개\n\n이제 아임웹에서 결제를 취소하세요.');
           $('gInv').click();
         };
       });
