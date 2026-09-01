@@ -156,7 +156,33 @@
         <label>제목</label>
         <input id="fTitle" maxlength="80" placeholder="어떤 문제인지 짧게 적어주세요">
       </div>
-      <div class="f">
+      <!-- 🎁 이벤트 당첨 전용 입력칸 — 자유 서술로 받으면 항목이 빠지거나
+           주소 형식이 제각각이라, 칸을 나눠 받고 마지막에 한 덩어리로 합친다. -->
+      <div class="hide" id="prizeForm">
+        <div class="f"><label>게임 닉네임</label>
+          <input id="pNick" maxlength="20" placeholder="게임에서 쓰시는 닉네임"></div>
+        <div class="pf-goods">
+          <div class="f"><label>받으실 분 성함</label>
+            <input id="pName" maxlength="20" placeholder="택배 받으실 분 이름"></div>
+          <div class="f"><label>연락처</label>
+            <input id="pPhone" maxlength="13" inputmode="numeric" placeholder="010-0000-0000"></div>
+          <div class="f"><label>주소</label>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="pZip" maxlength="6" placeholder="우편번호" style="flex:0 0 130px" readonly>
+              <button type="button" class="btn g" id="pFind"
+                style="padding:12px 18px;white-space:nowrap">주소 찾기</button>
+            </div>
+            <div id="pWrap" class="hide" style="border:1px solid var(--line);border-radius:12px;
+                 overflow:hidden;height:420px;margin-bottom:8px"></div>
+            <input id="pAddr" placeholder="주소 찾기를 눌러주세요" readonly style="margin-bottom:8px">
+            <input id="pAddr2" maxlength="60" placeholder="상세주소 (동 · 호수 등)">
+          </div>
+        </div>
+        <div class="f"><label>남기실 말씀 <span style="font-weight:500;color:var(--ink-soft)">(선택)</span></label>
+          <textarea id="pMemo" maxlength="500" style="min-height:80px"
+            placeholder="따로 전하실 말씀이 있으면 적어주세요."></textarea></div>
+      </div>
+      <div class="f" id="bodyWrap">
         <label>내용</label>
         <textarea id="fBody" maxlength="3000"
           placeholder="언제, 어떤 상황에서 문제가 생겼는지 적어주시면 빠르게 도와드릴 수 있어요."></textarea>
@@ -393,6 +419,39 @@
     other: ['참여하신 이벤트 :','게임 닉네임 :','','어떤 상품을 받으시는지 적어주세요.'].join(NL),
   };
 
+  let prizeMode = '';          // '' | 'goods' | 'item' | 'other'
+
+  // 📮 우편번호 검색(다음 우편번호 서비스) — 필요할 때만 불러온다.
+  //    불러오지 못하면 직접 입력할 수 있게 열어준다(검색 실패로 접수를 못 하면 안 되므로).
+  function findAddr(){
+    // 팝업은 모바일에서 차단되는 일이 있어, 화면 안에 펼쳐 넣는다.
+    const open = () => {
+      $('pWrap').classList.remove('hide');
+      $('pWrap').innerHTML = '';
+      new daum.Postcode({
+        oncomplete: (d) => {
+          $('pZip').value = d.zonecode;
+          $('pAddr').value = d.roadAddress || d.jibunAddress;
+          $('pWrap').classList.add('hide');
+          $('pAddr2').focus();
+        },
+        onclose: () => { $('pWrap').classList.add('hide'); },
+        width: '100%', height: '100%',
+      }).embed($('pWrap'), {autoClose: true});
+      $('pWrap').scrollIntoView({behavior:'smooth', block:'center'});
+    };
+    if (window.daum && window.daum.Postcode) return open();
+    const sc = document.createElement('script');
+    sc.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    sc.onload = open;
+    sc.onerror = () => {
+      ['pZip','pAddr'].forEach(id => { $(id).readOnly = false; });
+      $('pAddr').placeholder = '주소를 직접 입력해 주세요';
+      alert('주소 검색을 불러오지 못했습니다. 주소를 직접 입력해 주세요.');
+    };
+    document.head.appendChild(sc);
+  }
+
   function renderEvents(){
     $('evList').innerHTML = EVENTS.map((e,i) =>
       '<button type="button" class="btn g evb" data-i="'+i+'" style="display:block;width:100%;'+
@@ -412,6 +471,12 @@
         $('evNote').classList.remove('hide');
         $('fTitle').value = (e.type === 'other') ? '' : e.name + ' 당첨';
         $('fBody').placeholder = EVBODY[e.type];
+        prizeMode = e.type;
+        const structured = (e.type === 'goods' || e.type === 'item');
+        $('prizeForm').classList.toggle('hide', !structured);
+        $('bodyWrap').classList.toggle('hide', structured);
+        document.querySelectorAll('.pf-goods').forEach(x =>
+          x.classList.toggle('hide', e.type !== 'goods'));
       };
     });
   }
@@ -443,8 +508,11 @@
     const v = $('fCat').value;
     const c = CATFORM[v] || CATFORM.etc;
     $('prizeTip').classList.toggle('hide', v !== 'prize');
+    if (v !== 'prize') { prizeMode = ''; $('prizeForm').classList.add('hide'); }
+    $('bodyWrap').classList.toggle('hide', v === 'prize' && (prizeMode === 'goods' || prizeMode === 'item'));
     if (v === 'prize') {                      // 이벤트를 고르기 전까지는 안내를 비워 둔다
       $('evNote').classList.add('hide');
+      prizeMode = ''; $('prizeForm').classList.add('hide'); $('bodyWrap').classList.remove('hide');
       $('evList').querySelectorAll('.evb').forEach(x => {
         x.style.borderColor=''; x.style.background='#fff'; x.style.fontWeight='';
       });
@@ -457,8 +525,46 @@
   $('fCat').onchange = applyCat;
   applyCat();
 
+  // 📮 연락처 자동 하이픈 — 형식이 제각각이면 배송 준비할 때 다시 손봐야 한다.
+  $('pPhone').oninput = () => {
+    const d = $('pPhone').value.replace(/[^0-9]/g, '').slice(0, 11);
+    $('pPhone').value = d.length < 4 ? d
+      : d.length < 8 ? d.slice(0,3) + '-' + d.slice(3)
+      : d.slice(0,3) + '-' + d.slice(3,7) + '-' + d.slice(7);
+  };
+  $('pFind').onclick = findAddr;
+
+  // 나눠 받은 칸을 하나의 본문으로 합친다(운영자가 그대로 읽고 배송하면 되도록).
+  function buildPrizeBody(){
+    const nick = $('pNick').value.trim();
+    if (!nick) { $('pNick').focus(); alert('게임 닉네임을 적어주세요.'); return null; }
+    if (prizeMode === 'item') {
+      const memo = $('pMemo').value.trim();
+      return ['게임 닉네임 : ' + nick].concat(memo ? ['', '남기실 말씀 : ' + memo] : []).join(NL);
+    }
+    const name = $('pName').value.trim();
+    const phone = $('pPhone').value.trim();
+    const zip = $('pZip').value.trim();
+    const addr = $('pAddr').value.trim();
+    const addr2 = $('pAddr2').value.trim();
+    if (!name)  { $('pName').focus();  alert('받으실 분 성함을 적어주세요.'); return null; }
+    if (phone.replace(/[^0-9]/g,'').length < 10) { $('pPhone').focus(); alert('연락처를 정확히 적어주세요.'); return null; }
+    if (!addr)  { alert('주소 찾기를 눌러 주소를 입력해 주세요.'); return null; }
+    if (!addr2) { $('pAddr2').focus(); alert('상세주소(동 · 호수 등)를 적어주세요.'); return null; }
+    const memo = $('pMemo').value.trim();
+    return ['게임 닉네임 : ' + nick,
+            '받으실 분 : ' + name,
+            '연락처 : ' + phone,
+            '우편번호 : ' + zip,
+            '주소 : ' + addr + ' ' + addr2].concat(memo ? ['', '남기실 말씀 : ' + memo] : []).join(NL);
+  }
+
   $('fSend').onclick = async () => {
-    const title = $('fTitle').value.trim(), body = $('fBody').value.trim();
+    const structured = (($('fCat').value === 'prize') && (prizeMode === 'goods' || prizeMode === 'item'));
+    const title = $('fTitle').value.trim();
+    let body;
+    if (structured) { body = buildPrizeBody(); if (body === null) return; }
+    else { body = $('fBody').value.trim(); }
     if (!title || !body) return alert('제목과 내용을 입력해 주세요.');
     $('fSend').disabled = true; $('fSend').textContent = '보내는 중…';
     try{
@@ -466,6 +572,7 @@
         orderId:$('fOrder').value.trim(), title, body});
       if (!j.ok) throw new Error(j.err);
       $('fTitle').value=''; $('fBody').value=''; $('fOrder').value='';
+      ['pNick','pName','pPhone','pZip','pAddr','pAddr2','pMemo'].forEach(id => { $(id).value=''; });
       alert('문의가 접수되었습니다. 확인 후 답변드리겠습니다.');
       go('mine');
     }catch(e){ alert(e.message); }
