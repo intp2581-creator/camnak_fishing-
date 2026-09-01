@@ -5,6 +5,9 @@
 import io, re, sys
 
 TOP3 = ["낚시의왕", "아레투사", "빨강테리"]      # 지정 상품 수상자 = 추첨 제외
+# ⚠️ 운영자 계정 — 명단 공개 후 발견(isGm 플래그가 없어 자동 필터에 안 걸렸음).
+#    숨기지 않고 발표문에 "제외하고 다음 번호로 넘어갔다"고 명시한다.
+STAFF = ["캠피싱 아라"]
 
 names = []
 for ln in io.open("문서/이벤트_8월랭킹전_추첨명단_공개용.txt", encoding="utf-8"):
@@ -20,8 +23,9 @@ start = seed % N + 1
 print("명단 %d명 / 시드 %d / 시작번호 %d\n" % (N, seed, start))
 cur, won, skipped = start, [], []
 while len(won) < 10:
-    if names[cur - 1] in TOP3:
-        skipped.append("%d번 %s" % (cur, names[cur - 1]))
+    if names[cur - 1] in TOP3 or names[cur - 1] in STAFF:
+        why = "1~3위" if names[cur - 1] in TOP3 else "운영자 계정"
+        skipped.append("%d번 %s(%s)" % (cur, names[cur - 1], why))
     else:
         won.append(cur)
         print("%2d  %3d번  %s" % (len(won), cur, names[cur - 1]))
