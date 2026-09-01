@@ -153,9 +153,9 @@
           <b style="color:#a5761b">이 문의는 본인과 운영자만 볼 수 있습니다.</b>
         </div>
       </div>
-      <div class="f">
-        <label>주문번호 <span style="font-weight:500;color:var(--ink-soft)">(결제·환불 문의 시)</span></label>
-        <input id="fOrder" placeholder="KREFT1756... (모르시면 비워두세요)">
+      <div class="f hide" id="orderWrap">
+        <label>주문번호 <span style="font-weight:500;color:var(--ink-soft)">(아시면 적어주세요)</span></label>
+        <input id="fOrder" placeholder="KREFT1756... (모르셔도 괜찮습니다)">
       </div>
       <div class="f">
         <label>제목</label>
@@ -372,13 +372,43 @@
   }
 
   // ══════════ 문의 작성 ══════════
-  // 🎁 경품 선택 시 배송정보 안내 표시
-  $('fCat').onchange = () => {
-    $('prizeTip').classList.toggle('hide', $('fCat').value !== 'prize');
-    $('fBody').placeholder = $('fCat').value === 'prize'
-      ? '성함 / 연락처 / 주소(우편번호 포함)를 적어주세요.'
-      : '언제, 어떤 상황에서 문제가 생겼는지 적어주시면 빠르게 도와드릴 수 있어요.';
+  // 📝 유형마다 필요한 정보가 다르다. 안내문이 전부 똑같으면
+  //    무엇을 적어야 할지 알 수 없어 되묻는 일이 늘어난다.
+  const NL = String.fromCharCode(10);
+  const CATFORM = {
+    prize: {order:false,
+      title:'예) 경품 배송정보 드립니다',
+      body:['받으실 분 성함 :','연락처(휴대폰) :','주소 (우편번호 포함) :'].join(NL)},
+    payment: {order:true,
+      title:'예) 결제했는데 아이템이 안 들어왔어요',
+      body:['결제하신 날짜 :','결제하신 이메일 :','구매하신 상품 :','','어떤 문제가 생겼는지 적어주세요.'].join(NL)},
+    refund: {order:true,
+      title:'예) 미사용 아레나 입장권 환불 요청합니다',
+      body:['결제하신 분 성함 :','결제하신 이메일 :','환불 원하시는 상품과 수량 :','',
+            '성함이나 이메일만 있어도 주문내역에서 찾을 수 있습니다.'].join(NL)},
+    account: {order:false,
+      title:'예) 로그인이 안 돼요',
+      body:['게임 닉네임 :','로그인 방법 (구글 · 카카오 등) :','화면에 뜨는 메시지 :','',
+            '언제부터 그런지도 적어주시면 빠르게 도와드릴 수 있어요.'].join(NL)},
+    game: {order:false,
+      title:'예) 낚시 중에 화면이 멈춰요',
+      body:['게임 닉네임 :','어느 화면에서 (광장 · 낚시터 · 아레나 · 길드홀) :','언제부터 :','',
+            '어떻게 하면 다시 생기는지 적어주시면 큰 도움이 됩니다.'].join(NL)},
+    etc: {order:false,
+      title:'어떤 일인지 짧게 적어주세요',
+      body:'편하게 적어주세요. 확인하고 답변드리겠습니다.'},
   };
+  function applyCat(){
+    const v = $('fCat').value;
+    const c = CATFORM[v] || CATFORM.etc;
+    $('prizeTip').classList.toggle('hide', v !== 'prize');
+    $('orderWrap').classList.toggle('hide', !c.order);
+    $('fTitle').placeholder = c.title;
+    $('fBody').placeholder = c.body;
+    if (!c.order) $('fOrder').value = '';
+  }
+  $('fCat').onchange = applyCat;
+  applyCat();
 
   $('fSend').onclick = async () => {
     const title = $('fTitle').value.trim(), body = $('fBody').value.trim();
