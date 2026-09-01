@@ -54,6 +54,10 @@ class _RaidOverlayState extends State<RaidOverlay> {
   String _hostUid = '';        // 🎖️ 이번 레이드를 연 사람(길드장/부길드장 1명) — 이 사람만 시작 가능
   bool get _isHost => _hostUid.isNotEmpty && _hostUid == _uid;
   String _bossId = 'murgadon'; // 🐲 이번에 도전할 보스(클리어하면 방 문서에 다음 보스가 기록됨)
+  // 🍞 존 전환 안내는 '셋팅 화면이 실제로 보일 때' 띄운다.
+  //    방 문서의 bossId는 보스를 잡는 순간 바뀌는데, 그때는 아직 전투 결과 화면이라
+  //    토스트가 엉뚱한 곳에 떠버렸다(2026-09-01).
+  String? _pendingZoneMsg;
 
   // 💬 레이드 대기중 소통 — 길드 채팅(guilds/{gid}/chat)을 그대로 쓴다.
   //    새 컬렉션을 만들면 보안규칙(콘솔 관리)을 건드려야 하고, 어차피 참가자는 전원 같은 길드다.
@@ -182,13 +186,13 @@ class _RaidOverlayState extends State<RaidOverlay> {
         //    장비·제압력을 다시 계산한다. 안 하면 이전 존 장비가 그대로 남는다(2026-09-01).
         final bool waterChanged = raidBossIsSea(bid) != raidBossIsSea(_bossId);
         setState(() { _bossId = bid; if (waterChanged) _gearLoading = true; });
-        _autoEquipRaidRod().then((_) {
-          if (waterChanged && mounted) {
-            _snack(raidBossIsSea(bid)
-                ? '🌊 바다 존이에요 — 바다 장비로 다시 맞췄어요'
-                : '🏞️ 민물 존이에요 — 민물 장비로 다시 맞췄어요');
-          }
-        });
+        _autoEquipRaidRod();
+        if (waterChanged) {
+          _pendingZoneMsg = raidBossIsSea(bid)
+              ? '🌊 바다 존이에요 — 바다 장비로 다시 맞췄어요'
+              : '🏞️ 민물 존이에요 — 민물 장비로 다시 맞췄어요';
+        }
+        _flushZoneMsg();
       }
       final status = (d?['status'] ?? 'waiting').toString();
       if (status == 'raiding' && !_started) {
@@ -197,6 +201,7 @@ class _RaidOverlayState extends State<RaidOverlay> {
         widget.onStart(endAt);
       } else if (status == 'waiting') {
         _started = false; // 레이드 끝나 대기로 리셋되면 다음 판 재입장 가능
+        _flushZoneMsg();  // ⚠️ _started를 false로 되돌린 '뒤에' — 보스전 복귀 시점에 안내
       }
     });
   }
@@ -511,6 +516,14 @@ class _RaidOverlayState extends State<RaidOverlay> {
         ]))),
       ]),
     );
+  }
+
+  // 🍞 보류해 둔 존 전환 안내를 지금 띄운다 — 전투 중(_started)에는 띄우지 않는다.
+  void _flushZoneMsg() {
+    final m = _pendingZoneMsg;
+    if (m == null || _started || !mounted) return;
+    _pendingZoneMsg = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) { if (mounted) _snack(m); });
   }
 
   void _snack(String m) {
