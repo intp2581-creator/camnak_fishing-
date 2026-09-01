@@ -208,7 +208,9 @@
              tip:['팁 · 노하우','나만의 낚시 요령과 공략을 공유해 주세요.'],
              catch:['조과 자랑','오늘의 조과를 사진과 함께 자랑해 보세요!'],
              guild:['길드 소식','길드원 모집과 길드 활동 소식을 알려주세요.'],
-             ask:['건의 · 문의','운영에 대한 의견을 남겨주세요. 모든 글에 답변드리지는 못하지만 모두 읽고 있습니다.']};
+             ask:['건의 · 문의','게임에 대한 의견·제안을 남겨주세요. 모두 읽고 있습니다. '
+                  +'<b>결제 · 환불 · 경품 배송 · 계정 문제</b>는 개인정보가 오가므로 '
+                  +'<a href="support.html" style="color:#0f6f96;font-weight:800">고객지원 1:1 문의</a>를 이용해 주세요.']};
   var cur='free', myUid='', myIsGm=false;
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function ago(ms){
@@ -237,7 +239,7 @@
 
   /* ── 목록 ── */
   function loadList(){
-    document.getElementById('bdesc').textContent = BOARD[cur][1];
+    document.getElementById('bdesc').innerHTML = BOARD[cur][1]; // 설명에 링크가 들어감(고객지원 안내)
     var box=document.getElementById('plist');
     box.innerHTML='<div class="empty">불러오는 중…</div>';
     fetch(API+'?list=1&board='+cur+'&limit=30').then(function(r){return r.json()}).then(function(j){

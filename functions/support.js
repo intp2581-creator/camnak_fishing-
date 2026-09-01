@@ -10,8 +10,9 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
-const CATEGORIES = ["payment", "refund", "account", "game", "etc"];
-const CAT_LABEL = {payment: "결제", refund: "환불", account: "계정", game: "게임 이용", etc: "기타"};
+const CATEGORIES = ["prize", "payment", "refund", "account", "game", "etc"];
+const CAT_LABEL = {prize: "경품 배송", payment: "결제", refund: "환불",
+  account: "계정", game: "게임 이용", etc: "기타"};
 
 async function me(req) {
   const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -37,9 +38,11 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
 
     // ── 목록 ──────────────────────────────────
     if (req.method === "GET" && req.query.list) {
-      let q = col.orderBy("createdAt", "desc").limit(50);
-      if (!u.isGm) q = col.where("uid", "==", u.uid).orderBy("createdAt", "desc").limit(50);
-      const s = await q.get();
+      // ⚠️ where + orderBy 조합은 Firestore 복합색인을 요구한다.
+      //    문의 건수가 많지 않으므로 색인을 만들지 않고 '정렬은 메모리에서' 처리한다.
+      const s = u.isGm
+        ? await col.orderBy("createdAt", "desc").limit(100).get()
+        : await col.where("uid", "==", u.uid).limit(100).get();
       const rows = [];
       s.forEach((d) => {
         const v = d.data();
@@ -48,7 +51,8 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
           replyCount: v.replyCount || 0,
           createdAt: v.createdAt ? v.createdAt.toMillis() : 0});
       });
-      return res.json({ok: true, isGm: u.isGm, rows});
+      rows.sort((a, b) => b.createdAt - a.createdAt);
+      return res.json({ok: true, isGm: u.isGm, rows: rows.slice(0, 50)});
     }
 
     // ── 상세 ──────────────────────────────────
@@ -87,8 +91,10 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       if (!title || !body) return res.status(400).json({ok: false, err: "제목과 내용을 입력해 주세요"});
 
       // 🚫 도배 방지 — 처리 대기중인 문의가 5건 넘으면 막는다
-      const openCnt = await col.where("uid", "==", u.uid).where("status", "==", "open").get();
-      if (openCnt.size >= 5) {
+      const mine = await col.where("uid", "==", u.uid).limit(100).get();
+      let open = 0;
+      mine.forEach((d) => { if (d.data().status === "open") open++; });
+      if (open >= 5) {
         return res.status(429).json({ok: false, err: "답변 대기중인 문의가 많습니다. 답변 후 이용해 주세요."});
       }
       const doc = await col.add({
