@@ -1406,6 +1406,11 @@ class _StoreScreenState extends State<StoreScreen> {
   //    조건 충족하면 자동으로 판매 가능(최상급 보호 규칙은 별도 적용).
   bool _cashSellLockUntilEligible(Map<String, dynamic> item) {
     final n = (item['name'] ?? '').toString();
+    // 🎁 [2026-09-02] 아직 못 쓰는 장비는 팔 수도 없다. 선물로 받은 상위 장비를
+    //    (신규 환영 세트의 CF-30T·CF350 등) 레벨 되기 전에 정가30%로 현금화하는
+    //    우회를 막는다 — 상점 구매는 레벨을 검사하므로 사실상 선물에만 걸린다.
+    final int giftLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+    if (giftLv > 0 && widget.currentLevel < giftLv) return true;
     final bool isCash = _isSkin(item) || n.contains('뱃지') || n.contains('휘장');
     if (!isCash) return false;
     int reqLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;

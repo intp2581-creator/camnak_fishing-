@@ -930,6 +930,19 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
     {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
     {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
+    // 🎁 [신규 조사 환영 세트 — 2026-09-02] 가입 즉시 함께 지급.
+    //    낚싯대 두 대는 일부러 Lv.5 제한을 그대로 뒀다 — 가방에 보이지만 아직 못 낀다.
+    //    "5레벨까지 키워서 바꿔 차라"가 첫 접속의 목표가 된다(사용자 결정).
+    //    민물·바다 한 대씩이라 신규가 바다 낚시터도 열어보게 된다.
+    {...kItemPotionExp, 'quantity': 5},
+    {...kItemCardKreft, 'quantity': 5},
+    makeEmblemBoost(),
+    {'name': 'CF-30T', 'category': 'FW', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
+      'icon': 'rod_fw_cf30.png',
+      'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(민물 · 기본대보다 훨씬 강해요)'},
+    {'name': 'CF350', 'category': 'SEA', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
+      'icon': 'rod_sea_cf350.png',
+      'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(바다 · 기본대보다 훨씬 강해요)'},
   ];
 }
 
