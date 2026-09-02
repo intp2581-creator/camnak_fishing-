@@ -11,7 +11,7 @@ const {onDocumentCreated} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
 
-const HUB = "https://game.camnak.com";
+const HUB = "https://kreft.co.kr";
 const REGION = "us-central1";
 
 function mailer() {
@@ -29,13 +29,14 @@ function cut(s, n) {
   return t.length > n ? t.slice(0, n) + "…" : t;
 }
 
-async function send(subject, lines, link) {
+async function send(subject, lines, link, toOverride) {
   const tx = mailer();
   if (!tx) {
     console.warn("[알림 건너뜀] MAIL_USER/MAIL_PASS 미설정");
     return;
   }
-  const to = process.env.MAIL_TO || process.env.MAIL_USER;
+  // toOverride를 주면 그 주소로(문의자에게 답변 알림), 없으면 운영자에게
+  const to = toOverride || process.env.MAIL_TO || process.env.MAIL_USER;
   const body = lines.map((l) =>
     "<p style=\"margin:6px 0;font-size:15px;line-height:1.7\">" + l + "</p>").join("");
   try {
@@ -50,7 +51,9 @@ async function send(subject, lines, link) {
         "style=\"display:inline-block;background:#0f766e;color:#fff;text-decoration:none;" +
         "padding:12px 22px;border-radius:10px;font-weight:700\">바로 확인하기</a></p>" +
         "<p style=\"margin:18px 0 0;font-size:12px;color:#8b9aa3\">" +
-        "이 메일은 캠피싱 KREFT 운영자에게 자동으로 발송됩니다.</p></div>",
+        (toOverride
+          ? "이 메일은 고객지원 문의에 답변이 등록되어 자동으로 발송되었습니다. 회신하지 마시고 위 버튼으로 확인해 주세요."
+          : "이 메일은 캠피싱 KREFT 운영자에게 자동으로 발송됩니다.") + "</p></div>",
     });
     console.log("[알림 발송] " + subject);
   } catch (e) {
@@ -83,13 +86,35 @@ exports.notifyTicketReply = onDocumentCreated(
   {region: REGION, document: "support_tickets/{id}/replies/{rid}"},
   async (event) => {
     const v = event.data && event.data.data();
-    if (!v || v.byGm === true) return;
-    let title = "";
+    if (!v) return;
+
+    let title = "", ownerEmail = "", ownerNick = "";
     try {
       const t = await admin.firestore()
         .collection("support_tickets").doc(event.params.id).get();
-      title = t.exists ? (t.data().title || "") : "";
+      if (t.exists) {
+        title = t.data().title || "";
+        ownerEmail = t.data().email || "";
+        ownerNick = t.data().nick || "";
+      }
     } catch (e) { /* 제목을 못 읽어도 알림은 보낸다 */ }
+
+    // 📨 운영자가 답변한 경우 → 문의자에게 알린다.
+    //    답변해도 문의자가 사이트에 다시 들어와야만 알 수 있었다(2026-09-02).
+    //    ⚠️ 본문은 넣지 않는다 — 메일이 전달·유출될 수 있으므로 제목과 링크만.
+    if (v.byGm === true) {
+      if (!ownerEmail) { console.warn("[답변 알림 건너뜀] 문의자 이메일 없음"); return; }
+      await send(
+        "[캠피싱 KREFT] 문의하신 내용에 답변이 등록되었습니다",
+        ["안녕하세요, <b>" + (ownerNick || "조사님") + "</b>님.",
+          "남겨주신 1:1 문의에 답변을 등록했습니다.",
+          "문의 : <b>" + cut(title, 80) + "</b>",
+          "아래 버튼을 눌러 <b>고객지원 → 내 문의 내역</b>에서 확인해 주세요."],
+        HUB + "/support.html",
+        ownerEmail);
+      return;
+    }
+
     await send(
       "[고객지원] 추가 문의 · " + cut(title, 40),
       ["문의자가 <b>글을 더 남겼습니다.</b>",

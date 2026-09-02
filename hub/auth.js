@@ -336,3 +336,21 @@ autoLoginFromUrl();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 })();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   🏠 대표 주소 통일 — kreft.co.kr (2026-09-02)
+      같은 화면이 game.camnak.com · kreft.kr · camfishing.web.app 등
+      여러 주소로 열리면 유저도 헷갈리고 검색엔진에도 좋지 않다.
+      예전 주소로 들어와도 경로·검색어를 유지한 채 대표 주소로 보낸다.
+      ⚠️ 예전 주소를 죽이면 안 된다 — 유저 북마크, 이미 올린 공지·커뮤니티
+         글, 게임 안 '나가기' 버튼이 아직 그쪽을 가리킬 수 있다.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function () {
+  var HOME = 'kreft.co.kr';
+  var OLD = ['game.camnak.com', 'kreft.kr', 'www.kreft.co.kr', 'www.kreft.kr',
+             'camfishing.web.app', 'camfishing.firebaseapp.com'];
+  var h = (location.hostname || '').toLowerCase();
+  if (OLD.indexOf(h) < 0) return;                       // 대표 주소이거나 개발 환경 → 그대로
+  if (location.protocol !== 'https:') return;           // 로컬 테스트 보호
+  location.replace('https://' + HOME + location.pathname + location.search + location.hash);
+})();
