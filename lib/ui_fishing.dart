@@ -4392,6 +4392,11 @@ Positioned(
         String cat = item['category'] ?? '';
         if (widget.isSea && cat == 'FW') return false;
         if (!widget.isSea && cat == 'SEA') return false;
+        // 🔒 [2026-09-02] 레벨이 모자란 장비는 자동 장착 후보에서 뺀다.
+        //    수동 착용은 막았는데 '⚡ 자동 장착'과 빈손 캐스팅이 이 함수를 타면서
+        //    선물로 받은 CF-30T가 Lv.1에도 그대로 끼워지고 있었다.
+        final int needLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+        if (needLv > 0 && _currentLevel > 0 && _currentLevel < needLv) return false;
         return true;
       }).toList();
 
