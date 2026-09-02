@@ -56,6 +56,10 @@ def sv(x):
     raise TypeError(str(type(x)))
 
 
+# 🚫 제외 — 이미 환영 세트를 받은 계정(가입 경로 테스트용).
+#    스타터팩으로 자동 지급받았으므로 여기서 또 주면 물약이 10개가 된다.
+SKIP_EMAILS = {"anthemosa@naver.com"}   # 제주왕갈치(테스트)
+
 GIFTS = [
     {"name": "경험치 물약", "price": 0, "cash": True,
      "category": "BOOST", "type": "BOOST", "boost": "exp", "quantity": 5,
@@ -96,6 +100,10 @@ def main():
         nick = f.get("nickname", {}).get("stringValue", "(닉없음)")
 
         if "welcomeSetGrantedAt" in f:
+            skip += 1
+            continue
+        if f.get("email", {}).get("stringValue", "") in SKIP_EMAILS:
+            print("  건너뜀(제외 목록) " + nick)
             skip += 1
             continue
 
