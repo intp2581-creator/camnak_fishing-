@@ -3,6 +3,30 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
+// 🎁 [패키지] 결제 1건에 여러 아이템을 한 번에 지급한다.
+//   itemDatabase는 '상품 하나 = 아이템 하나' 구조라 패키지를 못 다뤘다(2026-09-02 신설).
+//   qty는 수량, secLeft/active가 있으면 '켜서 쓰는' 기간제 아이템.
+const packageDatabase = {
+  "성장 지원 패키지": [
+    {name: "경험치 물약", qty: 10, category: "BOOST", type: "BOOST", boost: "exp",
+      icon: "item_potion_exp.png",
+      desc: "마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)"},
+    {name: "KREFT 2배 카드", qty: 10, category: "BOOST", type: "BOOST", boost: "pts",
+      icon: "item_card_kreft.png",
+      desc: "사용하면 10분 동안 KREFT가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)"},
+    {name: "능력치 엠블럼", qty: 1, category: "COMMON", type: "EVENT",
+      icon: "item_emblem_boost.png", stats: {P: 10, C: 10, S: 10},
+      secLeft: 3600, active: false,
+      desc: "눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요. (휘장과 함께 적용)"},
+    {name: "낚시 1시간 이용권", qty: 1, category: "TICKET", type: "ETC",
+      icon: "item_ticket_1h.png",
+      desc: "낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)"},
+    {name: "아레나 입장권", qty: 1, category: "TICKET", type: "ETC",
+      icon: "arena_ticket.png",
+      desc: "아레나 무료 입장을 다 쓴 뒤 하루 1회 더 참가할 수 있어요."},
+  ],
+};
+
 // 📖 [아이템 사전 및 구매 조건 설정]
 const itemDatabase = {
   "1시간 이용권": {
@@ -285,6 +309,34 @@ async function processOrder(order, source) {
   const norm = (s) => String(s).replace(/\s+/g, ""); // 공백 무시 매칭('아레나입장권'='아레나 입장권')
   for (const prodName of prodNames) {
     const np = norm(prodName);
+
+    // 🎁 패키지 먼저 확인 — 하나 팔면 아이템 여러 개가 들어간다.
+    //    이름이 더 긴 쪽(패키지)이 먼저 걸려야 개별 아이템으로 오인식되지 않는다.
+    let pkgHit = false;
+    for (const [pkgName, list] of Object.entries(packageDatabase)) {
+      if (!np.includes(norm(pkgName))) continue;
+      pkgHit = true; matchedKnownItem = true;
+      for (const it of list) {
+        const {qty, ...tpl} = it;
+        const n = Math.max(1, parseInt(qty, 10) || 1);
+        if (tpl.type === "EVENT") {
+          // 기간제(엠블럼)는 개별 항목으로 넣는다 — 각자 남은 시간을 따로 센다
+          for (let k = 0; k < n; k++) inventory.push({...tpl, price: 0, cash: true, quantity: 1});
+        } else {
+          const idx = inventory.findIndex((x) => x && x.name === tpl.name);
+          if (idx >= 0) {
+            inventory[idx].quantity = (Number(inventory[idx].quantity) || 0) + n;
+          } else {
+            inventory.push({...tpl, price: 0, cash: true, quantity: n});
+          }
+        }
+      }
+      isInventoryUpdated = true;
+      console.log(`[패키지 지급] ${buyerEmail}: ${pkgName} (${list.length}종)`);
+      break;
+    }
+    if (pkgHit) continue;
+
     for (const [key, itemTemplate] of Object.entries(itemDatabase)) {
       if (!np.includes(norm(key))) continue;
       matchedKnownItem = true;
