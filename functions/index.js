@@ -800,8 +800,13 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
     if (body.length > 30000) return res.status(400).json({ ok: false, err: "본문이 너무 깁니다" });
     const type = ["notice", "update", "event"].includes(String(b.type)) ? String(b.type) : "notice";
 
+    // 🖼️ 대표 이미지 한 장(선택). 본문은 esc()로 이스케이프되어 태그가 안 먹으므로
+    //    이미지는 별도 필드로 받아 공지 상단에 띄운다. 경로는 hub/assets 파일명이나 https URL만.
+    const rawImg = String(b.img || "").trim().slice(0, 300);
+    const img = /^(https:\/\/[^\s"'<>]+|[\w.-]+\.(?:jpg|jpeg|png|webp|gif))$/i.test(rawImg) ? rawImg : "";
+
     const payload = {
-      type, title, body,
+      type, title, body, img,
       pinned: b.pinned === true,
       published: b.published !== false,
       date: String(b.date || "").match(/^\d{4}[.-]\d{2}[.-]\d{2}$/) ? String(b.date).replace(/-/g, ".") : getTodayKST().replace(/-/g, "."),

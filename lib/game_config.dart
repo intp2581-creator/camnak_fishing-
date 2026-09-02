@@ -205,14 +205,14 @@ const Map<String, dynamic> kItemPotionExp = {
   'name': '경험치 물약', 'price': 0, 'cash': true,
   'category': 'BOOST', 'type': 'BOOST', 'boost': 'exp', 'quantity': 1,
   'icon': 'item_potion_exp.png',
-  'desc': '마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)',
+  'desc': '마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나·보스레이드에서는 적용되지 않아요)',
 };
 
 const Map<String, dynamic> kItemCardKreft = {
   'name': 'KREFT 2배 카드', 'price': 0, 'cash': true,
   'category': 'BOOST', 'type': 'BOOST', 'boost': 'pts', 'quantity': 1,
   'icon': 'item_card_kreft.png',
-  'desc': '사용하면 10분 동안 KREFT가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)',
+  'desc': '사용하면 10분 동안 KREFT가 2배로 들어와요.\n(아레나·보스레이드에서는 적용되지 않아요)',
 };
 
 /// 🛡️ 능력치 엠블럼 — 태극기 뱃지·송편과 같은 '보유 버프'(type:EVENT).
@@ -231,7 +231,7 @@ Map<String, dynamic> makeEmblemBoost() {
     'secLeft': kEmblemMinutes * 60,
     'active': false,
     'quantity': 1,
-    'desc': '눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요. (휘장과 함께 적용)',
+    'desc': '눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요.\n휘장과 함께 적용돼요. (아레나·보스레이드 제외)',
   };
 }
 
@@ -320,9 +320,9 @@ List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
 // =========================================================================
 const List<String> kDefaultGmNotices = [
   "🎣 캠피싱 정식 서비스 중입니다!\n게임스토어 아이템 구매·길드 보스레이드\n지금 바로 즐겨보세요!",
-  "캠피싱 오픈기념 할인판매\n품목 안내입니다.",
-  "와노와 낚시텐트 30% 할인\n1800, 2000 각 20동씩 한정",
-  "리얼프레임 전투텐트 10%\n1100 X 1500 10동 한정판매",
+  "스킨, 뱃지 등 캐시 아이템은\n게임 내 상점 또는 홈페이지\n게임 스토어에 있습니다.",
+  "물고기는 미끼와 낚시터에 따라\n조과가 달라집니다.",
+  "친구들과 아레나 낚시대회를\n진행해 보세요.\n경험치·KREFT 1.5배!",
 ];
 
 /// 현재 GM 윤슬 공지 멘트(전역). 낚시터 입장 시 loadGmNotice()로 최신화. 항상 1개 이상 보장.

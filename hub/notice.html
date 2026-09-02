@@ -207,6 +207,10 @@
         +'<h2>'+esc(n.title)+'</h2>'
         +'<div class="meta"><span>'+esc(n.date||'')+'</span><span>작성 '+esc(n.author||'캠피싱')+'</span>'
         +'<span>조회 '+(n.views||0)+'</span></div></div>'
+        +(n.img ? '<div class="dbody" style="padding-bottom:0">'
+            +'<img src="'+esc(n.img.indexOf('http')===0?n.img:'assets/'+n.img)+'" '
+            +'alt="" style="width:100%;max-width:420px;display:block;'
+            +'margin:0 auto" loading="lazy"></div>' : '')
         +'<div class="dbody">'+esc(n.body||'').replace(/\n/g,'\n')+'</div>';
     }).catch(function(){document.getElementById('detail').innerHTML='<div class="loading">불러오지 못했습니다.</div>';});
   }else{
