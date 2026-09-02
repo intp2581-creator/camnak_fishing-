@@ -101,6 +101,12 @@
     .row{padding:15px 16px} .row .d{display:none}
     .detail .dhead,.detail .dbody{padding-left:18px;padding-right:18px}
   }
+  /* 🆕 섹션 제목 + 새 글 표시 */
+  .sech{margin:26px 0 10px;font-size:17px;font-weight:800;color:var(--ink)}
+  .sech:first-child{margin-top:6px}
+  .newmark{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:6px;
+    background:#e53935;color:#fff;font-size:11px;font-weight:800;vertical-align:middle;
+    line-height:1.6;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -132,9 +138,8 @@
   <!-- 목록 -->
   <div id="listView">
     <div class="tabs" id="tabs">
-      <button class="on" data-f="all">전체</button>
-      <button data-f="notice">공지</button>
-      <button data-f="update">업데이트</button>
+      <a href="#sec-notice" class="evlink">📢 공지</a>
+      <a href="#sec-update" class="evlink">🆕 업데이트</a>
       <a href="event.html" class="evlink">🎁 이벤트 보러가기 →</a>
       <a id="writeBtn" data-gm-only class="btn primary" href="admin.html"
          style="margin-left:auto;text-decoration:none;padding:9px 18px;display:none">✏️ 글쓰기</a>
@@ -171,25 +176,38 @@
 
   var ALL=[], filter='all';
 
+  /* 🆕 [2026-09-03] 공지와 업데이트가 섞여 나와 읽기 어려웠다 → 위아래 두 파트로.
+     '전체' 탭을 없애고 상단 버튼은 해당 파트로 건너뛰는 링크로 바꿨다. */
+  var NEW_DAYS = 7;                       // 최근 며칠까지 빨간 N 을 붙일지
+  var NEWMARK = '<b class="newmark">N</b>';
+  var SECT = 'notice';
+  function isNew(n){
+    var t = Date.parse(String(n.date||'').split('.').join('-'));   // 2026.09.03 → 2026-09-03
+    return !isNaN(t) && (Date.now()-t) < NEW_DAYS*86400000;
+  }
   function renderList(){
     var box=document.getElementById('list');
-    var items=ALL.filter(function(n){return filter==='all'||n.type===filter;});
-    if(!items.length){box.innerHTML='<div class="empty">등록된 글이 없습니다.</div>';return;}
-    box.innerHTML=items.map(function(n){
+    if(!ALL.length){box.innerHTML='<div class="empty">등록된 글이 없습니다.</div>';return;}
+    var html='';
+    for(var k=0;k<2;k++){
+      SECT = k===0 ? 'notice' : 'update';
+      html += '<h2 class="sech" id="sec-'+SECT+'">'+(k===0?'📢 공지':'🆕 업데이트')+'</h2>';
+      html += sectionHtml();
+    }
+    box.innerHTML = html;
+  }
+  function sectionHtml(){
+    var items=ALL.filter(function(n){return SECT==='notice'?n.type==='notice':n.type!=='notice';});
+    if(!items.length){return '<div class="empty">등록된 글이 없습니다.</div>';}
+    return items.map(function(n){
       return '<div class="row" onclick="location.href=\'notice.html?id='+encodeURIComponent(n.id)+'\'">'
         +'<span class="pill '+n.type+'">'+(PILL[n.type]||'공지')+'</span>'
         +(n.pinned?'<span class="pin">📌</span>':'')
-        +'<span class="t">'+esc(n.title)+'</span>'
+        +'<span class="t">'+esc(n.title)+(isNew(n)?NEWMARK:'')+'</span>'
         +'<span class="d">'+esc(n.date||'')+'</span></div>';
     }).join('');
   }
 
-  document.getElementById('tabs').addEventListener('click',function(e){
-    var b=e.target.closest('button'); if(!b)return;
-    filter=b.dataset.f;
-    this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
-    renderList();
-  });
 
   var id=new URLSearchParams(location.search).get('id');
   if(id){
