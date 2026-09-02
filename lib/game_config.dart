@@ -834,7 +834,7 @@ List<Map<String, dynamic>> unlockedRaidBosses(List<dynamic> clearedIds) {
 /// 🐟 [9월 신규 어종] 민물 4종 + 바다 N종을 한 번에 연다.
 ///    민물만 먼저 나가면 공지가 두 번 갈라지므로, 바다까지 준비되면 true로 바꿔 배포.
 ///    풀에서 빠지면 낚시터 목록·미끼 상성에 이름이 남아 있어도 등장하지 않는다.
-const bool kNewFishOn = false;
+const bool kNewFishOn = true;
 
 final List<Map<String, dynamic>> fwFishPool = [
   {'name': '붕어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 1, 'img': 'assets/images/fish_fw_01_crucian_carp.png'}, // 👑 6대장
