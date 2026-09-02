@@ -81,7 +81,13 @@ function renderLoggedIn(me) {
   document.querySelectorAll('[data-auth-out]').forEach(el => el.style.display = 'none');
   document.querySelectorAll('[data-auth-in]').forEach(el => el.style.display = '');
   document.querySelectorAll('[data-me-nick]').forEach(el => {
-    el.textContent = me.nickname ? `${me.rank} ${me.nickname} 조사님` : (me.email || '조사님');
+    // 📱 모바일은 폭이 좁아 '등급 닉 조사님'이 통째로 밀려난다.
+    //    긴 형태는 그대로 두고, 짧은 형태를 data-short에 같이 심어
+    //    좁은 화면에서는 CSS가 짧은 쪽을 보여주게 한다.
+    const full  = me.nickname ? `${me.rank} ${me.nickname} 조사님` : (me.email || '조사님');
+    const short = me.nickname ? me.nickname : (me.email || '조사님');
+    el.textContent = full;
+    el.setAttribute('data-short', short);
   });
   document.querySelectorAll('[data-gm-only]').forEach(el => {
     el.style.display = me.isGm ? '' : 'none';
@@ -160,8 +166,9 @@ autoLoginFromUrl();
 
   function badge(file, on, text) {
     // 상단 메뉴 + 스크롤 시 내려오는 컴팩트 메뉴(.navmini) 둘 다. 푸터 링크는 제외.
+    // ⚠️ .cf-tabbar(하단 탭바)도 <nav>라 여기 걸리면 배지가 두 번 붙는다 → 제외
     var links = document.querySelectorAll(
-      'nav a[href$="' + file + '"], .navmini a[href$="' + file + '"]');
+      'nav:not(.cf-tabbar) a[href$="' + file + '"], .navmini a[href$="' + file + '"]');
     for (var i = 0; i < links.length; i++) {
       var cur = links[i].querySelector('.cf-n');
       if (on && !cur) {
@@ -248,4 +255,84 @@ autoLoginFromUrl();
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { run(); waitAuth(); });
   } else { run(); waitAuth(); }
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   📱 모바일 하단 탭바 (2026-09-02)
+      홈 화면이 모바일에서 4,600px가 넘는다. 다른 곳으로 가려면 맨 위까지
+      올라가 햄버거를 열어야 했다. 자주 가는 곳은 어디서든 한 번에 닿게 한다.
+      · 768px 이하에서만 표시 (PC는 기존 상단 메뉴 그대로)
+      · 페이지마다 넣지 않고 여기서 한 번에 — 두 곳을 고치다 한쪽을 빠뜨리는
+        일이 실제로 있었다(고객지원이 모바일 메뉴에서 누락됐던 건)
+      · 배지는 위의 N 배지 로직을 그대로 쓴다
+   ═══════════════════════════════════════════════════════════════════════ */
+(function () {
+  var TABS = [
+    { f: 'index.html',     i: '🏠', t: '홈' },
+    { f: 'notice.html',    i: '📢', t: '공지' },
+    { f: 'community.html', i: '💬', t: '커뮤니티' },
+    { f: 'support.html',   i: '🎧', t: '고객지원' },
+    { f: 'play.html',      i: '🎮', t: '플레이', play: true }
+  ];
+
+  var css = document.createElement('style');
+  css.textContent =
+    '.cf-tabbar{display:none}' +
+    '@media(max-width:768px){' +
+    '  body{padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))}' +
+    '  .cf-tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:9000;' +
+    '    background:rgba(255,255,255,.97);backdrop-filter:blur(10px);' +
+    '    border-top:1px solid #dfe8ed;box-shadow:0 -2px 14px rgba(10,40,55,.08);' +
+    '    padding-bottom:env(safe-area-inset-bottom,0px)}' +
+    '  .cf-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+    '    gap:3px;height:62px;text-decoration:none;color:#7a8b95;font-size:11px;font-weight:700;' +
+    '    position:relative;font-family:inherit}' +
+    '  .cf-tabbar a i{font-style:normal;font-size:21px;line-height:1}' +
+    '  .cf-tabbar a.on{color:#0f766e}' +
+    '  .cf-tabbar a.play{color:#b8860b}' +
+    '  .cf-tabbar a.on::before{content:"";position:absolute;top:0;left:24%;right:24%;height:3px;' +
+    '    border-radius:0 0 3px 3px;background:#0f766e}' +
+    '  .cf-tabbar .bg{position:absolute;top:7px;left:50%;margin-left:4px;min-width:16px;height:16px;' +
+    '    padding:0 4px;border-radius:9px;background:#ff3b30;color:#fff;font-size:10px;font-weight:800;' +
+    '    display:flex;align-items:center;justify-content:center;box-sizing:border-box}' +
+    '}';
+  document.head.appendChild(css);
+
+  function build() {
+    if (document.querySelector('.cf-tabbar')) return;
+    var here = (location.pathname || '').split('/').pop() || 'index.html';
+    var bar = document.createElement('nav');
+    bar.className = 'cf-tabbar';
+    bar.setAttribute('aria-label', '주요 메뉴');
+    TABS.forEach(function (t) {
+      var a = document.createElement('a');
+      a.href = t.f;
+      if (t.play) a.className = 'play';
+      if (here === t.f) a.className = 'on';
+      a.innerHTML = '<i>' + t.i + '</i><span>' + t.t + '</span>';
+      bar.appendChild(a);
+    });
+    document.body.appendChild(bar);
+  }
+
+  // 배지 — 위쪽 N 배지 모듈이 메뉴에 심어둔 표시를 탭바에도 옮긴다
+  function syncBadges() {
+    var bar = document.querySelector('.cf-tabbar');
+    if (!bar) return;
+    [['notice.html', 'notice'], ['community.html', 'community'], ['support.html', 'support']]
+      .forEach(function (p) {
+        var tab = bar.querySelector('a[href="' + p[0] + '"]');
+        if (!tab) return;
+        var src = document.querySelector('nav:not(.cf-tabbar) a[href$="' + p[0] + '"] .cf-n');
+        var old = tab.querySelector('.bg');
+        if (src) {
+          if (!old) { old = document.createElement('span'); old.className = 'bg'; tab.appendChild(old); }
+          old.textContent = src.textContent;
+        } else if (old) { old.parentNode.removeChild(old); }
+      });
+  }
+
+  function start() { build(); syncBadges(); setInterval(syncBadges, 2000); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();

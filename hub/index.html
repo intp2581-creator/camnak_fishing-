@@ -343,7 +343,17 @@
 
   /* 📱 모바일 상단 — '지금 플레이'가 2줄로 깨지고 슬라이드 라벨을 가리던 문제 정리 */
   @media (max-width:860px){
-    .util{display:none}
+    /* 유틸바를 통째로 숨기면 로그인 상태(닉네임)까지 사라진다.
+       내가 누구로 접속했는지는 보여야 하므로 인증 항목만 남긴다.
+       나머지(고객지원·회원가입 등)는 햄버거 메뉴에 있다. */
+    .util{border-bottom:none}
+    .util .wrap{height:30px;gap:12px;padding-top:2px}
+    .util .sep,.util a[data-join],.util a[data-support]{display:none !important}
+    .util a{font-size:12.5px}
+    .util [data-me-nick]{font-size:12.5px;max-width:46vw;overflow:hidden;
+      text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:bottom}
+    .util [data-me-nick][data-short]{font-size:0}
+    .util [data-me-nick][data-short]::after{content:attr(data-short);font-size:12.5px}
     nav.menu{display:none} .hamb{display:block;margin-left:auto}
     .topbar .wrap,.topbar .bar{gap:8px}
     /* 히어로가 2400x620 비율이라 모바일에선 92px까지 납작해져
