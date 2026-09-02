@@ -178,12 +178,18 @@
 
   /* 🆕 [2026-09-03] 공지와 업데이트가 섞여 나와 읽기 어려웠다 → 위아래 두 파트로.
      '전체' 탭을 없애고 상단 버튼은 해당 파트로 건너뛰는 링크로 바꿨다. */
-  var NEW_DAYS = 7;                       // 최근 며칠까지 빨간 N 을 붙일지
+  var NEW_DAYS = 3;                       // 최근 며칠까지 빨간 N 을 붙일지 (7일은 거의 전부에 붙어 의미가 흐려졌다)
   var NEWMARK = '<b class="newmark">N</b>';
   var SECT = 'notice';
+  /* 밀리초로 재면 새벽엔 사흘 전 글까지 걸린다 → 날짜(캘린더) 단위로 센다.
+     오늘·어제·그저께까지만 N (NEW_DAYS=3). */
   function isNew(n){
-    var t = Date.parse(String(n.date||'').split('.').join('-'));   // 2026.09.03 → 2026-09-03
-    return !isNaN(t) && (Date.now()-t) < NEW_DAYS*86400000;
+    var d = String(n.date||'').split('.');
+    if(d.length < 3) return false;
+    var t = new Date(+d[0], +d[1]-1, +d[2]);
+    var today = new Date(); today.setHours(0,0,0,0);
+    var diff = Math.round((today - t) / 86400000);
+    return diff >= 0 && diff < NEW_DAYS;
   }
   function renderList(){
     var box=document.getElementById('list');

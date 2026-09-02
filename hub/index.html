@@ -411,7 +411,7 @@
   .hslide .tag,.hlabels .lbl,.hnav .count,.qnews .qh,
   .event-card .thumb .badge,.linkcard .go,.qic .el{font-weight:700}
   /* 🎣 게임 정체성 한 줄 */
-  .idline{margin:10px 0 22px;color:var(--ink-soft);font-size:15px;line-height:1.75}
+  .idline{margin:-8px 0 24px;color:var(--ink-soft);font-size:15px;line-height:1.75}
   .idline b{color:var(--emerald);font-weight:800}
   @media(max-width:640px){.idline{font-size:14px}}
 </style>
@@ -519,10 +519,11 @@
   <div class="sec-head">
     <h2>🎣 이런 게임이에요</h2>
     <span class="sub">실제 낚시를 그대로, 게임의 재미를 더해서</span>
-    <p class="idline">전국의 실제 낚시터와 어종을 그대로 옮기고,
-       그 위에 길드 보스레이드처럼 게임만이 줄 수 있는 것을 얹은
-       <b>리얼 판타지 낚시 게임</b>입니다.</p>
   </div>
+  <!-- ⚠️ .sec-head 는 display:flex 라 문단을 안에 두면 제목 옆에 붙는다. 반드시 바깥에. -->
+  <p class="idline">전국의 실제 낚시터와 어종을 그대로 옮기고,
+     그 위에 길드 보스레이드처럼 게임만이 줄 수 있는 것을 얹은
+     <b>리얼 판타지 낚시 게임</b>입니다.</p>
   <div class="featgrid">
     <div class="feat">
       <div class="fimg"><img src="assets/f-spot.jpg" alt=""></div>
