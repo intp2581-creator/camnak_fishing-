@@ -485,7 +485,7 @@ Map<String, dynamic> getTodayBobaeFish() {
 // 🎖️ 가람 주간 개인 종합 랭킹 (레벨 + 어종별 최대어 보드 합산, 매주 월요일 정산)
 //    각 보드 1위=10점 ... 10위=1점. 종합 top10이 1주일 동안 P/C/S 보너스 + 머리 위 순위마크.
 const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'];
-const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'];
+const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔', '누치'];
 int garamRankBonus(int rank) {
   // 🎖️ 종합순위별 P/C/S 각 보너스(선형): 1위+10, 2위+9, 3위+8 ... 10위+1
   if (rank >= 1 && rank <= 10) return 11 - rank;
@@ -496,10 +496,10 @@ int garamRankBonus(int rank) {
 //    민물: 블루길/베스/살치 10 · 메기/강준치/떡붕어 15 · 붕어/잉어/가물치 35 · 자라 70
 //    바다: 주꾸미/고등어/광어 10 · 갑오징어/갈치/우럭/벵에돔 15 · 감성돔/문어/참돔 35 · 참치 70
 int fishSellPrice(String name) {
-  const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어', '동자개', '성대'];
-  const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔'];
+  const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어', '동자개', '성대', '모래무지'];
+  const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔', '끄리'];
   const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔', '향어', '민물장어', '농어', '부시리', '돌돔'];
-  const p200 = ['자라', '참치'];
+  const p200 = ['자라', '참치', '초어'];
   // 🔻 판매가 1/3 인하(경제 밸런스): 잡을 때 포인트가 메인, 판매는 보너스
   if (p200.contains(name)) return 70;
   if (p100.contains(name)) return 35;
@@ -850,6 +850,14 @@ final List<Map<String, dynamic>> fwFishPool = [
   {'name': '향어', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 100.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_14_israeli_carp.png'},
   {'name': '민물장어', 'weight': 50, 'unit': 'Cm', 'min': 30.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_15_eel.png'},
   {'name': '동자개', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_16_bullhead.png'},
+  // 🐟 [신규 2026-09-02] 민물 4종 — 낚시터마다 같은 16종만 나와 옮길 이유가 없었다.
+  //    누치·끄리는 강계 어종이라 수로·하천 5곳에만, 초어는 대형호(파로호·충주호)에만,
+  //    모래무지는 흔한 잡어라 민물 전 지역. (fishing_logic.dart 낚시터별 목록 참조)
+  //    ⚠️ 철갑상어는 뺐다 — 유료터 어종이라 노지에서 나오면 어색하다(사용자 지적).
+  {'name': '누치', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_17_nuchi.png'},
+  {'name': '끄리', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 50.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_18_kkeuri.png'},
+  {'name': '초어', 'weight': 15, 'unit': 'Cm', 'min': 40.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_19_grass_carp.png'},
+  {'name': '모래무지', 'weight': 50, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_20_gudgeon.png'},
 ];
 
 // 🌊 바다 물고기
