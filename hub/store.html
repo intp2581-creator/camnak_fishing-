@@ -79,9 +79,12 @@
     max-height:92vh;overflow:auto;position:relative;padding:22px}
   #sdetail .dclose{position:absolute;top:14px;right:14px;border:1px solid #dfe8ed;
     background:#fff;border-radius:9px;padding:7px 12px;cursor:pointer;font-family:inherit;font-weight:700}
-  #sdetail .dbody{display:flex;gap:22px;flex-wrap:wrap}
-  #sdetail .dbody img{width:300px;max-width:100%;border-radius:14px;object-fit:cover}
-  #sdetail .dinfo{flex:1;min-width:260px}
+  /* 🖼️ 상품 이미지는 위에 통째로. 예전엔 왼쪽 300px 칸에 object-fit:cover라
+     본문이 길면 세로로 늘어나 가운데만 잘려 나왔다(2026-09-02). */
+  #sdetail .dbody{display:block}
+  #sdetail .dbody img{width:100%;max-width:400px;height:auto;display:block;
+    margin:0 auto 20px;border-radius:14px;background:#0e1a20}
+  #sdetail .dinfo{min-width:0}
   #sdetail h2{margin:6px 0 8px;font-size:22px}
   #sdetail .dlv{margin:0 0 8px;color:#c0392b;font-weight:700;font-size:14px}
   #sdetail .dprice{font-size:26px;font-weight:900;color:var(--emerald);margin:10px 0}
@@ -95,7 +98,7 @@
     text-decoration:none;padding:15px 20px;border-radius:12px;font-weight:800;font-size:17px;
     margin-top:14px;box-shadow:0 4px 14px rgba(15,118,110,.28)}
   #sdetail .dinfo .buy:hover{filter:brightness(1.06)}
-  @media(max-width:640px){ #sdetail .dbody img{width:100%} #sdetail .dwrap{padding:16px} }
+  @media(max-width:640px){ #sdetail .dwrap{padding:16px} }
 </style>
 </head>
 <body>
