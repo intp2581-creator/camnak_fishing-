@@ -713,11 +713,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // ⏱️ 유저 doc에서 오늘 남은 낚시 시간(초) 계산. 마지막 플레이 날짜가 오늘이면 저장값, 아니면 풀(3600).
+  //    ⚠️ [2026-09-02] 상한이 3600이라 이용권으로 채운 시간이 광장에서 60:00으로 잘려 보였다
+  //    (낚시터는 62:26인데 광장만 60:00). 이용권·아레나 입장권은 하루 기본 3600 위에
+  //    더 얹으므로 3600을 넘는 게 정상이다. 이 clamp는 이상한 값을 거르는 용도이므로
+  //    하루치(86400)로 넉넉히 잡는다. 표시 전용 값이라 되저장되지 않는다.
   int _remainingFromDoc(Map<String, dynamic> data) {
     final today = DateTime.now().toString().substring(0, 10);
     if ((data['lastPlayedDate'] ?? '').toString() == today) {
       final r = data['remainingTime'];
-      return (r is num) ? r.toInt().clamp(0, 3600) : 3600;
+      return (r is num) ? r.toInt().clamp(0, 86400) : 3600;
     }
     return 3600; // 새 날 → 풀시간
   }
