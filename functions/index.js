@@ -7,7 +7,7 @@ admin.initializeApp();
 //   itemDatabase는 '상품 하나 = 아이템 하나' 구조라 패키지를 못 다뤘다(2026-09-02 신설).
 //   qty는 수량, secLeft/active가 있으면 '켜서 쓰는' 기간제 아이템.
 const packageDatabase = {
-  "성장 지원 패키지": [
+  "성장 패키지": [
     {name: "경험치 물약", qty: 10, category: "BOOST", type: "BOOST", boost: "exp",
       icon: "item_potion_exp.png",
       desc: "마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)"},
