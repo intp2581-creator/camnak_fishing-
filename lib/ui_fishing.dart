@@ -1060,6 +1060,16 @@ Widget _whisperUnreadBadge() {
     }
   }
 
+  // ⚡ 버프 남은 시간 저장 — 낚시시간과 같은 3초 주기(F5 익스플로잇 차단)
+  void _saveBoostsToFirebase() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+      'boostExpSec': gBoostExpSec,
+      'boostPtsSec': gBoostPtsSec,
+    }, SetOptions(merge: true)).catchError((Object _) {});
+  }
+
   // 💾 2. 파이어베이스에 남은 시간 저장하기
   void _saveDailyTimeToFirebase(int timeToSave) {
     final user = FirebaseAuth.instance.currentUser;
@@ -1170,10 +1180,18 @@ Widget _whisperUnreadBadge() {
 
       if (remainingTimeNotifier.value > 0) {
         remainingTimeNotifier.value--;
+        // ⚡ 버프도 낚시터에 있는 동안에만 같이 줄인다(아레나는 효과가 없으므로 멈춤).
+        final bool arenaNow = widget.roomId != null;
+        if (!arenaNow && (gBoostExpSec > 0 || gBoostPtsSec > 0)) {
+          if (gBoostExpSec > 0) gBoostExpSec--;
+          if (gBoostPtsSec > 0) gBoostPtsSec--;
+          if (mounted) setState(() {});
+        }
         // ⏱️ 3초마다 저장 — F5(새로고침)로 마지막 저장 이후 시간을 되돌려받던 익스플로잇 차단.
         //    (10초였을 땐 F5로 최대 9초씩 벌 수 있었음. 3초면 리로드 시간이 더 걸려 이득 0)
         if (remainingTimeNotifier.value % 3 == 0) {
           _saveDailyTimeToFirebase(remainingTimeNotifier.value);
+          _saveBoostsToFirebase();   // ⚡ 버프 남은 시간도 같은 주기로
         }
       } else {
         // ... (사장님의 기존 시간 소진 상점 이동 로직 유지) ...
@@ -2917,6 +2935,20 @@ Positioned(
                             const SizedBox(width: 4),
                             const Text('KREFT', style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.w900)),
                           ]),
+                          // 🛡️ 기간제 아이템(엠블럼 등) 남은 시간 — 가방에 있으면 자동 적용되는 버프
+                          Builder(builder: (_) {
+                            final inv = (snapshot.hasData && snapshot.data!.exists)
+                                ? ((snapshot.data!.data() as Map<String, dynamic>)['inventory'] ?? [])
+                                : [];
+                            final int es = eventItemLeftSec(inv is List ? inv : []);
+                            if (es <= 0) return const SizedBox.shrink();
+                            final String nm = eventItemName(inv is List ? inv : []);
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: _boostChip('🛡️ ${nm.isEmpty ? '기간제' : nm}',
+                                  boostLeftStr(es), const Color(0xFF6BE58A)),
+                            );
+                          }),
                           // ⚡ 개인 버프(물약·카드) 남은 시간 — 켜져 있을 때만
                           if (boostExpOn || boostPtsOn) ...[
                             const SizedBox(height: 6),
@@ -3368,8 +3400,8 @@ Positioned(
     if (u == null) return;
     try {
       final d = (await FirebaseFirestore.instance.collection('users').doc(u.uid).get()).data() ?? {};
-      gBoostExpUntil = (d['boostExpUntil'] is num) ? (d['boostExpUntil'] as num).toInt() : 0;
-      gBoostPtsUntil = (d['boostPtsUntil'] is num) ? (d['boostPtsUntil'] as num).toInt() : 0;
+      gBoostExpSec = (d['boostExpSec'] is num) ? (d['boostExpSec'] as num).toInt() : 0;
+      gBoostPtsSec = (d['boostPtsSec'] is num) ? (d['boostPtsSec'] as num).toInt() : 0;
       if (mounted) setState(() {});
     } catch (_) {}
   }
@@ -3427,17 +3459,15 @@ Positioned(
       final int qty = (inv[idx]['quantity'] ?? 1) as int;
       if (qty > 1) { inv[idx]['quantity'] = qty - 1; } else { inv.removeAt(idx); }
 
-      // 이미 걸려 있으면 남은 시간에 이어붙인다
-      final int now = DateTime.now().millisecondsSinceEpoch;
-      final int cur = isExp ? gBoostExpUntil : gBoostPtsUntil;
-      final int base = cur > now ? cur : now;
-      final int until = base + minutes * 60 * 1000;
+      // 이미 걸려 있으면 남은 시간에 더한다
+      final int cur = isExp ? gBoostExpSec : gBoostPtsSec;
+      final int sec = (cur > 0 ? cur : 0) + minutes * 60;
 
       await ref.update({
         'inventory': inv,
-        if (isExp) 'boostExpUntil': until else 'boostPtsUntil': until,
+        if (isExp) 'boostExpSec': sec else 'boostPtsSec': sec,
       });
-      if (isExp) { gBoostExpUntil = until; } else { gBoostPtsUntil = until; }
+      if (isExp) { gBoostExpSec = sec; } else { gBoostPtsSec = sec; }
       if (!mounted) return;
       setState(() {});
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(

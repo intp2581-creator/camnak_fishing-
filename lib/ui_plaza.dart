@@ -462,8 +462,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
       final data = (await ref.get()).data() ?? {};
-      gBoostExpUntil = (data['boostExpUntil'] is num) ? (data['boostExpUntil'] as num).toInt() : 0;
-      gBoostPtsUntil = (data['boostPtsUntil'] is num) ? (data['boostPtsUntil'] as num).toInt() : 0;
+      gBoostExpSec = (data['boostExpSec'] is num) ? (data['boostExpSec'] as num).toInt() : 0;
+      gBoostPtsSec = (data['boostPtsSec'] is num) ? (data['boostPtsSec'] as num).toInt() : 0;
       final inv = List<dynamic>.from(data['inventory'] ?? []);
       final cleaned = removeExpiredEventItems(inv);
       if (cleaned != null) await ref.update({'inventory': cleaned});

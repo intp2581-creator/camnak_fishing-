@@ -171,23 +171,17 @@ const int kBoostPtsMinutes = 10;   // 🎴 KREFT 카드 지속(분)
 const double kBoostExpMult = 2.0;
 const double kBoostPtsMult = 2.0;
 
-/// 내 버프 만료 시각(ms). 낚시터·광장 진입 시 users 문서에서 읽어 채운다.
-int gBoostExpUntil = 0;
-int gBoostPtsUntil = 0;
+/// 내 버프 남은 시간(초). 낚시시간(remainingTime)과 같은 방식으로,
+/// '낚시터에 있는 동안에만' 줄어든다. 광장·상점·아레나에서는 멈춘다.
+/// (만료 시각으로 두면 장비 바꾸러 상점 다녀오는 사이에 다 까였다 — 유료템이라 더 문제)
+int gBoostExpSec = 0;
+int gBoostPtsSec = 0;
 
-bool get boostExpOn => DateTime.now().millisecondsSinceEpoch < gBoostExpUntil;
-bool get boostPtsOn => DateTime.now().millisecondsSinceEpoch < gBoostPtsUntil;
+bool get boostExpOn => gBoostExpSec > 0;
+bool get boostPtsOn => gBoostPtsSec > 0;
 
-/// 남은 시간(초). 꺼져 있으면 0.
-int boostExpLeftSec() {
-  final d = gBoostExpUntil - DateTime.now().millisecondsSinceEpoch;
-  return d > 0 ? (d / 1000).ceil() : 0;
-}
-
-int boostPtsLeftSec() {
-  final d = gBoostPtsUntil - DateTime.now().millisecondsSinceEpoch;
-  return d > 0 ? (d / 1000).ceil() : 0;
-}
+int boostExpLeftSec() => gBoostExpSec > 0 ? gBoostExpSec : 0;
+int boostPtsLeftSec() => gBoostPtsSec > 0 ? gBoostPtsSec : 0;
 
 /// mm:ss 표기
 String boostLeftStr(int sec) =>
@@ -220,6 +214,40 @@ Map<String, dynamic> makeEmblemBoost({DateTime? from}) {
     'expiresAt': until.toIso8601String(),
     'desc': '가방에 있으면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n(휘장과 함께 적용됩니다)',
   };
+}
+
+/// 🛡️ 가방 속 기간제 이벤트 아이템의 남은 시간(초). 없으면 0.
+///    여러 개면 가장 늦게 끝나는 것을 기준으로 한다.
+int eventItemLeftSec(List<dynamic> inventory) {
+  final now = DateTime.now();
+  int best = 0;
+  for (final it in inventory) {
+    if (it is! Map) continue;
+    if ((it['type'] ?? '') != 'EVENT') continue;
+    final exp = it['expiresAt'];
+    if (exp == null) continue;
+    final dt = DateTime.tryParse(exp.toString());
+    if (dt == null) continue;
+    final sec = dt.difference(now).inSeconds;
+    if (sec > best) best = sec;
+  }
+  return best;
+}
+
+/// 🛡️ 가방 속 유효한 기간제 아이템 이름(표시용). 없으면 빈 문자열.
+String eventItemName(List<dynamic> inventory) {
+  final now = DateTime.now();
+  for (final it in inventory) {
+    if (it is! Map) continue;
+    if ((it['type'] ?? '') != 'EVENT') continue;
+    final exp = it['expiresAt'];
+    if (exp != null) {
+      final dt = DateTime.tryParse(exp.toString());
+      if (dt != null && now.isAfter(dt)) continue;
+    }
+    return (it['name'] ?? '').toString();
+  }
+  return '';
 }
 
 /// 🎁 만료된 이벤트 아이템을 제거한 인벤 반환. 변화 없으면 null(쓰기 불필요).
