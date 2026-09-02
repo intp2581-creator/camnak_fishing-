@@ -485,7 +485,7 @@ Map<String, dynamic> getTodayBobaeFish() {
 // 🎖️ 가람 주간 개인 종합 랭킹 (레벨 + 어종별 최대어 보드 합산, 매주 월요일 정산)
 //    각 보드 1위=10점 ... 10위=1점. 종합 top10이 1주일 동안 P/C/S 보너스 + 머리 위 순위마크.
 const List<String> garamFwFish = ['붕어', '잉어', '가물치', '메기', '떡붕어', '강준치', '블루길', '베스', '살치', '자라', '쏘가리', '꺽지', '무지개송어', '향어', '민물장어', '동자개'];
-const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔', '누치'];
+const List<String> garamSeaFish = ['참돔', '감성돔', '광어', '우럭', '갈치', '고등어', '벵에돔', '갑오징어', '주꾸미', '문어', '참치', '볼락', '학꽁치', '성대', '농어', '부시리', '돌돔'];
 int garamRankBonus(int rank) {
   // 🎖️ 종합순위별 P/C/S 각 보너스(선형): 1위+10, 2위+9, 3위+8 ... 10위+1
   if (rank >= 1 && rank <= 10) return 11 - rank;
@@ -497,9 +497,9 @@ int garamRankBonus(int rank) {
 //    바다: 주꾸미/고등어/광어 10 · 갑오징어/갈치/우럭/벵에돔 15 · 감성돔/문어/참돔 35 · 참치 70
 int fishSellPrice(String name) {
   const p30 = ['블루길', '베스', '살치', '주꾸미', '고등어', '광어', '동자개', '성대', '모래무지'];
-  const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔', '끄리'];
-  const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔', '향어', '민물장어', '농어', '부시리', '돌돔'];
-  const p200 = ['자라', '참치', '초어'];
+  const p50 = ['메기', '강준치', '떡붕어', '갑오징어', '갈치', '우럭', '벵에돔', '끄리', '쥐노래미'];
+  const p100 = ['붕어', '잉어', '가물치', '감성돔', '문어', '참돔', '향어', '민물장어', '농어', '부시리', '돌돔', '누치'];
+  const p200 = ['자라', '참치', '초어', '방어', '무늬오징어'];
   // 🔻 판매가 1/3 인하(경제 밸런스): 잡을 때 포인트가 메인, 판매는 보너스
   if (p200.contains(name)) return 70;
   if (p100.contains(name)) return 35;
@@ -691,17 +691,13 @@ const Map<String, String> spotTypeByName = {
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
   // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길·향어
-  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost, '초어': _spotBoost,
-    // 🌊 강계 어종은 저수지에서도 나오되 확률을 확 낮춘다(2026-09-02).
-    //    어디서든 잡히긴 해야 한다 — '여기선 절대 안 나옴'은 답답하다(사용자 방침).
-    '누치': 0.3, '끄리': 0.3, '모래무지': 0.7},
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost, '초어': _spotBoost},
   // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지·동자개·민물장어
-  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost, '누치': _spotBoost, '끄리': _spotBoost, '모래무지': _spotBoost,
-    '초어': 0.3},   // 🐟 대형호 어종이라 수로에선 드물게
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost, '누치': _spotBoost, '끄리': _spotBoost, '모래무지': _spotBoost},
   // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치·돌돔·농어
-  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost, '돌돔': _spotBoost, '농어': _spotBoost},
+  '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost, '돌돔': _spotBoost, '농어': _spotBoost, '쥐노래미': _spotBoost, '무늬오징어': _spotBoost},
   // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·주꾸미·볼락·참치·부시리·성대
-  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '볼락': _spotBoost, '참치': _spotBoost, '부시리': _spotBoost, '성대': _spotBoost},
+  '선상': {'문어': _spotBoost, '갈치': _spotBoost, '고등어': _spotBoost, '광어': _spotBoost, '주꾸미': _spotBoost, '볼락': _spotBoost, '참치': _spotBoost, '부시리': _spotBoost, '성대': _spotBoost, '방어': _spotBoost},
 };
 // ℹ️ 무지개송어는 특정 낚시터 편중 없이 민물 전역에서 루어에 물림(spot 부스트 없음=중립).
 double spotFishMult(String locationName, String fishName) {
@@ -892,6 +888,15 @@ final List<Map<String, dynamic>> seaFishPool = [
   {'name': '농어', 'weight': 50, 'unit': 'Cm', 'min': 30.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_14_seabass.png'},
   {'name': '부시리', 'weight': 50, 'unit': 'Cm', 'min': 40.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_16_amberjack.png'},
   {'name': '돌돔', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 60.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_17_rock_bream.png'},
+  // 🌊 [신규 2026-09-03] 바다 3종 — 민물 4종과 함께 kNewFishOn 하나로 열린다.
+  //    방어=선상 대물(참치뿐이던 대물 자리를 하나 더), 쥐노래미=갯바위 잡어,
+  //    무늬오징어=에기의 주인공(에기는 원래 이 어종용 미끼다).
+  //    민물 20 + 바다 20 = 40종.
+  if (kNewFishOn) ...[
+  {'name': '방어', 'weight': 10, 'unit': 'Cm', 'min': 50.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_18_yellowtail.png'},
+  {'name': '쥐노래미', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 45.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_19_greenling.png'},
+  {'name': '무늬오징어', 'weight': 25, 'unit': 'Cm', 'min': 15.0, 'max': 50.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_20_bigfin_squid.png'},
+  ],
 ];
 
 
