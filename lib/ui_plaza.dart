@@ -5985,7 +5985,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               ),
             ),
             const SizedBox(height: 6),
-            const Text('조건: Lv.5 이상 · 생성 비용 10,000 K',
+            const Text('조건: Lv.5 이상 · 생성 비용 10,000 KREFT',
                 style: TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
           ],
         ),
@@ -7119,7 +7119,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(color: _kGold.withOpacity(0.15), borderRadius: BorderRadius.circular(10), border: Border.all(color: _kGold)),
-              child: Text('보상 +$reward K', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.w900)),
+              child: Text('보상 +$reward KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 18, fontWeight: FontWeight.w900)),
             ),
             const SizedBox(height: 10),
             Text('이제 쇼핑몰에서 [$targetRank 조사] 스킨을\n구매할 수 있어요!', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),

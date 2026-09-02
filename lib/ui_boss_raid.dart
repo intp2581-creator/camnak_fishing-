@@ -1053,7 +1053,7 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
             const Text('🎁 ', style: TextStyle(fontSize: 28)),
             Text('+$rExp EXP', style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 24, fontWeight: FontWeight.w900)),
             const Text('  ·  ', style: TextStyle(color: Colors.white38, fontSize: 22)),
-            Text('+$rPt K', style: const TextStyle(color: Colors.yellowAccent, fontSize: 24, fontWeight: FontWeight.w900)),
+            Text('+$rPt KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 21, fontWeight: FontWeight.w900)),
             if (rMys > 0) ...[
               const SizedBox(width: 16),
               Image.asset('assets/items/수상한 상자.png', width: 46, height: 46, fit: BoxFit.contain,

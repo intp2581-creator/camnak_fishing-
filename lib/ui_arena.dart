@@ -590,7 +590,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                                   value: entryFee,
                                   dropdownColor: Colors.grey.shade900,
                                   style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
-                                  items: [500, 1000].map((int value) => DropdownMenuItem<int>(value: value, child: Text('$value K'))).toList(),
+                                  items: [500, 1000].map((int value) => DropdownMenuItem<int>(value: value, child: Text('$value KREFT'))).toList(),
                                   onChanged: (newValue) => setState(() => entryFee = newValue!),
                                 ),
                               ],
