@@ -2767,6 +2767,39 @@ Positioned(
   top: 120, // 💡 상단바·채팅창 피한 위치
   right: 55,
   child: Row(mainAxisSize: MainAxisSize.min, children: [
+    // 🛡️ 엠블럼 버튼 — 가방에 있으면 여기서 바로 켜고 끈다.
+    //    인벤을 열지 않아도 되고, 잠깐 쉴 땐 꺼서 시간을 아낄 수 있다.
+    Builder(builder: (_) {
+      final inv = _latestInventory;
+      final int idx = inv.indexWhere((x) =>
+          x is Map && (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft'));
+      if (idx < 0) return const SizedBox.shrink();
+      final it = inv[idx] as Map;
+      final bool on = it['active'] == true;
+      final int left = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+      if (left <= 0) return const SizedBox.shrink();
+      final Color c = on ? const Color(0xFF6BE58A) : Colors.white38;
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          onTap: () => _toggleEmblem(it),
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: on ? const Color(0x336BE58A) : Colors.black54,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: c, width: 2),
+            ),
+            child: Column(children: [
+              Icon(on ? Icons.shield : Icons.shield_outlined, color: c, size: 28),
+              const SizedBox(height: 4),
+              Text(on ? boostLeftStr(left) : '엠블럼',
+                  style: TextStyle(color: c, fontSize: 12, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+        ),
+        const SizedBox(width: 10),
+      ]);
+    }),
     GestureDetector(
       onTap: _showFullInventoryDialog,
       child: Container(
@@ -3403,7 +3436,35 @@ Positioned(
     ); // ⚔️ WillPopScope 닫기
   } // <-- build 함수 끝나는 괄호
 
-// 🛡️ 엠블럼 활성화 — 받으면 잠자고 있다가, 눌러야 시간이 흐른다.
+  // 🛡️ 엠블럼 켜기/끄기 — 다 쓸 때까지 몇 번이든 켰다 껐다 할 수 있다.
+  //    잠깐 자리를 비울 땐 꺼두면 시간이 안 줄어든다.
+  Future<void> _toggleEmblem(Map item) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    audioManager.playSfx('sfx_click.mp3');
+    final bool turnOn = item['active'] != true;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
+      final i = inv.indexWhere((x) =>
+          x is Map && (x['name'] ?? '') == (item['name'] ?? '') && x.containsKey('secLeft'));
+      if (i < 0) return;
+      inv[i] = {...inv[i] as Map, 'active': turnOn};
+      await ref.update({'inventory': inv});
+      if (!mounted) return;
+      setState(() {});
+      final int left = (inv[i]['secLeft'] is num) ? (inv[i]['secLeft'] as num).toInt() : 0;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(turnOn
+            ? '🛡️ ${item['name']} 켜짐 — 남은 ${boostLeftStr(left)} (낚시터에서만 줄어요)'
+            : '⏸️ ${item['name']} 꺼짐 — ${boostLeftStr(left)} 남겨뒀어요'),
+      ));
+    } catch (e) {
+      debugPrint('엠블럼 전환 실패: $e');
+    }
+  }
+
+  // 🛡️ 엠블럼 활성화 — 받으면 잠자고 있다가, 눌러야 시간이 흐른다.
   void _useEmblem(Map<String, dynamic> item) {
     audioManager.playSfx('sfx_click.mp3');
     final int sec = (item['secLeft'] is num) ? (item['secLeft'] as num).toInt() : 0;
@@ -3411,12 +3472,8 @@ Positioned(
     final st = item['stats'] is Map ? item['stats'] as Map : const {};
     final int p = (st['P'] is num) ? (st['P'] as num).toInt() : 0;
 
-    if (on) {
-      _showNotificationPopup('🛡️ ${item['name']}',
-          '이미 사용 중이에요.\n남은 시간 ${boostLeftStr(sec)}\n\n낚시터에 있는 동안에만 줄어들어요.',
-          const Color(0xFF6BE58A));
-      return;
-    }
+    // 이미 켜져 있으면 끈다(다 쓸 때까지 몇 번이든 껐다 켰다 가능)
+    if (on) { _toggleEmblem(item); return; }
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
