@@ -879,21 +879,21 @@ final List<Map<String, dynamic>> seaFishPool = [
   {'name': '광어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 120.0, 'pts': 0, 'img': 'assets/images/fish_sea_10_halibut.png'},
   {'name': '감성돔', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 80.0, 'pts': 1, 'img': 'assets/images/fish_sea_01_black_porgy.png'}, // 👑 6대장
   {'name': '문어', 'weight': 50, 'unit': 'kg', 'min': 1, 'max': 50, 'pts': 1, 'reqBait': '에기', 'img': 'assets/images/fish_sea_05_octopus.png'}, // 👑 6대장 (현실감 1~50kg · 2026-08-24 기록 리셋, 힘 계산표도 50 정렬)
-  {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 40.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
+  {'name': '참치', 'weight': 5, 'unit': 'Cm', 'min': 50.0, 'max': 200.0, 'pts': 0, 'img': 'assets/images/fish_sea_11_tuna.png'},
   // 🎣 [루어/신규] 볼락(갯지렁이·웜에 강함) · 학꽁치(크릴에 강함)
   {'name': '볼락', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 30.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_12_mebaru.png'},
   {'name': '학꽁치', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 45.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_13_halfbeak.png'},
   // 🐟 [신규 2026-08-16] 성대(선상·갯지렁이) · 농어(갯바위·루어강세) · 부시리(선상·대물·고등어생미끼) · 돌돔(갯바위·갯지렁이)
   {'name': '성대', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 40.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_15_gurnard.png'},
   {'name': '농어', 'weight': 50, 'unit': 'Cm', 'min': 30.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_14_seabass.png'},
-  {'name': '부시리', 'weight': 50, 'unit': 'Cm', 'min': 40.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_16_amberjack.png'},
+  {'name': '부시리', 'weight': 50, 'unit': 'Cm', 'min': 50.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_16_amberjack.png'},
   {'name': '돌돔', 'weight': 50, 'unit': 'Cm', 'min': 25.0, 'max': 60.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_17_rock_bream.png'},
   // 🌊 [신규 2026-09-03] 바다 3종 — 민물 4종과 함께 kNewFishOn 하나로 열린다.
   //    방어=선상 대물(참치뿐이던 대물 자리를 하나 더), 쥐노래미=갯바위 잡어,
   //    무늬오징어=에기의 주인공(에기는 원래 이 어종용 미끼다).
   //    민물 20 + 바다 20 = 40종.
   if (kNewFishOn) ...[
-  {'name': '방어', 'weight': 10, 'unit': 'Cm', 'min': 50.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_18_yellowtail.png'},
+  {'name': '방어', 'weight': 10, 'unit': 'Cm', 'min': 50.0, 'max': 120.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_18_yellowtail.png'},
   {'name': '쥐노래미', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 45.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_19_greenling.png'},
   {'name': '무늬오징어', 'weight': 25, 'unit': 'Cm', 'min': 15.0, 'max': 50.0, 'pts': 0, 'img': 'assets/fish_sea/fish_sea_20_bigfin_squid.png'},
   ],
