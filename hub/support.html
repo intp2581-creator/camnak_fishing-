@@ -196,6 +196,12 @@
         <textarea id="fBody" maxlength="3000"
           placeholder="언제, 어떤 상황에서 문제가 생겼는지 적어주시면 빠르게 도와드릴 수 있어요."></textarea>
       </div>
+      <div class="f">
+        <label>스크린샷 첨부 <span style="font-weight:500;color:var(--ink-soft)">(선택 · 최대 3장)</span></label>
+        <p class="hint" style="margin:-4px 0 8px">화면을 캡처해 올려주시면 훨씬 빠르게 확인할 수 있어요.</p>
+        <input type="file" id="fFile" accept="image/*" multiple>
+        <div id="fPrev" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div>
+      </div>
       <button class="btn" id="fSend">문의 보내기</button>
       <button class="btn g" onclick="go('faq')">취소</button>
     </div>
@@ -318,6 +324,15 @@
     }catch(e){ $('tkList').innerHTML = '<div class="empty">'+esc(e.message)+'</div>'; }
   }
 
+  // 📎 첨부 이미지 — 누르면 새 탭에서 원본 크기로 열린다
+  function shotHtml(arr){
+    if (!Array.isArray(arr) || !arr.length) return '';
+    return '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'+
+      arr.map(u => '<a href="'+u+'" target="_blank" rel="noopener">'+
+        '<img src="'+u+'" style="max-width:190px;max-height:190px;border-radius:10px;'+
+        'border:1px solid var(--line);display:block"></a>').join('')+'</div>';
+  }
+
   async function openTicket(id){
     go('detail');
     $('dBox').innerHTML = '<div class="empty">불러오는 중…</div>';
@@ -331,14 +346,17 @@
       '<h3 style="margin:0 0 6px">'+esc(t.title)+'</h3>'+
       '<p class="hint">'+when(t.createdAt)+(t.orderId?' · 주문번호 '+esc(t.orderId):'')+
       (j.isGm && t.email ? ' · '+esc(t.email) : '')+'</p>'+
-      '<div class="msg u"><div class="who">'+esc(t.nick)+'</div>'+esc(t.body).replace(/\n/g,'<br>')+'</div>';
+      '<div class="msg u"><div class="who">'+esc(t.nick)+'</div>'+esc(t.body).replace(/\n/g,'<br>')+shotHtml(t.images)+'</div>';
     j.replies.forEach(r => {
       h += '<div class="msg '+(r.byGm?'g':'u')+'"><div class="who">'+esc(r.nick)+'</div>'+
-           esc(r.body).replace(/\n/g,'<br>')+'</div>';
+           esc(r.body).replace(/\n/g,'<br>')+shotHtml(r.images)+'</div>';
     });
     if (t.status !== 'closed'){
       h += '<div class="f" style="margin-top:18px"><label>'+(j.isGm?'답변':'추가 문의')+'</label>'+
            '<textarea id="rBody" maxlength="3000"></textarea></div>'+
+           '<div class="f"><label>스크린샷 첨부 <span style="font-weight:500;color:var(--ink-soft)">(선택 · 최대 3장)</span></label>'+
+           '<input type="file" id="rFile" accept="image/*" multiple>'+
+           '<div id="fPrev" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div></div>'+
            '<button class="btn" id="rSend">'+(j.isGm?'답변 등록':'추가 문의 보내기')+'</button> ';
       if (j.isGm) h += '<button class="btn g" id="rClose">처리 완료로 변경</button> ';
     }
@@ -358,11 +376,12 @@
     }
     h += '<button class="btn g" onclick="go(\'mine\')">목록으로</button>';
     $('dBox').innerHTML = h;
+    shots = []; if ($('rFile')) $('rFile').onchange = (e)=> pickShots(e.target);
     if ($('rSend')) $('rSend').onclick = async () => {
       const body = $('rBody').value.trim();
       if (!body) return alert('내용을 입력해 주세요.');
       $('rSend').disabled = true;
-      const r = await api('', {action:'reply', id, body});
+      const r = await api('', {action:'reply', id, body, images: shots});
       if (!r.ok) { alert(r.err); $('rSend').disabled = false; return; }
       openTicket(id);
     };
@@ -423,6 +442,42 @@
   // 📝 유형마다 필요한 정보가 다르다. 안내문이 전부 똑같으면
   //    무엇을 적어야 할지 알 수 없어 되묻는 일이 늘어난다.
   const NL = String.fromCharCode(10);
+
+  // 📎 첨부 — 올리기 전에 화면에서 줄여 보낸다(업로드 실패·요금 절감).
+  let shots = [];
+  function shrink(img, max, q){
+    let w=img.width, h=img.height;
+    if (w>max){ h=Math.round(h*max/w); w=max; }
+    const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    return cv.toDataURL('image/jpeg', q);
+  }
+  function renderShots(){
+    const box=$('fPrev'); if(!box) return;
+    box.innerHTML = shots.map((d,i)=>
+      '<div style="position:relative">'+
+      '<img src="'+d+'" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">'+
+      '<button type="button" data-rm="'+i+'" style="position:absolute;top:-7px;right:-7px;width:23px;height:23px;'+
+      'border-radius:50%;border:none;background:#c0392b;color:#fff;font-weight:800;cursor:pointer;line-height:1">×</button></div>').join('');
+    box.querySelectorAll('button[data-rm]').forEach(b=>{
+      b.onclick=()=>{ shots.splice(+b.getAttribute('data-rm'),1); renderShots(); };
+    });
+  }
+  function pickShots(input, done){
+    const list=[...(input.files||[])].slice(0,3);
+    let left=list.length;
+    if(!left){ done && done(); return; }
+    list.forEach(f=>{
+      const img=new Image(), rd=new FileReader();
+      rd.onload=()=>{ img.onload=()=>{
+        if (shots.length<3) shots.push(shrink(img,1000,0.78));
+        if(--left===0){ renderShots(); done && done(); }
+      }; img.src=rd.result; };
+      rd.readAsDataURL(f);
+    });
+    input.value='';
+  }
+  if ($('fFile')) $('fFile').onchange = (e)=> pickShots(e.target);
 
   // 🎁 이벤트 목록 — 최근 것이 위로. 새 이벤트가 끝나면 이 배열 맨 앞에 한 줄만 추가하면 된다.
   //    type:'goods' = 실물 상품(주소 필요) / 'item' = 게임 아이템(닉네임만 필요)
@@ -610,10 +665,11 @@
     $('fSend').disabled = true; $('fSend').textContent = '보내는 중…';
     try{
       const j = await api('', {action:'create', category:$('fCat').value,
-        orderId:$('fOrder').value.trim(), title, body});
+        orderId:$('fOrder').value.trim(), title, body, images: shots});
       if (!j.ok) throw new Error(j.err);
       $('fTitle').value=''; $('fBody').value=''; $('fOrder').value='';
       ['pNick','pName','pPhone','pZip','pAddr','pAddr2','pAsk','pMemo'].forEach(id => { $(id).value=''; });
+      shots = []; renderShots();
       alert('문의가 접수되었습니다. 확인 후 답변드리겠습니다.');
       go('mine');
     }catch(e){ alert(e.message); }

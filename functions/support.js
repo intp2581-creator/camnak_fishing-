@@ -18,6 +18,24 @@ const CATEGORIES = ["prize", "payment", "refund", "account", "game", "etc"];
 const CAT_LABEL = {prize: "이벤트 당첨", payment: "결제", refund: "환불",
   account: "계정", game: "게임 이용", etc: "기타"};
 
+// 📎 첨부 이미지 저장 — 화면에서 미리 줄여 보내므로 여기선 용량만 검사한다.
+//    "스샷 첨부드리고 싶은데..."라는 문의가 실제로 있었다(2026-09-02).
+async function saveShot(ticketId, dataUri, tag) {
+  const m = String(dataUri || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!m) return "";
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 1.5 * 1024 * 1024) return "";   // 1.5MB 초과 거부
+  const bucket = admin.storage().bucket();
+  const ext = m[1] === "image/png" ? "png" : (m[1] === "image/webp" ? "webp" : "jpg");
+  const path = "support/" + ticketId + "/" + tag + "." + ext;
+  const file = bucket.file(path);
+  await file.save(buf, {
+    metadata: {contentType: m[1], cacheControl: "public,max-age=31536000,immutable"},
+  });
+  await file.makePublic();
+  return "https://storage.googleapis.com/" + bucket.name + "/" + path;
+}
+
 async function me(req) {
   const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
   if (!m) throw new Error("로그인이 필요합니다");
@@ -88,11 +106,13 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       rs.forEach((r) => {
         const rv = r.data();
         replies.push({body: rv.body, byGm: rv.byGm === true, nick: rv.nick,
+          images: Array.isArray(rv.images) ? rv.images : [],
           createdAt: rv.createdAt ? rv.createdAt.toMillis() : 0});
       });
       return res.json({ok: true, isGm: u.isGm,
         ticket: {id: doc.id, category: v.category, categoryLabel: CAT_LABEL[v.category] || "기타",
           title: v.title, body: v.body, orderId: v.orderId || "", status: v.status,
+          images: Array.isArray(v.images) ? v.images : [],
           nick: v.nick, email: u.isGm ? v.email : "",
           createdAt: v.createdAt ? v.createdAt.toMillis() : 0},
         replies});
@@ -122,6 +142,16 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
         status: "open", replyCount: 0,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+      // 📎 첨부는 문서를 만든 뒤 저장(경로에 티켓 ID를 쓰기 위해). 실패해도 문의는 살린다.
+      const shots = Array.isArray(b.images) ? b.images.slice(0, 3) : [];
+      if (shots.length) {
+        const urls = [];
+        for (let i = 0; i < shots.length; i++) {
+          try { const u2 = await saveShot(doc.id, shots[i], "q" + i); if (u2) urls.push(u2); }
+          catch (e) { console.error("[첨부 저장 실패]", e.message); }
+        }
+        if (urls.length) await doc.update({images: urls});
+      }
       return res.json({ok: true, id: doc.id});
     }
 
@@ -136,10 +166,19 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       if (doc.data().uid !== u.uid && !u.isGm) {
         return res.status(403).json({ok: false, err: "권한이 없습니다"});
       }
-      await ref.collection("replies").add({
+      const shots = Array.isArray(b.images) ? b.images.slice(0, 3) : [];
+      const rdoc = await ref.collection("replies").add({
         body, byGm: u.isGm, nick: u.isGm ? "캠피싱 운영자" : u.nick,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+      if (shots.length) {
+        const urls = [];
+        for (let i = 0; i < shots.length; i++) {
+          try { const u2 = await saveShot(id, shots[i], rdoc.id + "_" + i); if (u2) urls.push(u2); }
+          catch (e) { console.error("[첨부 저장 실패]", e.message); }
+        }
+        if (urls.length) await rdoc.update({images: urls});
+      }
       // ⚠️ 운영자 답변과 문의자의 추가 글을 한 숫자로 세면, 목록에서 '답변 1'로 보여
       //    답을 준 것처럼 착각하게 된다. 따로 센다.
       const upd = {
