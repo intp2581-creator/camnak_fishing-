@@ -488,6 +488,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       if (mounted) setState(() => _showRatingBadge = false);
     });
     _cleanupExpiredEventItems(); // 🎁 만료된 기간제 이벤트 아이템 자동 소멸(접속 시 정리)
+    loadServerStoreItems(); // 🛒 상품 목록 새로고침(관리자 추가분 반영)
     loadGameEvent().then((_) {
       if (!mounted) return;
       setState(() {}); // 🎉 배너 반영

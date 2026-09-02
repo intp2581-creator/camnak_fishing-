@@ -1057,6 +1057,59 @@ String mallUrlForItem(String itemName) {
 //    상점 버튼이 "🔜 결제 오픈 예정"(구매 막힘) → "🛒 쇼핑몰 구매"로 전환된다.
 const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 + 자동지급 검증 완료)
 
+// =========================================================================
+// 🛒 [서버 상품] 관리자 페이지에서 추가한 상품을 게임 상점에도 띄운다.
+//    지금까지 상품이 코드(storeSkinItems)에 박혀 있어, 하나 늘릴 때마다
+//    빌드·배포가 필요했다(2026-09-02 신설).
+//
+//    ⚠️ 기존 상품(스킨·이용권)은 코드에 그대로 둔다.
+//       능력치·레벨조건이 걸린 밸런스 데이터라 서버에서 잘못 바꾸면
+//       게임이 흔들린다. 코드에 없는 '새 상품'만 서버에서 가져와 덧붙인다.
+//
+//    아이콘은 파일명 하나로 양쪽을 맞춘다:
+//      홈페이지  hub/assets/st-package.jpg
+//      게임      assets/images/st-package.jpg  → '../images/st-package.jpg'
+// =========================================================================
+List<Map<String, dynamic>> gServerStoreItems = [];
+
+Future<void> loadServerStoreItems() async {
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('store_products').limit(100).get();
+    final out = <Map<String, dynamic>>[];
+    for (final doc in snap.docs) {
+      final v = doc.data();
+      if (v['hidden'] == true) continue;                  // 숨김 상품 제외
+      final String name = (v['n'] ?? '').toString();
+      if (name.isEmpty) continue;
+      // 코드에 이미 있는 상품이면 건너뛴다(중복 방지 — 밸런스는 코드가 기준)
+      if (storeSkinItems.any((c) => (c['name'] ?? '') == name)) continue;
+
+      final String img = (v['img'] ?? '').toString();
+      final int price = (v['p'] is num) ? (v['p'] as num).toInt() : 0;
+      final int lv = (v['lv'] is num) ? (v['lv'] as num).toInt() : 0;
+      final String detail = (v['detail'] ?? '').toString();
+      final String short = (v['d'] ?? '').toString();
+
+      out.add({
+        'name': name,
+        'price': price,
+        'cash': true,
+        'category': 'PACKAGE',
+        'type': 'ETC',
+        'icon': img.isEmpty ? '' : '../images/$img',
+        'desc': detail.isNotEmpty ? detail : short,
+        if (lv > 0) 'reqLevel': lv,
+        'order': (v['order'] is num) ? (v['order'] as num).toInt() : 999,
+      });
+    }
+    out.sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
+    gServerStoreItems = out;
+  } catch (_) {
+    // 못 불러와도 상점은 기존 목록으로 정상 동작한다
+  }
+}
+
 final List<Map<String, dynamic>> storeSkinItems = [
   {'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC', 'icon': 'item_ticket_1h.png', 'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)\n\n💳 1,100원(VAT포함) · 1회분 지급 · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},
   {'name': '아레나 입장권', 'price': 1100, 'cash': true, 'category': 'TICKET', 'type': 'ETC', 'quantity': 1, 'icon': 'arena_ticket.png', 'desc': '아레나 무료 입장 1회를 다 쓴 뒤,\n하루 1회 더 참가할 수 있는 입장권이에요.\n🎟️ 낚시시간 20분을 채워줘서, 시간이 없어도 참가 가능!\n(하루 1장 사용 · 여러 장 보관 가능 · 쇼핑몰 전용)\n\n💳 1,100원(VAT포함) · 1장 지급 · 사용처: 게임 내 아레나 · 판매 (주)안테모사 · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸) · 청약철회: 사용 개시 후 제한, 미사용분 전액환불',},

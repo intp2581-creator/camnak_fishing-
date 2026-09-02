@@ -1559,7 +1559,7 @@ class _StoreScreenState extends State<StoreScreen> {
       displayList = [...eventStoreItems(), ...aux]; // 🎁 이벤트 기간엔 기간제 아이템이 맨 앞에
     }
     // 💳 게임스토어 = 유료(캐시) 아이템 한곳에: 스킨·이용권·입장권 + 보조장비의 캐시템(뱃지/휘장)
-    if (currentTab == 'SKIN') displayList = [...storeSkinItems, ...storeAuxItems.where((i) => i['cash'] == true)];
+    if (currentTab == 'SKIN') displayList = [...storeSkinItems, ...storeAuxItems.where((i) => i['cash'] == true), ...gServerStoreItems];
 
     return Scaffold(
       backgroundColor: Colors.black,
