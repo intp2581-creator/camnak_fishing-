@@ -1096,13 +1096,20 @@ Future<void> loadServerStoreItems() async {
     final snap = await FirebaseFirestore.instance
         .collection('store_products').limit(100).get();
     final out = <Map<String, dynamic>>[];
+    // 🛒 코드에 이미 있는 상품 이름 전부(중복 방지 — 밸런스는 코드가 기준).
+    //    예전엔 storeSkinItems만 봐서, storeAuxItems에 있는 뱃지·휘장 3종이
+    //    상점 아래쪽에 한 번 더 뜨고 이미지도 깨졌다(2026-09-02).
+    final Set<String> codeNames = {
+      for (final l in [storeSkinItems, storeAuxItems, storeRodItems,
+                       storeGearItems, storeBaitItems, storeGuildRaidRods])
+        for (final c in l) (c['name'] ?? '').toString(),
+    };
     for (final doc in snap.docs) {
       final v = doc.data();
       if (v['hidden'] == true) continue;                  // 숨김 상품 제외
       final String name = (v['n'] ?? '').toString();
       if (name.isEmpty) continue;
-      // 코드에 이미 있는 상품이면 건너뛴다(중복 방지 — 밸런스는 코드가 기준)
-      if (storeSkinItems.any((c) => (c['name'] ?? '') == name)) continue;
+      if (codeNames.contains(name)) continue;
 
       final String img = (v['img'] ?? '').toString();
       final int price = (v['p'] is num) ? (v['p'] as num).toInt() : 0;
