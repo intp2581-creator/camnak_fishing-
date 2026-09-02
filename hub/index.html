@@ -245,7 +245,8 @@
   }
 
   /* 게임 특징 카드 */
-  .featgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+  .featgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  @media(max-width:1100px){.featgrid{grid-template-columns:repeat(2,1fr)}}
   .feat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
     overflow:hidden;box-shadow:var(--shadow-sm);transition:.18s}
   .feat:hover{transform:translateY(-4px);box-shadow:var(--shadow)}
@@ -525,20 +526,35 @@
      그 위에 길드 보스레이드처럼 게임만이 줄 수 있는 것을 얹은
      <b>리얼 판타지 낚시 게임</b>입니다.</p>
   <div class="featgrid">
+    <!-- ① 리얼 — 정체성의 앞쪽 절반 -->
     <div class="feat">
       <div class="fimg"><img src="assets/f-spot.jpg" alt=""></div>
-      <div class="fbody"><h3>전국 20개 낚시터</h3>
-        <p>저수지 · 수로 · 갯바위 · 선상 각 5곳. 어종 40종, 장소마다 난이도가 다릅니다.</p></div>
+      <div class="fbody"><h3>진짜 낚시 그대로</h3>
+        <p>전국 20곳의 실제 낚시터와 어종 40종을 그대로 옮겼습니다.
+           미끼에 따라 무엇이 물지, 어느 자리에서 큰 놈이 나오는지 —
+           낚시를 해보신 분이라면 아실 그 규칙이 살아 있습니다.</p></div>
     </div>
+    <!-- ② 판타지 — 뒤쪽 절반 -->
+    <div class="feat">
+      <div class="fimg"><img src="assets/f-raid.jpg" alt=""></div>
+      <div class="fbody"><h3>현실에 없는 낚시터</h3>
+        <p>신성한 늪, 용암의 심연. 현실에서는 만날 수 없는 다섯 존에서
+           길드원이 힘을 합쳐 거대 보스에 도전합니다.
+           게임이기에 가능한 낚시입니다.</p></div>
+    </div>
+    <!-- ③ 소통 -->
     <div class="feat">
       <div class="fimg"><img src="assets/plaza-fw.jpg" alt=""></div>
       <div class="fbody"><h3>조사님들이 모이는 광장</h3>
-        <p>채팅으로 인사하고, 랭킹으로 겨루고, 길드로 뭉치세요. 실시간 멀티플레이.</p></div>
+        <p>오늘 조과를 나누고, 랭킹으로 겨루고, 친구가 낚시하는 걸
+           옆에서 구경하기도 합니다. 혼자 하는 낚시가 아닙니다.</p></div>
     </div>
+    <!-- ④ 길드 -->
     <div class="feat">
-      <div class="fimg"><img src="assets/f-raid.jpg" alt=""></div>
-      <div class="fbody"><h3>길드 보스레이드</h3>
-        <p>길드원이 힘을 합쳐 5개 존의 거대 보스에 도전하는 주 1회 콘텐츠.</p></div>
+      <div class="fimg"><img src="assets/guild-inside.jpg" alt=""></div>
+      <div class="fbody"><h3>우리 길드의 길드홀</h3>
+        <p>길드를 만들고 함께 성장합니다. 잡은 보스의 깃발이 길드홀 벽에
+           하나씩 걸리고, 길드 레벨이 오르면 길드원 전원의 제압력이 올라갑니다.</p></div>
     </div>
   </div>
 </section>
