@@ -918,7 +918,7 @@ final List<Map<String, dynamic>> seaFishPool = [
 /// 🎁 [신규 조사 환영 세트] 지급 스위치 — 시작일을 정해 공지 올릴 때 true로 바꿔 배포.
 ///    같은 날 기존 유저에게도 포션5·카드5·엠블럼1을 일괄 지급한다(낚싯대는 신규만).
 ///    신규만 주면 기존 유저가 서운하므로 함께 연다(2026-09-02 사용자 결정).
-const bool kWelcomeSetOn = true;
+const bool kWelcomeSetOn = false;
 
 // 🎁 신규 유저에게 지급되는 12종 스타터 팩!
 List<Map<String, dynamic>> getInitialStarterPack() {
