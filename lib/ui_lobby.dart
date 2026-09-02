@@ -1540,10 +1540,20 @@ class _StoreScreenState extends State<StoreScreen> {
     if (!['rod_fw', 'rod_sea', 'rod_raid', 'rod_lure', 'reel', 'float', 'skin', 'sun', 'badge', 'cooler', 'glove', 'belt', 'net'].contains(type)) return false;
     final myGrade = _gradeOf(item);
     if (myGrade <= 0) return false;
+    // 🔒 [2026-09-02] '지금 쓸 수 있는 것 중' 최상급을 보호한다.
+    //    레벨이 모자란 장비는 최상급 후보에서 뺀다 — 환영 세트로 받은 CF-30T가
+    //    민물대 최상급 자리를 차지하는 바람에 기본대 CF-20T가 팔리게 됐고,
+    //    Lv.1이 그걸 팔면 낚싯대가 하나도 없어 낚시를 못 하게 된다.
+    //    Lv.5가 되면 CF-30T가 최상급이 되고 CF-20T는 그때 팔 수 있다.
+    bool usable(Map<String, dynamic> it) {
+      final lv = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
+      return lv <= 0 || widget.currentLevel >= lv;
+    }
+    if (!usable(item)) return true;          // 못 쓰는 장비는 그 자체로 판매 잠금
     int maxGrade = 0;
     for (final o in myInventory) {
       final om = o as Map<String, dynamic>;
-      if (_slotType(om) == type) {
+      if (_slotType(om) == type && usable(om)) {
         final g = _gradeOf(om);
         if (g > maxGrade) maxGrade = g;
       }
