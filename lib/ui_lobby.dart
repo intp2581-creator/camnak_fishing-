@@ -1391,6 +1391,10 @@ class _StoreScreenState extends State<StoreScreen> {
     if (t == 'TRAP') return true;
     // 🎟️ 이용권류(1시간 이용권·아레나 입장권 등) — 유료 결제라 판매 X
     if (c == 'TICKET') return true;
+    // ⚡ 물약·카드(BOOST)·엠블럼과 기간제 이벤트 아이템(EVENT) — 이용권과 같은 이유로 판매 X.
+    //    price가 0이라 판매가가 기본값 100P로 떨어져, 5,500원짜리 성장 패키지
+    //    구성품을 100 KREFT에 팔아버릴 수 있었다(2026-09-02).
+    if (t == 'BOOST' || t == 'EVENT') return true;
     // 👑 발표 전 최상위 스킨(레전드·낚시의 신) — 아직 팔지 않음
     if (n.contains('레전드') || n.contains('낚시의')) return true;
     // 🧵 낚시줄 = 내구도 소모품(쓸수록 m↓→끊어짐). 소진 직전(10m) 되팔이(정가30%=6,000P) exploit 방지로 판매 금지.
