@@ -310,8 +310,10 @@ const int dailyMissionCount = 3;   // 각 미션 목표 마릿수
 const int dailyMissionPrize = 500; // 각 미션 보상 KREFT
 
 // ⚔️ 아레나 = '경험치 던전': 잡은 물고기 exp·포인트를 일반 낚시터의 이 배율로 지급(마스터 장비 10분 파밍).
-//    (오픈 후 레벨업 속도 보고 조정 가능. maxCatch 개인기록엔 반영 안 함=평준화 장비라 기록 오염 방지)
-const double arenaRewardMult = 1.5;
+//    (maxCatch 개인기록엔 반영 안 함=평준화 장비라 기록 오염 방지)
+// 📌 2026-09-02: 1.5 → 2.0. 홈페이지에 '2배 이상'이라 적어둔 것과 화면의 x1.5가 어긋나
+//    유저 지적을 받았다. 아레나는 유료 입장권을 파는 파밍 콘텐츠이므로 표기에 실제를 맞춘다.
+const double arenaRewardMult = 2.0;
 
 // 오늘의 민물 일일 미션 (날짜 시드 → 전 유저 동일)
 Map<String, dynamic> getTodayFwMission() {
