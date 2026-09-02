@@ -691,9 +691,9 @@ const Map<String, String> spotTypeByName = {
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
   // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길·향어
-  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost},
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost, '초어': _spotBoost},
   // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지·동자개·민물장어
-  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost},
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost, '누치': _spotBoost, '끄리': _spotBoost, '모래무지': _spotBoost},
   // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치·돌돔·농어
   '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost, '돌돔': _spotBoost, '농어': _spotBoost},
   // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·주꾸미·볼락·참치·부시리·성대
@@ -856,8 +856,8 @@ final List<Map<String, dynamic>> fwFishPool = [
   //    ⚠️ 철갑상어는 뺐다 — 유료터 어종이라 노지에서 나오면 어색하다(사용자 지적).
   {'name': '누치', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_17_nuchi.png'},
   {'name': '끄리', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 50.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_18_kkeuri.png'},
-  {'name': '초어', 'weight': 15, 'unit': 'Cm', 'min': 40.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_19_grass_carp.png'},
-  {'name': '모래무지', 'weight': 50, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_20_gudgeon.png'},
+  {'name': '초어', 'weight': 10, 'unit': 'Cm', 'min': 40.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_19_grass_carp.png'},
+  {'name': '모래무지', 'weight': 30, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_20_gudgeon.png'},
 ];
 
 // 🌊 바다 물고기
