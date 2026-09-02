@@ -252,7 +252,7 @@
         return '<div class="prow" onclick="location.href=\'community.html?id='+encodeURIComponent(n.id)+'\'">'
           + (n.thumb?'<div class="th"><img src="'+n.thumb+'" alt=""></div>':'')
           + '<div class="tt"><b>'+esc(n.title)+(n.hasImage?' 🖼️':'')+'</b>'
-          + '<div class="meta"><span class="nk">'+esc(n.rank?n.rank+' ':'')+esc(n.author)+'</span>'
+          + '<div class="meta">'+nameTag(n)
           + '<span>'+ago(n.createdAt)+'</span><span>조회 '+n.views+'</span></div></div>'
           + (n.comments?'<span class="cm">💬 '+n.comments+'</span>':'')
           + '</div>';
@@ -339,13 +339,24 @@
   };
 
   /* ── 상세 ── */
+  // 🛡️ 작성자 이름표 — 운영자 글은 등급·닉네임 대신 운영자로 표시한다.
+  //    '운영자입니다'라고 써 놓고 이름표가 '하수 미르페스카'로 나오면
+  //    유저는 그냥 다른 플레이어로 본다. 공지·환불 안내에서 특히 문제.
+  function nameTag(n){
+    if (n && n.gm) {
+      return '<span class="nk" style="color:#0f766e;font-weight:800">'
+           + '🛡️ 캠피싱 운영자</span>';
+    }
+    return '<span class="nk">'+esc(n.rank?n.rank+' ':'')+esc(n.author)+'</span>';
+  }
+
   function renderDetail(j){
     var n=j.item, cs=j.comments||[];
     var canDel = (myUid && n.authorUid===myUid) || myIsGm;
     var html='<div class="pdet">'
       +'<div class="ph"><span class="bd-tag">'+BOARD[n.board][0]+'</span>'
       +'<h2>'+esc(n.title)+'</h2>'
-      +'<div class="meta"><span class="nk">'+esc(n.rank?n.rank+' ':'')+esc(n.author)+'</span>'
+      +'<div class="meta">'+nameTag(n)
       +'<span>'+ago(n.createdAt)+'</span><span>조회 '+n.views+'</span>'
       +(canDel?'<button class="del" id="delPost" style="margin-left:auto;background:none;border:none;color:#c0392b;font-weight:700;cursor:pointer;font-family:inherit">글 삭제</button>':'')
       +'</div></div>'
@@ -358,7 +369,7 @@
     html+='<div class="cbox"><h3>💬 댓글 '+cs.length+'</h3>';
     html+= cs.length ? cs.map(function(c){
       var cd=(myUid&&c.authorUid===myUid)||myIsGm;
-      return '<div class="cm-item"><div class="cm-hd"><span class="nk">'+esc(c.rank?c.rank+' ':'')+esc(c.author)+'</span>'
+      return '<div class="cm-item"><div class="cm-hd">'+nameTag(c)
         +'<span class="dt">'+ago(c.createdAt)+'</span>'
         +(cd?'<button class="del" data-c="'+c.id+'">삭제</button>':'')
         +'</div><div class="cm-bd">'+esc(c.body)+'</div></div>';

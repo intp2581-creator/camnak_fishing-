@@ -78,6 +78,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
           if (v.deleted === true) return;
           cList.push({
             id: c.id, body: v.body || "", author: v.author || "", rank: v.rank || "",
+            gm: v.gm === true,
             authorUid: v.authorUid || "", createdAt: v.createdAt ? v.createdAt.toMillis() : 0,
           });
         });
@@ -86,7 +87,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
           ok: true,
           item: {
             id: doc.id, board: d.board, title: d.title, body: d.body, images: d.images || [],
-            author: d.author, rank: d.rank || "", authorUid: d.authorUid || "",
+            author: d.author, rank: d.rank || "", authorUid: d.authorUid || "", gm: d.gm === true,
             views: d.views || 0, createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
           },
           comments: cList,
@@ -107,7 +108,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         if (items.length >= limit) return;
         items.push({
           id: doc.id, board: d.board, title: d.title || "",
-          author: d.author || "", rank: d.rank || "",
+          author: d.author || "", rank: d.rank || "", gm: d.gm === true,
           views: d.views || 0, comments: d.commentCount || 0,
           thumb: d.thumb || "",   // ⚠️ 원본 대신 썸네일만 (다운로드 요금 절감)
           hasImage: Array.isArray(d.images) && d.images.length > 0,
@@ -152,7 +153,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
 
       const ref = await posts.add({
         board: board, title: title, body: body, images: [],
-        author: me.nick, rank: me.rank, authorUid: me.uid,
+        author: me.nick, rank: me.rank, authorUid: me.uid, gm: me.isGm === true,
         views: 0, commentCount: 0, deleted: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -181,6 +182,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
       }
       await comments.add({
         postId: postId, body: body, author: me.nick, rank: me.rank, authorUid: me.uid,
+        gm: me.isGm === true,
         deleted: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       await posts.doc(postId).update({ commentCount: admin.firestore.FieldValue.increment(1) });
