@@ -455,12 +455,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🎁 만료된 기간제 이벤트 아이템 자동 소멸(접속 시 1회 정리 — 효과는 만료 즉시 무시되므로 정리 지연 무해)
+  //    ⚡ 같은 읽기로 개인 버프(물약·카드) 만료시각도 함께 채운다(읽기 횟수 절감).
   Future<void> _cleanupExpiredEventItems() async {
     final u = FirebaseAuth.instance.currentUser;
     if (u == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
-      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
+      final data = (await ref.get()).data() ?? {};
+      gBoostExpUntil = (data['boostExpUntil'] is num) ? (data['boostExpUntil'] as num).toInt() : 0;
+      gBoostPtsUntil = (data['boostPtsUntil'] is num) ? (data['boostPtsUntil'] as num).toInt() : 0;
+      final inv = List<dynamic>.from(data['inventory'] ?? []);
       final cleaned = removeExpiredEventItems(inv);
       if (cleaned != null) await ref.update({'inventory': cleaned});
     } catch (_) {}
@@ -1978,7 +1982,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (!mounted) return;
     // 🏠 사이트 2분화(2026-08-30) — 게임은 전용 허브 안에서 돌아간다.
     //    camnak.com(실물 쇼핑몰)으로 나가버리면 공지·커뮤니티로 돌아갈 길이 끊긴다.
-    const exitUrl = 'https://game.camnak.com/';
+    const exitUrl = 'https://kreft.co.kr/';
     try {
       html.window.top?.location.href = exitUrl;
     } catch (_) {

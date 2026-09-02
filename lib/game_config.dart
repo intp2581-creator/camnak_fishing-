@@ -159,6 +159,69 @@ Map<String, int> eventItemBonus(List<dynamic> inventory) {
   return {'P': p, 'C': c, 'S': s};
 }
 
+// =========================================================================
+// ⚡ [개인 버프] 물약·카드 — 클릭해서 쓰면 정해진 시간 동안 배율이 붙는다.
+//    이벤트 배율(config/event)은 전체 유저 공통이라 '이 사람만 10분간 2배'를
+//    표현할 수 없었다(2026-09-02 신설).
+//    · users 문서에 만료 시각(millis)만 저장 → 계산이 단순하고 재접속에도 유지
+//    · 아레나는 완전 평준화 콘텐츠라 개인 버프를 적용하지 않는다
+// =========================================================================
+const int kBoostExpMinutes = 10;   // ⚗️ 경험치 물약 지속(분)
+const int kBoostPtsMinutes = 10;   // 🎴 KREFT 카드 지속(분)
+const double kBoostExpMult = 2.0;
+const double kBoostPtsMult = 2.0;
+
+/// 내 버프 만료 시각(ms). 낚시터·광장 진입 시 users 문서에서 읽어 채운다.
+int gBoostExpUntil = 0;
+int gBoostPtsUntil = 0;
+
+bool get boostExpOn => DateTime.now().millisecondsSinceEpoch < gBoostExpUntil;
+bool get boostPtsOn => DateTime.now().millisecondsSinceEpoch < gBoostPtsUntil;
+
+/// 남은 시간(초). 꺼져 있으면 0.
+int boostExpLeftSec() {
+  final d = gBoostExpUntil - DateTime.now().millisecondsSinceEpoch;
+  return d > 0 ? (d / 1000).ceil() : 0;
+}
+
+int boostPtsLeftSec() {
+  final d = gBoostPtsUntil - DateTime.now().millisecondsSinceEpoch;
+  return d > 0 ? (d / 1000).ceil() : 0;
+}
+
+/// mm:ss 표기
+String boostLeftStr(int sec) =>
+    '${(sec ~/ 60).toString().padLeft(2, '0')}:${(sec % 60).toString().padLeft(2, '0')}';
+
+/// 지급/판매용 아이템 정의. type:'BOOST' → 인벤에서 탭하면 사용 확인창.
+const Map<String, dynamic> kItemPotionExp = {
+  'name': '경험치 물약', 'price': 0, 'cash': true,
+  'category': 'BOOST', 'type': 'BOOST', 'boost': 'exp', 'quantity': 1,
+  'icon': 'item_potion_exp.png',
+  'desc': '마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)',
+};
+
+const Map<String, dynamic> kItemCardKreft = {
+  'name': 'KREFT 2배 카드', 'price': 0, 'cash': true,
+  'category': 'BOOST', 'type': 'BOOST', 'boost': 'pts', 'quantity': 1,
+  'icon': 'item_card_kreft.png',
+  'desc': '사용하면 10분 동안 KREFT가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)',
+};
+
+/// 🛡️ 능력치 엠블럼 — 태극기 뱃지·송편과 같은 '보유 버프'(type:EVENT).
+///    지급할 때 expiresAt을 '지급 시각 + 1시간'으로 넣는다(사람마다 만료가 다름).
+Map<String, dynamic> makeEmblemBoost({DateTime? from}) {
+  final until = (from ?? DateTime.now()).add(const Duration(hours: 1));
+  return {
+    'name': '능력치 엠블럼', 'price': 0, 'cash': true,
+    'category': 'COMMON', 'type': 'EVENT',
+    'stats': {'P': 10, 'C': 10, 'S': 10},
+    'icon': 'item_emblem_boost.png',
+    'expiresAt': until.toIso8601String(),
+    'desc': '가방에 있으면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n(휘장과 함께 적용됩니다)',
+  };
+}
+
 /// 🎁 만료된 이벤트 아이템을 제거한 인벤 반환. 변화 없으면 null(쓰기 불필요).
 List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
   final now = DateTime.now();
@@ -900,7 +963,7 @@ final List<Map<String, dynamic>> storeAuxItems = [
 //    정확한 게임스토어 페이지 URL이 있으면 여기만 바꾸면 됨.
 // ⚠️ camnak.com/137(구 게임스토어)은 사이트 2분화로 숨김 처리됨(2026-08-30).
 //    → 게임 전용 홈페이지의 게임스토어로 연결.
-const String kGameStoreUrl = 'https://game.camnak.com/store.html';
+const String kGameStoreUrl = 'https://kreft.co.kr/store.html';
 
 // 🛒 상품별 쇼핑몰 상세페이지 딥링크 — 게임 아이템명 → 아임웹 상품번호(idx)
 //    구매 버튼 누르면 목록이 아니라 해당 상품 구매창으로 바로 이동.

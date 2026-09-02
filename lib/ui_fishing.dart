@@ -657,6 +657,7 @@ Widget _whisperUnreadBadge() {
     HardwareKeyboard.instance.addHandler(_onEnterFocusChat); // ⏎ 엔터로 채팅창 활성화
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
+    _loadMyBoosts(); // ⚡ 개인 버프(물약·카드) 남은 시간 불러오기
     loadGmNotice(); // 🎤 GM 윤슬 공지 멘트 최신화(Firestore config/gmnotice)
     // 🎖️ 등급 마크 30초 노출 후 숨김(광장과 통일). 하루 1시간 세션이라 1회 노출로 "1시간마다 3초 이상" 충족.
     _ratingHideTimer = Timer(const Duration(seconds: 30), () {
@@ -1436,13 +1437,18 @@ Widget _whisperUnreadBadge() {
                 //    (운영/테스트 계정은 data['hideFromRank']로 즉시 제외 — 추가 읽기 없음)
                 await _maybeBroadcastRecord(fish['name'].toString(), caughtSize,
                     (fish['unit'] ?? 'Cm').toString(), data['hideFromRank'] == true);
+                // ⚡ 개인 버프(물약·카드) 반영 — 아레나는 위 분기에서 따로 처리(평준화)
+                final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
+                final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
                 await docRef.set({
-                  'exp': FieldValue.increment(fish['exp'] as int),
-                  'gold': FieldValue.increment(fish['pts'] as int),
+                  'exp': FieldValue.increment(gExp),
+                  'gold': FieldValue.increment(gPts),
                   'maxCatch': {fish['name']: {'size': caughtSize, 'date': DateTime.now().toIso8601String().substring(0, 10)}}
                 }, SetOptions(merge: true));
               } else {
-                await docRef.update({'exp': FieldValue.increment(fish['exp'] as int), 'gold': FieldValue.increment(fish['pts'] as int)});
+                final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
+                final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
+                await docRef.update({'exp': FieldValue.increment(gExp), 'gold': FieldValue.increment(gPts)});
               }
               // 🎓 튜토리얼 '첫 출조'(나루, tutStep 3) — 첫 고기 잡으면 미션 완료 기록
               //    안내 팝업은 광장 복귀 시 표시(_refreshTutFromDb) — 전투 오버레이 위 모달 충돌 방지
@@ -2911,6 +2917,17 @@ Positioned(
                             const SizedBox(width: 4),
                             const Text('KREFT', style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.w900)),
                           ]),
+                          // ⚡ 개인 버프(물약·카드) 남은 시간 — 켜져 있을 때만
+                          if (boostExpOn || boostPtsOn) ...[
+                            const SizedBox(height: 6),
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              if (boostExpOn)
+                                _boostChip('⚡ EXP x2', boostLeftStr(boostExpLeftSec()), const Color(0xFF9C6BFF)),
+                              if (boostExpOn && boostPtsOn) const SizedBox(width: 5),
+                              if (boostPtsOn)
+                                _boostChip('🪙 KREFT x2', boostLeftStr(boostPtsLeftSec()), const Color(0xFFD4AF37)),
+                            ]),
+                          ],
                           // 🛡️ #3 길드 경험치 실시간 진행바 (길드원이 잡으면 바로 차오름)
                           if (_guildId.isNotEmpty)
                             Padding(
@@ -3331,7 +3348,108 @@ Positioned(
     ); // ⚔️ WillPopScope 닫기
   } // <-- build 함수 끝나는 괄호
 
-// 🎟️ [여기에 추가!] 티켓 사용 확인 팝업
+// ⚡ 버프 표시 칩
+  Widget _boostChip(String label, String left, Color c) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: c.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: c.withOpacity(0.6), width: 1),
+      ),
+      child: Text('$label  $left',
+          style: TextStyle(color: c, fontSize: 11, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  // ⚡ 내 버프 만료시각 불러오기(낚시터 직행 대비 — 광장에서도 같은 값을 채운다)
+  Future<void> _loadMyBoosts() async {
+    final u = FirebaseAuth.instance.currentUser;
+    if (u == null) return;
+    try {
+      final d = (await FirebaseFirestore.instance.collection('users').doc(u.uid).get()).data() ?? {};
+      gBoostExpUntil = (d['boostExpUntil'] is num) ? (d['boostExpUntil'] as num).toInt() : 0;
+      gBoostPtsUntil = (d['boostPtsUntil'] is num) ? (d['boostPtsUntil'] as num).toInt() : 0;
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  // ⚡ 물약·카드 사용 — 확인창 → 소모 + 만료시각 기록(users 문서)
+  //    이미 걸려 있으면 남은 시간에 이어서 더한다(겹쳐 쓰기 허용).
+  void _useBoost(Map<String, dynamic> item) {
+    audioManager.playSfx('sfx_click.mp3');
+    final bool isExp = (item['boost'] ?? 'exp').toString() == 'exp';
+    final String label = isExp ? '경험치' : 'KREFT';
+    final int minutes = isExp ? kBoostExpMinutes : kBoostPtsMinutes;
+    final int leftSec = isExp ? boostExpLeftSec() : boostPtsLeftSec();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: Color(0xFFD4AF37))),
+        title: Text('${item['name']} 사용',
+            style: const TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        content: Text(
+            '${item['name']}을(를) 사용하시겠습니까?\n\n'
+            '✨ $minutes분 동안 $label가 2배로 들어옵니다.'
+            '${leftSec > 0 ? '\n(남은 시간 ${boostLeftStr(leftSec)}에 이어서 늘어나요)' : ''}'
+            '\n\n⚔️ 아레나에서는 적용되지 않아요.',
+            style: const TextStyle(color: Colors.white, height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFFD4AF37)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _consumeBoost(item, isExp, minutes);
+              },
+              child: const Text('사용하기', style: TextStyle(fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _consumeBoost(Map<String, dynamic> item, bool isExp, int minutes) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await ref.get();
+      final List<dynamic> inv = List.from(doc.data()?['inventory'] ?? []);
+      final int idx = inv.indexWhere((i) => (i['name'] ?? '') == item['name']);
+      if (idx < 0) return;
+
+      final int qty = (inv[idx]['quantity'] ?? 1) as int;
+      if (qty > 1) { inv[idx]['quantity'] = qty - 1; } else { inv.removeAt(idx); }
+
+      // 이미 걸려 있으면 남은 시간에 이어붙인다
+      final int now = DateTime.now().millisecondsSinceEpoch;
+      final int cur = isExp ? gBoostExpUntil : gBoostPtsUntil;
+      final int base = cur > now ? cur : now;
+      final int until = base + minutes * 60 * 1000;
+
+      await ref.update({
+        'inventory': inv,
+        if (isExp) 'boostExpUntil': until else 'boostPtsUntil': until,
+      });
+      if (isExp) { gBoostExpUntil = until; } else { gBoostPtsUntil = until; }
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('⚡ ${item['name']} 사용! ${isExp ? '경험치' : 'KREFT'} 2배 '
+            '${boostLeftStr(isExp ? boostExpLeftSec() : boostPtsLeftSec())} 남았어요'),
+      ));
+    } catch (e) {
+      debugPrint('버프 사용 실패: $e');
+    }
+  }
+
+  // 🎟️ [여기에 추가!] 티켓 사용 확인 팝업
   void _useTicket(Map<String, dynamic> ticketItem) {
     audioManager.playSfx('sfx_click.mp3');
     // 🎟️ 아레나 입장권은 낚시시간 충전용이 아님 → 아레나 참가 시 자동 사용. 여기선 안내만.
@@ -4193,6 +4311,8 @@ Positioned(
       _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
       return;
     }
+    // ⚡ 물약·카드(BOOST) — 탭하면 사용 확인창(장착 아이템 아님)
+    if ((item['type'] ?? '') == 'BOOST') { _useBoost(item); return; }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
     // 🎣 루어모드: 루어대(BC)+루어미끼만 허용. 찌·릴·일반미끼·일반 낚싯대 차단.
