@@ -1087,6 +1087,10 @@ const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 
 // =========================================================================
 List<Map<String, dynamic>> gServerStoreItems = [];
 
+/// 💰 5500 → '5,500'
+String _won(int n) => n.toString()
+    .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+\b)'), (m) => '${m[1]},');
+
 Future<void> loadServerStoreItems() async {
   try {
     final snap = await FirebaseFirestore.instance
@@ -1113,7 +1117,13 @@ Future<void> loadServerStoreItems() async {
         'category': 'PACKAGE',
         'type': 'ETC',
         'icon': img.isEmpty ? '' : '../images/$img',
-        'desc': detail.isNotEmpty ? detail : short,
+        // 🛒 게임 상점은 설명을 3줄만 보여준다(ui_lobby maxLines:3).
+        //    긴 상세를 먼저 쓰면 '[구성품 5종]'만 뜨고 잘리므로 짧은 소개를 앞에 둔다.
+        //    법정 고지는 코드 상품(storeSkinItems)과 같은 형식으로 자동으로 붙인다.
+        'desc': (short.isNotEmpty ? short : detail)
+            + '\n\n💳 ${_won(price)}원(VAT포함) · 사용처: 캠피싱 게임 내 · 판매 (주)안테모사'
+            + ' · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸)'
+            + ' · 청약철회: 사용 개시 후 제한',
         if (lv > 0) 'reqLevel': lv,
         'order': (v['order'] is num) ? (v['order'] as num).toInt() : 999,
       });
