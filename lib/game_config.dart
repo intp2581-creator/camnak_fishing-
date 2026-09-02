@@ -915,6 +915,11 @@ final List<Map<String, dynamic>> seaFishPool = [
 // 🛒 [KREFT 상점 및 초기 지급 장비 데이터]
 // =========================================================================
 
+/// 🎁 [신규 조사 환영 세트] 지급 스위치 — 시작일을 정해 공지 올릴 때 true로 바꿔 배포.
+///    같은 날 기존 유저에게도 포션5·카드5·엠블럼1을 일괄 지급한다(낚싯대는 신규만).
+///    신규만 주면 기존 유저가 서운하므로 함께 연다(2026-09-02 사용자 결정).
+const bool kWelcomeSetOn = false;
+
 // 🎁 신규 유저에게 지급되는 12종 스타터 팩!
 List<Map<String, dynamic>> getInitialStarterPack() {
   return [
@@ -934,6 +939,7 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     //    낚싯대 두 대는 일부러 Lv.5 제한을 그대로 뒀다 — 가방에 보이지만 아직 못 낀다.
     //    "5레벨까지 키워서 바꿔 차라"가 첫 접속의 목표가 된다(사용자 결정).
     //    민물·바다 한 대씩이라 신규가 바다 낚시터도 열어보게 된다.
+    if (kWelcomeSetOn) ...[
     {...kItemPotionExp, 'quantity': 5},
     {...kItemCardKreft, 'quantity': 5},
     makeEmblemBoost(),
@@ -943,6 +949,7 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': 'CF350', 'category': 'SEA', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
       'icon': 'rod_sea_cf350.png',
       'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(바다 · 기본대보다 훨씬 강해요)'},
+    ],
   ];
 }
 

@@ -354,3 +354,116 @@ autoLoginFromUrl();
   if (location.protocol !== 'https:') return;           // 로컬 테스트 보호
   location.replace('https://' + HOME + location.pathname + location.search + location.hash);
 })();
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   🔗 [친구에게 공유] 모든 허브 페이지 오른쪽 아래 떠 있는 버튼.
+      쇼핑몰(camnak.com)에 있던 걸 게임 홈페이지에도 붙인다(2026-09-02).
+
+      ⚠️ location.href를 그대로 공유하면 안 된다 — 자동로그인 토큰이
+         해시(#k=...)에 실려 있어서 남의 계정으로 들어갈 수 있게 된다.
+         그래서 origin+pathname만 쓰고 쿼리·해시는 전부 버린다.
+
+      모바일은 OS 공유창(navigator.share), 데스크톱은 링크 복사로 떨어진다.
+   ═══════════════════════════════════════════════════════════════════════ */
+(function () {
+  if (window.__cfShareReady) return;                 // 중복 주입 방지
+  window.__cfShareReady = true;
+
+  var TITLE = '캠피싱 KREFT — 손 안의 낚시터';
+  var TEXT  = '🎣 전국 20개 낚시터, 어종 33종.'
+    + '\n지금 가입하면 신규 조사 환영 세트를 드려요!';
+
+  function shareUrl() {
+    // 토큰이 붙을 수 있는 해시·쿼리는 제거. 대표 주소로 통일해서 내보낸다.
+    var host = (location.hostname || '').toLowerCase();
+    var origin = (host === 'kreft.co.kr') ? location.origin : 'https://kreft.co.kr';
+    var path = location.pathname || '/';
+    if (path === '/index.html') path = '/';
+    return origin + path;
+  }
+
+  function toast(msg) {
+    var t = document.createElement('div');
+    t.className = 'cf-share-toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function () { t.classList.add('on'); }, 10);
+    setTimeout(function () {
+      t.classList.remove('on');
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+    }, 2000);
+  }
+
+  function copy(url) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(function () { toast('링크를 복사했어요 📋'); })
+        .catch(function () { legacy(url); });
+    } else { legacy(url); }
+  }
+
+  function legacy(url) {
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = url;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      toast('링크를 복사했어요 📋');
+    } catch (e) {
+      toast('복사가 안 되면 주소창을 길게 눌러 복사해 주세요');
+    }
+  }
+
+  function onClick() {
+    var url = shareUrl();
+    if (navigator.share) {
+      navigator.share({ title: TITLE, text: TEXT, url: url })
+        .catch(function () { /* 사용자가 취소한 것 — 조용히 넘어간다 */ });
+    } else {
+      copy(url);
+    }
+  }
+
+  var css = document.createElement('style');
+  css.textContent =
+    '.cf-share{position:fixed;right:18px;bottom:20px;z-index:8800;' +
+    '  display:inline-flex;align-items:center;gap:7px;' +
+    '  padding:12px 18px;border:none;border-radius:999px;cursor:pointer;' +
+    '  font-family:inherit;font-size:14px;font-weight:800;letter-spacing:-.2px;' +
+    '  color:#20414d;background:linear-gradient(135deg,#ffd23f,#f7b500);' +
+    '  box-shadow:0 6px 18px rgba(20,65,77,.22);transition:transform .15s,box-shadow .15s}' +
+    '.cf-share:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(20,65,77,.28)}' +
+    '.cf-share:active{transform:translateY(0)}' +
+    // 📱 모바일은 하단 탭바(62px) 위로 띄운다 — 겹치면 둘 다 못 누른다.
+    '@media(max-width:768px){.cf-share{right:12px;font-size:13px;padding:11px 15px;' +
+    '  bottom:calc(74px + env(safe-area-inset-bottom,0px))}}' +
+    '@media print{.cf-share{display:none}}' +
+    '.cf-share-toast{position:fixed;left:50%;bottom:96px;transform:translate(-50%,10px);' +
+    '  z-index:9600;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;' +
+    '  color:#fff;background:rgba(16,34,43,.94);box-shadow:0 8px 22px rgba(10,40,55,.3);' +
+    '  opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;max-width:86vw;' +
+    '  text-align:center;line-height:1.5}' +
+    '.cf-share-toast.on{opacity:1;transform:translate(-50%,0)}';
+  document.head.appendChild(css);
+
+  function mount() {
+    if (document.querySelector('.cf-share')) return;
+    var b = document.createElement('button');
+    b.className = 'cf-share';
+    b.type = 'button';
+    b.setAttribute('aria-label', '친구에게 공유하기');
+    b.innerHTML = '<span aria-hidden="true">🔗</span><span>친구에게 공유</span>';
+    b.onclick = onClick;
+    document.body.appendChild(b);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mount);
+  } else { mount(); }
+})();
