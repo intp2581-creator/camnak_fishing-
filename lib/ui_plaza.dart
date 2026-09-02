@@ -4243,10 +4243,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   maxLines: 1, overflow: TextOverflow.visible, softWrap: false,
                   style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w900)),
             )),
+        // 🔢 네 자리(1030 등)가 되면 두 줄로 접히면서 이 줄이 높아지고,
+        //    위 장비 슬롯 Expanded가 눌려 'BOTTOM OVERFLOWED'가 났다(2026-09-02).
+        //    폭을 넓히는 대신 FittedBox로 줄여 그린다 — 칩 영역을 뺏지 않는다.
         SizedBox(
-          width: 42,
-          child: Text('$total',
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+          width: 48,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text('$total',
+                maxLines: 1, softWrap: false,
+                style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w900)),
+          ),
         ),
         const SizedBox(width: 4),
         Expanded(
@@ -4449,7 +4457,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (t == 'BOX') return;
     // 🎁 기간제 이벤트 아이템은 장착 불가 — 가방에 있으면 효과 자동 적용(보유 버프)
     if (t == 'EVENT') {
-      _infoPopup('🎁 이벤트 아이템', '이 아이템은 가방에 있으면\n효과가 자동으로 적용돼요!\n장착할 필요 없어요 😊');
+      // 🛡️ 능력치 엠블럼(secLeft)은 보유만으론 안 되고 낚시터에서 켜야 한다.
+      //    태극기·송편 같은 옛 이벤트 아이템만 '가방에 있으면 자동'이다.
+      if (item['secLeft'] != null) {
+        _infoPopup('🎖️ 능력치 엠블럼',
+            '엠블럼은 낚시터에서 켜야 효과가 나요!\n낚시 화면의 엠블럼 버튼으로\n켜고 끌 수 있어요. 🎣');
+      } else {
+        _infoPopup('🎁 이벤트 아이템', '이 아이템은 가방에 있으면\n효과가 자동으로 적용돼요!\n장착할 필요 없어요 😊');
+      }
+      return;
+    }
+    // ⚡ 경험치 물약·KREFT 2배 카드(BOOST)는 장착이 아니라 '사용' 아이템.
+    //    아래 미끼 catch-all에 걸려 미끼 슬롯에 장착되던 것 차단(2026-09-02).
+    if (t == 'BOOST') {
+      _infoPopup('⚡ 사용 아이템',
+          '물약과 카드는 장착하는 게 아니에요!\n낚시터에서 가방을 열어 누르면\n10분 동안 효과가 적용돼요. 🎣');
       return;
     }
     // 🎟️ 이용권·입장권(TICKET)은 장착 아이템이 아님 → 미끼 슬롯 오장착 방지. 사용은 낚시터에서.
