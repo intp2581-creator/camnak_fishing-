@@ -1412,7 +1412,7 @@ Widget _whisperUnreadBadge() {
                 'updatedAt': FieldValue.serverTimestamp()
               }, SetOptions(merge: true));
             }
-            // 🎁 아레나 = 경험치 던전: 잡은 물고기 exp·포인트를 일반 낚시터의 arenaRewardMult(2.0)배로 지급.
+            // 🎁 아레나 = 경험치 던전: 잡은 물고기 exp·포인트를 일반 낚시터의 arenaRewardMult(1.5)배로 지급.
             //    모든 catch에 적용(최대어 모드에서 대상어 아니어도 잡았으면 보상). maxCatch 개인기록은 제외(평준화 장비).
             final int aExp = ((fish['exp'] as int) * arenaRewardMult).round();
             final int aPts = ((fish['pts'] as int) * arenaRewardMult).round();
@@ -4671,7 +4671,7 @@ void _showTodayMissionInfo() {
                     ]
                   ]),
                   const SizedBox(height: 2),
-                  const Text('⚔️ 아레나 보너스 x2!', style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold)),
+                  const Text('⚔️ 아레나 보너스 x1.5!', style: TextStyle(color: Colors.orangeAccent, fontSize: 13, fontWeight: FontWeight.bold)),
                 ]);
               })
             else
