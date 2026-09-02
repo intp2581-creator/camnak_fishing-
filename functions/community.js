@@ -175,7 +175,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
       const postId = String(b.postId || "");
       const body = String(b.body || "").trim();
       if (!postId || !body) return res.status(400).json({ ok: false, err: "내용을 입력해 주세요" });
-      if (body.length > 500) return res.status(400).json({ ok: false, err: "댓글은 500자 이내로 써주세요" });
+      if (body.length > 2000) return res.status(400).json({ ok: false, err: "댓글은 2000자 이내로 써주세요" });
       const pd = await posts.doc(postId).get();
       if (!pd.exists || pd.data().deleted === true) {
         return res.status(404).json({ ok: false, err: "글을 찾을 수 없습니다" });

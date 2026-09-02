@@ -51,7 +51,7 @@
   .wbox label{display:block;font-weight:700;font-size:14px;color:var(--ink-soft);margin:14px 0 6px}
   .wbox input[type=text],.wbox textarea,.wbox select{width:100%;border:1px solid var(--line);border-radius:10px;
     padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff}
-  .wbox textarea{min-height:170px;line-height:1.75;resize:vertical}
+  .wbox textarea{min-height:300px;line-height:1.75;resize:vertical}
   .wimgs{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
   .wimg{position:relative;width:92px;height:92px;border-radius:10px;overflow:hidden;border:1px solid var(--line)}
   .wimg img{width:100%;height:100%;object-fit:cover}
@@ -85,9 +85,12 @@
   .cm-hd .del{margin-left:auto;background:none;border:none;color:#c0392b;font-size:12.5px;
     cursor:pointer;font-family:inherit;font-weight:700}
   .cm-bd{font-size:15px;color:#33525f;line-height:1.7;white-space:pre-wrap;word-break:break-word}
-  .cm-write{display:flex;gap:10px;margin-top:16px;align-items:flex-start}
-  .cm-write textarea{flex:1;border:1px solid var(--line);border-radius:10px;padding:11px 14px;
-    font-family:inherit;font-size:15px;min-height:62px;resize:vertical}
+  /* 운영자 안내처럼 긴 글을 붙여넣는 일이 잦다. 버튼을 아래로 내리고 입력창을 넓게 쓴다 */
+  .cm-write{margin-top:16px}
+  .cm-write textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+    font-family:inherit;font-size:15px;line-height:1.75;min-height:190px;resize:vertical;
+    box-sizing:border-box;display:block}
+  .cm-write button{margin-top:10px}
 
   .lb2{position:fixed;inset:0;background:rgba(8,20,26,.92);display:none;align-items:center;
     justify-content:center;z-index:200;padding:20px;cursor:zoom-out}
@@ -376,7 +379,7 @@
     }).join('') : '<p style="color:#9fb6bf;font-size:14.5px;margin:0">첫 댓글을 남겨보세요.</p>';
 
     if(window.__auth && window.__auth.currentUser){
-      html+='<div class="cm-write"><textarea id="cmBody" placeholder="댓글을 입력하세요" maxlength="500"></textarea>'
+      html+='<div class="cm-write"><textarea id="cmBody" placeholder="댓글을 입력하세요" maxlength="2000"></textarea>'
         +'<button class="btn btn-play" id="cmSend">등록</button></div><div class="msg" id="cmMsg"></div>';
     }else{
       html+='<div class="loginhint" style="margin-top:16px">댓글을 쓰려면 <a data-do-login href="#">로그인</a>이 필요합니다.</div>';
