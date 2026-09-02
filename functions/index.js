@@ -817,3 +817,6 @@ exports.supportApi = require("./support").supportApi;
 exports.notifyTicket      = require("./notify").notifyTicket;
 exports.notifyTicketReply = require("./notify").notifyTicketReply;
 exports.notifyPost        = require("./notify").notifyPost;
+
+// 🛒 게임스토어 상품 관리 (store.js)
+exports.storeApi = require("./store").storeApi;

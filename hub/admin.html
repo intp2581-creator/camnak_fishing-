@@ -72,10 +72,58 @@
   <!-- 관리 화면 -->
   <div id="adminBox" class="hide">
     <div class="top">
-      <h1>📢 공지 관리</h1>
-      <a class="btn ghost" href="notice.html" target="_blank" style="text-decoration:none">공지 페이지 보기 ↗</a>
+      <h1 id="pageTitle">📢 공지 관리</h1>
+      <button class="btn ghost" id="tabNotice">📢 공지</button>
+      <button class="btn ghost" id="tabStore">🛒 상품</button>
+      <a class="btn ghost" id="viewLink" href="notice.html" target="_blank" style="text-decoration:none">페이지 보기 ↗</a>
       <span class="who" id="who"></span>
       <button class="btn ghost" id="logoutBtn">로그아웃</button>
+    </div>
+
+    <!-- 🛒 상품 관리 -->
+    <div id="storeBox" class="hide">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="margin:0 0 4px;font-size:17px">상품 <span id="stCount" class="muted"></span></h2>
+        <p class="muted" style="margin:0 0 12px">
+          게임스토어(홈페이지)에 노출되는 유료 상품입니다.
+          결제는 아직 아임웹에서 이뤄지며, 상품번호(idx)로 연결됩니다.
+        </p>
+        <button class="btn primary" id="stNew">+ 상품 추가</button>
+      </div>
+      <div class="card" id="stList">불러오는 중…</div>
+    </div>
+
+    <!-- 상품 편집 -->
+    <div id="stEdit" class="card hide" style="margin-top:16px">
+      <h2 style="margin:0 0 12px;font-size:17px" id="stEditTitle">상품 추가</h2>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div><label>상품명</label><input id="st-n" placeholder="예: 성장 지원 패키지"></div>
+        <div><label>분류</label>
+          <select id="st-c">
+            <option value="ticket">이용권</option>
+            <option value="skin">스킨</option>
+            <option value="badge">뱃지 · 휘장</option>
+            <option value="package">패키지</option>
+            <option value="etc">기타</option>
+          </select></div>
+        <div><label>가격(원)</label><input id="st-p" type="number" placeholder="5500"></div>
+        <div><label>필요 레벨 <span class="muted">(0이면 제한 없음)</span></label><input id="st-lv" type="number" placeholder="0"></div>
+        <div><label>지급 키 <span class="muted">(지급 처리에 쓰는 값)</span></label><input id="st-key" placeholder="package_growth"></div>
+        <div><label>아임웹 상품번호 <span class="muted">(구매 연결)</span></label><input id="st-idx" type="number" placeholder="223"></div>
+        <div><label>이미지 파일명 <span class="muted">(hub/assets/ 안)</span></label><input id="st-img" placeholder="st-package.jpg"></div>
+        <div><label>노출</label>
+          <select id="st-hidden"><option value="0">노출함</option><option value="1">숨김</option></select></div>
+      </div>
+      <label>한 줄 설명 <span class="muted">(목록 카드에 표시)</span></label>
+      <input id="st-d" placeholder="성장에 필요한 것을 한 번에 담았어요.">
+      <label>상세 설명 <span class="muted">(상세페이지 — 줄바꿈 그대로 반영)</span></label>
+      <textarea id="st-detail" rows="8" placeholder="구성품, 사용법, 주의사항 등"></textarea>
+      <div class="msg" id="stMsg"></div>
+      <div class="btns">
+        <button class="btn primary" id="stSave">저장</button>
+        <button class="btn ghost" id="stCancel">취소</button>
+        <button class="btn ghost" id="stDel" style="color:#c0392b">삭제</button>
+      </div>
     </div>
 
     <div class="card">
@@ -106,10 +154,13 @@
       </div>
     </div>
 
+    <div id="noticeBox">
     <div class="card">
       <div style="font-weight:800;font-size:16px;margin-bottom:6px">작성된 글</div>
       <div id="listBox"><p class="muted">불러오는 중…</p></div>
     </div>
+    </div>
+
   </div>
 </div>
 
@@ -220,6 +271,93 @@ onAuthStateChanged(auth,async u=>{
   $('who').textContent=u.email;
   loadList();
 });
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+
+/* ═══════════════ 🛒 상품 관리 ═══════════════
+   상품이 store.html 안에 배열로 박혀 있어 하나 추가할 때마다 배포해야 했다.
+   Firestore로 옮겨 운영자가 직접 추가·수정할 수 있게 한다. */
+const SAPI='https://us-central1-camnak-fishing.cloudfunctions.net/storeApi';
+const CATN={ticket:'이용권',skin:'스킨',badge:'뱃지·휘장',package:'패키지',etc:'기타'};
+let stEditId=null;
+
+async function sapi(body,qs){
+  const t=await window.__auth.currentUser.getIdToken();
+  const opt = body
+    ? {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify(body)}
+    : {headers:{'Authorization':'Bearer '+t}};
+  return (await fetch(SAPI+(qs||''),opt)).json();
+}
+
+function showTab(which){
+  const isStore = which==='store';
+  $('noticeBox').classList.toggle('hide', isStore);
+  $('storeBox').classList.toggle('hide', !isStore);
+  if(!isStore) $('stEdit').classList.add('hide');
+  $('pageTitle').textContent = isStore ? '🛒 상품 관리' : '📢 공지 관리';
+  $('viewLink').href = isStore ? 'store.html' : 'notice.html';
+  if(isStore) loadStore();
+}
+
+async function loadStore(){
+  const box=$('stList'); box.innerHTML='불러오는 중…';
+  const j=await sapi(null,'?all=1');
+  if(!j.ok){ box.innerHTML='<p class="muted">'+(j.err||'불러오지 못했습니다')+'</p>'; return; }
+  $('stCount').textContent='('+j.items.length+'개)';
+  if(!j.items.length){ box.innerHTML='<p class="muted">등록된 상품이 없습니다. [+ 상품 추가]로 시작하세요.</p>'; return; }
+  box.innerHTML='<table><tr><th>순서</th><th>분류</th><th>상품명</th><th>가격</th><th>Lv</th><th>노출</th><th></th></tr>'
+    + j.items.map(function(p,i){
+        return '<tr><td>'+(p.order||0)+'</td><td>'+(CATN[p.c]||p.c)+'</td>'
+        +'<td><b>'+esc(p.n)+'</b></td>'
+        +'<td>'+(p.p||0).toLocaleString()+'원</td>'
+        +'<td>'+(p.lv?('Lv.'+p.lv):'-')+'</td>'
+        +'<td>'+(p.hidden?'<span style="color:#c0392b">숨김</span>':'노출')+'</td>'
+        +'<td><button class="linkbtn" data-edit="'+p.id+'">수정</button></td></tr>';
+      }).join('')+'</table>';
+  box.querySelectorAll('button[data-edit]').forEach(function(b){
+    b.onclick=function(){ const p=j.items.find(x=>x.id===b.dataset.edit); openStEdit(p); };
+  });
+}
+
+function openStEdit(p){
+  stEditId = p ? p.id : null;
+  $('stEditTitle').textContent = p ? '상품 수정' : '상품 추가';
+  $('st-n').value=p?p.n||'':''; $('st-c').value=p?p.c||'etc':'ticket';
+  $('st-p').value=p?p.p||0:''; $('st-lv').value=p?p.lv||0:0;
+  $('st-key').value=p?p.key||'':''; $('st-idx').value=p?p.idx||0:'';
+  $('st-img').value=p?p.img||'':''; $('st-hidden').value=(p&&p.hidden)?'1':'0';
+  $('st-d').value=p?p.d||'':''; $('st-detail').value=p?p.detail||'':'';
+  $('stDel').classList.toggle('hide', !p);
+  $('stMsg').textContent='';
+  $('stEdit').classList.remove('hide');
+  $('stEdit').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  if($('tabNotice')) $('tabNotice').onclick=function(){ showTab('notice'); };
+  if($('tabStore'))  $('tabStore').onclick =function(){ showTab('store'); };
+  if($('stNew'))     $('stNew').onclick    =function(){ openStEdit(null); };
+  if($('stCancel'))  $('stCancel').onclick =function(){ $('stEdit').classList.add('hide'); };
+  if($('stSave'))    $('stSave').onclick   =async function(){
+    const body={action:'save', id:stEditId||undefined,
+      n:$('st-n').value, c:$('st-c').value, p:$('st-p').value, lv:$('st-lv').value,
+      key:$('st-key').value, idx:$('st-idx').value, img:$('st-img').value,
+      hidden:$('st-hidden').value==='1', d:$('st-d').value, detail:$('st-detail').value,
+      order:stEditId?undefined:999};
+    $('stSave').disabled=true;
+    const j=await sapi(body);
+    $('stSave').disabled=false;
+    if(!j.ok){ $('stMsg').textContent=j.err||'저장 실패'; return; }
+    $('stEdit').classList.add('hide'); loadStore();
+  };
+  if($('stDel')) $('stDel').onclick=async function(){
+    if(!stEditId) return;
+    if(!confirm('이 상품을 삭제합니다. 되돌릴 수 없습니다.')) return;
+    const j=await sapi({action:'delete',id:stEditId});
+    if(!j.ok){ $('stMsg').textContent=j.err||'삭제 실패'; return; }
+    $('stEdit').classList.add('hide'); loadStore();
+  };
+});
+
 </script>
 </body>
 </html>

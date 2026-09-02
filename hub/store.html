@@ -70,6 +70,32 @@
     .scard .bd b{font-size:15px}
     .terms{padding:20px 18px}
   }
+
+  /* 📄 상품 상세 */
+  #sdetail{position:fixed;inset:0;background:rgba(8,20,26,.7);z-index:9500;
+    display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+  #sdetail.hide{display:none}
+  #sdetail .dwrap{background:#fff;border-radius:18px;max-width:860px;width:100%;
+    max-height:92vh;overflow:auto;position:relative;padding:22px}
+  #sdetail .dclose{position:absolute;top:14px;right:14px;border:1px solid #dfe8ed;
+    background:#fff;border-radius:9px;padding:7px 12px;cursor:pointer;font-family:inherit;font-weight:700}
+  #sdetail .dbody{display:flex;gap:22px;flex-wrap:wrap}
+  #sdetail .dbody img{width:300px;max-width:100%;border-radius:14px;object-fit:cover}
+  #sdetail .dinfo{flex:1;min-width:260px}
+  #sdetail h2{margin:6px 0 8px;font-size:22px}
+  #sdetail .dlv{margin:0 0 8px;color:#c0392b;font-weight:700;font-size:14px}
+  #sdetail .dprice{font-size:26px;font-weight:900;color:var(--emerald);margin:10px 0}
+  #sdetail .dprice small{font-size:13px;font-weight:600;color:#8b9aa3}
+  #sdetail .dsum{color:#33525f;line-height:1.8;margin:0 0 12px}
+  #sdetail .ddetail{background:#f6fafc;border:1px solid #e3edf2;border-radius:12px;
+    padding:14px 16px;line-height:1.9;color:#33525f;margin-bottom:14px;font-size:15px}
+  #sdetail .dnote{margin-top:16px;padding:14px 16px;background:#fff8e7;
+    border:1px solid #f0e0bb;border-radius:12px;font-size:13.5px;line-height:1.9;color:#7a5f2a}
+  #sdetail .dinfo .buy{display:block;text-align:center;background:var(--emerald);color:#fff;
+    text-decoration:none;padding:15px 20px;border-radius:12px;font-weight:800;font-size:17px;
+    margin-top:14px;box-shadow:0 4px 14px rgba(15,118,110,.28)}
+  #sdetail .dinfo .buy:hover{filter:brightness(1.06)}
+  @media(max-width:640px){ #sdetail .dbody img{width:100%} #sdetail .dwrap{padding:16px} }
 </style>
 </head>
 <body>
@@ -154,7 +180,8 @@
   통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
   문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
   <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
-</div></footer>
+</div><div id="sdetail" class="hide"></div>
+</footer>
 
 <script>
   var GAME_URL='play.html';
@@ -191,16 +218,72 @@
   function won(n){return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');}
   function render(cat){
     var list = cat==='all' ? ITEMS : ITEMS.filter(function(i){return i.c===cat;});
-    document.getElementById('sgrid').innerHTML = list.map(function(i){
+    document.getElementById('sgrid').innerHTML = list.map(function(i,n){
       return '<div class="scard">'
         +'<div class="im">'+(i.lv?'<span class="lv">Lv.'+i.lv+' 이상</span>':'')
         +'<img src="assets/'+i.img+'" alt="'+i.n+'" loading="lazy"></div>'
         +'<div class="bd"><b>'+i.n+'</b><p>'+i.d+'</p>'
         +'<div class="pr">₩'+won(i.p)+'<small>VAT 포함</small></div>'
-        +'<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener">구매하기</a>'
+        +'<button class="buy" data-detail="'+i.key+'" style="border:none;width:100%;'
+        +'font-family:inherit;cursor:pointer">자세히 보기</button>'
+        +'<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener" '
+        +'style="background:#fff;color:var(--emerald);border:1px solid var(--emerald);margin-top:6px">구매하기</a>'
         +'</div></div>';
     }).join('');
+    document.querySelectorAll('button[data-detail]').forEach(function(b){
+      b.onclick=function(){ openDetail(b.dataset.detail); };
+    });
   }
+
+  /* 📄 상품 상세 — PG 심사에서 상품 설명·청약철회 안내를 우리 사이트에서
+     확인할 수 있어야 한다. 예전엔 누르면 바로 아임웹으로 튕겼다. */
+  function openDetail(key){
+    var i = ITEMS.filter(function(x){return x.key===key;})[0];
+    if(!i) return;
+    var d=document.getElementById('sdetail');
+    d.innerHTML='<div class="dwrap">'
+      +'<button class="dclose" id="dclose">✕ 닫기</button>'
+      +'<div class="dbody">'
+      +'<img src="assets/'+i.img+'" alt="'+i.n+'">'
+      +'<div class="dinfo">'
+      +'<h2>'+i.n+'</h2>'
+      +(i.lv?'<p class="dlv">Lv.'+i.lv+' 이상 사용 가능</p>':'')
+      +'<div class="dprice">₩'+won(i.p)+' <small>VAT 포함</small></div>'
+      +'<p class="dsum">'+i.d+'</p>'
+      +(i.detail?'<div class="ddetail">'+String(i.detail).replace(/\n/g,'<br>')+'</div>':'')
+      +'<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener">구매하기</a>'
+      +'<div class="dnote">'
+      +'<b>구매 전 확인해 주세요</b><br>'
+      +'· 결제 즉시 게임 계정으로 자동 지급됩니다. 주문하신 이메일과 게임 로그인 이메일이 같아야 합니다.<br>'
+      +'· 유효기간: 구매일로부터 1년<br>'
+      +'· 청약철회: 결제 후 7일 이내 미사용 시 전액 환불. 사용을 개시하면 제한됩니다.<br>'
+      +'· 자세한 내용은 <a href="policy.html#item">유료 아이템 · 환불 안내</a>를 확인해 주세요.<br>'
+      +'· 판매자 (주)안테모사 · 문의 <a href="support.html">고객지원</a>'
+      +'</div></div></div></div>';
+    d.classList.remove('hide');
+    document.body.style.overflow='hidden';
+    document.getElementById('dclose').onclick=closeDetail;
+    d.onclick=function(e){ if(e.target===d) closeDetail(); };
+  }
+  function closeDetail(){
+    document.getElementById('sdetail').classList.add('hide');
+    document.body.style.overflow='';
+  }
+
+  /* 🛒 상품은 관리자 페이지에서 관리한다(Firestore).
+     불러오기에 실패하면 아래 하드코딩 목록으로 그린다 — 스토어가 비지 않게. */
+  (function loadProducts(){
+    fetch('https://us-central1-camnak-fishing.cloudfunctions.net/storeApi?list=1')
+      .then(function(r){return r.json();})
+      .then(function(j){
+        if(j && j.ok && j.items && j.items.length){ ITEMS = j.items; }
+      })
+      .catch(function(){})
+      .then(function(){
+        var h=(location.hash||'').replace('#','');
+        render(['ticket','skin','badge','package'].indexOf(h)>-1 ? h : 'all');
+      });
+  })();
   document.getElementById('stabs').addEventListener('click',function(e){
     var b=e.target.closest('button'); if(!b) return;
     this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});
