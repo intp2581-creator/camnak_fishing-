@@ -226,11 +226,12 @@
         +'<div class="pr">₩'+won(i.p)+'<small>VAT 포함</small></div>'
         +'<button class="buy" data-detail="'+i.key+'" style="border:none;width:100%;'
         +'font-family:inherit;cursor:pointer">자세히 보기</button>'
-        +(i.idx
+        +((i.idx && !i.soon)
           ? '<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener" '
             +'style="background:#fff;color:var(--emerald);border:1px solid var(--emerald);margin-top:6px">구매하기</a>'
           : '<span class="buy" style="display:block;text-align:center;background:#f2f6f8;'
-            +'color:#8b9aa3;border:1px solid #e3edf2;margin-top:6px">판매 준비중</span>')
+            +'color:#8b9aa3;border:1px solid #e3edf2;margin-top:6px">'
+            +(i.soonText||'판매 준비중')+'</span>')
         +'</div></div>';
     }).join('');
     document.querySelectorAll('button[data-detail]').forEach(function(b){
@@ -254,9 +255,10 @@
       +'<div class="dprice">₩'+won(i.p)+' <small>VAT 포함</small></div>'
       +'<p class="dsum">'+i.d+'</p>'
       +(i.detail?'<div class="ddetail">'+String(i.detail).replace(/\n/g,'<br>')+'</div>':'')
-      +(i.idx
+      +((i.idx && !i.soon)
         ? '<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener">구매하기</a>'
-        : '<span class="buy" style="background:#f2f6f8;color:#8b9aa3">판매 준비중</span>')
+        : '<span class="buy" style="background:#f2f6f8;color:#8b9aa3">'
+          +(i.soonText||'판매 준비중')+'</span>')
       +'<div class="dnote">'
       +'<b>구매 전 확인해 주세요</b><br>'
       +'· 결제 즉시 게임 계정으로 자동 지급됩니다. 주문하신 이메일과 게임 로그인 이메일이 같아야 합니다.<br>'

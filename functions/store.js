@@ -40,6 +40,8 @@ function clean(b) {
     d: String(b.d || "").trim().slice(0, 500),
     detail: String(b.detail || "").trim().slice(0, 4000),
     hidden: b.hidden === true,
+    soon: b.soon === true,      // 🕒 진열은 하되 아직 판매 전(구매 버튼 잠금)
+    soonText: String(b.soonText || "").trim().slice(0, 40),  // 예: "9월 5일 판매 시작"
     order: Math.max(0, parseInt(b.order, 10) || 0),
   };
 }
