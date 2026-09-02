@@ -2905,13 +2905,11 @@ Positioned(
                           const SizedBox(height: 4),
                           Text('$realExp / $nextLevelExp EXP', style: const TextStyle(color: Colors.white, fontSize: 14)),
                           const SizedBox(height: 10),
-                          // 🪙 재화 표시 — 동전 아이콘 + 숫자 (2026-09-01 포인트→KREFT)
+                          // 재화 표시 — 자리가 남아 동전 그림 대신 이름을 그대로 쓴다(2026-09-02)
                           Row(mainAxisSize: MainAxisSize.min, children: [
-                            Image.asset('assets/images/coin_kreft.png', width: 17, height: 17,
-                                errorBuilder: (a, b, c) => const Text('K',
-                                    style: TextStyle(color: Colors.cyanAccent, fontSize: 15, fontWeight: FontWeight.bold))),
-                            const SizedBox(width: 5),
                             Text('$realGold', style: const TextStyle(color: Colors.cyanAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                            const SizedBox(width: 4),
+                            const Text('KREFT', style: TextStyle(color: Colors.cyanAccent, fontSize: 12, fontWeight: FontWeight.w900)),
                           ]),
                           // 🛡️ #3 길드 경험치 실시간 진행바 (길드원이 잡으면 바로 차오름)
                           if (_guildId.isNotEmpty)
@@ -4669,7 +4667,7 @@ void _showTodayMissionInfo() {
                     Text('+ $aExp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
                     if (aPts > 0) ...[
                       const SizedBox(width: 15),
-                      Text('+ $aPts Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                      Text('+ $aPts KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                     ]
                   ]),
                   const SizedBox(height: 2),
@@ -4683,7 +4681,7 @@ void _showTodayMissionInfo() {
                   Text('+ ${caughtFish['exp']} EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
                   if ((caughtFish['pts'] ?? 0) > 0) ...[
                     const SizedBox(width: 15),
-                    Text('+ ${caughtFish['pts']} Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                    Text('+ ${caughtFish['pts']} KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.bold)),
                   ]
                 ],
               ),

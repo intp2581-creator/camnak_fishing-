@@ -7178,12 +7178,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 style: const TextStyle(color: Colors.white70, fontSize: 10)),
             const SizedBox(height: 3),
             Row(children: [
-              // 🪙 재화 아이콘 — 좁은 HUD라 글자 대신 동전으로(2026-09-01 포인트→KREFT)
-              Image.asset('assets/images/coin_kreft.png', width: 16, height: 16,
-                  errorBuilder: (a, b, c) => const Text('K',
-                      style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12))),
-              const SizedBox(width: 5),
+              // 재화 표시 — 자리가 남아 동전 그림 대신 이름을 그대로 쓴다(2026-09-02)
               Text('$_gold', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(width: 4),
+              const Text('KREFT',
+                  style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 11.5)),
             ]),
           ]),
           const SizedBox(width: 10),
@@ -7338,13 +7337,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         style: const TextStyle(color: Colors.white70, fontSize: 10)),
                     const SizedBox(height: 3),
                     Row(children: [
-                      // 🪙 재화 아이콘 — 좁은 HUD라 글자 대신 동전으로(2026-09-01 포인트→KREFT)
-                      Image.asset('assets/images/coin_kreft.png', width: 16, height: 16,
-                          errorBuilder: (a, b, c) => const Text('K',
-                              style: TextStyle(color: _kGold, fontWeight: FontWeight.bold, fontSize: 12))),
-                      const SizedBox(width: 5),
+                      // 재화 표시 — 자리가 남아 동전 그림 대신 이름을 그대로 쓴다(2026-09-02)
                       Text('$_gold',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(width: 4),
+                      const Text('KREFT',
+                          style: TextStyle(color: _kGold, fontWeight: FontWeight.w900, fontSize: 11.5)),
                     ]),
                   ],
                 ),
