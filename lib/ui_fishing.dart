@@ -3463,11 +3463,15 @@ Positioned(
       if (!mounted) return;
       setState(() {});
       final int left = gEmblemSec;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(turnOn
-            ? '🛡️ ${item['name']} 켜짐 — 남은 ${boostLeftStr(left)} (낚시터에서만 줄어요)'
-            : '⏸️ ${item['name']} 꺼짐 — ${boostLeftStr(left)} 남겨뒀어요'),
-      ));
+      if (turnOn) {
+        _showNotificationPopup('🛡️ 능력치 엠블럼 켜짐',
+            '힘·컨트롤·감도가 각각 +10 올라갔어요.\n\n남은 시간  ${boostLeftStr(left)}\n\n낚시터에 있는 동안에만 줄어들어요.\n잠깐 자리를 비우실 땐 꺼두세요.',
+            const Color(0xFF7FFFB0));
+      } else {
+        _showNotificationPopup('⏸️ 능력치 엠블럼 꺼짐',
+            '${boostLeftStr(left)} 남겨뒀어요.\n\n다시 누르면 남은 시간부터 이어서 써요.',
+            Colors.orangeAccent);
+      }
     } catch (e) {
       debugPrint('엠블럼 전환 실패: $e');
     }
@@ -3625,10 +3629,11 @@ Positioned(
       if (isExp) { gBoostExpSec = sec; } else { gBoostPtsSec = sec; }
       if (!mounted) return;
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('⚡ ${item['name']} 사용! ${isExp ? '경험치' : 'KREFT'} 2배 '
-            '${boostLeftStr(isExp ? boostExpLeftSec() : boostPtsLeftSec())} 남았어요'),
-      ));
+      // 💬 스낵바는 채팅창에 가려 잘 안 보인다 → 팝업으로(2026-09-02 사용자 요청)
+      _showNotificationPopup(
+          isExp ? '⚡ 경험치 물약 사용!' : '🪙 KREFT 2배 카드 사용!',
+          '${isExp ? '경험치' : 'KREFT'}가 2배로 들어와요.\n\n남은 시간  ${boostLeftStr(isExp ? boostExpLeftSec() : boostPtsLeftSec())}\n\n낚시터에 있는 동안에만 줄어들어요.\n광장이나 상점에 나가면 멈춰요.',
+          isExp ? const Color(0xFFB388FF) : const Color(0xFFD4AF37));
     } catch (e) {
       debugPrint('버프 사용 실패: $e');
     }
