@@ -144,10 +144,18 @@ Map<String, int> eventItemBonus(List<dynamic> inventory) {
   for (final it in inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
-    final exp = it['expiresAt'];
-    if (exp != null) {
-      final dt = DateTime.tryParse(exp.toString());
-      if (dt != null && now.isAfter(dt)) continue; // ⏳ 만료 → 효과 없음(정리 전이어도)
+    // 🛡️ secLeft 방식(엠블럼 등): 활성화한 뒤 낚시터에서만 줄어든다.
+    //    활성화 전(active != true)이면 효과 없음 — 원할 때 켜서 쓰는 아이템.
+    if (it.containsKey('secLeft')) {
+      if (it['active'] != true) continue;
+      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+      if (sl <= 0) continue;
+    } else {
+      final exp = it['expiresAt'];
+      if (exp != null) {
+        final dt = DateTime.tryParse(exp.toString());
+        if (dt != null && now.isAfter(dt)) continue; // ⏳ 만료 → 효과 없음(정리 전이어도)
+      }
     }
     final st = it['stats'];
     if (st is Map) {
@@ -204,15 +212,21 @@ const Map<String, dynamic> kItemCardKreft = {
 
 /// 🛡️ 능력치 엠블럼 — 태극기 뱃지·송편과 같은 '보유 버프'(type:EVENT).
 ///    지급할 때 expiresAt을 '지급 시각 + 1시간'으로 넣는다(사람마다 만료가 다름).
-Map<String, dynamic> makeEmblemBoost({DateTime? from}) {
-  final until = (from ?? DateTime.now()).add(const Duration(hours: 1));
+const int kEmblemMinutes = 60;   // 🛡️ 능력치 엠블럼 지속(분)
+
+/// 🛡️ 능력치 엠블럼 — 받으면 잠자는 상태로 가방에 들어가고,
+///    눌러서 활성화한 뒤 '낚시터에 있는 동안에만' 줄어든다(물약·카드와 같은 규칙).
+///    받자마자 흐르면 바로 못 하는 사람은 그냥 날린다 — 유료 패키지 구성품이라 더 문제.
+Map<String, dynamic> makeEmblemBoost() {
   return {
     'name': '능력치 엠블럼', 'price': 0, 'cash': true,
     'category': 'COMMON', 'type': 'EVENT',
     'stats': {'P': 10, 'C': 10, 'S': 10},
     'icon': 'item_emblem_boost.png',
-    'expiresAt': until.toIso8601String(),
-    'desc': '가방에 있으면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n(휘장과 함께 적용됩니다)',
+    'secLeft': kEmblemMinutes * 60,
+    'active': false,
+    'quantity': 1,
+    'desc': '눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요. (휘장과 함께 적용)',
   };
 }
 
@@ -224,6 +238,12 @@ int eventItemLeftSec(List<dynamic> inventory) {
   for (final it in inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
+    if (it.containsKey('secLeft')) {
+      if (it['active'] != true) continue;                 // 아직 안 켠 것은 표시 안 함
+      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+      if (sl > best) best = sl;
+      continue;
+    }
     final exp = it['expiresAt'];
     if (exp == null) continue;
     final dt = DateTime.tryParse(exp.toString());
@@ -240,6 +260,12 @@ String eventItemName(List<dynamic> inventory) {
   for (final it in inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
+    if (it.containsKey('secLeft')) {
+      if (it['active'] != true) continue;
+      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+      if (sl <= 0) continue;
+      return (it['name'] ?? '').toString();
+    }
     final exp = it['expiresAt'];
     if (exp != null) {
       final dt = DateTime.tryParse(exp.toString());
@@ -257,9 +283,15 @@ List<dynamic>? removeExpiredEventItems(List<dynamic> inventory) {
   final out = <dynamic>[];
   for (final it in inventory) {
     if (it is Map && (it['type'] ?? '') == 'EVENT') {
-      final exp = it['expiresAt'];
-      final dt = exp != null ? DateTime.tryParse(exp.toString()) : null;
-      if (dt != null && now.isAfter(dt)) { changed = true; continue; } // 소멸
+      if (it.containsKey('secLeft')) {
+        // 🛡️ 활성화해서 다 쓴 것만 소멸. 아직 안 켠 것은 계속 보관한다.
+        final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+        if (it['active'] == true && sl <= 0) { changed = true; continue; }
+      } else {
+        final exp = it['expiresAt'];
+        final dt = exp != null ? DateTime.tryParse(exp.toString()) : null;
+        if (dt != null && now.isAfter(dt)) { changed = true; continue; } // 소멸
+      }
     }
     out.add(it);
   }

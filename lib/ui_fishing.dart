@@ -1060,6 +1060,28 @@ Widget _whisperUnreadBadge() {
     }
   }
 
+  // 🛡️ 활성화된 엠블럼 차감 — 낚시터에 있는 동안에만. 다 쓰면 인벤에서 삭제.
+  //    인벤 안의 값이라 물약처럼 전역으로 못 두고, 저장 주기에 맞춰 함께 처리한다.
+  Future<void> _tickEmblem(int sec) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final inv = List<dynamic>.from(_latestInventory);
+      bool changed = false;
+      for (int i = inv.length - 1; i >= 0; i--) {
+        final it = inv[i];
+        if (it is! Map) continue;
+        if ((it['type'] ?? '') != 'EVENT') continue;
+        if (!it.containsKey('secLeft') || it['active'] != true) continue;
+        final int left = ((it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0) - sec;
+        if (left <= 0) { inv.removeAt(i); } else { inv[i] = {...it, 'secLeft': left}; }
+        changed = true;
+      }
+      if (changed) await ref.update({'inventory': inv});
+    } catch (_) {}
+  }
+
   // ⚡ 버프 남은 시간 저장 — 낚시시간과 같은 3초 주기(F5 익스플로잇 차단)
   void _saveBoostsToFirebase() {
     final user = FirebaseAuth.instance.currentUser;
@@ -1192,6 +1214,7 @@ Widget _whisperUnreadBadge() {
         if (remainingTimeNotifier.value % 3 == 0) {
           _saveDailyTimeToFirebase(remainingTimeNotifier.value);
           _saveBoostsToFirebase();   // ⚡ 버프 남은 시간도 같은 주기로
+          if (!arenaNow) _tickEmblem(3);   // 🛡️ 활성화된 엠블럼 3초씩 차감
         }
       } else {
         // ... (사장님의 기존 시간 소진 상점 이동 로직 유지) ...
@@ -3379,6 +3402,72 @@ Positioned(
     )), // 🚀 2. Stack + RepaintBoundary(📸 스샷 범위) 닫기
     ); // ⚔️ WillPopScope 닫기
   } // <-- build 함수 끝나는 괄호
+
+// 🛡️ 엠블럼 활성화 — 받으면 잠자고 있다가, 눌러야 시간이 흐른다.
+  void _useEmblem(Map<String, dynamic> item) {
+    audioManager.playSfx('sfx_click.mp3');
+    final int sec = (item['secLeft'] is num) ? (item['secLeft'] as num).toInt() : 0;
+    final bool on = item['active'] == true;
+    final st = item['stats'] is Map ? item['stats'] as Map : const {};
+    final int p = (st['P'] is num) ? (st['P'] as num).toInt() : 0;
+
+    if (on) {
+      _showNotificationPopup('🛡️ ${item['name']}',
+          '이미 사용 중이에요.\n남은 시간 ${boostLeftStr(sec)}\n\n낚시터에 있는 동안에만 줄어들어요.',
+          const Color(0xFF6BE58A));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey.shade900,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: Color(0xFFD4AF37))),
+        title: Text('${item['name']} 사용',
+            style: const TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
+        content: Text(
+            '${item['name']}을(를) 사용하시겠습니까?\n\n'
+            '🛡️ ${(sec / 60).round()}분 동안 힘·컨트롤·감도가 각각 +$p 올라갑니다.\n'
+            '낚시터에 있는 동안에만 시간이 줄어들어요.\n\n'
+            '⚔️ 아레나에서는 적용되지 않아요.',
+            style: const TextStyle(color: Colors.white, height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('취소', style: TextStyle(color: Colors.grey))),
+          TextButton(
+              style: TextButton.styleFrom(foregroundColor: const Color(0xFFD4AF37)),
+              onPressed: () async {
+                Navigator.pop(ctx);
+                await _activateEmblem(item);
+              },
+              child: const Text('사용하기', style: TextStyle(fontWeight: FontWeight.bold))),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _activateEmblem(Map<String, dynamic> item) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
+      final i = inv.indexWhere((x) =>
+          x is Map && (x['name'] ?? '') == item['name'] && x['active'] != true);
+      if (i < 0) return;
+      inv[i] = {...inv[i] as Map, 'active': true};
+      await ref.update({'inventory': inv});
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('🛡️ ${item['name']} 사용! 낚시터에서 시간이 줄어들어요'),
+      ));
+    } catch (e) {
+      debugPrint('엠블럼 활성화 실패: $e');
+    }
+  }
 
 // ⚡ 버프 표시 칩
   Widget _boostChip(String label, String left, Color c) {
