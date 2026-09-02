@@ -4971,16 +4971,34 @@ void _showTodayMissionInfo() {
                 ]);
               })
             else
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text('+ ${caughtFish['exp']} EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
-                  if ((caughtFish['pts'] ?? 0) > 0) ...[
-                    const SizedBox(width: 15),
-                    Text('+ ${caughtFish['pts']} KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.bold)),
-                  ]
-                ],
-              ),
+              Builder(builder: (_) {
+                // ⚡ 결과창도 실제 지급값을 보여준다.
+                //    지급은 배율이 적용되는데 화면만 원래 값이라 "2배가 안 된다"고 보였다.
+                final int bExp = (caughtFish['exp'] ?? 0) as int;
+                final int bPts = (caughtFish['pts'] ?? 0) as int;
+                final int sExp = boostExpOn ? bExp * kBoostExpMult ~/ 1 : bExp;
+                final int sPts = boostPtsOn ? bPts * kBoostPtsMult ~/ 1 : bPts;
+                return Column(children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('+ $sExp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 22, fontWeight: FontWeight.bold)),
+                      if (sPts > 0) ...[
+                        const SizedBox(width: 15),
+                        Text('+ $sPts KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+                      ]
+                    ],
+                  ),
+                  if (boostExpOn || boostPtsOn) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                        boostExpOn && boostPtsOn
+                            ? '⚡ 경험치 x2 · 🪙 KREFT x2 적용!'
+                            : boostExpOn ? '⚡ 경험치 x2 적용!' : '🪙 KREFT x2 적용!',
+                        style: const TextStyle(color: Color(0xFF9C6BFF), fontSize: 13, fontWeight: FontWeight.bold)),
+                  ],
+                ]);
+              }),
           ]
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
