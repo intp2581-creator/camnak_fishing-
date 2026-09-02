@@ -147,9 +147,8 @@ Map<String, int> eventItemBonus(List<dynamic> inventory) {
     // 🛡️ secLeft 방식(엠블럼 등): 활성화한 뒤 낚시터에서만 줄어든다.
     //    활성화 전(active != true)이면 효과 없음 — 원할 때 켜서 쓰는 아이템.
     if (it.containsKey('secLeft')) {
-      if (it['active'] != true) continue;
-      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
-      if (sl <= 0) continue;
+      // 활성화 + 남은 시간은 전역 카운터를 기준으로 본다(화면·계산이 어긋나지 않게)
+      if (!gEmblemOn || gEmblemSec <= 0) continue;
     } else {
       final exp = it['expiresAt'];
       if (exp != null) {
@@ -187,6 +186,12 @@ int gBoostPtsSec = 0;
 
 bool get boostExpOn => gBoostExpSec > 0;
 bool get boostPtsOn => gBoostPtsSec > 0;
+
+/// 🛡️ 엠블럼도 같은 방식 — 인벤 값을 그대로 읽으면 3초마다 뚝뚝 끊기고,
+///    화면마다 읽는 곳이 달라 숫자가 어긋난다. 전역 하나로 1초씩 줄인다.
+int gEmblemSec = 0;      // 남은 초
+bool gEmblemOn = false;  // 활성화 여부
+String gEmblemName = '';
 
 int boostExpLeftSec() => gBoostExpSec > 0 ? gBoostExpSec : 0;
 int boostPtsLeftSec() => gBoostPtsSec > 0 ? gBoostPtsSec : 0;
@@ -239,9 +244,8 @@ int eventItemLeftSec(List<dynamic> inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
     if (it.containsKey('secLeft')) {
-      if (it['active'] != true) continue;                 // 아직 안 켠 것은 표시 안 함
-      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
-      if (sl > best) best = sl;
+      if (!gEmblemOn) continue;                 // 아직 안 켠 것은 표시 안 함
+      if (gEmblemSec > best) best = gEmblemSec;
       continue;
     }
     final exp = it['expiresAt'];
@@ -261,9 +265,7 @@ String eventItemName(List<dynamic> inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
     if (it.containsKey('secLeft')) {
-      if (it['active'] != true) continue;
-      final int sl = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
-      if (sl <= 0) continue;
+      if (!gEmblemOn || gEmblemSec <= 0) continue;
       return (it['name'] ?? '').toString();
     }
     final exp = it['expiresAt'];
@@ -274,6 +276,19 @@ String eventItemName(List<dynamic> inventory) {
     return (it['name'] ?? '').toString();
   }
   return '';
+}
+
+/// 🛡️ 가방에서 엠블럼 상태를 전역으로 읽어온다(접속·화면 진입 시 1회).
+void syncEmblemFromInventory(List<dynamic> inventory) {
+  for (final it in inventory) {
+    if (it is! Map) continue;
+    if ((it['type'] ?? '') != 'EVENT' || !it.containsKey('secLeft')) continue;
+    gEmblemSec = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+    gEmblemOn = it['active'] == true;
+    gEmblemName = (it['name'] ?? '').toString();
+    return;
+  }
+  gEmblemSec = 0; gEmblemOn = false; gEmblemName = '';
 }
 
 /// 🎁 만료된 이벤트 아이템을 제거한 인벤 반환. 변화 없으면 null(쓰기 불필요).

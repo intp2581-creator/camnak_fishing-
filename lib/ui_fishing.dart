@@ -512,6 +512,7 @@ Widget _whisperUnreadBadge() {
   bool gmNoticeVisible = false;
 
   
+  bool _emblemSynced = false;  // 🛡️ 엠블럼 전역 동기화 1회만
   Map<String, dynamic>? equippedRod;  
   Map<String, dynamic>? equippedFloat; 
   Map<String, dynamic>? equippedBait;  
@@ -1060,11 +1061,12 @@ Widget _whisperUnreadBadge() {
     }
   }
 
-  // 🛡️ 활성화된 엠블럼 차감 — 낚시터에 있는 동안에만. 다 쓰면 인벤에서 삭제.
-  //    인벤 안의 값이라 물약처럼 전역으로 못 두고, 저장 주기에 맞춰 함께 처리한다.
-  Future<void> _tickEmblem(int sec) async {
+  // 🛡️ 엠블럼 남은 시간을 가방에 반영 — 차감은 1초 틱에서 하고 저장만 3초 주기.
+  //    다 쓰면 가방에서 삭제한다.
+  Future<void> _saveEmblem() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (!gEmblemOn && gEmblemSec <= 0) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final inv = List<dynamic>.from(_latestInventory);
@@ -1072,10 +1074,13 @@ Widget _whisperUnreadBadge() {
       for (int i = inv.length - 1; i >= 0; i--) {
         final it = inv[i];
         if (it is! Map) continue;
-        if ((it['type'] ?? '') != 'EVENT') continue;
-        if (!it.containsKey('secLeft') || it['active'] != true) continue;
-        final int left = ((it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0) - sec;
-        if (left <= 0) { inv.removeAt(i); } else { inv[i] = {...it, 'secLeft': left}; }
+        if ((it['type'] ?? '') != 'EVENT' || !it.containsKey('secLeft')) continue;
+        if (gEmblemSec <= 0) {
+          inv.removeAt(i);
+          gEmblemOn = false; gEmblemName = '';
+        } else {
+          inv[i] = {...it, 'secLeft': gEmblemSec, 'active': gEmblemOn};
+        }
         changed = true;
       }
       if (changed) await ref.update({'inventory': inv});
@@ -1204,9 +1209,10 @@ Widget _whisperUnreadBadge() {
         remainingTimeNotifier.value--;
         // ⚡ 버프도 낚시터에 있는 동안에만 같이 줄인다(아레나는 효과가 없으므로 멈춤).
         final bool arenaNow = widget.roomId != null;
-        if (!arenaNow && (gBoostExpSec > 0 || gBoostPtsSec > 0)) {
+        if (!arenaNow && (gBoostExpSec > 0 || gBoostPtsSec > 0 || (gEmblemOn && gEmblemSec > 0))) {
           if (gBoostExpSec > 0) gBoostExpSec--;
           if (gBoostPtsSec > 0) gBoostPtsSec--;
+          if (gEmblemOn && gEmblemSec > 0) gEmblemSec--;   // 🛡️ 엠블럼도 1초씩(3초 점프 방지)
           if (mounted) setState(() {});
         }
         // ⏱️ 3초마다 저장 — F5(새로고침)로 마지막 저장 이후 시간을 되돌려받던 익스플로잇 차단.
@@ -1214,7 +1220,7 @@ Widget _whisperUnreadBadge() {
         if (remainingTimeNotifier.value % 3 == 0) {
           _saveDailyTimeToFirebase(remainingTimeNotifier.value);
           _saveBoostsToFirebase();   // ⚡ 버프 남은 시간도 같은 주기로
-          if (!arenaNow) _tickEmblem(3);   // 🛡️ 활성화된 엠블럼 3초씩 차감
+          if (!arenaNow) _saveEmblem();    // 🛡️ 엠블럼 남은 시간 저장(차감은 위에서 1초씩)
         }
       } else {
         // ... (사장님의 기존 시간 소진 상점 이동 로직 유지) ...
@@ -2775,8 +2781,8 @@ Positioned(
           x is Map && (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft'));
       if (idx < 0) return const SizedBox.shrink();
       final it = inv[idx] as Map;
-      final bool on = it['active'] == true;
-      final int left = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
+      final bool on = gEmblemOn;      // 전역 기준 — 칩과 숫자가 어긋나지 않게
+      final int left = gEmblemSec;
       if (left <= 0) return const SizedBox.shrink();
       final Color c = on ? const Color(0xFF6BE58A) : Colors.white38;
       return Row(mainAxisSize: MainAxisSize.min, children: [
@@ -2910,6 +2916,8 @@ Positioned(
                     }
                     _myTutStep = (userData['tutStep'] as num?)?.toInt() ?? 99; // 🎓 튜토리얼 단계 캐시
                     _latestInventory = userData['inventory'] ?? []; // 🦐 채집망 보유 체크용 최신 인벤
+                    // 🛡️ 엠블럼 전역 상태를 처음 한 번만 맞춘다(이후엔 1초 틱이 관리)
+                    if (!_emblemSynced) { _emblemSynced = true; syncEmblemFromInventory(_latestInventory); }
                   }
 
     // 🆙 경험치→레벨. 칭호(realRank)는 저장된 승급 결과(rank 필드)를 그대로 사용 — #13 승급퀘스트 개편
@@ -3449,11 +3457,12 @@ Positioned(
       final i = inv.indexWhere((x) =>
           x is Map && (x['name'] ?? '') == (item['name'] ?? '') && x.containsKey('secLeft'));
       if (i < 0) return;
-      inv[i] = {...inv[i] as Map, 'active': turnOn};
+      inv[i] = {...inv[i] as Map, 'active': turnOn, 'secLeft': gEmblemSec};
       await ref.update({'inventory': inv});
+      gEmblemOn = turnOn;
       if (!mounted) return;
       setState(() {});
-      final int left = (inv[i]['secLeft'] is num) ? (inv[i]['secLeft'] as num).toInt() : 0;
+      final int left = gEmblemSec;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(turnOn
             ? '🛡️ ${item['name']} 켜짐 — 남은 ${boostLeftStr(left)} (낚시터에서만 줄어요)'
