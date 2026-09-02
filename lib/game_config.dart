@@ -1132,6 +1132,10 @@ Future<void> loadServerStoreItems() async {
             + ' · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸)'
             + ' · 청약철회: 사용 개시 후 제한',
         if (lv > 0) 'reqLevel': lv,
+        // 🕒 진열은 하되 아직 판매 전 — 게임 상점도 구매 버튼을 잠근다.
+        if (v['soon'] == true) 'soon': true,
+        if ((v['soonText'] ?? '').toString().isNotEmpty)
+          'soonText': (v['soonText']).toString(),
         'order': (v['order'] is num) ? (v['order'] as num).toInt() : 999,
       });
     }

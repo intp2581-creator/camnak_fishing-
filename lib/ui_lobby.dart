@@ -1916,7 +1916,7 @@ class _StoreScreenState extends State<StoreScreen> {
         children: [
           Container(width: 140, padding: const EdgeInsets.all(15), decoration: const BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15))), child: Image.asset(imgPath, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white24, size: 40))),
           Container(width: 1, color: Colors.white10),
-          Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), const SizedBox(height: 12), if (item['stats'] != null) Row(children: [_buildStatBadge('파워', item['stats']['P'] ?? 0, Colors.redAccent), const SizedBox(width: 6), _buildStatBadge('컨트롤', item['stats']['C'] ?? 0, Colors.blueAccent), const SizedBox(width: 6), _buildStatBadge('감도', item['stats']['S'] ?? 0, Colors.greenAccent)]) else if (isBait) Text('수량: x${item['quantity']}개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.bold)) else const Text('기본 장비', style: TextStyle(color: Colors.grey, fontSize: 13))]))),
+          Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), const SizedBox(height: 12), if (item['stats'] != null) Row(children: [_buildStatBadge('파워', item['stats']['P'] ?? 0, Colors.redAccent), const SizedBox(width: 6), _buildStatBadge('컨트롤', item['stats']['C'] ?? 0, Colors.blueAccent), const SizedBox(width: 6), _buildStatBadge('감도', item['stats']['S'] ?? 0, Colors.greenAccent)]) else if (isBait) Text('수량: x${item['quantity']}개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.bold)) else Text((item['category'] ?? '') == 'PACKAGE' ? '패키지 상품' : '기본 장비', style: const TextStyle(color: Colors.grey, fontSize: 13))]))),
           Container(width: 1, color: Colors.white10),
           Expanded(flex: 4, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Row(children: [Icon(Icons.auto_awesome, color: Color(0xFFD4AF37), size: 17), SizedBox(width: 6), Text('장비 효과', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 15, fontWeight: FontWeight.bold))]), const SizedBox(height: 8), Text((item['desc'] ?? '').toString(), style: TextStyle(color: Colors.grey.shade200, fontSize: 16.5, height: 1.35, fontWeight: FontWeight.w500), maxLines: 3, overflow: TextOverflow.ellipsis)]))),
           Container(width: 1, color: Colors.white10),
@@ -1947,6 +1947,11 @@ class _StoreScreenState extends State<StoreScreen> {
                     final bool boughtToday = isConsumable && (_purchaseDates[itemName] == today);
                     final bool alreadyOwned = !isConsumable && (isSkin || item['cash'] == true) && myInventory.any((i) => i['name'] == itemName);
                     final bool blocked = alreadyOwned || boughtToday; // 구매 막힘(보유중 or 오늘 이미 구매)
+                    // 🕒 판매 시작 전(관리자에서 지정) — 눌러서 쇼핑몰까지 가야
+                    //    알게 되던 것을 상점에서 바로 알린다.
+                    final bool soonLock = item['soon'] == true;
+                    final String soonMsg = (item['soonText'] ?? '').toString().isNotEmpty
+                        ? (item['soonText']).toString() : '🕒 판매 준비중';
                     final bool buyOk = lvOk && rankOk; // 레벨 + 승급 둘 다 충족해야 구매 가능
                     return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       Center(child: Text('₩$priceStr', style: TextStyle(color: (buyOk && !blocked) ? const Color(0xFFD4AF37) : Colors.white24, fontSize: 20, fontWeight: FontWeight.w900))),
@@ -1962,21 +1967,24 @@ class _StoreScreenState extends State<StoreScreen> {
                       else if (!rankOk)
                         Center(child: Text('🔒 \'$reqRank\' 승급 후 구매 가능\n(아라 NPC 승급 퀘스트)',
                             textAlign: TextAlign.center, style: const TextStyle(color: Colors.orangeAccent, fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
+                      else if (soonLock)
+                        Center(child: Text(soonMsg,
+                            textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35)))
                       else if (!paymentOpen)
                         const Center(child: Text('🔜 결제 준비 중이에요. 곧 오픈됩니다!',
                             textAlign: TextAlign.center, style: TextStyle(color: Color(0xFFD4AF37), fontSize: 11.5, fontWeight: FontWeight.bold, height: 1.35))),
                       const SizedBox(height: 6),
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: (buyOk && !blocked && paymentOpen) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
-                          foregroundColor: (buyOk && !blocked && paymentOpen) ? Colors.black : Colors.white38,
+                          backgroundColor: (buyOk && !blocked && paymentOpen && !soonLock) ? const Color(0xFFD4AF37) : Colors.grey.shade800,
+                          foregroundColor: (buyOk && !blocked && paymentOpen && !soonLock) ? Colors.black : Colors.white38,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
-                        onPressed: (buyOk && !blocked && paymentOpen)
+                        onPressed: (buyOk && !blocked && paymentOpen && !soonLock)
                             ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName); }
                             : null,
-                        child: Text(alreadyOwned ? '구매 완료' : (boughtToday ? '오늘 구매완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (!paymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매')))),
+                        child: Text(alreadyOwned ? '구매 완료' : (boughtToday ? '오늘 구매완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (soonLock ? soonMsg : (!paymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매'))))),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                       ),
                     ]);
