@@ -2,7 +2,8 @@
 //   camnak.com → game.camnak.com/?uid=이메일 로 들어오면 자동 로그인.
 //   한 번 로그인하면 브라우저에 유지되므로 다음부터는 uid 없이 들어와도 로그인 상태.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged,
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+         signOut, onAuthStateChanged,
          setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -49,6 +50,20 @@ function readIncomingEmail() {
   return { email: '', from: '' };
 }
 
+function authToast(msg) {
+  try {
+    var t = document.createElement('div');
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;left:50%;bottom:96px;transform:translate(-50%,10px);'
+      + 'z-index:9700;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;'
+      + 'color:#fff;background:rgba(16,34,43,.94);box-shadow:0 8px 22px rgba(10,40,55,.3);'
+      + 'opacity:0;transition:opacity .25s,transform .25s;max-width:86vw;text-align:center';
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity = '1'; t.style.transform = 'translate(-50%,0)'; }, 10);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 3200);
+  } catch (e) {}
+}
+
 async function autoLoginFromUrl() {
   var got = readIncomingEmail();
   var email = (got.email || '').trim();
@@ -63,10 +78,25 @@ async function autoLoginFromUrl() {
   try {
     await setPersistence(auth, browserLocalPersistence);
     if (!auth.currentUser || auth.currentUser.email !== email) {
-      await signInWithEmailAndPassword(auth, email, SHARED_PW);
+      try {
+        await signInWithEmailAndPassword(auth, email, SHARED_PW);
+      } catch (e1) {
+        // 🆕 [2026-09-02] 아임웹에 막 가입한 사람은 게임 계정이 아직 없다.
+        //    예전엔 로그인만 시도해서 실패했고, 화면은 그대로라 로그인 버튼을
+        //    눌러도 camnak.com을 갔다 오기만 반복됐다(무한 새로고침).
+        //    게임(ui_login.dart)이 하던 것과 똑같이 여기서도 계정을 만든다.
+        //    프로필(users 문서)은 게임 첫 실행 때 닉네임 설정에서 만들어진다.
+        var code = e1 && e1.code ? e1.code : '';
+        if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+          await createUserWithEmailAndPassword(auth, email, SHARED_PW);
+        } else {
+          throw e1;
+        }
+      }
     }
   } catch (e) {
     console.warn('자동 로그인 실패:', e.code || e);
+    authToast('로그인에 실패했어요. 잠시 후 다시 시도해 주세요.');
   } finally {
     scrub();
   }
