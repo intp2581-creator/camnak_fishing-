@@ -4534,6 +4534,16 @@ Positioned(
     if (equippedLine?['name'] == iName) isEquipped = true;
     if (equippedGroundbait?['name'] == iName) isEquipped = true;
 
+    // 🔒 [착용 레벨 — 2026-09-02] 광장과 같은 규칙. 선물로 받은 상위 장비를
+    //    레벨 되기 전에 끼우지 못하게 한다. 이미 낀 것의 해제는 허용.
+    if (!isEquipped) {
+      final int needLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+      if (needLv > 0 && _currentLevel > 0 && _currentLevel < needLv) {
+        _showNotificationPopup('🔒 착용 레벨 부족',
+            '$iName은(는) Lv.$needLv 부터 쓸 수 있어요.\n(현재 Lv.$_currentLevel)\n\n가방에 그대로 있으니\n레벨을 올린 뒤 장착하세요! 👍', Colors.orangeAccent);
+        return;
+      }
+    }
     // 🎖️ [착용 제한] 스킨·뱃지·휘장은 홈페이지서 조건 미달로도 구매 가능(항상 지급) → '착용'에서 레벨/승급 검사.
     //    미착용 상태에서 조건 미달이면 착용 차단(인벤엔 그대로). 이미 착용 중이면 해제는 허용.
     if (!isEquipped && (isSkinItem(item) || iName.contains('뱃지') || iName.contains('휘장'))) {

@@ -4495,6 +4495,21 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       _infoPopup('🎪 루어 전용 장비', '이건 루어낚시 전용 장비예요!\n낚시터에서 "🎪 루어낚시"로 전환하면 쓸 수 있어요.\n(일반 낚시엔 일반 낚싯대·미끼를 쓰세요)');
       return;
     }
+    // 🔒 [착용 레벨 — 2026-09-02] 레벨이 모자란 장비는 못 낀다. 상점 구매는 레벨을
+    //    검사하므로 지금까지 문제가 없었으나, 환영 세트처럼 '선물'로 들어온 상위
+    //    장비(CF-30T·CF350)를 Lv.1에서도 낄 수 있었다. 이미 낀 것의 해제는 허용.
+    {
+      final int needLv = (item['reqLevel'] is num) ? (item['reqLevel'] as num).toInt() : 0;
+      final bool wearing = [globalEquippedRod, globalEquippedFloat, globalEquippedReel,
+        globalEquippedBait, globalEquippedNet, globalEquippedBelt, globalEquippedGloves,
+        globalEquippedLine, globalEquippedGroundbait, globalEquippedCooler,
+        globalEquippedSunglasses].any((e) => e != null && e['name'] == item['name']);
+      if (needLv > 0 && !wearing && _level < needLv) {
+        _infoPopup('🔒 착용 레벨 부족',
+            '${item['name']}은(는) Lv.$needLv 부터 쓸 수 있어요.\n(현재 Lv.$_level)\n\n가방에 그대로 있으니\n레벨을 올린 뒤 장착하세요! 👍');
+        return;
+      }
+    }
     // 🎖️ [착용 제한] 스킨·뱃지·휘장 = 홈페이지서 조건 미달로도 구매 가능(항상 지급) → 착용에서 레벨/승급 검사(광장 미리보기 동일). 해제는 허용.
     if (isSkinItem(item) || _nm.contains('뱃지') || _nm.contains('휘장')) {
       final bool curEquipped = isSkinItem(item)
