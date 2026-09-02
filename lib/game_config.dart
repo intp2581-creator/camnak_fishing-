@@ -691,9 +691,13 @@ const Map<String, String> spotTypeByName = {
 const double _spotBoost = 1.3;
 const Map<String, Map<String, double>> spotTypeAffinity = {
   // 🏞️ 저수지형 (대장: 붕어·잉어): 붕어·잉어·떡붕어·메기·살치·블루길·향어
-  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost, '초어': _spotBoost},
+  '저수지': {'붕어': _spotBoost, '잉어': _spotBoost, '떡붕어': _spotBoost, '메기': _spotBoost, '살치': _spotBoost, '블루길': _spotBoost, '향어': _spotBoost, '초어': _spotBoost,
+    // 🌊 강계 어종은 저수지에서도 나오되 확률을 확 낮춘다(2026-09-02).
+    //    어디서든 잡히긴 해야 한다 — '여기선 절대 안 나옴'은 답답하다(사용자 방침).
+    '누치': 0.3, '끄리': 0.3, '모래무지': 0.7},
   // 🌊 수로형 (대장: 가물치): 가물치·베스·쏘가리·강준치·자라·꺽지·동자개·민물장어
-  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost, '누치': _spotBoost, '끄리': _spotBoost, '모래무지': _spotBoost},
+  '수로': {'가물치': _spotBoost, '베스': _spotBoost, '쏘가리': _spotBoost, '강준치': _spotBoost, '자라': _spotBoost, '꺽지': _spotBoost, '동자개': _spotBoost, '민물장어': _spotBoost, '누치': _spotBoost, '끄리': _spotBoost, '모래무지': _spotBoost,
+    '초어': 0.3},   // 🐟 대형호 어종이라 수로에선 드물게
   // 🪨 갯바위형 (대장: 감성돔·참돔): 감성돔·참돔·벵에돔·우럭·갑오징어·학꽁치·돌돔·농어
   '갯바위': {'감성돔': _spotBoost, '참돔': _spotBoost, '벵에돔': _spotBoost, '우럭': _spotBoost, '갑오징어': _spotBoost, '학꽁치': _spotBoost, '돌돔': _spotBoost, '농어': _spotBoost},
   // 🚢 선상형 (대장: 문어): 문어·갈치·고등어·광어·주꾸미·볼락·참치·부시리·성대
@@ -831,6 +835,11 @@ List<Map<String, dynamic>> unlockedRaidBosses(List<dynamic> clearedIds) {
 // =========================================================================
 
 // 🏞️ 민물 물고기
+/// 🐟 [9월 신규 어종] 민물 4종 + 바다 N종을 한 번에 연다.
+///    민물만 먼저 나가면 공지가 두 번 갈라지므로, 바다까지 준비되면 true로 바꿔 배포.
+///    풀에서 빠지면 낚시터 목록·미끼 상성에 이름이 남아 있어도 등장하지 않는다.
+const bool kNewFishOn = false;
+
 final List<Map<String, dynamic>> fwFishPool = [
   {'name': '붕어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 1, 'img': 'assets/images/fish_fw_01_crucian_carp.png'}, // 👑 6대장
   {'name': '떡붕어', 'weight': 50, 'unit': 'Cm', 'min': 15.0, 'max': 55.0, 'pts': 0, 'img': 'assets/images/fish_fw_04_herabuna.png'},
@@ -854,10 +863,12 @@ final List<Map<String, dynamic>> fwFishPool = [
   //    누치·끄리는 강계 어종이라 수로·하천 5곳에만, 초어는 대형호(파로호·충주호)에만,
   //    모래무지는 흔한 잡어라 민물 전 지역. (fishing_logic.dart 낚시터별 목록 참조)
   //    ⚠️ 철갑상어는 뺐다 — 유료터 어종이라 노지에서 나오면 어색하다(사용자 지적).
+  if (kNewFishOn) ...[
   {'name': '누치', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 70.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_17_nuchi.png'},
   {'name': '끄리', 'weight': 50, 'unit': 'Cm', 'min': 20.0, 'max': 50.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_18_kkeuri.png'},
   {'name': '초어', 'weight': 10, 'unit': 'Cm', 'min': 40.0, 'max': 130.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_19_grass_carp.png'},
   {'name': '모래무지', 'weight': 30, 'unit': 'Cm', 'min': 10.0, 'max': 25.0, 'pts': 0, 'img': 'assets/fish_fw/fish_fw_20_gudgeon.png'},
+  ],
 ];
 
 // 🌊 바다 물고기
