@@ -4334,30 +4334,13 @@ Positioned(
               if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
-              if (_currentFilter == 'SKIN' && isSkin) return true;
+              if (_currentFilter == 'SKIN' && isStoreTabItem(item)) return true;
               if (_currentFilter == 'FISH' && isFish) return true;
               return false;
             }).toList();
 
-            filteredItems.sort((a, b) {
-                      String getType(Map<String, dynamic> item) {
-                        String t = (item['type']?.toString().toUpperCase() ?? '');
-                        String n = (item['name']?.toString() ?? '');
-                        String c = (item['category']?.toString().toUpperCase() ?? '');
-                        if (t.isNotEmpty) return t;
-                        if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'ROD';
-                        if (n.contains('릴') || c == 'REEL') return 'REEL';
-                        if (n.contains('찌') || c == 'FLOAT') return 'FLOAT';
-                        if (n.contains('지렁이') || n.contains('글루텐') || n.contains('옥수수') || n.contains('미끼') || n.contains('에기') || n.contains('민물새우')) return 'BAIT';
-                        if (n.contains('스킨') || n.contains('조사')) return 'SKIN';
-                        return 'ETC';
-                      }
-                      const priority = {'ROD': 1, 'REEL': 2, 'FLOAT': 3, 'BAIT': 4, 'SKIN': 5, 'ETC': 6};
-                      int pA = priority[getType(a)] ?? 99;
-                      int pB = priority[getType(b)] ?? 99;
-                      if (pA != pB) return pA.compareTo(pB);
-                      return a['name'].toString().compareTo(b['name'].toString());
-                    });
+            // 🎒 정렬은 game_config 의 invSortRank 하나로 통일(광장 장비창과 동일 순서)
+            filteredItems.sort((a, b) => invSortRank(a).compareTo(invSortRank(b)));
 
             int totalSlots = math.max(60, (filteredItems.length ~/ 4 + 1) * 4);
 
@@ -4373,7 +4356,7 @@ Positioned(
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: ['ALL', 'FW', 'SEA', 'BAIT', 'FISH', 'SKIN'].map((filter) {
-                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : filter == 'FISH' ? '물고기' : '스킨';
+                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : filter == 'FISH' ? '물고기' : '게임스토어';
                       bool isSelected = _currentFilter == filter; // 💡 바뀐 변수명 적용
                       return Expanded(
                         child: GestureDetector(

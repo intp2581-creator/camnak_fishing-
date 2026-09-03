@@ -1208,6 +1208,40 @@ final List<Map<String, dynamic>> storeSkinItems = [
 // 👕 스킨 판정/등급 통합 헬퍼.
 //    ⚠️ '낚시의 신'은 이름에 '조사'가 없어서, 예전 이름검사(contains '조사'/'마스터' 등)에서
 //    통째로 누락돼 장착·자동장착이 안 됐음. 앞으로 스킨 판정·등급은 반드시 이 헬퍼로 한다.
+// ═══════════════════════════════════════════════════════════
+// 🎒 가방 정리 — 두 화면(광장 장비창 · 낚시터 가방)이 같은 규칙을 쓴다.
+//    한쪽만 고치면 두 화면 순서가 달라지므로 반드시 여기서만 바꿀 것.
+// ═══════════════════════════════════════════════════════════
+
+/// 💳 게임스토어 탭에 묶이는 것 — 스킨 · 이용권 · 입장권 · 뱃지 · 휘장 · 물약 · 카드 · 엠블럼
+bool isStoreTabItem(Map<String, dynamic> it) {
+  final t = (it['type'] ?? '').toString().toUpperCase();
+  final c = (it['category'] ?? '').toString().toUpperCase();
+  final n = (it['name'] ?? '').toString();
+  if (t == 'SKIN' || c == 'SKIN' || skinTierByName(n) > 0) return true;
+  if (t == 'BOOST' || t == 'EVENT') return true;      // 물약 · 카드 · 엠블럼(보유 버프)
+  if (t == 'TICKET' || c == 'TICKET') return true;    // 이용권 · 입장권
+  if (it['cash'] == true) return true;                // 유료로 파는 것(뱃지 · 휘장 등)
+  if (n.contains('뱃지') || n.contains('휘장')) return true;
+  return false;
+}
+
+/// 🎒 가방 정렬 순서
+///   0 스킨 · 1 낚싯대 · 2 릴/찌 · 3 보조장비 · 4 상자 · 5 유료템 · 6 미끼 · 7 물고기
+int invSortRank(Map<String, dynamic> it) {
+  final t = (it['type'] ?? '').toString().toUpperCase();
+  final c = (it['category'] ?? '').toString().toUpperCase();
+  final n = (it['name'] ?? '').toString();
+  if (t == 'FISH') return 7;
+  if (t == 'BAIT' || c == 'BAIT') return 6;
+  if (t == 'SKIN' || c == 'SKIN' || skinTierByName(n) > 0) return 0;
+  if (t == 'BOX' || n.contains('상자')) return 4;
+  if (isStoreTabItem(it)) return 5;
+  if (t == 'ROD') return 1;
+  if (t == 'REEL' || t == 'FLOAT') return 2;
+  return 3; // 선글라스 · 장갑 · 뜰채 · 아이스박스 · 낚싯줄 · 밑밥 · 벨트 · 채집망
+}
+
 int skinTierByName(String name) {
   if (name.contains('낚시의') || name.contains('낚시의신')) return 8; // 낚시의 신(최상)
   if (name.contains('레전드')) return 7;

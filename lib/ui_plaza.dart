@@ -4615,25 +4615,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             final lineSlot = forMode(globalEquippedLine);
             final gbSlot = forMode(globalEquippedGroundbait);
             final badgeSlot = forMode(globalEquippedBadge);
-            // 인벤토리 필터/정렬 (가방과 동일)
-            int typeRank(Map<String, dynamic> it) {
-              switch ((it['type'] ?? '').toString().toUpperCase()) {
-                case 'SKIN':
-                  return 0;
-                case 'ROD':
-                  return 1;
-                case 'REEL':
-                case 'FLOAT':
-                  return 2;
-                case 'ETC':
-                  return 3;
-                case 'COOLER':
-                  return 4;
-                case 'BAIT':
-                  return 5;
-              }
-              return 6;
-            }
+            // 인벤토리 정렬은 game_config 의 invSortRank 하나로 통일(두 화면 동일)
 
             bool match(Map<String, dynamic> it) {
               final c = (it['category'] ?? '').toString().toUpperCase();
@@ -4647,8 +4629,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   return t == 'BAIT';
                 case '물고기':
                   return t == 'FISH';
-                case '스킨':
-                  return t == 'SKIN' || c == 'SKIN';
+                case '게임스토어':
+                  return isStoreTabItem(it);
               }
               return true;
             }
@@ -4662,7 +4644,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               if (nm == '새우 채집망' && hasShrimp) return false;
               return true;
             }).toList()
-              ..sort((a, b) => typeRank(a).compareTo(typeRank(b)));
+              ..sort((a, b) => invSortRank(a).compareTo(invSortRank(b)));
 
             Widget tabBtn(String t) {
               final active = invTab == t;
@@ -4800,7 +4782,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         tabBtn('바다'),
                         tabBtn('미끼'),
                         tabBtn('물고기'),
-                        tabBtn('스킨'),
+                        tabBtn('게임스토어'),
                       ]),
                       const Divider(color: Colors.white12, height: 1),
                       Expanded(
@@ -4893,14 +4875,15 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   return (cat == 'SEA' && type != 'BAIT') || (type == 'ETC' && cat != 'FW');
                 case '미끼':
                   return type == 'BAIT';
-                case '스킨':
-                  return type == 'SKIN' || cat == 'SKIN';
+                case '게임스토어':
+                  return isStoreTabItem(it);
               }
               return true; // 전체
             }
 
             final items =
-                _inventory.map((e) => e as Map<String, dynamic>).where(match).toList();
+                _inventory.map((e) => e as Map<String, dynamic>).where(match).toList()
+                  ..sort((a, b) => invSortRank(a).compareTo(invSortRank(b)));
             items.sort((a, b) {
               if (tab == '미끼') {
                 final c = catRank(a).compareTo(catRank(b)); // 민물 미끼 → 바다 미끼
@@ -4960,7 +4943,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     tabBtn('민물'),
                     tabBtn('바다'),
                     tabBtn('미끼'),
-                    tabBtn('스킨'),
+                    tabBtn('게임스토어'),
                   ]),
                   const Divider(color: Colors.white12, height: 1),
                   Expanded(

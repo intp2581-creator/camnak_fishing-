@@ -595,41 +595,12 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
                       if (currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
                       if (currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
                       if (currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
-                      if (currentFilter == 'SKIN' && isSkin) return true;
+                      if (currentFilter == 'SKIN' && isStoreTabItem(item)) return true;
                       return false;
                     }).toList();
 
-                    // 🎯 [정리 정돈 2차 패치] 누락 데이터 강제 분류형 정렬!
-filteredItems.sort((a, b) {
-  // 아이템 타입을 알아내는 초능력 함수!
-  String getType(Map<String, dynamic> item) {
-    String t = (item['type']?.toString().toUpperCase() ?? '');
-    String n = (item['name']?.toString() ?? '');
-    String c = (item['category']?.toString().toUpperCase() ?? '');
-    
-    // 이미 타입이 있으면 그대로 사용
-    if (t.isNotEmpty) return t;
-    
-    // 타입이 없으면 이름/카테고리로 추리 (DB 복구용)
-    if (n.contains('대') || n.contains('CF') || n.contains('KT')) return 'ROD';
-    if (n.contains('릴') || c == 'REEL') return 'REEL';
-    if (n.contains('찌') || c == 'FLOAT') return 'FLOAT';
-    if (n.contains('지렁이') || n.contains('글루텐') || n.contains('옥수수') || n.contains('미끼') || n.contains('에기')) return 'BAIT';
-    if (n.contains('스킨') || skinTierByName(n) > 0) return 'SKIN';
-    return 'ETC';
-  }
-
-  const priority = {'ROD': 1, 'REEL': 2, 'FLOAT': 3, 'BAIT': 4, 'SKIN': 5, 'ETC': 6};
-  
-  int pA = priority[getType(a)] ?? 99;
-  int pB = priority[getType(b)] ?? 99;
-  
-  // 🎙️ [디버그용] 정렬이 진짜 도는지 궁금하면 아래 주석 풀어보세요! (콘솔창에 뜹니다)
-  // print("정렬 확인: ${a['name']}($pA) vs ${b['name']}($pB)");
-
-  if (pA != pB) return pA.compareTo(pB);
-  return a['name'].toString().compareTo(b['name'].toString());
-});
+                    // 🎒 정렬은 game_config 의 invSortRank 하나로 통일(광장·낚시터와 동일 순서)
+                    filteredItems.sort((a, b) => invSortRank(a).compareTo(invSortRank(b)));
 
                     int totalSlots = math.max(20, (filteredItems.length ~/ 4 + 1) * 4);
 
@@ -703,7 +674,7 @@ filteredItems.sort((a, b) {
                       
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: ['ALL', 'FW', 'SEA', 'BAIT', 'SKIN'].map((filter) {
-                            String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : '스킨';
+                            String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : '게임스토어';
                             bool isSelected = currentFilter == filter;
                             return Expanded(
                               child: GestureDetector(
