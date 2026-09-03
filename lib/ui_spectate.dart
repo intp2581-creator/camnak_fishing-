@@ -393,6 +393,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   ///          입질 온 그 대의 찌만 케미색이 바뀌며 스르륵 올라온다(낚시꾼 화면과 같은 6초 곡선).
   ///   바다/루어 = 장착 낚싯대별 대기 그림 + 입질 텍스트.
   Widget _rodsScene({required bool raised}) {
+    // 친구 방송이 끊긴 상태(meta 없음)에서는 장면을 그리지 않는다
+    if (_meta.isEmpty) return const SizedBox.shrink();
     final bool sea = _meta['sea'] == true;
     final bool lure = _meta['lure'] == true;
     final String lureKey = (_meta['lureKey'] ?? '').toString();
@@ -428,7 +430,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       Positioned(
         bottom: 0, left: 0, right: 0,
         child: Stack(
-          alignment: Alignment.bottomCenter, clipBehavior: Clip.none,
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none, // 좌대가 화면 아래로 걸치는 구조라 자르면 경고가 뜬다
           children: [
             Positioned(
               bottom: _kPlatformBottom,

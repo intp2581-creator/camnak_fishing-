@@ -17,6 +17,9 @@ FirebaseDatabase _liveDb() =>
 /// 🎣 방송측(낚시하는 사람) — 한 클라이언트당 낚시 세션은 하나이므로 static 상태로 관리.
 class FishingLive {
   static String? _uid; // 현재 방송 중인 내 uid(null이면 방송 안 함)
+  static int _gen = 0; // 방송 세대. 낚시터를 옮기면 새 화면이 start() 하고
+  //   이전 화면이 뒤늦게 dispose 되며 stop() 한다. 세대가 다르면 그 stop은 무시해야
+  //   방금 시작한 방송이 지워지지 않는다.
   static String _lastPhase = ''; // 마지막 단계(관전자 입장 시 즉시 재전송용)
   static Map<String, dynamic> _lastExtra = const {};
   static DatabaseReference? _ref; // fishing_live/{uid}
@@ -31,7 +34,7 @@ class FishingLive {
   static DateTime _lastFightPush = DateTime.fromMillisecondsSinceEpoch(0);
 
   /// 낚시터 진입 시 1회 호출(아레나 제외). meta 기록 + 관전자 감시 시작.
-  static void start(
+  static int start(
     String uid, {
     required String spot,
     required bool sea,
@@ -48,6 +51,7 @@ class FishingLive {
   }) {
     // 이전 세션 잔재 정리 후 새로 시작
     if (_uid != null && _uid != uid) stop();
+    _gen++;
     _uid = uid;
     _ref = _liveDb().ref('fishing_live/$uid');
     // 접속 끊기면 통째로 삭제(고스트 방송 방지)
@@ -107,6 +111,7 @@ class FishingLive {
       watcherCountNotifier.value = _watcherCount;
       watcherNamesNotifier.value = names;
     }, onError: (Object e) => debugPrint('🎣👀 watchers sub ERR: $e'));
+    return _gen;
   }
 
   /// 🎣 장비/편성 갱신 — 대편성 수·찌·케미는 낚시 도중에도 바뀌므로 캐스팅마다 meta를 맞춰준다.
@@ -181,7 +186,10 @@ class FishingLive {
   }
 
   /// 낚시터 이탈/화면 종료 시 방송 정리.
-  static void stop() {
+  static void stop({int? gen}) {
+    // 🛡️ 낚시터 이동: 새 화면이 이미 방송을 시작했다면, 뒤늦게 정리되는
+    //    이전 화면의 stop()은 무시한다(안 그러면 새 방송이 지워진다).
+    if (gen != null && gen != _gen) return;
     final ref = _ref;
     _watchSub?.cancel();
     _watchSub = null;

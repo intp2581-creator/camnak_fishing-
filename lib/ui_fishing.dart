@@ -78,6 +78,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
   bool _showFishingRating = true; // 🎖️ 낚시 화면 등급 마크(30초 노출 후 사라짐 — 광장과 통일, 규정 충족)
   Timer? _ratingHideTimer;
   bool _liveStarted = false; // 🎣👀 라이브 관전 방송 시작됨(등급/닉 로드 후 1회)
+  int _liveGen = 0;          // 🎣👀 내 방송 세대(낚시터 이동 시 남의 방송을 끄지 않도록)
   void _liveWeatherSync() => FishingLive.updateWeather(WeatherService.instance.notifier.value.pty); // 🌧️ 날씨 변경 방송
 // 🎤 GM 윤슬 멘트는 game_config.dart의 gmNoticeMessages(Firestore config/gmnotice)에서 옴 — 콘솔에서 실시간 수정.
 
@@ -908,7 +909,8 @@ Widget _whisperUnreadBadge() {
     _trapTimer?.cancel(); // 🦐 채집망 타이머 정리
     _guildHeartbeat?.cancel(); // 💓 길드 하트비트 정리
     WeatherService.instance.notifier.removeListener(_liveWeatherSync); // 🌧️ 관전 날씨 동기화 해제
-    FishingLive.stop(); // 🎣👀 라이브 관전 방송 종료(fishing_live 노드 정리)
+    // 🎣👀 방송 종료. 낚시터를 옮겨 새 화면이 이미 방송 중이면 무시된다(세대 확인)
+    FishingLive.stop(gen: _liveGen);
     _garamTimer?.cancel(); // 🎤 GM 윤슬 공지 타이머 정리
     _garamRotateTimer?.cancel(); // 🎤 멘트 회전 타이머 정리
     _ratingHideTimer?.cancel(); // 🎖️ 등급 마크 숨김 타이머 정리
@@ -2915,7 +2917,7 @@ Positioned(
                     if (!_liveStarted && widget.roomId == null) {
                       final liveU = FirebaseAuth.instance.currentUser;
                       if (liveU != null) {
-                        FishingLive.start(liveU.uid,
+                        _liveGen = FishingLive.start(liveU.uid,
                           spot: widget.locationName.isNotEmpty ? widget.locationName : widget.title,
                           sea: widget.isSea, bg: widget.bgImagePath,
                           rank: realRank, nick: realNickname,
