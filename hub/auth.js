@@ -401,16 +401,15 @@ autoLoginFromUrl();
   window.__cfShareReady = true;
 
   var TITLE = '캠피싱 KREFT — 손 안의 낚시터';
-  var TEXT  = '🎣 전국 20개 낚시터, 어종 33종.'
-    + '\n지금 가입하면 신규 조사 환영 세트를 드려요!';
+  var TEXT  = '🎣 전국 20개 낚시터, 어종 40종. 하루 1시간 무료!'
+    + '\n지금 시작하면 신규 조사 환영 세트를 드려요.';
 
   function shareUrl() {
-    // 토큰이 붙을 수 있는 해시·쿼리는 제거. 대표 주소로 통일해서 내보낸다.
-    var host = (location.hostname || '').toLowerCase();
-    var origin = (host === 'kreft.co.kr') ? location.origin : 'https://kreft.co.kr';
-    var path = location.pathname || '/';
-    if (path === '/index.html') path = '/';
-    return origin + path;
+    // 항상 홈페이지 첫 화면으로 보낸다.
+    //   현재 페이지 주소를 그대로 쓰면 게임 화면(play.html)에서 공유했을 때
+    //   받은 사람이 로그인 창부터 만난다 — 처음 오는 사람에게는 게임 소개가 먼저다.
+    //   토큰이 붙을 수 있는 해시·쿼리도 이 방식이면 자연히 사라진다.
+    return 'https://kreft.co.kr/';
   }
 
   function toast(msg) {
