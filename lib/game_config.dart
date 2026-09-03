@@ -959,6 +959,8 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
     {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
     {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
+    // 🎁 신규 조사 환영 세트 — 가입 즉시 함께 지급(2026-09-03 사용자 결정: 어차피 줄 거라면 단순하게)
+    ...getWelcomeSet(),
   ];
 }
 
