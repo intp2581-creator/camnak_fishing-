@@ -275,15 +275,13 @@ class _RankingScreenState extends State<RankingScreen> {
           list = _garamScoresToList(Map<String, dynamic>.from(data?['scores'] ?? {}));
         }
         if (list.isEmpty) {
-          return Center(
-              child: Text(
-                  garamPeriod == '주간'
-                      ? '아직 종합랭킹 기록이 없습니다.\n낚시로 각 보드 top10에 들어보세요!'
-                      : garamPeriod == '월간'
-                          ? '이번 달 누적 기록이 아직 없습니다.\n(매주 월요일, 지난주 점수가 누적돼요)'
-                          : '올해 누적 기록이 아직 없습니다.\n(매월 1일, 지난달 점수가 누적돼요)',
+          // 📜 이번 달(해)이 아직 비었으면 지난 결산 결과를 대신 보여준다.
+          //    달이 바뀌면 누적이 0이라 화면이 텅 비는데, 결산 기록은 멀쩡히 남아 있다.
+          if (garamPeriod != '주간') return _buildGaramHistory();
+          return const Center(
+              child: Text('아직 종합랭킹 기록이 없습니다.\n낚시로 각 보드 top10에 들어보세요!',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.white54)));
+                  style: TextStyle(color: Colors.white54)));
         }
         final myUid = FirebaseAuth.instance.currentUser?.uid;
         return ListView.builder(
@@ -301,6 +299,123 @@ class _RankingScreenState extends State<RankingScreen> {
             );
           },
         );
+      },
+    );
+  }
+
+  // 📜 지난 결산 기준 '내 순위' — 위 목록이 지난달을 보여줄 때 함께 쓴다.
+  Widget _buildMyGaramHistoryRank() {
+    final now = DateTime.now();
+    final String docId;
+    final String label;
+    if (garamPeriod == '월간') {
+      final prev = DateTime(now.year, now.month - 1, 1);
+      docId = 'history_month_${prev.year}-${prev.month.toString().padLeft(2, '0')}';
+      label = '${prev.month}월';
+    } else {
+      docId = 'history_year_${now.year - 1}';
+      label = '${now.year - 1}년';
+    }
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('garam_rank').doc(docId).get(),
+      builder: (context, snap) {
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final raw = (data?['list'] is List) ? (data!['list'] as List) : const [];
+        int myRank = 0, myScore = 0;
+        for (final e in raw) {
+          final m = Map<String, dynamic>.from(e as Map);
+          if (m['uid'] == myUid) {
+            myRank = (m['rank'] is num) ? (m['rank'] as num).toInt() : 0;
+            myScore = (m['score'] is num) ? (m['score'] as num).toInt() : 0;
+            break;
+          }
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF10221E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.cyanAccent.withOpacity(0.6)),
+          ),
+          child: Row(children: [
+            Text('내 $label 순위', style: const TextStyle(color: Colors.cyanAccent, fontSize: 22, fontWeight: FontWeight.w900)),
+            const SizedBox(width: 14),
+            Text(myRank > 0 ? '$myRank위' : '순위권 밖',
+                style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 22, fontWeight: FontWeight.w900)),
+            const Spacer(),
+            Text(myRank > 0 ? '$myScore점' : '이번 달 다시 도전해 보세요!',
+                style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold)),
+          ]),
+        );
+      },
+    );
+  }
+
+  // 📜 지난 결산 결과 — garam_rank/history_month_YYYY-MM (연간은 history_year_YYYY)
+  //    이번 달 누적이 아직 없을 때 "지난달엔 이랬습니다"를 대신 보여준다.
+  //    결산 데이터는 멀쩡히 남는데 화면이 이번 달만 보느라 텅 비어 있었다(2026-09-03).
+  Widget _buildGaramHistory() {
+    final now = DateTime.now();
+    final String docId;
+    final String title;
+    if (garamPeriod == '월간') {
+      final prev = DateTime(now.year, now.month - 1, 1);
+      docId = 'history_month_${prev.year}-${prev.month.toString().padLeft(2, '0')}';
+      title = '📜 ${prev.month}월 최종 순위';
+    } else {
+      docId = 'history_year_${now.year - 1}';
+      title = '📜 ${now.year - 1}년 최종 순위';
+    }
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('garam_rank').doc(docId).get(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
+        }
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final raw = (data?['list'] is List) ? (data!['list'] as List) : const [];
+        if (raw.isEmpty) {
+          return Center(
+              child: Text(
+                  garamPeriod == '월간'
+                      ? '이번 달 누적 기록이 아직 없습니다.\n(매주 월요일, 지난주 점수가 누적돼요)'
+                      : '올해 누적 기록이 아직 없습니다.\n(매월 1일, 지난달 점수가 누적돼요)',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54)));
+        }
+        final list = List<Map<String, dynamic>>.from(raw.map((e) => Map<String, dynamic>.from(e as Map)));
+        final myUid = FirebaseAuth.instance.currentUser?.uid;
+        return Column(children: [
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD4AF37).withOpacity(0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('$title  ·  이번 달은 아직 집계 전이에요',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 12.5, fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (context, i) {
+                final e = list[i];
+                final rank = (e['rank'] is num) ? (e['rank'] as num).toInt() : i + 1;
+                return _buildRankItem(
+                  rank,
+                  (e['nickname'] ?? '조사님').toString(),
+                  '${e['score'] ?? 0}점',
+                  e['uid'] == myUid,
+                  'assets/images/skin_beginner.jpg',
+                );
+              },
+            ),
+          ),
+        ]);
       },
     );
   }
@@ -330,6 +445,11 @@ class _RankingScreenState extends State<RankingScreen> {
             }
           }
         }
+        // 📜 이번 달 누적이 통째로 비어 있으면 위 목록이 지난달 결산을 보여준다.
+        //    그때는 아래 '내 순위'도 지난달 기준으로 맞춰야 목록과 어긋나지 않는다.
+        final bool showingHistory = garamPeriod != '주간' &&
+            Map<String, dynamic>.from(data?['scores'] ?? {}).isEmpty;
+        if (showingHistory) return _buildMyGaramHistoryRank();
         final bonus = garamRankBonus(myRank);
         final right = myRank > 0
             ? (garamPeriod == '주간' ? '$myScore점 · 능력치 각 +$bonus (1주일)' : '$myScore점 누적')
