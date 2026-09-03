@@ -262,6 +262,50 @@
          + '「전자상거래 등에서의 소비자보호에 관한 법률」 제17조 제2항 제5호에 따라 청약철회가 제한됩니다.<br>';
   }
 
+  /* 📄 상품 상세 '페이지' 모드 — store.html?item=<키>
+     목록·탭·안내를 감추고 그 상품 하나만 보여준다. 주소가 있어 PG 심사에
+     상품 상세페이지로 그대로 건넬 수 있고, 결제 페이지에서도 여기로 연결한다. */
+  function detailOnly(key){
+    var i = ITEMS.filter(function(x){return x.key===key;})[0];
+    if(!i){ return; }                       // 없는 키면 그냥 목록을 보여준다
+    var note=document.querySelector('.sec-note');
+    if(note) note.style.display='none';
+    var tabs=document.getElementById('stabs'); if(tabs) tabs.style.display='none';
+    var grid=document.getElementById('sgrid');
+    if(grid){
+      grid.style.display='block';
+      grid.innerHTML='<p style="margin:0 0 14px"><a href="store.html" '
+        +'style="color:var(--blue-ink);font-weight:700">← 게임스토어 전체 상품 보기</a></p>';
+    }
+    openDetail(key);
+    var d=document.getElementById('sdetail');
+    if(d){                                   // 팝업이 아니라 페이지 본문처럼 보이게
+      d.style.position='static';
+      d.style.background='transparent';
+      d.style.padding='0';
+      var c=d.querySelector('.dclose'); if(c) c.style.display='none';
+      // 🧾 결제 페이지에서 상세를 보러 온 경우(&from=pay)에는 '구매하기'를 감춘다.
+      //    결제하러 온 사람을 다른 결제 경로(쇼핑몰)로 새어나가게 하면 안 된다.
+      if (new URLSearchParams(location.search).get('from') === 'pay') {
+        var b=d.querySelector('a.buy, span.buy');
+        if(b){
+          var p2=document.createElement('p');
+          p2.style.cssText='margin:0;padding:13px 16px;border-radius:12px;background:var(--sky1);'
+            +'color:var(--blue-ink);font-size:14.5px;font-weight:700;text-align:center';
+          p2.textContent='내용을 확인하셨으면 이 탭을 닫고 결제를 이어가 주세요.';
+          b.parentNode.replaceChild(p2,b);
+        }
+        // 구매 버튼이 없으므로 '구매하기를 누르면 쇼핑몰로 이동' 안내도 지운다(버튼 없는데 설명만 남으면 헷갈린다)
+        var nt=d.querySelector('.dnote');
+        if(nt){
+          nt.innerHTML = nt.innerHTML.split('<br>').filter(function(x){
+            return x.indexOf('camnak.com') < 0;
+          }).join('<br>');
+        }
+      }
+    }
+  }
+
   function openDetail(key){
     var i = ITEMS.filter(function(x){return x.key===key;})[0];
     if(!i) return;
@@ -316,7 +360,7 @@
         // 🔗 store.html?item=ticket_1h 처럼 들어오면 그 상품 상세를 바로 연다.
         //    결제 페이지에서 '상품 상세 보기'로 연결하고, PG 심사 때도 링크로 건넬 수 있다.
         var q = new URLSearchParams(location.search).get('item');
-        if (q) openDetail(q);
+        if (q) { detailOnly(q); }
       });
   })();
   document.getElementById('stabs').addEventListener('click',function(e){

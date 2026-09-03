@@ -216,7 +216,8 @@
     $('pName').textContent = item.n;
     $('pDesc').textContent = item.d;
     $('pImg').src = item.img;
-    $('pMore').href = 'store.html?item=' + encodeURIComponent(itemKey);
+    // 결제 중 상세보기 → 그 상품만 보이는 페이지로. from=pay 면 그쪽 '구매하기'는 감춰진다.
+    $('pMore').href = 'store.html?item=' + encodeURIComponent(itemKey) + '&from=pay';
     // 💳 상품 유형별 청약철회 안내 — 실제 동작이 달라 문구도 달라야 한다.
     //   · 스킨·뱃지·휘장 : 지급되면 자동으로 장착된다(안 쓸 방법이 없다) → 지급 = 제공 개시
     //   · 이용권·입장권   : 가방에 들어가고 눌러야 쓰인다 → 미사용분은 환불 가능
