@@ -323,8 +323,10 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       case 'fighting':
         // 🎣 실제 게임 파이팅 오버레이를 관전 모드로 재사용(낚싯대·바·손·노브 그대로)
         return FishingFightingOverlay(
-          key: const ValueKey('spectate-fight'),
-          fish: const <String, dynamic>{},
+          // 📦 상자를 당기는 중이면 물고기가 아니라 상자 그림이 끌려와야 한다
+          key: ValueKey('spectate-fight-${_state['isBox'] == true ? 'box' : 'fish'}'),
+          isBox: _state['isBox'] == true,
+          fish: <String, dynamic>{'img': (_state['img'] ?? '').toString()},
           playerTotalStats: 0,
           locationStars: 0,
           onFinished: (_, __) {},

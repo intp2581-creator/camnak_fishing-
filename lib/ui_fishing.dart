@@ -1412,7 +1412,11 @@ Widget _whisperUnreadBadge() {
 
     // 🎣 [내부 함수] 실제 파이팅 미니게임을 띄우는 로직
     void launchFightOverlay() {
-      FishingLive.setPhase('fighting'); // 🎣👀 관전: 파이팅 시작
+      // 🎣👀 관전: 파이팅 시작 — 상자면 상자 그림이 끌려오도록 종류도 같이 알린다
+      FishingLive.setPhase('fighting', extra: {
+        'isBox': fish['isBox'] == true,
+        'img': (fish['isBox'] == true) ? (fish['img'] ?? '').toString() : '',
+      });
       showDialog(
         context: context,
         barrierDismissible: false,
