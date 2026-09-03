@@ -975,7 +975,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   //    시상(쇼핑몰 보상 상품 구매자격 검증)은 이 history 문서를 기준으로 한다.
   Future<void> _accumulateGaramPeriod(String weekKey, List prevList) async {
     final fs = FirebaseFirestore.instance;
-    final monthKey = weekKey.substring(0, 7); // 'YYYY-MM' (그 주 월요일 기준)
+    // 📅 그 주가 더 많이 걸친 달로 귀속(월~일 7일 중 4일 이상). 목요일이 속한 달과 같다.
+    final monthKey = FishingLogic.monthKeyOfWeek(weekKey);
     final monthlyRef = fs.collection('garam_rank').doc('monthly');
     final yearlyRef = fs.collection('garam_rank').doc('yearly');
 

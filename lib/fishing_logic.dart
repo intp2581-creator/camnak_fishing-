@@ -788,6 +788,18 @@ for (var fish in availableFishes) {
     return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
   }
 
+  /// 📅 그 주(월~일)가 어느 달에 속하는지 — **더 많은 날이 걸친 달**로 귀속한다.
+  ///   7일 중 4일째가 목요일이라, 다수결은 곧 '목요일이 속한 달'과 같다.
+  ///   예) 8/31(월)~9/6(일) → 9월이 6일이므로 9월. 목요일 9/3도 9월.
+  ///   ⚠️ 전에는 '월요일이 속한 달'이라 8/31 주가 통째로 8월에 들어갔다(2026-09-03 변경).
+  static String monthKeyOfWeek(String weekKey) {
+    final parts = weekKey.split('-');
+    if (parts.length != 3) return weekKey.substring(0, 7); // 형식이 이상하면 옛 방식
+    final monday = DateTime(int.parse(parts[0]), int.parse(parts[1]), int.parse(parts[2]));
+    final thursday = monday.add(const Duration(days: 3));
+    return '${thursday.year}-${thursday.month.toString().padLeft(2, '0')}';
+  }
+
   // 주간 리그 top3 길드가 다음 한 주 동안 소속원 전원에게 주는 P/C/S 각 보너스.
   //   1위+10(제압력+30) / 2위+5(+15) / 3위+2(+6). 전원 적용이라 개인랭킹보다 보수적으로.
   static int guildLeagueBonus(int rank) {
