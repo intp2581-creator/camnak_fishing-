@@ -374,12 +374,15 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   static const double _kSeaBottom = -50.0;
   static const double _kSeaSize = 450.0;
 
-  // 입질 시 케미 반전색 — ui_fishing 의 _getBiteColor 와 동일
+  // 입질 시 케미 반전색 — ui_fishing 의 _getBiteColor 와 동일.
+  //   ⚠️ 방송으로 받은 값은 일반 Color, Colors.green 등은 MaterialColor 라
+  //      '=='로는 절대 같아지지 않는다(타입이 다름). 반드시 색값으로 비교할 것.
   Color _biteColor(Color c) {
-    if (c == Colors.green) return Colors.redAccent;
-    if (c == Colors.red) return Colors.greenAccent;
-    if (c == Colors.blue) return Colors.orangeAccent;
-    if (c == Colors.yellow) return Colors.purpleAccent;
+    final int v = c.value;
+    if (v == Colors.green.value) return Colors.redAccent;
+    if (v == Colors.red.value) return Colors.greenAccent;
+    if (v == Colors.blue.value) return Colors.orangeAccent;
+    if (v == Colors.yellow.value) return Colors.purpleAccent;
     return Colors.white;
   }
 
@@ -489,16 +492,6 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
           ],
         ),
       ),
-      // 🎣 입질 안내 칩(관전자가 무슨 일인지 바로 알도록)
-      if (raised)
-        Align(
-          alignment: const Alignment(0, -0.10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(14)),
-            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-        ),
     ]);
   }
 
