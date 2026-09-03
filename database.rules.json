@@ -50,6 +50,7 @@
     "fishing_live": {
       "$uid": {
         ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid",
         "meta": { ".write": "auth != null && auth.uid === $uid" },
         "state": { ".write": "auth != null && auth.uid === $uid" },
         "watchers": {
