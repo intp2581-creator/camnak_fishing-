@@ -1226,6 +1226,68 @@ bool isStoreTabItem(Map<String, dynamic> it) {
   return false;
 }
 
+// ═══════════════════════════════════════════════════════════
+// 🏅 장비 등급 — 낚시터 자동장착과 광장 장비창이 같은 표를 쓴다.
+//    한쪽만 고치면 두 화면이 다른 장비를 '최상급'이라 부르게 된다.
+// ═══════════════════════════════════════════════════════════
+String _normGear(String name) => name.replaceAll(' ', '').replaceAll('-', '').toUpperCase();
+
+int rodTierFw(String name) { // 민물 낚싯대
+  final n = _normGear(name);
+  if (n.contains('KT40')) return 60;
+  if (n.contains('KT30')) return 50;
+  if (n.contains('KT20')) return 40;
+  if (n.contains('CF40')) return 30;
+  if (n.contains('CF30')) return 20;
+  if (n.contains('CF20')) return 10;
+  return 1;
+}
+
+int rodTierSea(String name) { // 바다 낚싯대
+  final n = _normGear(name);
+  if (n.contains('KT500')) return 60;
+  if (n.contains('KT350')) return 50;
+  if (n.contains('KT250')) return 40;
+  if (n.contains('CF500')) return 30;
+  if (n.contains('CF350')) return 20;
+  if (n.contains('CF250')) return 10;
+  return 1;
+}
+
+int rodTierLure(String name) { // 루어대(BC)
+  final n = _normGear(name);
+  if (n.contains('BC600')) return 60;
+  if (n.contains('BC400')) return 40;
+  if (n.contains('BC200')) return 10;
+  return 1;
+}
+
+int floatTier(String name) { // 찌
+  final n = name.replaceAll(' ', '').toUpperCase();
+  if (n.contains('KT전자')) return 60;
+  if (n.contains('CF전자')) return 50;
+  if (n.contains('나노')) return 40;
+  if (n.contains('수제')) return 30;
+  if (n.contains('오동')) return 20;
+  return 1;
+}
+
+int reelTier(String name) { // 릴
+  final n = name.replaceAll(' ', '').toUpperCase();
+  if (n.contains('KF8000')) return 80;
+  if (n.contains('KF6000')) return 60;
+  if (n.contains('KF5000')) return 50;
+  if (n.contains('CF5000')) return 40;
+  if (n.contains('CF3000')) return 30;
+  return 1;
+}
+
+int coolerTier(String name) { // 아이스박스
+  if (name.contains('대형')) return 3;
+  if (name.contains('중형')) return 2;
+  return 1;
+}
+
 /// 🎒 민물·바다 탭에서 빼는 것 — 장착 슬롯이 없는 소모성·버프 아이템
 ///   (낚시 이용권 · 아레나 입장권 · 경험치 물약 · KREFT 카드 · 능력치 엠블럼).
 ///   뱃지·휘장은 장착 슬롯이 있는 장비라 민물·바다에 그대로 남긴다.
@@ -1336,3 +1398,82 @@ String skinIconByName(String name) {
   return '../images/skin_beginner.jpg';
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// 👕 광장 장비창 — 모드(민물/루어/바다)를 고르면 그 모드 최상급으로 슬롯을 채운다.
+//    낚시터의 '⚡ 자동 장착'과 같은 기준(위 등급표)을 쓴다.
+//    ⚠️ 레벨이 모자란 장비는 후보에서 뺀다(선물 CF-30T가 Lv.1에 끼워지던 버그와 같은 이유).
+// ═══════════════════════════════════════════════════════════
+void autoEquipForMode(List<dynamic> inventory, String mode, int level) {
+  final bool lure = mode == '루어';
+  final bool sea = mode == '바다';
+  final String wantCat = sea ? 'SEA' : 'FW';
+
+  bool usable(Map<String, dynamic> it) {
+    final int need = (it['reqLevel'] is num) ? (it['reqLevel'] as num).toInt() : 0;
+    if (need > 0 && level > 0 && level < need) return false;
+    final String c = (it['category'] ?? '').toString().toUpperCase();
+    if (c == 'RAID') return false; // 🐲 레이드 전용 장비는 일반 낚시 대상 아님
+    if (c != 'COMMON' && c != wantCat && c != 'SKIN') return false;
+    return true;
+  }
+
+  bool isLureRod(String n) => n.replaceAll(' ', '').replaceAll('-', '').toUpperCase().contains('BC');
+  bool isLureBait(String n) =>
+      n.contains('스푼') || n.contains('웜') || n.contains('플라이') || n.contains('루어');
+
+  Map<String, dynamic>? rod, floatOrReel, bait, net, belt, line, gb, gloves, cooler, sun;
+  int baitQty = -1;
+
+  for (final raw in inventory) {
+    if (raw is! Map) continue;
+    final it = Map<String, dynamic>.from(raw.map((k, v) => MapEntry(k.toString(), v)));
+    if (!usable(it)) continue;
+    final String n = (it['name'] ?? '').toString();
+    final String t = (it['type'] ?? '').toString().toUpperCase();
+
+    if (t == 'ROD') {
+      if (lure != isLureRod(n)) continue; // 루어면 BC만, 아니면 BC 제외
+      final int tier = lure ? rodTierLure(n) : (sea ? rodTierSea(n) : rodTierFw(n));
+      final int cur = rod == null ? -1
+          : (lure ? rodTierLure(rod['name'].toString())
+                  : (sea ? rodTierSea(rod['name'].toString()) : rodTierFw(rod['name'].toString())));
+      if (tier > cur) rod = it;
+    } else if (t == 'BAIT') {
+      if (lure != isLureBait(n)) continue;
+      final int q = (it['quantity'] is num) ? (it['quantity'] as num).toInt() : 0;
+      if (q > baitQty) { baitQty = q; bait = it; } // 미끼는 많이 남은 것부터
+    } else if (!lure && t == 'FLOAT' && !sea) {
+      if (floatOrReel == null || floatTier(n) > floatTier(floatOrReel['name'].toString())) floatOrReel = it;
+    } else if (!lure && t == 'REEL' && sea) {
+      if (floatOrReel == null || reelTier(n) > reelTier(floatOrReel['name'].toString())) floatOrReel = it;
+    } else if (t == 'COOLER' || n.contains('아이스박스')) {
+      if (cooler == null || coolerTier(n) > coolerTier(cooler['name'].toString())) cooler = it;
+    } else if (n.contains('뜰채')) {
+      net ??= it;
+    } else if (n.contains('벨트')) {
+      belt ??= it;
+    } else if (n.contains('낚싯줄') || n.contains('낚시줄')) {
+      line ??= it;
+    } else if (n.contains('밑밥')) {
+      gb ??= it;
+    } else if (n.contains('장갑')) {
+      gloves ??= it;
+    } else if (n.contains('선글라스')) {
+      sun ??= it;
+    }
+  }
+
+  globalEquippedRod = rod;
+  globalEquippedFloat = (!lure && !sea) ? floatOrReel : null;
+  globalEquippedReel = (!lure && sea) ? floatOrReel : null;
+  globalEquippedBait = bait;
+  globalEquippedNet = net;
+  globalEquippedBelt = sea ? belt : null;
+  globalEquippedLine = line;
+  globalEquippedGroundbait = lure ? null : gb; // 루어는 밑밥 안 씀
+  globalEquippedGloves = gloves;
+  globalEquippedCooler = cooler;
+  globalEquippedSunglasses = sun;
+  // 스킨·뱃지는 모드와 무관 — 유저가 고른 것을 그대로 둔다.
+}

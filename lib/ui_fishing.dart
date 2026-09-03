@@ -4512,14 +4512,14 @@ Positioned(
 
       Map<String, dynamic>? bestSkin; Map<String, dynamic>? bestBait; Map<String, dynamic>? bestFloat; Map<String, dynamic>? bestRod; Map<String, dynamic>? bestReel; Map<String, dynamic>? bestCooler;
       int maxBaitQty = -1;
-      int getCoolerTier(String name) { if (name.contains('대형')) return 3; if (name.contains('중형')) return 2; if (name.contains('소형')) return 1; return 1; }
+      int getCoolerTier(String name) => coolerTier(name); // 📦 표는 game_config 공용
 
       int getSkinTier(String name) => skinTierByName(name); // 👕 레전드·낚시의 신 포함 통합 등급
-      int getRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('KT40')) return 60; if (n.contains('KT30')) return 50; if (n.contains('KT20')) return 40; if (n.contains('CF40')) return 30; if (n.contains('CF30')) return 20; if (n.contains('CF20')) return 10; return 1; }
-      int getLureRodTier(String name) { String n = name.replaceAll(' ', '').replaceAll('-', '').toUpperCase(); if (n.contains('BC600')) return 60; if (n.contains('BC400')) return 40; if (n.contains('BC200')) return 10; return 1; } // 🎣 루어대 등급
-      int getFloatTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT전자')) return 60; if (n.contains('CF전자')) return 50; if (n.contains('나노')) return 40; if (n.contains('수제')) return 30; if (n.contains('오동')) return 20; return 1; }
-      int getSeaRodTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KT500')) return 60; if (n.contains('KT350')) return 50; if (n.contains('KT250')) return 40; if (n.contains('CF500')) return 30; if (n.contains('CF350')) return 20; if (n.contains('CF250')) return 10; return 1; }
-      int getReelTier(String name) { String n = name.replaceAll(' ', '').toUpperCase(); if (n.contains('KF8000')) return 80; if (n.contains('KF6000')) return 60; if (n.contains('KF5000')) return 50; if (n.contains('CF5000')) return 40; if (n.contains('CF3000')) return 30; return 1; }
+      int getRodTier(String name) => rodTierFw(name);
+      int getLureRodTier(String name) => rodTierLure(name); // 🎣 루어대 등급
+      int getFloatTier(String name) => floatTier(name);
+      int getSeaRodTier(String name) => rodTierSea(name);
+      int getReelTier(String name) => reelTier(name);
 
       for (var item in validItems) {
         String name = item['name'].toString();

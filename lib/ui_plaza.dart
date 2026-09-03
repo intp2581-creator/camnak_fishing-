@@ -4587,7 +4587,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   void _openStatusWindow() {
     String invTab = '전체';
-    String equipMode = (globalIsSeaMode == true) ? '바다' : '민물'; // 👕 광장 장비 미리보기 모드(민물/바다)
+    String equipMode = (globalIsSeaMode == true) ? '바다' : '민물'; // 👕 광장 장비 미리보기 모드(민물/루어/바다)
+    // 👕 창을 열자마자 그 모드 최상급으로 슬롯을 채운다.
+    //    (전에는 스킨·뱃지만 끼워져 있어 나머지 칸이 늘 비어 보였다)
+    autoEquipForMode(_inventory, equipMode, _level);
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -4601,6 +4604,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           child: StatefulBuilder(builder: (ctx, setD) {
             // 👕 선택 모드(민물/바다)에 맞는 장비만 슬롯·능력치에 반영 (COMMON은 항상)
             final bool seaMode = equipMode == '바다';
+            final bool lureMode = equipMode == '루어'; // 🎣 루어는 민물 계열이되 찌·릴을 안 쓴다
             Map<String, dynamic>? forMode(Map<String, dynamic>? it) {
               if (it == null) return null;
               final c = (it['category'] ?? '').toString().toUpperCase();
@@ -4608,7 +4612,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               return c == (seaMode ? 'SEA' : 'FW') ? it : null;
             }
             final rodSlot = forMode(globalEquippedRod);
-            final reelFloatSlot = seaMode ? globalEquippedReel : globalEquippedFloat;
+            // 🎣 루어는 손 낚싯대라 찌·릴을 쓰지 않는다 → 슬롯을 비워 보여준다
+            final reelFloatSlot = lureMode ? null : (seaMode ? globalEquippedReel : globalEquippedFloat);
             final baitSlot = forMode(globalEquippedBait);
             final netSlot = forMode(globalEquippedNet);
             final beltSlot = forMode(globalEquippedBelt);
@@ -4695,23 +4700,34 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       Padding(
                         padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                         child: Row(children: [
-                          for (final m in const ['민물', '바다'])
+                          for (final m in const ['민물', '루어', '바다'])
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setD(() { equipMode = m; invTab = m; }),
+                                // 👕 모드를 고르면 그 모드 최상급으로 슬롯을 채워준다(낚시터 ⚡자동장착과 같은 기준).
+                                //    루어를 따로 둔 이유: 민물 탭에서 자동장착하면 루어대가 매번 일반대로 바뀐다.
+                                onTap: () => setD(() {
+                                  equipMode = m;
+                                  invTab = (m == '루어') ? '민물' : m; // 루어 장비는 민물 가방에 있다
+                                  autoEquipForMode(_inventory, m, _level);
+                                }),
                                 child: Container(
-                                  margin: EdgeInsets.only(right: m == '민물' ? 6 : 0),
+                                  margin: EdgeInsets.only(right: m == '바다' ? 0 : 6),
                                   padding: const EdgeInsets.symmetric(vertical: 7),
                                   decoration: BoxDecoration(
                                     color: equipMode == m
-                                        ? (m == '바다' ? const Color(0xFF123A5E) : const Color(0xFF16401F))
+                                        ? (m == '바다'
+                                            ? const Color(0xFF123A5E)
+                                            : m == '루어'
+                                                ? const Color(0xFF4A3410)
+                                                : const Color(0xFF16401F))
                                         : Colors.white10,
                                     borderRadius: BorderRadius.circular(10),
                                     border: Border.all(
                                         color: equipMode == m ? _kGold : Colors.white24,
                                         width: equipMode == m ? 1.5 : 1),
                                   ),
-                                  child: Text(m == '민물' ? '🏞️ 민물' : '🌊 바다',
+                                  child: Text(
+                                      m == '민물' ? '🏞️ 민물' : m == '루어' ? '🎣 루어' : '🌊 바다',
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
                                           color: equipMode == m ? Colors.white : Colors.white54,
