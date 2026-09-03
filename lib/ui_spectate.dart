@@ -528,6 +528,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
         ? Map<String, dynamic>.from((_state['fish'] as Map).map((k, v) => MapEntry(k.toString(), v)))
         : {};
     if (fish.isEmpty) return _hint('친구가 물고기를 낚았어요!');
+    final bool bExp = fish['boostExp'] == true; // ⚡ 친구가 경험치 물약 사용 중
+    final bool bPts = fish['boostPts'] == true; // 🪙 친구가 KREFT 카드 사용 중
     final String img = (fish['img'] ?? '').toString();
     final int exp = _toI(fish['exp'], 0);
     final int pts = _toI(fish['pts'], 0);
@@ -558,9 +560,19 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
             Text('+ $exp EXP', style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 18, fontWeight: FontWeight.bold)),
             if (pts > 0) ...[
               const SizedBox(width: 14),
-              Text('+ $pts Pts', style: const TextStyle(color: Colors.yellowAccent, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text('+ $pts KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           ]),
+          // ⚡ 친구가 물약·카드를 쓰고 있으면 2배로 받는 게 보이도록(낚시꾼 화면과 같은 문구)
+          if (bExp || bPts) ...[
+            const SizedBox(height: 5),
+            Text(
+              bExp && bPts
+                  ? '⚡ 경험치 x2 · 🪙 KREFT x2 적용!'
+                  : bExp ? '⚡ 경험치 x2 적용!' : '🪙 KREFT x2 적용!',
+              style: const TextStyle(color: Color(0xFF9C6BFF), fontSize: 13, fontWeight: FontWeight.bold),
+            ),
+          ],
         ]),
       ),
     );

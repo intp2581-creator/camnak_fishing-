@@ -5020,13 +5020,19 @@ void _showTodayMissionInfo() {
     imagePath = imagePath.replaceAll('assets/images/fish_sea', 'assets/fish_sea/fish_sea');
 
     // 🎣👀 관전: HIT 랜딩 카드 방송(물고기 이름/크기/사진 + 획득 EXP/Pts — 개인 잔액 아님)
+    // 🎣👀 관전: 물약·카드가 걸려 있으면 '실제로 받은' 2배 값을 보낸다.
+    //    (관전자가 남의 2배 수급을 보고 아이템을 알게 되는 효과 — 기본값만 보내면 안 보임)
+    final int baseExpGain = (caughtFish['exp'] ?? 0) as int;
+    final int basePtsGain = (caughtFish['pts'] ?? 0) as int;
     FishingLive.landed({
       'name': caughtFish['name'],
       'size': caughtFish['size'],
       'unit': caughtFish['unit'],
       'img': imagePath,
-      'exp': caughtFish['exp'] ?? 0,
-      'pts': caughtFish['pts'] ?? 0,
+      'exp': boostExpOn ? baseExpGain * kBoostExpMult : baseExpGain,
+      'pts': boostPtsOn ? basePtsGain * kBoostPtsMult : basePtsGain,
+      'boostExp': boostExpOn,
+      'boostPts': boostPtsOn,
     });
 
     showDialog(
