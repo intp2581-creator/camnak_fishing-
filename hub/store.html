@@ -297,6 +297,10 @@
       .then(function(){
         var h=(location.hash||'').replace('#','');
         render(['ticket','skin','badge','package'].indexOf(h)>-1 ? h : 'all');
+        // 🔗 store.html?item=ticket_1h 처럼 들어오면 그 상품 상세를 바로 연다.
+        //    결제 페이지에서 '상품 상세 보기'로 연결하고, PG 심사 때도 링크로 건넬 수 있다.
+        var q = new URLSearchParams(location.search).get('item');
+        if (q) openDetail(q);
       });
   })();
   document.getElementById('stabs').addEventListener('click',function(e){
