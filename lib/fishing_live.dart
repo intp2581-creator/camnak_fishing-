@@ -39,6 +39,10 @@ class FishingLive {
     int pty = 0, // 🌧️ 현재 날씨(강수형태) — 관전 화면 미러용
     String rodSuffix = '', // 🎣 파이팅 낚싯대 그림 접미사(관전 전투 화면 일치용)
     String lureKey = '', // 🎣 루어대 키
+    int rods = 1, // 🎣 대편성 갯수(민물 좌대 미러용)
+    String floatIcon = '', // 🎣 장착 찌 이미지 경로(관전 화면에서 같은 찌를 그림)
+    int chemi = 0, // 🎣 케미 색(Color.value) — 0이면 기본 초록
+    bool lure = false, // 🎣 루어모드 여부
   }) {
     // 이전 세션 잔재 정리 후 새로 시작
     if (_uid != null && _uid != uid) stop();
@@ -56,6 +60,10 @@ class FishingLive {
       'pty': pty,
       'rodSuffix': rodSuffix,
       'lureKey': lureKey,
+      'rods': rods,
+      'floatIcon': floatIcon,
+      'chemi': chemi,
+      'lure': lure,
       'active': true,
       't': ServerValue.timestamp,
     }).catchError((Object e) => debugPrint('🎣👀 meta set ERR: $e'));
@@ -86,6 +94,23 @@ class FishingLive {
       watcherCountNotifier.value = _watcherCount;
       watcherNamesNotifier.value = names;
     }, onError: (Object e) => debugPrint('🎣👀 watchers sub ERR: $e'));
+  }
+
+  /// 🎣 장비/편성 갱신 — 대편성 수·찌·케미는 낚시 도중에도 바뀌므로 캐스팅마다 meta를 맞춰준다.
+  ///   (관전 화면이 낚시꾼과 똑같은 좌대·찌 그림을 그리기 위한 값)
+  static void updateGear({
+    required int rods,
+    required String floatIcon,
+    required int chemi,
+    required bool lure,
+  }) {
+    if (_uid == null) return;
+    _ref?.child('meta').update({
+      'rods': rods,
+      'floatIcon': floatIcon,
+      'chemi': chemi,
+      'lure': lure,
+    }).catchError((_) {});
   }
 
   /// 현재 날씨(pty) 갱신 — 낚시 중 날씨가 바뀌면 meta 패치(관전 화면 반영).

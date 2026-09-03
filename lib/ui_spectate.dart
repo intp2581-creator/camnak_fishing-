@@ -4,12 +4,14 @@
 //   · 숨기는 것(개인정보): 제압력·경험치·포인트, 인벤/미끼/채집망/밑밥/설정/길드/카메라/미션/전체화면 버튼.
 //   · 읽기 전용(챔질/당기기 버튼은 친구 동작을 비추기만). 채팅만 입력 가능.
 import 'dart:async';
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_live.dart';
+import 'fishing_logic.dart'; // cleanChat(비속어 필터)
 import 'weather.dart'; // 🌧️ 친구 날씨 미러(WeatherOverlay + WeatherInfo)
 import 'ui_fishing.dart'; // 🎣 실제 파이팅 오버레이 재사용(FishingFightingOverlay)
 
@@ -105,6 +107,14 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   // 🎣 실제 파이팅 오버레이에 전투 프레임 공급용 스트림
   final StreamController<Map<String, dynamic>> _fightCtrl =
       StreamController<Map<String, dynamic>>.broadcast();
+  // 💬 관전방 채팅 스트림 — build()에서 만들면 화면이 새로 그려질 때마다 재구독되므로 1회만 만든다
+  late final Stream<QuerySnapshot> _chatStream = FirebaseFirestore.instance
+      .collection('spectate_chat')
+      .doc(widget.fisherUid)
+      .collection('messages')
+      .orderBy('timestamp', descending: true)
+      .limit(30)
+      .snapshots();
 
   @override
   void initState() {
@@ -113,17 +123,23 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     _session = SpectateSession(widget.fisherUid, myUid, myNick: widget.myNickname);
     _session!.stream().listen((snap) {
       if (!mounted) return;
-      setState(() {
-        _gotAny = true;
-        _meta = (snap['meta'] is Map)
-            ? Map<String, dynamic>.from(
-                (snap['meta'] as Map).map((k, v) => MapEntry(k.toString(), v)))
-            : {};
-        _state = (snap['state'] is Map)
-            ? Map<String, dynamic>.from(
-                (snap['state'] as Map).map((k, v) => MapEntry(k.toString(), v)))
-            : {};
-      });
+      final Map<String, dynamic> newMeta = (snap['meta'] is Map)
+          ? Map<String, dynamic>.from(
+              (snap['meta'] as Map).map((k, v) => MapEntry(k.toString(), v)))
+          : {};
+      final Map<String, dynamic> newState = (snap['state'] is Map)
+          ? Map<String, dynamic>.from(
+              (snap['state'] as Map).map((k, v) => MapEntry(k.toString(), v)))
+          : {};
+      // 🚀 파이팅 중엔 초당 10프레임이 들어온다. 그때마다 화면 전체(배경·날씨·채팅)를
+      //    다시 그리면 낭비이므로, 눈에 보이는 게 실제로 바뀔 때만 setState 한다.
+      final bool changed = !_gotAny
+          || !mapEquals(_meta, newMeta)
+          || (newState['phase'] ?? '') != (_state['phase'] ?? '')
+          || (newState['rod'] ?? -1) != (_state['rod'] ?? -1);
+      _meta = newMeta;
+      _state = newState;
+      if (changed) setState(() { _gotAny = true; });
       // 🎣 파이팅 프레임을 실제 오버레이로 전달
       if ((_state['phase'] ?? '') == 'fighting' && !_fightCtrl.isClosed) {
         _fightCtrl.add(_state);
@@ -140,7 +156,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   }
 
   void _sendChat() {
-    final text = _chatCtrl.text.trim();
+    final text = FishingLogic.cleanChat(_chatCtrl.text.trim()); // 🛡️ 비속어 필터(낚시화면·광장과 동일)
     if (text.isEmpty) return;
     FirebaseFirestore.instance
         .collection('spectate_chat')
@@ -303,7 +319,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   Widget _phaseContent(String phase, bool sea) {
     switch (phase) {
       case 'bite':
-        return sea ? _biteText() : _floatScene(raised: true);
+        return _rodsScene(raised: true);
       case 'fighting':
         // 🎣 실제 게임 파이팅 오버레이를 관전 모드로 재사용(낚싯대·바·손·노브 그대로)
         return FishingFightingOverlay(
@@ -323,7 +339,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       case 'casting':
         return _hint('친구가 캐스팅 중...');
       default: // waiting / idle
-        return sea ? _hint('친구가 입질을 기다리는 중...') : _floatScene(raised: false);
+        return _rodsScene(raised: false);
     }
   }
 
@@ -335,43 +351,145 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       );
 
   // 🎣 민물: 물 위의 찌(대기=가라앉음 / 입질=올라옴+찌올림 안내) + 물 파문
-  Widget _floatScene({required bool raised}) {
-    return AnimatedAlign(
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOut,
-      alignment: raised ? const Alignment(0, 0.12) : const Alignment(0, 0.30),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        if (raised)
-          Container(
-            margin: const EdgeInsets.only(bottom: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(12)),
-            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          ),
-        Image.asset('assets/items/float_fw_normal.png',
-            height: raised ? 96 : 76, fit: BoxFit.contain,
-            errorBuilder: (c, e, s) => _drawnFloat(raised)),
-        // 🌊 물 파문(찌가 물에 떠 있는 느낌 — 덩그러니 방지)
-        _ripple(),
-      ]),
-    );
+  // ── 낚시꾼 화면(ui_fishing 의 _buildFieldRods)과 같은 값. 그쪽을 바꾸면 여기도 같이 바꿀 것 ──
+  static const double _kFloatBottom = 290.0;   // fieldFloatBottomOffset
+  static const double _kFloatDepth = -12.0;    // fieldFloatDepthOffset
+  static const double _kFloatSpacing = 0.0;    // fieldFloatSpacing
+  static const double _kPlatformW = 1000.0;
+  static const double _kPlatformH = 200.0;
+  static const double _kPlatformBottom = -120.0;
+  static const double _kPlatformDark = 0.7;
+  static const double _kFanStep = 0.06;        // rodFanAngleStep
+  static const double _kRodLen = 240.0;        // fieldRodLength
+  static const double _kSeaRight = -30.0;
+  static const double _kSeaBottom = -50.0;
+  static const double _kSeaSize = 450.0;
+
+  // 입질 시 케미 반전색 — ui_fishing 의 _getBiteColor 와 동일
+  Color _biteColor(Color c) {
+    if (c == Colors.green) return Colors.redAccent;
+    if (c == Colors.red) return Colors.greenAccent;
+    if (c == Colors.blue) return Colors.orangeAccent;
+    if (c == Colors.yellow) return Colors.purpleAccent;
+    return Colors.white;
   }
 
-  Widget _ripple() => SizedBox(
-        width: 130, height: 34,
-        child: Stack(alignment: Alignment.center, children: [
-          _ring(120, 30, 0.07),
-          _ring(80, 20, 0.12),
-          _ring(44, 12, 0.20),
-        ]),
-      );
-  Widget _ring(double w, double h, double op) => Container(
-        width: w, height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.all(Radius.elliptical(w, h)),
-          border: Border.all(color: Colors.white.withOpacity(op), width: 1.4),
+  /// 🎣 친구의 실제 낚시 장면을 그대로 재현.
+  ///   민물 = 좌대 + 방송된 대편성 갯수만큼 부채꼴 낚싯대 + 친구가 장착한 찌 그림.
+  ///          입질 온 그 대의 찌만 케미색이 바뀌며 스르륵 올라온다(낚시꾼 화면과 같은 6초 곡선).
+  ///   바다/루어 = 장착 낚싯대별 대기 그림 + 입질 텍스트.
+  Widget _rodsScene({required bool raised}) {
+    final bool sea = _meta['sea'] == true;
+    final bool lure = _meta['lure'] == true;
+    final String lureKey = (_meta['lureKey'] ?? '').toString();
+    final String rodSfx = (_meta['rodSuffix'] ?? '').toString();
+
+    // 🎣 루어 / 바다 — 손낚싯대 대기 그림(낚싯대별)
+    if (lure || sea) {
+      final String img = lure
+          ? 'assets/images/waiting_lure_bc-$lureKey.png'
+          : (rodSfx.isEmpty ? 'assets/images/waiting_sea.png' : 'assets/images/waiting_sea_$rodSfx.png');
+      return Stack(children: [
+        Positioned(
+          right: _kSeaRight, bottom: _kSeaBottom,
+          child: Image.asset(img, height: _kSeaSize, fit: BoxFit.contain,
+              errorBuilder: (c, e, s) => Image.asset('assets/images/waiting_sea.png',
+                  height: _kSeaSize, fit: BoxFit.contain,
+                  errorBuilder: (c2, e2, s2) => const Icon(Icons.waves, size: 200, color: Colors.white10))),
         ),
-      );
+        if (raised) _biteText(),
+      ]);
+    }
+
+    // 🎣 민물 — 좌대 + 대편성
+    final int rods = _toI(_meta['rods'], 1).clamp(1, 20);
+    final int bitingRod = _toI(_state['rod'], -1);
+    final String floatIcon = (_meta['floatIcon'] ?? '').toString();
+    final Color chemi = Color(_toI(_meta['chemi'], Colors.green.value));
+    final double centerIndex = (rods - 1) / 2;
+
+    return Stack(children: [
+      Positioned(
+        bottom: 0, left: 0, right: 0,
+        child: Stack(
+          alignment: Alignment.bottomCenter, clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              bottom: _kPlatformBottom,
+              child: Image.asset('assets/items/platform_fw.png',
+                  width: _kPlatformW, height: _kPlatformH, fit: BoxFit.fill,
+                  color: Colors.black.withOpacity(_kPlatformDark), colorBlendMode: BlendMode.srcATop,
+                  errorBuilder: (c, e, s) => Container()),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(rods, (index) {
+                // 입질 대 번호가 안 실려오면(옛 버전 방송) 가운데 대가 올라온 것으로 본다
+                final bool isBiting =
+                    raised && (bitingRod < 0 ? index == rods ~/ 2 : index == bitingRod);
+                final Color cur = isBiting ? _biteColor(chemi) : chemi;
+                final double angle = (index - centerIndex) * _kFanStep;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: _kFloatSpacing),
+                  child: Transform.rotate(
+                    angle: angle, alignment: Alignment.bottomCenter,
+                    child: Stack(
+                      clipBehavior: Clip.none, alignment: Alignment.bottomCenter,
+                      children: [
+                        Image.asset('assets/items/rod_fw_basic_deployed.png',
+                            height: _kRodLen, fit: BoxFit.contain, alignment: Alignment.bottomCenter,
+                            errorBuilder: (c, e, s) => const Icon(Icons.phishing, color: Colors.white24, size: 80)),
+                        Positioned(
+                          bottom: _kFloatBottom + _kFloatDepth,
+                          child: Transform.rotate(
+                            angle: -angle,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 6000),
+                              curve: Curves.easeOutCubic,
+                              width: 30,
+                              height: isBiting ? (rods >= 8 ? 25.0 : 22.0) : 7.0,
+                              child: Stack(
+                                alignment: Alignment.topCenter, clipBehavior: Clip.none,
+                                children: [
+                                  Container(width: 3, height: 5, decoration: BoxDecoration(
+                                    color: cur, borderRadius: BorderRadius.circular(5),
+                                    boxShadow: [BoxShadow(color: cur.withOpacity(0.8), blurRadius: 5, spreadRadius: 2)],
+                                  )),
+                                  Transform.translate(
+                                    offset: const Offset(0, 5),
+                                    child: Image.asset(
+                                      floatIcon.isEmpty ? 'assets/images/float_default.png' : floatIcon,
+                                      height: rods >= 8 ? 40 : 65, fit: BoxFit.contain, alignment: Alignment.topCenter,
+                                      errorBuilder: (c, e, s) => _drawnFloat(isBiting),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
+        ),
+      ),
+      // 🎣 입질 안내 칩(관전자가 무슨 일인지 바로 알도록)
+      if (raised)
+        Align(
+          alignment: const Alignment(0, -0.10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.9), borderRadius: BorderRadius.circular(14)),
+            child: const Text('🎣 찌 올림!', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+        ),
+    ]);
+  }
 
   // 찌 이미지가 없을 때 대비: 간단히 그린 전자찌(발광 팁 + 몸통)
   Widget _drawnFloat(bool raised) {
@@ -483,13 +601,7 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       child: Column(children: [
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('spectate_chat')
-                .doc(widget.fisherUid)
-                .collection('messages')
-                .orderBy('timestamp', descending: true)
-                .limit(30)
-                .snapshots(),
+            stream: _chatStream,
             builder: (c, snap) {
               if (!snap.hasData) return const SizedBox.shrink();
               final docs = snap.data!.docs;

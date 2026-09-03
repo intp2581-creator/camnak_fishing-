@@ -1323,13 +1323,13 @@ Widget _whisperUnreadBadge() {
       setState(() { bitingRods.add(rodIndex); });
       HapticFeedback.lightImpact();
       strongVibrate(90); // 📳 입질! (강하게)
-      FishingLive.setPhase('bite'); // 🎣👀 관전: 입질!
+      FishingLive.setPhase('bite', extra: {'rod': rodIndex}); // 🎣👀 관전: 입질! (어느 대인지도)
 
       // 찌가 올라가 정점 찍고 약 4.5초 대기 → 못 채면 놓치고 다음 입질 예약
       _escapeTimer = Timer(const Duration(milliseconds: 4500), () {
         if (!mounted) return;
         setState(() { bitingRods.remove(rodIndex); });
-        FishingLive.setPhase('waiting'); // 🎣👀 관전: 입질 놓침 → 대기
+        FishingLive.setPhase('waiting', extra: {'rod': -1}); // 🎣👀 관전: 입질 놓침 → 찌 내려감
         if (isFloatInWater) _scheduleNextBite();
       });
     });
@@ -2914,7 +2914,12 @@ Positioned(
                           rank: realRank, nick: realNickname,
                           pty: WeatherService.instance.notifier.value.pty, // 🌧️ 현재 날씨
                           rodSuffix: rodSceneSuffix(equippedRod), // 🎣 낚싯대 그림 일치
-                          lureKey: _lureMode ? _lureRodKey() : '');
+                          lureKey: _lureMode ? _lureRodKey() : '',
+                          // 🎣 관전 화면이 같은 좌대·찌를 그리도록 편성 정보도 실어 보냄
+                          rods: selectedRodCount,
+                          floatIcon: _getIconImagePath(equippedFloat) ?? '',
+                          chemi: selectedChemiColor.value,
+                          lure: _lureMode);
                         WeatherService.instance.notifier.addListener(_liveWeatherSync); // 날씨 변경 → 관전 화면 반영
                         // 👀 관전자 입장 알림(누가 내 방을 보는지)
                         FishingLive.onWatcherJoined = (n) {
@@ -5143,7 +5148,14 @@ void _showTodayMissionInfo() {
                     isCasting = false;
                     isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; // 안전장치 유지
                   });
-                  FishingLive.setPhase('waiting'); // 🎣👀 관전: 찌 안착 → 대기
+                  FishingLive.setPhase('waiting', extra: {'rod': -1}); // 🎣👀 관전: 찌 안착 → 대기
+                  // 🎣 대편성·찌·케미를 도중에 바꿨을 수 있으니 캐스팅마다 관전용 meta도 맞춰준다
+                  FishingLive.updateGear(
+                    rods: selectedRodCount,
+                    floatIcon: _getIconImagePath(equippedFloat) ?? '',
+                    chemi: selectedChemiColor.value,
+                    lure: _lureMode,
+                  );
                   
                   // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
                   //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)
