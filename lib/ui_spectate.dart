@@ -12,6 +12,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_live.dart';
 import 'fishing_logic.dart'; // cleanChat(비속어 필터)
+import 'game_config.dart' show chatSessionStart; // 이번 접속 이후 대화만 보기
 import 'weather.dart'; // 🌧️ 친구 날씨 미러(WeatherOverlay + WeatherInfo)
 import 'ui_fishing.dart'; // 🎣 실제 파이팅 오버레이 재사용(FishingFightingOverlay)
 
@@ -112,6 +113,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
       .collection('spectate_chat')
       .doc(widget.fisherUid)
       .collection('messages')
+      // 이번 접속 이후 대화만 — 재접속하면 지난 대화는 안 보인다(전체·길드 채팅과 같은 기준)
+      .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
       .orderBy('timestamp', descending: true)
       .limit(30)
       .snapshots();

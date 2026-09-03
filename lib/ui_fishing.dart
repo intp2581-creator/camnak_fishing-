@@ -3328,6 +3328,7 @@ Positioned(
                                      .collection('spectate_chat')
                                      .doc(FirebaseAuth.instance.currentUser?.uid ?? '_')
                                      .collection('messages')
+                                     .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
                                      .orderBy('timestamp', descending: true).limit(30).snapshots()
                               // 💬 [그 외 탭]일 땐 전체 채팅!
                                  : FirebaseFirestore.instance.collection('global_chat')
