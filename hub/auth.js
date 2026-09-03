@@ -177,8 +177,13 @@ autoLoginFromUrl();
    ═══════════════════════════════════════════════════════════════════════ */
 (function () {
   var FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/';
+  // ⚠️ 공지·업데이트·이벤트가 같은 noticesApi 로 오므로 type 으로 갈라야 한다.
+  //    안 그러면 이벤트 글이 올라와도 '공지'에 N 이 붙고, 정작 이벤트 메뉴엔 안 붙는다.
   var SRC = [
-    { api: FN + 'noticesApi?list=1&limit=10',   key: 'cf_seen_notice',    file: 'notice.html' },
+    { api: FN + 'noticesApi?list=1&limit=20',   key: 'cf_seen_notice',    file: 'notice.html',
+      not: 'event' },                                   // 공지·업데이트만
+    { api: FN + 'noticesApi?list=1&limit=20',   key: 'cf_seen_event',     file: 'event.html',
+      only: 'event' },                                  // 이벤트만
     { api: FN + 'communityApi?list=1&limit=10', key: 'cf_seen_community', file: 'community.html' }
   ];
   var DAY = 86400000;
@@ -214,10 +219,13 @@ autoLoginFromUrl();
     }
   }
 
-  function newestOf(items) {
+  function newestOf(items, src) {
     var m = 0;
     for (var i = 0; i < (items || []).length; i++) {
-      var t = +items[i].createdAt || 0;
+      var it = items[i];
+      if (src && src.only && it.type !== src.only) continue;
+      if (src && src.not && it.type === src.not) continue;
+      var t = +it.createdAt || 0;
       if (t > m) m = t;
     }
     return m;
@@ -232,7 +240,7 @@ autoLoginFromUrl();
       .then(function (r) { return r.json(); })
       .then(function (j) {
         if (!j || !j.ok) return 0;
-        var v = newestOf(j.items);
+        var v = newestOf(j.items, src);
         if (v) { put(ck, v); put(ck + '_t', Date.now()); }
         return v;
       })

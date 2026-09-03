@@ -203,7 +203,8 @@
     box.innerHTML = html;
   }
   function sectionHtml(){
-    var items=ALL.filter(function(n){return SECT==='notice'?n.type==='notice':n.type!=='notice';});
+    // 이벤트 글은 이벤트 메뉴에서만 본다 — 업데이트 목록에 섞이지 않게
+    var items=ALL.filter(function(n){return SECT==='notice'?n.type==='notice':n.type==='update';});
     if(!items.length){return '<div class="empty">등록된 글이 없습니다.</div>';}
     return items.map(function(n){
       return '<div class="row" onclick="location.href=\'notice.html?id='+encodeURIComponent(n.id)+'\'">'
