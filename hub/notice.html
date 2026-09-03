@@ -235,7 +235,13 @@
             +'<img src="'+esc(n.img.indexOf('http')===0?n.img:'assets/'+n.img)+'" '
             +'alt="" style="width:100%;max-width:420px;display:block;'
             +'margin:0 auto" loading="lazy"></div>' : '')
-        +'<div class="dbody">'+esc(n.body||'').replace(/\n/g,'\n')+'</div>';
+        // 🖼️ 본문 중간 이미지: [img:파일명] 을 그림으로 바꾼다.
+        //    본문은 그대로 이스케이프하므로 HTML 태그는 못 넣는다 → 이 토큰만 예외로 처리.
+        +'<div class="dbody">'+esc(n.body||'').replace(/\[img:([^\]]+)\]/g, function(m, f){
+            var src = f.indexOf('http')===0 ? f : 'assets/'+f;
+            return '<img src="'+src+'" alt="" loading="lazy" '
+                 + 'style="width:100%;max-width:420px;display:block;margin:14px auto;border-radius:12px">';
+          })+'</div>';
     }).catch(function(){document.getElementById('detail').innerHTML='<div class="loading">불러오지 못했습니다.</div>';});
   }else{
     fetch(API+'?list=1&limit=50').then(function(r){return r.json()}).then(function(j){
