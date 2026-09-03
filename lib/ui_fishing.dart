@@ -3837,7 +3837,7 @@ Positioned(
                   side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5),
                   minimumSize: const Size(0, 46), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () { audioManager.playSfx("sfx_click.mp3"); _lureMode = false; _runAutoEquip(silent: true); },
+                onPressed: () { audioManager.playSfx("sfx_click.mp3"); _lureMode = false; _runAutoEquip(silent: true); _syncLiveGear(); },
                 child: const Text('🎣 일반낚시', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               )),
               const SizedBox(width: 8),
@@ -3925,12 +3925,7 @@ Positioned(
               setState(() { isSettingUp = false; isCasting = true; bitingRods.clear(); });
               // 🎣👀 관전: 첫 캐스팅(여기까진 '셋팅 중'이었다) + 확정된 대편성·찌·케미 전달
               FishingLive.setPhase('casting');
-              FishingLive.updateGear(
-                rods: selectedRodCount,
-                floatIcon: _getIconImagePath(equippedFloat) ?? '',
-                chemi: selectedChemiColor.value,
-                lure: _lureMode,
-              );
+              _syncLiveGear();
               Future.delayed(const Duration(milliseconds: 300), () { if (!mounted) return; audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); _startGameTimer(); });
               Future.delayed(const Duration(milliseconds: 1500), () { if (mounted) { setState(() { isCasting = false; isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; }); FishingLive.setPhase('waiting', extra: {'rod': -1}); _startBiteTimer(); } });
             },
@@ -3971,6 +3966,20 @@ Positioned(
   }
 
   // 🎣 루어모드 진입 — 보유 BC 루어대 있으면 바로 진입 + 자동 루어 세팅(BC 최상급 + 루어미끼 최다). 없으면 상점 안내.
+  /// 🎣👀 관전 화면이 그릴 장비 정보를 지금 상태로 맞춰 보낸다.
+  ///   대편성·찌·케미뿐 아니라 '루어냐 대낚시냐', '어떤 낚싯대냐'까지 포함해야
+  ///   관전 화면이 엉뚱한 장면(루어인데 대낚시 좌대)을 그리지 않는다.
+  void _syncLiveGear() {
+    FishingLive.updateGear(
+      rods: selectedRodCount,
+      floatIcon: _getIconImagePath(equippedFloat) ?? '',
+      chemi: selectedChemiColor.value,
+      lure: _lureMode,
+      rodSuffix: rodSceneSuffix(equippedRod),
+      lureKey: _lureMode ? _lureRodKey() : '',
+    );
+  }
+
   void _enterLureMode() {
     final bool hasBC = _latestInventory.any((it) => (it['name'] ?? '').toString().toUpperCase().contains('BC'));
     if (!hasBC) {
@@ -3980,6 +3989,7 @@ Positioned(
     audioManager.playSfx("sfx_click.mp3");
     _lureMode = true; selectedRodCount = 1;
     _runAutoEquip(silent: true); // 🎣 BC 최상급 + 루어미끼 자동 장착 (내부 setState로 리빌드)
+    _syncLiveGear(); // 🎣👀 관전 화면도 루어 장면으로
   }
 
   Widget _buildCastingScene() {
@@ -5158,12 +5168,7 @@ void _showTodayMissionInfo() {
                   });
                   FishingLive.setPhase('waiting', extra: {'rod': -1}); // 🎣👀 관전: 찌 안착 → 대기
                   // 🎣 대편성·찌·케미를 도중에 바꿨을 수 있으니 캐스팅마다 관전용 meta도 맞춰준다
-                  FishingLive.updateGear(
-                    rods: selectedRodCount,
-                    floatIcon: _getIconImagePath(equippedFloat) ?? '',
-                    chemi: selectedChemiColor.value,
-                    lure: _lureMode,
-                  );
+                  _syncLiveGear();
                   
                   // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
                   //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)

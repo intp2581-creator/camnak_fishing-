@@ -116,6 +116,8 @@ class FishingLive {
     required String floatIcon,
     required int chemi,
     required bool lure,
+    String rodSuffix = '', // 🎣 낚싯대가 바뀌면 대기 그림도 바뀐다
+    String lureKey = '',
   }) {
     if (_uid == null) return;
     _ref?.child('meta').update({
@@ -123,6 +125,8 @@ class FishingLive {
       'floatIcon': floatIcon,
       'chemi': chemi,
       'lure': lure,
+      'rodSuffix': rodSuffix,
+      'lureKey': lureKey,
     }).catchError((_) {});
   }
 
