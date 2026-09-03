@@ -513,10 +513,21 @@
     }
     box.innerHTML=items.map(function(n,i){
       return '<a class="card evcard" href="notice.html?id='+encodeURIComponent(n.id)+'">'
-        +'<div class="th"><img src="'+IMGS[i%3]+'" alt=""><span class="bg">이벤트</span></div>'
+        +'<div class="th"><img data-i="'+i+'" src="'+IMGS[i%3]+'" alt=""><span class="bg">이벤트</span></div>'
         +'<div class="bd"><h3>'+esc(n.title)+'</h3><p>자세한 내용을 확인해 보세요.</p>'
         +'<div class="d">'+esc(n.date||'')+'</div></div></a>';
     }).join('');
+    // 🖼️ 목록 API는 img를 안 내려준다 → 글마다 상세를 한 번 더 읽어 대표이미지로 교체.
+    //    (이벤트 글은 몇 개 안 되므로 부담이 없다. 없으면 기본 이미지 그대로)
+    items.slice(0,6).forEach(function(n,i){
+      fetch(API+'?id='+encodeURIComponent(n.id)).then(function(r){return r.json()})
+        .then(function(d){
+          var im=d && d.item && d.item.img;
+          if(!im) return;
+          var el=box.querySelector('img[data-i="'+i+'"]');
+          if(el) el.src = (im.indexOf('http')===0 ? im : 'assets/'+im);
+        }).catch(function(){});
+    });
   }).catch(function(){
     document.getElementById('evFromNotice').innerHTML='<div class="empty" style="grid-column:1/-1">불러오지 못했습니다.</div>';
   });
