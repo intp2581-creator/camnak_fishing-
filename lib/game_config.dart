@@ -942,7 +942,7 @@ final List<Map<String, dynamic>> seaFishPool = [
 /// 🎁 [신규 조사 환영 세트] 지급 스위치 — 시작일을 정해 공지 올릴 때 true로 바꿔 배포.
 ///    같은 날 기존 유저에게도 포션5·카드5·엠블럼1을 일괄 지급한다(낚싯대는 신규만).
 ///    신규만 주면 기존 유저가 서운하므로 함께 연다(2026-09-02 사용자 결정).
-const bool kWelcomeSetOn = false;
+const bool kWelcomeSetOn = true;
 
 // 🎁 신규 유저에게 지급되는 12종 스타터 팩!
 List<Map<String, dynamic>> getInitialStarterPack() {
@@ -959,11 +959,16 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
     {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
     {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
-    // 🎁 [신규 조사 환영 세트 — 2026-09-02] 가입 즉시 함께 지급.
-    //    낚싯대 두 대는 일부러 Lv.5 제한을 그대로 뒀다 — 가방에 보이지만 아직 못 낀다.
-    //    "5레벨까지 키워서 바꿔 차라"가 첫 접속의 목표가 된다(사용자 결정).
-    //    민물·바다 한 대씩이라 신규가 바다 낚시터도 열어보게 된다.
-    if (kWelcomeSetOn) ...[
+  ];
+}
+
+/// 🎁 신규 조사 환영 세트 — 튜토리얼(첫 붕어)을 마치면 지급한다.
+///   가입 즉시가 아니라 튜토리얼 완료 시점인 이유: 가입만 하고 안 들어오는 계정에는
+///   나가지 않게 하고, 첫 성취에 보상을 붙여 다음 목표(Lv.5 낚싯대)로 이어주기 위함.
+///   ⚠️ 두 번 주지 않도록 users/{uid}.welcomeSetGrantedAt 를 표식으로 쓴다.
+List<Map<String, dynamic>> getWelcomeSet() {
+  if (!kWelcomeSetOn) return const [];
+  return [
     {...kItemPotionExp, 'quantity': 5},
     {...kItemCardKreft, 'quantity': 5},
     makeEmblemBoost(),
@@ -973,7 +978,6 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': 'CF350', 'category': 'SEA', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
       'icon': 'rod_sea_cf350.png',
       'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(바다 · 기본대보다 훨씬 강해요)'},
-    ],
   ];
 }
 

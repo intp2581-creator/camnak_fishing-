@@ -508,6 +508,7 @@ Widget _whisperUnreadBadge() {
 
   bool _isStrikeLocked = false; // 🚨 [추가] 챔질 다다닥 연타(더블클릭) 방지 자물쇠!
   bool _isTutorialDone = false; // 🚀 [추가] 튜토리얼 보상 2번 받는 꼼수 방지용!
+  bool _welcomeSetGiven = false; // 🎁 이번 튜토리얼 완료로 환영 세트를 지급했는가(팝업 안내용)
 
   // 👩‍💼 GM 강팀장님 출근 상태 변수! (테스트를 위해 일단 true로 켜둘게요!)
   bool gmNoticeVisible = false;
@@ -1690,7 +1691,22 @@ Widget _whisperUnreadBadge() {
           'gold': FieldValue.increment(1000),
           'isFirstTime': false, 
         }, SetOptions(merge: true));
-        
+
+        // 🎁 신규 조사 환영 세트 — 튜토리얼을 마친 지금 지급한다.
+        //    welcomeSetGrantedAt 이 이미 있으면 건너뛴다(두 번 지급 방지).
+        final List<Map<String, dynamic>> welcome = getWelcomeSet();
+        if (welcome.isNotEmpty) {
+          final snap = await userRef.get();
+          final data = snap.data();
+          if (data != null && data['welcomeSetGrantedAt'] == null) {
+            await userRef.set({
+              'inventory': FieldValue.arrayUnion(welcome),
+              'welcomeSetGrantedAt': FieldValue.serverTimestamp(),
+            }, SetOptions(merge: true));
+            _welcomeSetGiven = true; // 완료 팝업에 안내 한 줄 추가
+          }
+        }
+
         print("✅ 튜토리얼 보상 지급 및 졸업 도장 완료!"); // 성공 확인용 로그
       } catch (e) {
         print("🚨 튜토리얼 보상 지급 에러: $e");
@@ -1714,6 +1730,25 @@ Widget _whisperUnreadBadge() {
             const Text('와아아!! 대박!! 진짜 붕어를 낚으셨네요! 🎊\n정말 잘하셨어요!', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             const Text('약속했던 1,000 P를 선물로 드립니다!\n캠피싱 낚시 대회에서 즐거운 시간 되세요~~ 🥰', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, height: 1.5)),
+            // 🎁 환영 세트를 방금 지급했다면 무엇을 받았는지 알려준다(가방에 조용히 들어가면 모른다)
+            if (_welcomeSetGiven) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD4AF37).withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFD4AF37).withOpacity(0.6)),
+                ),
+                child: const Text(
+                  '🎁 신규 조사 환영 세트도 가방에 넣어드렸어요!\n'
+                  '경험치 물약 5개 · KREFT 2배 카드 5개 · 능력치 엠블럼 1개\n'
+                  'CF-30T · CF350 낚싯대는 Lv.5가 되면 장착할 수 있어요',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFFD4AF37), fontSize: 13, height: 1.6, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
