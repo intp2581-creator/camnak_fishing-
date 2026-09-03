@@ -4331,8 +4331,9 @@ Positioned(
               if (!widget.isSea && !_lureMode && _isLureGear(item)) return false;
               final isFish = (item['type'] ?? '') == 'FISH';
               if (_currentFilter == 'ALL') return true;
-              if (_currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
-              if (_currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
+              final storeOnly = isStoreOnlyItem(item); // 이용권·물약·엠블럼 등은 게임스토어 탭에서만
+              if (_currentFilter == 'FW' && !storeOnly && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
+              if (_currentFilter == 'SEA' && !storeOnly && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SKIN' && isStoreTabItem(item)) return true;
               if (_currentFilter == 'FISH' && isFish) return true;

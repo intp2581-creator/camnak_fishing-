@@ -1226,6 +1226,16 @@ bool isStoreTabItem(Map<String, dynamic> it) {
   return false;
 }
 
+/// 🎒 민물·바다 탭에서 빼는 것 — 장착 슬롯이 없는 소모성·버프 아이템
+///   (낚시 이용권 · 아레나 입장권 · 경험치 물약 · KREFT 카드 · 능력치 엠블럼).
+///   뱃지·휘장은 장착 슬롯이 있는 장비라 민물·바다에 그대로 남긴다.
+///   → 이런 것들은 '게임스토어' 탭에서만 본다(가방 정리 2026-09-03).
+bool isStoreOnlyItem(Map<String, dynamic> it) {
+  final t = (it['type'] ?? '').toString().toUpperCase();
+  final c = (it['category'] ?? '').toString().toUpperCase();
+  return t == 'TICKET' || c == 'TICKET' || t == 'BOOST' || t == 'EVENT';
+}
+
 /// 🎒 가방 정렬 순서
 ///   0 스킨 · 1 낚싯대 · 2 릴/찌 · 3 보조장비 · 4 상자 · 5 유료템 · 6 미끼 · 7 물고기
 int invSortRank(Map<String, dynamic> it) {

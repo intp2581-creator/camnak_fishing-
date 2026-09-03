@@ -592,8 +592,9 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
                       String cat = item['category'] ?? '';
                       bool isSkin = isSkinItem(item);
                       if (currentFilter == 'ALL') return true;
-                      if (currentFilter == 'FW' && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
-                      if (currentFilter == 'SEA' && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
+                      final storeOnly = isStoreOnlyItem(item); // 게임스토어 탭 전용
+                      if (currentFilter == 'FW' && !storeOnly && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
+                      if (currentFilter == 'SEA' && !storeOnly && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isBait(item['name'].toString())) return true;
                       if (currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
                       if (currentFilter == 'SKIN' && isStoreTabItem(item)) return true;
                       return false;

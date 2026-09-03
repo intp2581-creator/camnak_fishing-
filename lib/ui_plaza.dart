@@ -4620,11 +4620,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             bool match(Map<String, dynamic> it) {
               final c = (it['category'] ?? '').toString().toUpperCase();
               final t = (it['type'] ?? '').toString().toUpperCase();
+              // 이용권·입장권·물약·카드·엠블럼은 게임스토어 탭에서만 본다
+              final storeOnly = isStoreOnlyItem(it);
               switch (invTab) {
                 case '민물':
-                  return (c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN');
+                  return !storeOnly && ((c == 'FW' && t != 'BAIT') || (t == 'ETC' && c != 'SEA') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN'));
                 case '바다':
-                  return (c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN');
+                  return !storeOnly && ((c == 'SEA' && t != 'BAIT') || (t == 'ETC' && c != 'FW') || t == 'COOLER' || (c == 'COMMON' && t != 'BAIT' && t != 'FISH' && t != 'SKIN'));
                 case '미끼':
                   return t == 'BAIT';
                 case '물고기':
@@ -4868,11 +4870,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             bool match(Map<String, dynamic> it) {
               final cat = (it['category'] ?? '').toString().toUpperCase();
               final type = (it['type'] ?? '').toString().toUpperCase();
+              final storeOnly = isStoreOnlyItem(it); // 게임스토어 전용(이용권·물약·엠블럼 등)
               switch (tab) {
                 case '민물':
-                  return (cat == 'FW' && type != 'BAIT') || (type == 'ETC' && cat != 'SEA');
+                  return !storeOnly && ((cat == 'FW' && type != 'BAIT') || (type == 'ETC' && cat != 'SEA'));
                 case '바다':
-                  return (cat == 'SEA' && type != 'BAIT') || (type == 'ETC' && cat != 'FW');
+                  return !storeOnly && ((cat == 'SEA' && type != 'BAIT') || (type == 'ETC' && cat != 'FW'));
                 case '미끼':
                   return type == 'BAIT';
                 case '게임스토어':
