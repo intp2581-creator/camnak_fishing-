@@ -984,6 +984,23 @@ Widget _whisperUnreadBadge() {
       return;
     }
 
+    // 👀 1.7 관전 탭(5)일 때는 '내 관전방'으로! (구경 중인 친구들만 봄)
+    if (_currentChatTab == 5) {
+      final String myUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      if (myUid.isNotEmpty) {
+        FirebaseFirestore.instance
+            .collection('spectate_chat').doc(myUid).collection('messages')
+            .add({
+          'nickname': widget.nickname,
+          'message': text,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+      }
+      _chatController.clear();
+      _chatFocus.unfocus();
+      return; // 🚨 전체채팅으로 새어나가지 않게 차단
+    }
+
     // 💬 2. 그 외 탭(전체/귓속말)은 기존처럼 글로벌 채팅으로!
     String type = 'global';
     String receiver = '';
@@ -3191,6 +3208,23 @@ Positioned(
                       _buildChatTab(2, '친구'),
                       if (widget.roomId != null) _buildChatTab(3, '아레나'),       // 아레나 매치 중일 때만
                       if (widget.roomId == null && _guildId.isNotEmpty) _buildChatTab(4, '길드'), // 길드 가입 시(일반 낚시)
+                      // 👀 관전 탭 — 나를 구경 중인 친구가 있을 때만 나타남(관전자들과만 대화)
+                      if (widget.roomId == null)
+                        ValueListenableBuilder<int>(
+                          valueListenable: FishingLive.watcherCountNotifier,
+                          builder: (_, cnt, __) {
+                            if (cnt <= 0) {
+                              // 관전자가 다 나가면 관전 탭에 머물지 않도록 전체 탭으로 되돌림
+                              if (_currentChatTab == 5) {
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  if (mounted && _currentChatTab == 5) setState(() => _currentChatTab = 0);
+                                });
+                              }
+                              return const SizedBox.shrink();
+                            }
+                            return _buildChatTab(5, '관전 $cnt');
+                          },
+                        ),
                     ],
                   ),
                   // ✨ 2. 메인 채팅창 컨테이너
@@ -3279,6 +3313,13 @@ Positioned(
                                          .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
                                          .orderBy('timestamp', descending: true).limit(30).snapshots()
                                      : const Stream.empty())
+                              // 👀 [관전 탭]일 땐 내 관전방 채팅!
+                                 : _currentChatTab == 5
+                                 ? FirebaseFirestore.instance
+                                     .collection('spectate_chat')
+                                     .doc(FirebaseAuth.instance.currentUser?.uid ?? '_')
+                                     .collection('messages')
+                                     .orderBy('timestamp', descending: true).limit(30).snapshots()
                               // 💬 [그 외 탭]일 땐 전체 채팅!
                                  : FirebaseFirestore.instance.collection('global_chat')
                                      .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
@@ -3303,6 +3344,11 @@ Positioned(
                                           receiver = '';
                                           sender = (data['nickname'] ?? data['sender'] ?? '조사님').toString();
                                           msg = (data['message'] ?? data['text'] ?? '').toString();
+                                        } else if (_currentChatTab == 5) {
+                                          type = 'spectate';
+                                          receiver = '';
+                                          sender = (data['nickname'] ?? '조사님').toString();
+                                          msg = (data['message'] ?? '').toString();
                                         } else if (_currentChatTab == 4) {
                                           type = 'guild';
                                           receiver = '';
@@ -3341,6 +3387,9 @@ Positioned(
                                         } else if (type == 'guild') {
                                           prefixColor = const Color(0xFF7FD4FF); // 길드 하늘색
                                           prefixText = '길드>';
+                                        } else if (type == 'spectate') {
+                                          prefixColor = const Color(0xFF7FFFB0); // 관전 연두색(관전 화면과 통일)
+                                          prefixText = '관전>';
                                         }
 
                                         return Padding(

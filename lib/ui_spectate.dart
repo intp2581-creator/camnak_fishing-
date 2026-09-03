@@ -10,7 +10,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'fishing_live.dart';
-import 'game_config.dart'; // chatSessionStart()
 import 'weather.dart'; // 🌧️ 친구 날씨 미러(WeatherOverlay + WeatherInfo)
 import 'ui_fishing.dart'; // 🎣 실제 파이팅 오버레이 재사용(FishingFightingOverlay)
 
@@ -143,13 +142,13 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
   void _sendChat() {
     final text = _chatCtrl.text.trim();
     if (text.isEmpty) return;
-    FirebaseFirestore.instance.collection('global_chat').add({
+    FirebaseFirestore.instance
+        .collection('spectate_chat')
+        .doc(widget.fisherUid) // 👀 낚시꾼 1명 = 관전방 1개
+        .collection('messages')
+        .add({
       'nickname': widget.myNickname,
       'message': text,
-      'type': 'global',
-      'receiver': '',
-      'channel': '',
-      'rank': '',
       'timestamp': FieldValue.serverTimestamp(),
     });
     _chatCtrl.clear();
@@ -470,7 +469,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     );
   }
 
-  // 💬 전체채팅 패널(입력 가능) — global_chat 재사용
+  // 💬 관전방 채팅 패널(입력 가능) — spectate_chat/{fisherUid}/messages
+  //    낚시꾼 + 그를 구경 중인 사람들만 보는 방. 전체채팅으로 새어나가지 않는다.
   Widget _chatPanel() {
     return Container(
       width: 380, height: 216,
@@ -484,8 +484,9 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance
-                .collection('global_chat')
-                .where('timestamp', isGreaterThanOrEqualTo: chatSessionStart())
+                .collection('spectate_chat')
+                .doc(widget.fisherUid)
+                .collection('messages')
                 .orderBy('timestamp', descending: true)
                 .limit(30)
                 .snapshots(),
@@ -497,14 +498,13 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                 itemCount: docs.length,
                 itemBuilder: (c, i) {
                   final d = docs[i].data() as Map<String, dynamic>;
-                  if ((d['type'] ?? 'global') == 'whisper') return const SizedBox.shrink();
                   final sender = (d['nickname'] ?? '조사님').toString();
                   final msg = (d['message'] ?? '').toString();
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: RichText(
                       text: TextSpan(children: [
-                        const TextSpan(text: '전체> ', style: TextStyle(color: Color(0xFF7FB2FF), fontSize: 12, fontWeight: FontWeight.bold)),
+                        const TextSpan(text: '관전> ', style: TextStyle(color: Color(0xFF7FFFB0), fontSize: 12, fontWeight: FontWeight.bold)),
                         TextSpan(text: '$sender: ', style: const TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
                         TextSpan(text: msg, style: const TextStyle(color: Colors.white, fontSize: 12)),
                       ]),
