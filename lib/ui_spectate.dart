@@ -341,6 +341,8 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
         );
       case 'landed':
         return _landedCard();
+      case 'lost': // 💥 친구가 줄터짐·바늘털이로 놓친 순간
+        return _lostCard();
       case 'casting':
         return _hint('친구가 캐스팅 중...');
       case 'setup':
@@ -515,6 +517,26 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(color: Colors.black.withOpacity(0.35), borderRadius: BorderRadius.circular(16)),
           child: Text(txt, style: const TextStyle(color: Colors.white70, fontSize: 18, fontWeight: FontWeight.w600)),
+        ),
+      );
+
+  // 💥 놓침 안내 — 낚시꾼이 재캐스팅할 때까지 파이팅 장면에 멈춰 있지 않도록
+  Widget _lostCard() => Align(
+        alignment: const Alignment(0, 0.1),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.62),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.redAccent.withOpacity(0.8), width: 1.5),
+          ),
+          child: const Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('💥 줄이 터졌습니다...',
+                style: TextStyle(color: Colors.redAccent, fontSize: 26, fontWeight: FontWeight.w900)),
+            SizedBox(height: 6),
+            Text('아쉽게 놓쳤어요',
+                style: TextStyle(color: Colors.white70, fontSize: 15)),
+          ]),
         ),
       );
 
