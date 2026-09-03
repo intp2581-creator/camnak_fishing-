@@ -3923,8 +3923,16 @@ Positioned(
               // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
               audioManager.playSfx("sfx_casting.mp3"); _castController.forward(from: 0.0);
               setState(() { isSettingUp = false; isCasting = true; bitingRods.clear(); });
+              // 🎣👀 관전: 첫 캐스팅(여기까진 '셋팅 중'이었다) + 확정된 대편성·찌·케미 전달
+              FishingLive.setPhase('casting');
+              FishingLive.updateGear(
+                rods: selectedRodCount,
+                floatIcon: _getIconImagePath(equippedFloat) ?? '',
+                chemi: selectedChemiColor.value,
+                lure: _lureMode,
+              );
               Future.delayed(const Duration(milliseconds: 300), () { if (!mounted) return; audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); _startGameTimer(); });
-              Future.delayed(const Duration(milliseconds: 1500), () { if (mounted) { setState(() { isCasting = false; isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; }); _startBiteTimer(); } });
+              Future.delayed(const Duration(milliseconds: 1500), () { if (mounted) { setState(() { isCasting = false; isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; }); FishingLive.setPhase('waiting', extra: {'rod': -1}); _startBiteTimer(); } });
             },
             child: const Text('캐스팅 시작!', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.w900)),
           )

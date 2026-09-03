@@ -17,6 +17,8 @@ FirebaseDatabase _liveDb() =>
 /// 🎣 방송측(낚시하는 사람) — 한 클라이언트당 낚시 세션은 하나이므로 static 상태로 관리.
 class FishingLive {
   static String? _uid; // 현재 방송 중인 내 uid(null이면 방송 안 함)
+  static String _lastPhase = ''; // 마지막 단계(관전자 입장 시 즉시 재전송용)
+  static Map<String, dynamic> _lastExtra = const {};
   static DatabaseReference? _ref; // fishing_live/{uid}
   static StreamSubscription<DatabaseEvent>? _watchSub; // watchers 구독
   static bool _hasWatchers = false; // 관전자 1명 이상?
@@ -68,6 +70,8 @@ class FishingLive {
       't': ServerValue.timestamp,
     }).catchError((Object e) => debugPrint('🎣👀 meta set ERR: $e'));
 
+    _lastPhase = 'setup'; // 🎣 아직 캐스팅 전 = 대기실 셋팅 중
+    _lastExtra = const {};
     // 👀 관전자 감시 → state 방송 게이팅 + 관전자 닉 목록/입장 감지
     _watcherNames = [];
     watcherNamesNotifier.value = const [];
@@ -88,9 +92,18 @@ class FishingLive {
       for (final n in names) {
         if (!_watcherNames.contains(n)) onWatcherJoined?.call(n);
       }
+      final bool wasEmpty = _watcherCount == 0;
       _watcherNames = names;
       _watcherCount = names.length;
       _hasWatchers = _watcherCount > 0;
+      // 👀 첫 관전자가 들어온 순간, 지금 화면이 어느 단계인지 바로 알려준다
+      //    (안 그러면 다음 입질까지 관전자는 엉뚱한 장면을 본다)
+      if (wasEmpty && _hasWatchers && _lastPhase.isNotEmpty) {
+        final Map<String, dynamic> d = <String, dynamic>{
+          'phase': _lastPhase, 't': ServerValue.timestamp,
+        }..addAll(_lastExtra);
+        _ref?.child('state').update(d).catchError((_) {});
+      }
       watcherCountNotifier.value = _watcherCount;
       watcherNamesNotifier.value = names;
     }, onError: (Object e) => debugPrint('🎣👀 watchers sub ERR: $e'));
@@ -121,6 +134,10 @@ class FishingLive {
 
   /// 낚시 단계 전환 방송(캐스팅/대기/입질/파이팅/랜딩 등). 관전자 있을 때만 기록.
   static void setPhase(String phase, {Map<String, dynamic>? extra}) {
+    // 관전자가 없어도 '지금 무슨 단계인지'는 기억해 둔다.
+    // (관전자가 도중에 들어오면 다음 이벤트를 기다리지 않고 바로 현재 장면을 보여주기 위함)
+    _lastPhase = phase;
+    _lastExtra = extra == null ? const {} : Map<String, dynamic>.from(extra);
     if (_uid == null || !_hasWatchers) return;
     final data = <String, dynamic>{
       'phase': phase,

@@ -338,8 +338,12 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
         return _landedCard();
       case 'casting':
         return _hint('친구가 캐스팅 중...');
-      default: // waiting / idle
+      case 'setup':
+        return _hint('친구가 낚시 준비 중이에요...'); // 대기실에서 대편성·미끼 고르는 중
+      case 'waiting':
         return _rodsScene(raised: false);
+      default: // 아직 아무 신호도 못 받음 — 섣불리 낚싯대를 그리지 않는다
+        return _hint('친구 낚시터에 들어가는 중...');
     }
   }
 
@@ -408,7 +412,9 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
     final Color chemi = Color(_toI(_meta['chemi'], Colors.green.value));
     final double centerIndex = (rods - 1) / 2;
 
-    return Stack(children: [
+    return Stack(
+      clipBehavior: Clip.none, // 좌대가 화면 아래로 걸치는 구조(낚시꾼 화면과 동일) → 넘침 경고 방지
+      children: [
       Positioned(
         bottom: 0, left: 0, right: 0,
         child: Stack(
