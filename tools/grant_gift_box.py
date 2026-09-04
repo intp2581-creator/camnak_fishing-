@@ -160,7 +160,7 @@ PRESETS = {
     },
     "thanks": {
         "title": "제보 감사 선물",
-        "msg": "알려주셔서 고맙습니다!" + NL + "덕분에 더 좋아졌어요.",
+        "msg": "제보 주셔서 감사합니다." + NL + "보상으로 선물상자를 보내 드립니다.",
         "items": [item_potion(3), item_card(3)],
     },
     "sorry": {
