@@ -173,6 +173,15 @@ PRESETS = {
         "msg": "이벤트에 참여해 주셔서 고맙습니다!" + NL + "작은 선물을 준비했어요.",
         "items": [item_potion(3), item_card(3), item_hour(1), item_arena(1)],
     },
+    # 🌕 추석 전날(2026-09-24 목) 전 유저 일괄. 반드시 --all --once 로.
+    #    물약·카드를 3개로 줄인 이유: 성장 패키지(5,500원)가 물약10·카드10 구성이라
+    #    같은 양을 공짜로 뿌리면 살 이유가 없어진다. 맛보기 양이라야 판매로 이어진다.
+    "chuseok": {
+        "title": "추석 선물",
+        "msg": "가족들과 함께 즐거운 한가위 되세요!" + NL + "캠피싱이 작은 선물을 준비했습니다.",
+        "items": [item_potion(3), item_card(3), item_emblem(),
+                  item_hour(1), item_arena(1)],
+    },
 }
 
 
