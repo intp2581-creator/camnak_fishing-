@@ -1107,7 +1107,11 @@ const Map<String, int> kMallProductIdx = {
   '마스터 조사': 228,
 };
 // 아이템명으로 상세페이지 URL 반환 (매핑에 없으면 게임스토어 목록으로 폴백)
-String mallUrlForItem(String itemName) {
+//   mallIdx: 서버(Firestore)에서 추가한 상품은 상품번호를 저장해 두므로 그걸 먼저 쓴다.
+//   아래 kMallProductIdx는 코드에 박힌 옛 상품용 — 새 상품은 여기 손댈 필요 없다.
+//   (2026-09-04: 성장 패키지가 표에 없어 상세가 아니라 스토어 목록으로 가던 것)
+String mallUrlForItem(String itemName, {int mallIdx = 0}) {
+  if (mallIdx > 0) return '$kMallItemBase$mallIdx';
   final exact = kMallProductIdx[itemName];
   if (exact != null) return '$kMallItemBase$exact';
   for (final e in kMallProductIdx.entries) {
@@ -1182,6 +1186,9 @@ Future<void> loadServerStoreItems() async {
             + ' · 제공: 결제 즉시 지급 · 유효기간: 구매일로부터 1년(미사용 시 소멸)'
             + ' · 청약철회: 사용 개시 후 제한',
         if (lv > 0) 'reqLevel': lv,
+        // 🛒 아임웹 상품번호 — 있으면 구매 버튼이 목록이 아니라 상세페이지로 바로 간다
+        if ((v['idx'] is num) && (v['idx'] as num).toInt() > 0)
+          'mallIdx': (v['idx'] as num).toInt(),
         // 🕒 진열은 하되 아직 판매 전 — 게임 상점도 구매 버튼을 잠근다.
         if (v['soon'] == true) 'soon': true,
         if ((v['soonText'] ?? '').toString().isNotEmpty)

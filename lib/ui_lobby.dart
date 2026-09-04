@@ -1973,7 +1973,7 @@ class _StoreScreenState extends State<StoreScreen> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                         ),
                         onPressed: (buyOk && !blocked && paymentOpen && !soonLock)
-                            ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName); }
+                            ? () { audioManager.playSfx("sfx_click.mp3"); _confirmMallPurchase(itemName, mallIdx: (item['mallIdx'] is num) ? (item['mallIdx'] as num).toInt() : 0); }
                             : null,
                         child: Text(alreadyOwned ? '구매 완료' : (boughtToday ? '오늘 구매완료' : (!lvOk ? '🔒 레벨 부족' : (!rankOk ? '🔒 승급 필요' : (soonLock ? soonMsg : (!paymentOpen ? '🔜 결제 오픈 예정' : '🛒 쇼핑몰 구매'))))),
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
@@ -2031,7 +2031,8 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 
   // 🛒 쇼핑몰 구매 전 '지급 대상 계정' 확인 — 다계정 유저의 오구매 방지
-  void _confirmMallPurchase(String itemName) {
+  // 🛒 mallIdx: 서버에서 추가한 상품의 아임웹 상품번호. 있으면 상세페이지로 바로 보낸다.
+  void _confirmMallPurchase(String itemName, {int mallIdx = 0}) {
     final email = FirebaseAuth.instance.currentUser?.email ?? '(알 수 없음)';
     showDialog(
       context: context,
@@ -2070,7 +2071,7 @@ class _StoreScreenState extends State<StoreScreen> {
           TextButton(onPressed: () => Navigator.pop(c), child: const Text('취소', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-            onPressed: () { Navigator.pop(c); html.window.open(mallUrlForItem(itemName), 'camnak_store'); },
+            onPressed: () { Navigator.pop(c); html.window.open(mallUrlForItem(itemName, mallIdx: mallIdx), 'camnak_store'); },
             child: const Text('쇼핑몰로 이동', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
