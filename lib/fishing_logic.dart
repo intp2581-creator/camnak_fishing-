@@ -352,6 +352,60 @@ class FishingLogic {
     return {'inv': inv, 'opened': count, 'exp': expDelta, 'gold': goldDelta, 'sellback': sellbackGold, 'items': itemCounts};
   }
 
+  /// 🎁 [선물 상자 열기] 운영자가 담아 준 것을 그대로 꺼낸다.
+  ///   수상한 상자·보물상자와 달리 **확률을 굴리지 않는다** — 보상으로 준 상자가
+  ///   "뭐가 나올지 모른다"면 그것만으로 민원이 되기 때문.
+  ///
+  ///   gid 로 상자 하나를 콕 집는다(선물마다 내용물이 달라 이름으론 못 고른다).
+  ///   반환: {'inv', 'ok', 'title', 'msg', 'exp', 'gold', 'items'}
+  static Map<String, dynamic> openGiftBox(List<dynamic> inventory, String gid) {
+    final inv = List<dynamic>.from(
+        inventory.map((e) => e is Map ? Map<String, dynamic>.from(e) : e));
+    final bi = inv.indexWhere((i) =>
+        (i is Map) && (i['name'] ?? '') == kGiftBoxName && (i['gid'] ?? '') == gid);
+    if (bi < 0) {
+      return {'inv': inv, 'ok': false, 'title': '', 'msg': '',
+              'exp': 0, 'gold': 0, 'items': <String, int>{}};
+    }
+    final box = Map<String, dynamic>.from(inv[bi] as Map);
+    final int expDelta  = ((box['giftExp']  ?? 0) as num).toInt();
+    final int goldDelta = ((box['giftGold'] ?? 0) as num).toInt();
+    final Map<String, int> itemCounts = {};
+
+    for (final raw in (box['gift'] as List? ?? const [])) {
+      if (raw is! Map) continue;
+      final item = Map<String, dynamic>.from(raw);
+      final int addQ = ((item['quantity'] ?? 1) as num).toInt();
+      // ⏳ 엠블럼처럼 각자 남은 시간을 따로 세는 것은 합치면 안 된다 — 개별 항목으로.
+      final bool separate = (item['type'] ?? '') == 'EVENT';
+      final idx = separate
+          ? -1
+          : inv.indexWhere((i) => (i is Map) && (i['name'] ?? '') == item['name']);
+      if (idx >= 0) {
+        inv[idx]['quantity'] = (((inv[idx]['quantity'] ?? 0) as num).toInt()) + addQ;
+      } else if (separate) {
+        for (int k = 0; k < addQ; k++) {
+          inv.add({...item, 'quantity': 1});
+        }
+      } else {
+        inv.add(item);
+      }
+      final key = addQ > 1 ? '${item['name']} $addQ개' : '${item['name']}';
+      itemCounts[key] = (itemCounts[key] ?? 0) + 1;
+    }
+
+    inv.removeAt(bi); // 선물 상자는 수량이 안 쌓이므로 열면 항목째 사라진다
+    return {
+      'inv': inv,
+      'ok': true,
+      'title': (box['giftTitle'] ?? '선물 상자').toString(),
+      'msg': (box['giftMsg'] ?? '').toString(),
+      'exp': expDelta,
+      'gold': goldDelta,
+      'items': itemCounts,
+    };
+  }
+
   static Map<String, dynamic>? generateFish({
     required bool isSea,
     required String locationName,

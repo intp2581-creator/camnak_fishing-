@@ -4390,6 +4390,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 인벤토리 아이템 클릭 → 장착/해제 토글 (광장에선 민물·바다 다 착용 가능 — 미리보기)
   // 📦 광장 인벤에서 상자 탭 → 1개/모두 열기 (낚시터와 동일 로직·공용 FishingLogic.openBoxes)
   void _openBoxDialogPlaza(Map<String, dynamic> box, void Function(void Function()) setD) {
+    // 🎁 선물 상자는 확률이 아니라 '담긴 것'을 그대로 준다 — 전용 창으로
+    if ((box['name'] ?? '') == kGiftBoxName) { _openGiftDialogPlaza(box, setD); return; }
     final int qty = ((box['quantity'] ?? 0) as num).toInt();
     if (qty <= 0) return;
     final bool mystery = box['name'] == '수상한 상자';
@@ -4408,6 +4410,79 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           onPressed: () { Navigator.pop(dctx); _openBoxesPlaza(box['name'].toString(), qty, setD); },
           child: Text('모두 열기 ($qty)', style: const TextStyle(fontWeight: FontWeight.bold))),
       ],
+    ));
+  }
+
+  // 🎁 [선물 상자] 운영자가 준 보상 상자. 열면 담긴 것이 그대로 나온다.
+  void _openGiftDialogPlaza(Map<String, dynamic> box, void Function(void Function()) setD) {
+    final String title = (box['giftTitle'] ?? '선물 상자').toString();
+    final String msg = (box['giftMsg'] ?? '').toString();
+    showDialog(context: context, barrierDismissible: true, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
+      title: Text('🎁 $title', style: const TextStyle(color: _kGold, fontSize: 18, fontWeight: FontWeight.bold)),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Image.asset('assets/items/$kGiftBoxIcon', height: 120, fit: BoxFit.contain,
+            errorBuilder: (a, b, c) => const SizedBox(height: 8)),
+        const SizedBox(height: 12),
+        if (msg.isNotEmpty)
+          Text(msg, style: const TextStyle(color: Colors.white70, fontSize: 14.5, height: 1.5)),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('나중에', style: TextStyle(color: Colors.white38))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+          onPressed: () { Navigator.pop(dctx); _openGiftPlaza((box['gid'] ?? '').toString(), setD); },
+          child: const Text('열어보기', style: TextStyle(fontWeight: FontWeight.bold))),
+      ],
+    ));
+  }
+
+  Future<void> _openGiftPlaza(String gid, void Function(void Function()) setD) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || gid.isEmpty) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    List<dynamic> inv;
+    try { final snap = await ref.get(); inv = List.from(snap.data()?['inventory'] ?? []); } catch (_) { return; }
+    final res = FishingLogic.openGiftBox(inv, gid);
+    if (res['ok'] != true) return;
+    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int;
+    final List<dynamic> newInv = res['inv'] as List<dynamic>;
+    try {
+      await ref.update({
+        'inventory': newInv,
+        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
+        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      });
+    } catch (_) { return; }
+    if (!mounted) return;
+    setState(() { _inventory = newInv; if (goldDelta > 0) { _gold += goldDelta; currentPoints = _gold; } });
+    setD(() {});
+    _showGiftResultPlaza(res['title'].toString(), expDelta, goldDelta,
+        Map<String, int>.from(res['items'] as Map));
+  }
+
+  void _showGiftResultPlaza(String title, int exp, int gold, Map<String, int> items) {
+    Widget line(String l, String r) => Padding(padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Flexible(child: Text(l, style: const TextStyle(color: Colors.white, fontSize: 14))),
+          const SizedBox(width: 10),
+          Text(r, style: const TextStyle(color: _kGold, fontSize: 14, fontWeight: FontWeight.bold)),
+        ]));
+    final lines = <Widget>[];
+    if (exp > 0) lines.add(line('🎣 경험치', '+$exp'));
+    if (gold > 0) lines.add(line('💰 KREFT', '+$gold'));
+    items.forEach((k, v) => lines.add(line('🎁 $k', '×$v')));
+    showDialog(context: context, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: _kGold, width: 1.4)),
+      title: Text('🎁 $title', style: const TextStyle(color: _kGold, fontSize: 17, fontWeight: FontWeight.bold)),
+      content: SizedBox(width: 320, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('가방에 넣어 뒀어요!', style: TextStyle(color: Colors.white70, fontSize: 13.5)),
+        const SizedBox(height: 10),
+        ...lines,
+      ]))),
+      actions: [ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+          onPressed: () => Navigator.pop(dctx), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)))],
     ));
   }
 

@@ -959,10 +959,62 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
     {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
     {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
-    // 🎁 신규 조사 환영 세트 — 가입 즉시 함께 지급(2026-09-03 사용자 결정: 어차피 줄 거라면 단순하게)
-    ...getWelcomeSet(),
+    // 🎁 신규 조사 환영 선물 — '상자'로 준다(2026-09-04 사용자 결정).
+    //   아이템으로 꽂아 넣으면 슬그머니 가방에 들어가 있어 받은 줄도 모른다.
+    //   상자로 주면 눌러서 여는 순간이 생기고, 무엇을 받았는지 목록으로 보여줄 수 있다.
+    if (kWelcomeSetOn) makeWelcomeGiftBox(),
   ];
 }
+
+// =========================================================================
+// 🎁 [선물 상자] 운영자가 보상·민원·이벤트로 주는 범용 상자.
+//
+//   수상한 상자·보물상자와 결정적으로 다른 점: **확률로 뽑지 않는다.**
+//   상자 안에 들어갈 것이 미리 담겨 있고, 열면 그대로 나온다.
+//   보상으로 주는 상자가 "뭐가 나올지 모른다"면 그것만으로 민원이 된다.
+//
+//   ⚠️ 선물 상자는 **수량이 쌓이지 않는다**(quantity 항상 1).
+//      상자마다 내용물이 다른데 이름으로 묶어 쌓으면 섞여버린다.
+//      그래서 개별 항목으로 넣고, `gid`(선물 고유번호)로 구분한다.
+// =========================================================================
+
+const String kGiftBoxName = '선물 상자';
+const String kGiftBoxIcon = 'item_box_gift.png';
+
+/// 🎁 선물 상자 하나를 만든다(인벤토리에 그대로 넣을 항목).
+///   title·msg = 열 때 뜨는 제목·인사말. items = 가방으로 들어갈 아이템들.
+///   exp·gold 를 주면 경험치·KREFT도 함께 지급된다.
+Map<String, dynamic> makeGiftBox({
+  required String title,
+  required String msg,
+  required List<Map<String, dynamic>> items,
+  int exp = 0,
+  int gold = 0,
+  String? gid,
+}) {
+  return {
+    'name': kGiftBoxName,
+    'category': 'BOX',
+    'type': 'BOX',
+    'icon': kGiftBoxIcon,
+    'quantity': 1,
+    // 🆔 상자를 하나씩 구분하는 번호. 같은 사람이 여러 개 받아도 안 섞인다.
+    'gid': gid ?? 'g${DateTime.now().microsecondsSinceEpoch}',
+    'giftTitle': title,
+    'giftMsg': msg,
+    if (exp > 0) 'giftExp': exp,
+    if (gold > 0) 'giftGold': gold,
+    'gift': items.map((e) => Map<String, dynamic>.from(e)).toList(),
+    'desc': '$title\n$msg\n\n눌러서 열어보세요.',
+  };
+}
+
+/// 🎁 신규 가입 환영 선물 상자 — 기존 환영 세트를 상자에 담은 것.
+Map<String, dynamic> makeWelcomeGiftBox() => makeGiftBox(
+      title: '신규 조사 환영 선물',
+      msg: '캠피싱에 오신 것을 환영합니다!\n즐거운 낚시 되세요.',
+      items: getWelcomeSet(),
+    );
 
 /// 🎁 신규 조사 환영 세트 — 튜토리얼(첫 붕어)을 마치면 지급한다.
 ///   가입 즉시가 아니라 튜토리얼 완료 시점인 이유: 가입만 하고 안 들어오는 계정에는

@@ -2407,6 +2407,8 @@ Widget _whisperUnreadBadge() {
 
   // 📦 인벤토리에서 상자 탭 → 1개 / 모두 열기 선택
   void _openBoxDialog(Map<String, dynamic> box) {
+    // 🎁 선물 상자는 확률이 아니라 '담긴 것'을 그대로 준다 — 전용 창으로
+    if ((box['name'] ?? '') == kGiftBoxName) { _openGiftDialog(box); return; }
     final int qty = ((box['quantity'] ?? 0) as num).toInt();
     if (qty <= 0) return;
     final bool mystery = box['name'] == '수상한 상자';
@@ -2429,6 +2431,81 @@ Widget _whisperUnreadBadge() {
   }
 
   // 📦 상자 count개 개봉 → 보상 집계(공용 로직) → Firestore 반영 → 결과 팝업.
+  // 🎁 [선물 상자] 운영자가 준 보상 상자. 열면 담긴 것이 그대로 나온다.
+  //   가방은 _inventoryStream 이 실시간으로 물어오므로 여기서 setState 하지 않는다.
+  void _openGiftDialog(Map<String, dynamic> box) {
+    const gold = Color(0xFFD4AF37);
+    final String title = (box['giftTitle'] ?? '선물 상자').toString();
+    final String msg = (box['giftMsg'] ?? '').toString();
+    showDialog(context: context, barrierDismissible: true, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: gold, width: 1.4)),
+      title: Text('🎁 $title', style: const TextStyle(color: gold, fontSize: 18, fontWeight: FontWeight.bold)),
+      content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Image.asset('assets/items/$kGiftBoxIcon', height: 120, fit: BoxFit.contain,
+            errorBuilder: (a, b, c) => const SizedBox(height: 8)),
+        const SizedBox(height: 12),
+        if (msg.isNotEmpty)
+          Text(msg, style: const TextStyle(color: Colors.white70, fontSize: 14.5, height: 1.5)),
+      ]),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(dctx), child: const Text('나중에', style: TextStyle(color: Colors.white38))),
+        ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: gold, foregroundColor: Colors.black),
+          onPressed: () { Navigator.pop(dctx); _openGift((box['gid'] ?? '').toString()); },
+          child: const Text('열어보기', style: TextStyle(fontWeight: FontWeight.bold))),
+      ],
+    ));
+  }
+
+  Future<void> _openGift(String gid) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || gid.isEmpty) return;
+    final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    List<dynamic> inv;
+    try { final snap = await ref.get(); inv = List.from(snap.data()?['inventory'] ?? []); }
+    catch (_) { return; }
+    final res = FishingLogic.openGiftBox(inv, gid);
+    if (res['ok'] != true) return;
+    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int;
+    try {
+      await ref.update({
+        'inventory': res['inv'],
+        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
+        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      });
+    } catch (_) { return; }
+    if (!mounted) return;
+    audioManager.playSfx('sfx_hit.mp3');
+    _showGiftResult(res['title'].toString(), expDelta, goldDelta,
+        Map<String, int>.from(res['items'] as Map));
+  }
+
+  void _showGiftResult(String title, int exp, int gold, Map<String, int> items) {
+    const gc = Color(0xFFD4AF37);
+    Widget line(String l, String r) => Padding(padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Flexible(child: Text(l, style: const TextStyle(color: Colors.white, fontSize: 14))),
+          const SizedBox(width: 10),
+          Text(r, style: const TextStyle(color: gc, fontSize: 14, fontWeight: FontWeight.bold)),
+        ]));
+    final lines = <Widget>[];
+    if (exp > 0) lines.add(line('🎣 경험치', '+$exp'));
+    if (gold > 0) lines.add(line('💰 KREFT', '+$gold'));
+    items.forEach((k, v) => lines.add(line('🎁 $k', '×$v')));
+    showDialog(context: context, builder: (dctx) => AlertDialog(
+      backgroundColor: const Color(0xFF1A1A1A),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: gc, width: 1.4)),
+      title: Text('🎁 $title', style: const TextStyle(color: gc, fontSize: 17, fontWeight: FontWeight.bold)),
+      content: SizedBox(width: 320, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('가방에 넣어 뒀어요!', style: TextStyle(color: Colors.white70, fontSize: 13.5)),
+        const SizedBox(height: 10),
+        ...lines,
+      ]))),
+      actions: [ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: gc, foregroundColor: Colors.black),
+          onPressed: () => Navigator.pop(dctx), child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold)))],
+    ));
+  }
+
   Future<void> _openBoxes(String boxName, int count) async {
     if (count <= 0) return;
     final user = FirebaseAuth.instance.currentUser;
