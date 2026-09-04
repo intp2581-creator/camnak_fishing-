@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>선물함 — 캠피싱 KREFT</title>
+  <link rel="canonical" href="https://kreft.co.kr/gift.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="캠피싱 KREFT">
+  <meta property="og:title" content="선물함 — 캠피싱 KREFT">
+  <meta property="og:description" content="캠피싱 KREFT 선물함 — 받기를 누르면 게임 가방으로 바로 들어갑니다.">
+  <meta property="og:url" content="https://kreft.co.kr/gift.html">
+  <meta property="og:image" content="https://kreft.co.kr/assets/og-cover.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b1a22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KREFT">
+<meta name="description" content="캠피싱 KREFT 선물함 — 받기를 누르면 게임 가방으로 바로 들어갑니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .gwrap{display:grid;gap:18px;margin-bottom:34px}
+
+  .gift{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;display:grid;
+    grid-template-columns:170px 1fr;align-items:stretch}
+  .gift.done{opacity:.72}
+  .gimg{background:linear-gradient(160deg,#2a1c4a,#4a2f7a);display:flex;
+    align-items:center;justify-content:center;padding:18px}
+  .gimg img{width:100%;max-width:130px;height:auto;display:block}
+  .gbody{padding:22px 24px;display:flex;flex-direction:column;gap:12px}
+
+  .gtop{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  .gtop h2{margin:0;font-size:19px;font-weight:900;color:var(--ink)}
+  .badge{font-size:11.5px;font-weight:900;padding:3px 10px;border-radius:20px;flex:none}
+  .badge.open{background:#fdf3d8;color:#8a6b00}
+  .badge.done{background:#e3f6ee;color:#1b8a5f}
+  .badge.soon{background:#eaf4f9;color:#0f6f96}
+
+  .gmsg{margin:0;font-size:14.5px;color:var(--ink-soft);line-height:1.75;white-space:pre-line}
+
+  .glist{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:7px}
+  .glist li{font-size:13.5px;font-weight:700;color:var(--ink);background:#f2fafc;
+    border:1px solid var(--line);border-radius:20px;padding:5px 12px}
+  .glist li b{color:var(--blue-ink)}
+
+  .gfoot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:auto;padding-top:4px}
+  .until{font-size:13px;color:var(--ink-soft);font-weight:700}
+  .until b{color:#c0392b}
+  .btn-get{padding:12px 30px;border:none;border-radius:24px;cursor:pointer;
+    font-family:inherit;font-size:15px;font-weight:900;color:#3a2600;
+    background:linear-gradient(180deg,var(--yellow),var(--yellow-deep));
+    box-shadow:0 4px 14px rgba(247,181,0,.35)}
+  .btn-get:disabled{background:#e6eef2;color:#9db2bc;box-shadow:none;cursor:default}
+  .got{font-size:14.5px;font-weight:800;color:#1b8a5f}
+
+  .empty{background:var(--card);border:1px dashed var(--line);border-radius:16px;
+    padding:56px 24px;text-align:center;color:var(--ink-soft);font-size:15px;line-height:1.9}
+  .empty b{color:var(--ink);display:block;font-size:17px;margin-bottom:8px}
+
+  .howto{background:#eaf6fb;border:1px solid #cfe8f3;border-radius:16px;
+    padding:20px 24px;margin-bottom:26px;font-size:14.5px;color:var(--ink-soft);line-height:1.9}
+  .howto b{color:var(--blue-ink)}
+
+  .loginbox{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:48px 24px;text-align:center}
+  .loginbox p{margin:0 0 18px;font-size:15.5px;color:var(--ink-soft);line-height:1.85}
+  .loginbox .btn-get{display:inline-block;text-decoration:none;line-height:1.4}
+
+  @media (max-width:640px){
+    .gift{grid-template-columns:1fr}
+    .gimg{padding:22px 18px 6px}
+    .gimg img{max-width:120px}
+    .gbody{padding:18px 20px 22px}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+      <a class="on" href="gift.html">선물함</a>
+      <a href="support.html">고객지원</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🎁 선물함</h1>
+  <p>받기를 누르면 게임 가방으로 바로 들어갑니다.</p>
+</div></div>
+
+<div class="wrap">
+
+  <div class="howto">
+    <b>받는 방법</b> — 아래 <b>받기</b> 버튼을 누르면 게임 가방에 <b>선물 상자</b>가 들어갑니다.
+    게임에 접속해서 가방을 열고 상자를 누르면 내용물을 받으실 수 있어요.<br>
+    ⏰ <b>받기 기간이 지나면 받으실 수 없습니다.</b> 기간 안에 꼭 받아 가세요.
+  </div>
+
+  <div id="gwrap" class="gwrap"></div>
+
+</div>
+
+<footer class="site-foot"><div class="wrap">
+  <p>© 캠피싱 KREFT · (주)안테모사</p>
+</div></footer>
+
+<script type="module" src="auth.js"></script>
+<script>
+(function(){
+  var API = 'https://us-central1-camnak-fishing.cloudfunctions.net/giftApi';
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,
+    function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  function fmtDate(s){
+    var m = String(s||'').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? (m[2].replace(/^0/,'') + '월 ' + m[3].replace(/^0/,'') + '일') : '';
+  }
+
+  // 남은 기간 — "오늘까지", "3일 남음" 처럼 급한 것이 눈에 띄게
+  function untilText(endAt){
+    if (!endAt) return '';
+    var m = String(endAt).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return '';
+    var end = Date.UTC(+m[1], +m[2]-1, +m[3], 23, 59, 59);
+    var now = Date.now() + (9*60*60*1000);       // KST 기준
+    var days = Math.floor((end - now) / 86400000);
+    if (days < 0) return '<b>기간 종료</b>';
+    if (days === 0) return '<b>오늘까지</b>';
+    if (days <= 3) return '<b>' + days + '일 남음</b> · ' + fmtDate(endAt) + '까지';
+    return fmtDate(endAt) + '까지';
+  }
+
+  function itemLine(i){
+    var q = (i.quantity||1);
+    return '<li>' + esc(i.name) + (q > 1 ? ' <b>×' + q + '</b>' : '') + '</li>';
+  }
+
+  function card(g){
+    var items = (g.items||[]).map(itemLine).join('');
+    if (g.gold > 0) items += '<li>KREFT <b>+' + Number(g.gold).toLocaleString() + '</b></li>';
+    if (g.exp > 0)  items += '<li>경험치 <b>+' + Number(g.exp).toLocaleString() + '</b></li>';
+    return '<article class="gift' + (g.claimed ? ' done' : '') + '" data-id="' + esc(g.id) + '">'
+      + '<div class="gimg"><img src="assets/item_box_gift.png" alt="선물 상자"'
+      + ' onerror="this.style.display=\'none\'"></div>'
+      + '<div class="gbody">'
+      +   '<div class="gtop"><h2>' + esc(g.title) + '</h2>'
+      +     (g.claimed ? '<span class="badge done">받음</span>'
+                       : '<span class="badge open">받을 수 있어요</span>')
+      +   '</div>'
+      +   (g.msg ? '<p class="gmsg">' + esc(g.msg) + '</p>' : '')
+      +   (items ? '<ul class="glist">' + items + '</ul>' : '')
+      +   '<div class="gfoot">'
+      +     (g.claimed
+              ? '<span class="got">✅ 받으셨습니다 — 게임 가방을 확인해 주세요</span>'
+              : '<button class="btn-get" data-get="' + esc(g.id) + '">🎁 받기</button>'
+                + '<span class="until">' + untilText(g.endAt) + '</span>')
+      +   '</div>'
+      + '</div></article>';
+  }
+
+  function showLogin(){
+    $('gwrap').innerHTML = '<div class="loginbox">'
+      + '<p>선물은 <b>게임 계정</b>으로 지급됩니다.<br>로그인하시면 받으실 수 있는 선물을 보여드릴게요.</p>'
+      + '<a class="btn-get" data-do-login href="#">로그인하고 선물 확인하기</a></div>';
+  }
+
+  function showEmpty(){
+    $('gwrap').innerHTML = '<div class="empty"><b>지금은 받으실 선물이 없어요</b>'
+      + '이벤트나 보상이 있을 때 이곳에 선물이 도착합니다.<br>'
+      + '공지를 확인해 주세요.</div>';
+  }
+
+  async function load(){
+    var u = window.__auth && window.__auth.currentUser;
+    if (!u) { showLogin(); return; }
+    $('gwrap').innerHTML = '<div class="empty">불러오는 중…</div>';
+    try{
+      var t = await u.getIdToken();
+      var r = await fetch(API + '?list=1', {headers:{Authorization:'Bearer ' + t}});
+      var j = await r.json();
+      if (!j.ok) throw new Error(j.err || '선물을 불러오지 못했습니다');
+      if (!j.rows.length) { showEmpty(); return; }
+      $('gwrap').innerHTML = j.rows.map(card).join('');
+    }catch(e){
+      $('gwrap').innerHTML = '<div class="empty"><b>선물을 불러오지 못했어요</b>'
+        + esc(e.message) + '</div>';
+    }
+  }
+
+  document.addEventListener('click', async function(e){
+    var b = e.target.closest('[data-get]');
+    if (!b) return;
+    e.preventDefault();
+    var u = window.__auth && window.__auth.currentUser;
+    if (!u) { location.reload(); return; }
+    b.disabled = true; b.textContent = '받는 중…';
+    try{
+      var t = await u.getIdToken();
+      var r = await fetch(API, {method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:'Bearer ' + t},
+        body: JSON.stringify({action:'claim', id: b.dataset.get})});
+      var j = await r.json();
+      if (!j.ok) throw new Error(j.err || '받지 못했습니다');
+      alert(j.already
+        ? '이미 받으신 선물입니다.'
+        : '선물을 받았습니다! 🎁\n게임에 접속해서 가방을 열어 보세요.');
+      load();
+    }catch(err){
+      alert(err.message);
+      b.disabled = false; b.textContent = '🎁 받기';
+    }
+  });
+
+  document.addEventListener('camfishing:login', load);
+  // 로그인 상태 확인 전에는 로그인 안내를 먼저 보여준다(빈 화면 방지)
+  showLogin();
+  setTimeout(function(){ if (window.__auth && window.__auth.currentUser) load(); }, 1200);
+})();
+</script>
+</body>
+</html>

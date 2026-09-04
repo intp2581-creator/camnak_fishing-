@@ -48,6 +48,17 @@
   .perk .pt{font-size:15.5px;line-height:1.75;color:#33525f}
   .perk .pt b{color:var(--ink)}
   @media (max-width:820px){ .zones{grid-template-columns:repeat(2,1fr)} .ghouse{grid-template-columns:1fr} }
+  /* 🏰 내 길드 칸 */
+  .myguild{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    flex-wrap:wrap;background:linear-gradient(135deg,#0f6f96,#12839f);color:#fff;
+    border-radius:16px;padding:20px 26px;margin:0 0 22px;box-shadow:var(--shadow-sm)}
+  .myguild.guest{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+  .myguild .mg-l{display:flex;flex-direction:column;gap:4px;min-width:0}
+  .mg-eyebrow{font-size:12px;font-weight:800;letter-spacing:.08em;opacity:.75}
+  .myguild b{font-size:20px;font-weight:900;line-height:1.35}
+  .myguild.guest b{font-size:15.5px;font-weight:700;color:var(--ink-soft)}
+  .myguild .btn{flex:none}
+  @media (max-width:560px){ .myguild{padding:18px 20px} .myguild .btn{width:100%;text-align:center} }
 </style>
 </head>
 <body>
@@ -63,6 +74,7 @@
       <a class="on" href="guild.html">길드홀</a>
       <a href="arena.html">아레나</a>
       <a data-store href="#">게임스토어</a>
+      <a href="gift.html">선물함</a>
       <a href="support.html">고객지원</a>
       <a href="index.html#media">미디어</a>
     </nav>
@@ -82,6 +94,23 @@
 
 <div class="wrap">
   <div class="hero-raid"><img src="assets/slide2-raid.jpg" alt="THE GREAT CATCH - THE GUILD BOSS RAID"></div>
+
+  <!-- 🏰 우리 길드 게시판 — 로그인하면 자기 길드 이름이 뜨고, 그 길드 게시판으로 간다.
+       아래 설명은 '길드란 무엇인가'라 누구에게나 같지만, 이 칸만은 사람마다 다르다. -->
+  <div class="myguild" id="myGuild" style="display:none">
+    <div class="mg-l">
+      <span class="mg-eyebrow">내 길드</span>
+      <b id="mgName">—</b>
+    </div>
+    <a class="btn btn-play" id="mgBoard" href="community.html#guild">🏰 우리 길드 게시판</a>
+  </div>
+  <div class="myguild guest" id="myGuildOut" style="display:none">
+    <div class="mg-l">
+      <span class="mg-eyebrow">내 길드</span>
+      <b id="mgOutMsg">로그인하시면 우리 길드 게시판으로 바로 갈 수 있어요.</b>
+    </div>
+    <a class="btn btn-line" data-do-login href="#">로그인</a>
+  </div>
 
   <div class="sec-head" style="margin-top:6px"><h2>🏠 우리 길드홀</h2><span class="sub">우리 길드만의 공간</span></div>
   <div class="ghouse">
@@ -210,5 +239,35 @@
   document.querySelectorAll('[data-play]').forEach(function(a){a.href=GAME_URL;}); document.querySelectorAll('[data-store]').forEach(function(a){a.href=STORE_URL;}); wire('[data-yt]',YT_URL);
 </script>
 <script type="module" src="auth.js"></script>
+<script>
+(function(){
+  // 🏰 내 길드 알아내기 — 커뮤니티 API가 목록과 함께 내 길드를 알려준다(따로 부를 필요 없음).
+  var API='https://us-central1-camnak-fishing.cloudfunctions.net/communityApi';
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  async function fill(){
+    var u = window.__auth && window.__auth.currentUser;
+    var inBox=document.getElementById('myGuild'), outBox=document.getElementById('myGuildOut');
+    if(!u){ outBox.style.display=''; inBox.style.display='none'; return; }
+    try{
+      var t=await u.getIdToken();
+      var r=await fetch(API+'?list=1&board=guild&limit=1',{headers:{Authorization:'Bearer '+t}});
+      var j=await r.json();
+      var g=j&&j.guild;
+      if(g&&g.id){
+        document.getElementById('mgName').textContent=(g.name||'우리 길드');
+        inBox.style.display=''; outBox.style.display='none';
+      }else{
+        document.getElementById('mgOutMsg').textContent=
+          '아직 길드에 가입하지 않으셨어요. 게임 광장의 길드홀에서 가입해 보세요.';
+        outBox.querySelector('.btn').style.display='none';
+        outBox.style.display=''; inBox.style.display='none';
+      }
+    }catch(e){ outBox.style.display=''; }
+  }
+  document.addEventListener('camfishing:login', fill);
+  setTimeout(fill, 1200);
+})();
+</script>
 </body>
 </html>

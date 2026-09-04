@@ -136,6 +136,7 @@
       <a href="guild.html">길드홀</a>
       <a href="arena.html">아레나</a>
       <a data-store href="#">게임스토어</a>
+      <a href="gift.html">선물함</a>
       <a href="support.html">고객지원</a>
       <a href="index.html#media">미디어</a>
     </nav>
@@ -160,7 +161,7 @@
       <button class="on" data-b="free">자유게시판</button>
       <button data-b="tip">팁 · 노하우</button>
       <button data-b="catch">조과 자랑</button>
-      <button data-b="guild">길드 소식</button>
+      <button data-b="guild">🏰 우리 길드</button>
       <button data-b="ask">건의 · 문의</button>
     </div>
 
@@ -181,7 +182,7 @@
         <option value="free">자유게시판</option>
         <option value="tip">팁 · 노하우</option>
         <option value="catch">조과 자랑</option>
-        <option value="guild">길드 소식</option>
+        <option value="guild">🏰 우리 길드</option>
         <option value="ask">건의 · 문의</option>
       </select>
       <label>제목</label>
@@ -227,11 +228,28 @@
   var BOARD={free:['자유게시판','조사님들과 자유롭게 이야기 나눠보세요.'],
              tip:['팁 · 노하우','나만의 낚시 요령과 공략을 공유해 주세요.'],
              catch:['조과 자랑','오늘의 조과를 사진과 함께 자랑해 보세요!'],
-             guild:['길드 소식','길드원 모집과 길드 활동 소식을 알려주세요.'],
+             guild:['우리 길드','우리 길드원끼리만 보는 게시판입니다.'],
              ask:['건의 · 문의','게임에 대한 의견·제안을 남겨주세요. 모두 읽고 있습니다. '
                   +'<b>결제 · 환불 · 경품 배송 · 계정 문제</b>는 개인정보가 오가므로 '
                   +'<a href="support.html" style="color:#0f6f96;font-weight:800">고객지원 1:1 문의</a>를 이용해 주세요.']};
   var cur='free', myUid='', myIsGm=false;
+
+  // 🏰 길드 탭 설명 — 어느 길드 게시판을 보고 있는지 분명히 알려준다.
+  //    (길드마다 게시판이 따로라 '내 길드'가 어디인지 안 보이면 헷갈린다)
+  function guildDesc(g){
+    var el = document.getElementById('bdesc');
+    if (!(window.__auth && window.__auth.currentUser)) {
+      el.innerHTML = '길드 게시판은 <b>로그인</b> 후 우리 길드 글만 보입니다.';
+    } else if (g && g.id && g.name) {
+      el.innerHTML = '🏰 <b style="color:#0f6f96">' + esc(g.name) + '</b> 길드 게시판입니다. '
+        + '<span style="font-size:13.5px">우리 길드원만 보고 쓸 수 있어요.</span>';
+    } else if (g && g.id) {
+      el.innerHTML = '🏰 우리 길드 게시판입니다. <span style="font-size:13.5px">우리 길드원만 보고 쓸 수 있어요.</span>';
+    } else {
+      el.innerHTML = '아직 <b>길드에 가입하지 않으셨습니다.</b> '
+        + '게임 광장의 길드홀에서 가입하시면 우리 길드 게시판이 열립니다.';
+    }
+  }
   function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function ago(ms){
     if(!ms) return '';
@@ -258,14 +276,21 @@
     if(ok) setTimeout(function(){el.className='msg';},3000);}
 
   /* ── 목록 ── */
-  function loadList(){
+  async function loadList(){
     document.getElementById('bdesc').innerHTML = BOARD[cur][1]; // 설명에 링크가 들어감(고객지원 안내)
     var box=document.getElementById('plist');
     box.innerHTML='<div class="empty">불러오는 중…</div>';
-    fetch(API+'?list=1&board='+cur+'&limit=30').then(function(r){return r.json()}).then(function(j){
+    // 🏰 길드 게시판은 '우리 길드 것'만 내려오므로 로그인 토큰을 함께 보낸다.
+    var t = await token();
+    var opt = t ? {headers:{Authorization:'Bearer '+t}} : {};
+    fetch(API+'?list=1&board='+cur+'&limit=30', opt).then(function(r){return r.json()}).then(function(j){
       var it=j.items||[];
+      if(cur==='guild') guildDesc(j.guild);
       if(!it.length){
-        box.innerHTML='<div class="empty">아직 등록된 글이 없습니다.<br><span style="font-size:14px">첫 글을 남겨보세요!</span></div>';
+        box.innerHTML = (cur==='guild' && !(j.guild && j.guild.id))
+          ? '<div class="empty">길드에 가입하시면 우리 길드 게시판이 열립니다.<br>'
+            + '<span style="font-size:14px">게임 광장의 길드홀에서 길드에 가입해 보세요.</span></div>'
+          : '<div class="empty">아직 등록된 글이 없습니다.<br><span style="font-size:14px">첫 글을 남겨보세요!</span></div>';
         return;
       }
       box.innerHTML=it.map(function(n){
@@ -437,10 +462,23 @@
   if(qid){
     show('detail');
     document.getElementById('detailBody').innerHTML='<div class="empty">불러오는 중…</div>';
-    fetch(API+'?id='+encodeURIComponent(qid)).then(function(r){return r.json()}).then(function(j){
-      if(!j.ok){document.getElementById('detailBody').innerHTML='<div class="empty">글을 찾을 수 없습니다.</div>';return;}
-      window.__detail=j; renderDetail(j);
-    });
+    // 🏰 길드 글은 우리 길드원만 볼 수 있으므로 토큰을 함께 보낸다.
+    //    로그인 확인이 늦게 끝나므로, 실패하면 로그인 후 한 번 더 시도한다.
+    (function loadDetail(){
+      token().then(function(t){
+        var opt = t ? {headers:{Authorization:'Bearer '+t}} : {};
+        return fetch(API+'?id='+encodeURIComponent(qid), opt);
+      }).then(function(r){return r.json()}).then(function(j){
+        if(!j.ok){
+          document.getElementById('detailBody').innerHTML =
+            '<div class="empty">'+esc(j.err||'글을 찾을 수 없습니다.')+'</div>';
+          window.__retryDetail = loadDetail;
+          return;
+        }
+        window.__retryDetail = null;
+        window.__detail=j; renderDetail(j);
+      });
+    })();
   }else{
     var h=(location.hash||'').replace('#','');
     if(BOARD[h]){ cur=h; document.querySelectorAll('#btabs button').forEach(function(b){b.classList.toggle('on',b.dataset.b===h);}); }
@@ -456,6 +494,9 @@
     myUid = u ? u.uid : '';
     myIsGm = !!(e.detail && e.detail.isGm);
     if(window.__detail) renderDetail(window.__detail);
+    // 🏰 첫 로딩은 로그인 확인 전이라 길드 글이 비어 있다 — 이제 다시 부른다.
+    if(cur==='guild' && document.getElementById('listView').style.display!=='none') loadList();
+    if(window.__retryDetail) window.__retryDetail();
   });
 </script>
 <script type="module" src="auth.js"></script>

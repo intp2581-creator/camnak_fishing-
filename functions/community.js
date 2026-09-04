@@ -23,12 +23,32 @@ async function requireUser(req) {
   }
   const doc = await admin.firestore().collection("users").doc(dec.uid).get();
   const d = doc.exists ? doc.data() : {};
+  // 🏰 길드 게시판은 '우리 길드 사람만' 보여야 하므로 소속을 함께 싣는다.
+  const guildId = (d.guildId || "").toString();
+  let guildName = "";
+  if (guildId) {
+    try {
+      const g = await admin.firestore().collection("guilds").doc(guildId).get();
+      if (g.exists) guildName = (g.data().name || "").toString();
+    } catch (e) { /* 길드 못 읽어도 글쓰기 자체는 막지 않는다 */ }
+  }
   return {
     uid: dec.uid,
     nick: (d.nickname || "조사님").toString(),
     rank: (d.rank || "초보").toString(),
     isGm: d.isGm === true,
+    guildId: guildId,
+    guildName: guildName,
   };
+}
+
+// 🏰 길드 글을 볼 수 있는가 — 우리 길드 글이거나, guildId 없는 옛 글(전체 공지)이거나, GM.
+//   ⚠️ 로그인 안 한 사람에겐 길드 글을 아예 내보내지 않는다.
+function canSeeGuildPost(d, me) {
+  if (!me) return false;
+  if (me.isGm) return true;
+  if (!d.guildId) return true;              // 길드 지정 전에 쓰인 옛 글 = 전체 공지
+  return d.guildId === me.guildId;
 }
 
 // 💾 이미지 저장: 본문용 1장 + 목록용 썸네일 1장 (요금 절감 — 5장→1장, 목록은 썸네일만 로드)
@@ -63,6 +83,11 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
     if (req.method === "GET") {
       res.set("Cache-Control", "no-store");
 
+      // 🏰 길드 글을 가리려면 '누가 보고 있는지' 알아야 한다.
+      //    비로그인도 다른 게시판은 그대로 볼 수 있으므로 실패해도 넘어간다.
+      let viewer = null;
+      try { viewer = await requireUser(req); } catch (e) { viewer = null; }
+
       if (req.query.id) {
         const id = String(req.query.id);
         const doc = await posts.doc(id).get();
@@ -71,6 +96,9 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         }
         posts.doc(id).update({ views: admin.firestore.FieldValue.increment(1) }).catch(() => {});
         const d = doc.data();
+        if (d.board === "guild" && !canSeeGuildPost(d, viewer)) {
+          return res.status(403).json({ ok: false, err: "우리 길드 게시판만 보실 수 있습니다" });
+        }
         const cs = await comments.where("postId", "==", id).limit(200).get();
         const cList = [];
         cs.forEach((c) => {
@@ -89,6 +117,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
             id: doc.id, board: d.board, title: d.title, body: d.body, images: d.images || [],
             author: d.author, rank: d.rank || "", authorUid: d.authorUid || "", gm: d.gm === true,
             views: d.views || 0, createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
+            guildName: d.guildName || "",
           },
           comments: cList,
         });
@@ -105,6 +134,8 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         const d = doc.data();
         if (d.deleted === true) return;
         if (board && d.board !== board) return;
+        // 🏰 길드 글은 우리 길드 것만 (전체 목록에서도 남의 길드 글이 새면 안 된다)
+        if (d.board === "guild" && !canSeeGuildPost(d, viewer)) return;
         if (items.length >= limit) return;
         items.push({
           id: doc.id, board: d.board, title: d.title || "",
@@ -113,9 +144,11 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
           thumb: d.thumb || "",   // ⚠️ 원본 대신 썸네일만 (다운로드 요금 절감)
           hasImage: Array.isArray(d.images) && d.images.length > 0,
           createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
+          guildName: d.guildName || "",
         });
       });
-      return res.json({ ok: true, items });
+      return res.json({ ok: true, items,
+        guild: viewer ? { id: viewer.guildId, name: viewer.guildName } : null });
     }
 
     // ── 쓰기(로그인 필요) ────────────────────
@@ -151,10 +184,18 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         return res.status(429).json({ ok: false, err: "잠시 후 다시 시도해 주세요 (연속 작성 제한)" });
       }
 
+      // 🏰 길드 게시판은 길드에 속한 사람만 쓸 수 있고, 어느 길드 글인지 도장을 찍는다.
+      //    이 값이 있어야 나중에 다른 길드에 안 보인다(클라이언트가 보낸 값은 믿지 않는다).
+      if (board === "guild" && !me.guildId) {
+        return res.status(400).json({ ok: false,
+          err: "길드에 가입하셔야 길드 게시판에 글을 쓸 수 있습니다" });
+      }
+
       const ref = await posts.add({
         board: board, title: title, body: body, images: [],
         author: me.nick, rank: me.rank, authorUid: me.uid, gm: me.isGm === true,
         views: 0, commentCount: 0, deleted: false,
+        ...(board === "guild" ? { guildId: me.guildId, guildName: me.guildName } : {}),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       let img = "", thumb = "";

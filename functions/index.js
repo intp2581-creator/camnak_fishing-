@@ -877,3 +877,6 @@ exports.notifyPost        = require("./notify").notifyPost;
 
 // 🛒 게임스토어 상품 관리 (store.js)
 exports.storeApi = require("./store").storeApi;
+
+// 🎁 선물함(홈페이지에서 받기 → 게임 인벤 지급)
+exports.giftApi = require("./gift").giftApi;
