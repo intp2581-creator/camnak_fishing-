@@ -185,6 +185,11 @@ class _RankingScreenState extends State<RankingScreen> {
                   ? FirebaseFirestore.instance.collection('users').orderBy('exp', descending: true).limit(20).snapshots()
                   : FirebaseFirestore.instance.collection('users').orderBy('maxCatch.$selectedFish.size', descending: true).limit(20).snapshots(),
               builder: (context, snapshot) {
+                // 🩺 [2026-09-04] 예전엔 무슨 일이 나든 전부 '데이터가 없습니다'로 보였다.
+                //    권한 오류·로그인 끊김·네트워크 실패가 빈 랭킹과 구분이 안 돼
+                //    "랭킹이 안 뜬다"는 말만 듣고는 원인을 찾을 수가 없었다.
+                if (snapshot.hasError) return _errorBox('${snapshot.error}');
+                if (FirebaseAuth.instance.currentUser == null) return _loginBox();
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)));
                 }
@@ -897,6 +902,44 @@ class _RankingScreenState extends State<RankingScreen> {
     );
   }
 
+  // ⚠️ 랭킹을 못 불러왔을 때 — 무엇이 잘못됐는지 그대로 보여주고 다시 시도할 길을 준다.
+  Widget _errorBox(String msg) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('랭킹을 불러오지 못했어요',
+                style: TextStyle(color: Colors.orangeAccent, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            Text(msg, textAlign: TextAlign.center, maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white38, fontSize: 13, height: 1.5)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+              onPressed: () => setState(() {}),
+              child: const Text('다시 시도', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 🔐 로그인이 풀린 경우 — 새로고침하면 자동 로그인으로 되돌아온다.
+  Widget _loginBox() {
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: 24),
+        child: Text('로그인이 풀려서 랭킹을 불러올 수 없어요.\n\n브라우저를 새로고침하면 다시 보입니다.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white54, fontSize: 16, height: 1.6)),
+      ),
+    );
+  }
+
   Future<int> _getMyRank(Map<String, dynamic> myData) async {
     final col = FirebaseFirestore.instance.collection('users');
     try {
@@ -929,9 +972,18 @@ class _RankingScreenState extends State<RankingScreen> {
 
   Widget _buildMyStaticRank() {
     final user = FirebaseAuth.instance.currentUser;
+    // 🔐 로그인이 끊기면 doc(null)이 되어 아무것도 안 뜬다 — 그냥 사라지면 원인을 모른다.
+    if (user == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 10),
+        child: Text('로그인이 풀려서 내 랭킹을 불러올 수 없어요.',
+            textAlign: TextAlign.center, style: TextStyle(color: Colors.white38, fontSize: 15)),
+      );
+    }
     return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+      stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) return const SizedBox();
         if (!snapshot.hasData || snapshot.data!.data() == null) return const SizedBox();
         var myData = snapshot.data!.data() as Map<String, dynamic>;
         String displayVal = '';
