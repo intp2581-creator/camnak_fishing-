@@ -168,6 +168,11 @@ PRESETS = {
         "msg": "이용에 불편을 드려 죄송합니다." + NL + "작은 사과의 뜻입니다.",
         "items": [item_hour(2), item_potion(3), item_card(3)],
     },
+    "event": {
+        "title": "이벤트 선물",
+        "msg": "이벤트에 참여해 주셔서 고맙습니다!" + NL + "작은 선물을 준비했어요.",
+        "items": [item_potion(3), item_card(3), item_hour(1), item_arena(1)],
+    },
 }
 
 

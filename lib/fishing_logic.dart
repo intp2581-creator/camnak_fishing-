@@ -390,8 +390,10 @@ class FishingLogic {
       } else {
         inv.add(item);
       }
-      final key = addQ > 1 ? '${item['name']} $addQ개' : '${item['name']}';
-      itemCounts[key] = (itemCounts[key] ?? 0) + 1;
+      // 📋 확률 상자는 '몇 번 나왔나'를 세지만, 선물 상자는 한 번씩만 담기므로
+      //    '몇 개인가'를 센다. (예전엔 '물약 5개 ×1'처럼 수량이 두 번 나와 헷갈렸다)
+      final nm = (item['name'] ?? '').toString();
+      itemCounts[nm] = (itemCounts[nm] ?? 0) + addQ;
     }
 
     inv.removeAt(bi); // 선물 상자는 수량이 안 쌓이므로 열면 항목째 사라진다
