@@ -4564,11 +4564,13 @@ Positioned(
               final isFish = (item['type'] ?? '') == 'FISH';
               if (_currentFilter == 'ALL') return true;
               final storeOnly = isStoreOnlyItem(item); // 이용권·물약·엠블럼 등은 게임스토어 탭에서만
+              if (isMaterialItem(item)) return _currentFilter == 'MATERIAL'; // 🧰 재료(보석)는 '재료' 탭에서만
               if (_currentFilter == 'FW' && !storeOnly && (cat == 'FW' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SEA' && !storeOnly && (cat == 'SEA' || cat == 'COMMON') && !isSkin && !isFish && !isBait(item['name'].toString())) return true;
               if (_currentFilter == 'BAIT' && isBait(item['name'].toString())) return true;
               if (_currentFilter == 'SKIN' && isStoreTabItem(item)) return true;
               if (_currentFilter == 'FISH' && isFish) return true;
+              if (_currentFilter == 'MATERIAL' && isMaterialItem(item)) return true;
               return false;
             }).toList();
 
@@ -4588,8 +4590,8 @@ Positioned(
                   
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: ['ALL', 'FW', 'SEA', 'BAIT', 'FISH', 'SKIN'].map((filter) {
-                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : filter == 'FISH' ? '물고기' : '게임스토어';
+                    children: ['ALL', 'FW', 'SEA', 'BAIT', 'FISH', 'MATERIAL', 'SKIN'].map((filter) {
+                      String label = filter == 'ALL' ? '전체' : filter == 'FW' ? '민물' : filter == 'SEA' ? '바다' : filter == 'BAIT' ? '미끼' : filter == 'FISH' ? '물고기' : filter == 'MATERIAL' ? '재료' : '게임스토어';
                       bool isSelected = _currentFilter == filter; // 💡 바뀐 변수명 적용
                       return Expanded(
                         child: GestureDetector(
@@ -4930,6 +4932,11 @@ Positioned(
       _showNotificationPopup('🎁 이벤트 아이템', '${item['name']}은(는) 가방에 있으면\n효과가 자동으로 적용돼요.\n따로 장착하지 않아도 됩니다!', const Color(0xFFD4AF37));
       return;
     }
+    // 💎 보석 등 재료 — 장착 아이템이 아님(안 막으면 catch-all로 미끼 슬롯에 들어간다)
+    if (isMaterialItem(item)) {
+      _showNotificationPopup('💎 재료 아이템', '보석은 장착하는 물건이 아니에요.\n가방에 두면 낚싯대를 만들 때 재료로 쓰입니다.\n\n민물 광장의 바르탄 영감님을 찾아가세요! 🔨', const Color(0xFFD4AF37));
+      return;
+    }
     // ⚡ 물약·카드(BOOST) — 탭하면 사용 확인창(장착 아이템 아님)
     if ((item['type'] ?? '') == 'BOOST') { _useBoost(item); return; }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
@@ -5162,6 +5169,11 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // 💎 보석 등 재료 — 장착 아이템이 아님
+    if (isMaterialItem(item)) {
+      _showNotificationPopup('💎 재료 아이템', '보석은 장착하는 물건이 아니에요.\n가방에 두면 낚싯대를 만들 때 재료로 쓰입니다.\n\n민물 광장의 바르탄 영감님을 찾아가세요! 🔨', const Color(0xFFD4AF37));
+      return;
+    }
     // 🎟️ 이용권·입장권(TICKET)은 장착 아이템이 아님 → 탭해서 '사용'으로(미끼 슬롯 오장착 방지)
     if ((item['category'] ?? '').toString().toUpperCase() == 'TICKET') { _useTicket(item); return; }
     // 🦐 새우 채집망 등 '도구(TRAP)'는 미끼/장비가 아님 → catch-all else로 미끼 장착돼 캐스팅 시 소모되는 버그 차단.

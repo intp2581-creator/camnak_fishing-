@@ -77,7 +77,12 @@ class AudioManager {
   Future<void> setBgmOn(bool on) async {
     bgmOn = on; _saveSettings();
     if (!on) {
+      // 🔇 [2026-09-05] pause() 만으로는 소리가 안 끊긴다는 제보. 웹에서 일시정지가
+      //    씹히는 경우가 있어 볼륨을 0으로 내린 뒤 정지까지 확실히 건다.
+      //    currentBgm 은 그대로 두므로, 다시 켜면 같은 곡을 처음부터 튼다.
+      try { await bgmPlayer.setVolume(0); } catch (_) {}
       try { await bgmPlayer.pause(); } catch (_) {}
+      try { await bgmPlayer.stop(); } catch (_) {}
       return;
     }
     if (isMuted) return;

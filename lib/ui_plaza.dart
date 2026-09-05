@@ -262,6 +262,212 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     });
   }
 
+  // 🔨 바르탄 — 낚싯대 공방(민물 광장). 제작 시스템 준비 중.
+  //   ⚠️ 낚싯대는 두들겨 만드는 게 아니다(대장간 문구 금지). 대 몸통 고르고 가이드 앉히고
+  //      실 감아 도장 올려 말리는 일이다. 이름도 그래서 판타지풍(바르탄)으로 갔다.
+  void _onBartanTap() {
+    _infoPopup('낚싯대 공방',
+        '보석상 제나스가 보내서 왔는가?\n\n'
+        '작업대를 손보는 중이니 조금만 기다리시게.');
+  }
+
+  // 💎 제나스 — 보석 교환소(바다 광장). 잡은 물고기를 같은 어종끼리 모아 보석으로 바꿔준다.
+  //   교환표는 game_config 의 kFishToGem / kGemCost. 참치·자라(트로피)와
+  //   고등어·무늬오징어(미끼조각 재료)는 교환 대상이 아니다.
+  void _onZenasTap() {
+    audioManager.playSfx('sfx_click.mp3');
+    showDialog(context: context, builder: (ctx) => _zenasDialog(ctx));
+  }
+
+  Widget _zenasDialog(BuildContext dctx) {
+    final user = FirebaseAuth.instance.currentUser;
+    return AlertDialog(
+      backgroundColor: const Color(0xFF16181D),
+      shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: _kGold, width: 1.4)),
+      titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 6),
+      contentPadding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      title: Row(children: [
+        const Text('💎 보석 교환소',
+            style: TextStyle(color: _kGold, fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text('물고기를 가져오시면 보석으로 교환해드립니다',
+              style: TextStyle(color: Color(0xFFFFE9A8), fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+        GestureDetector(
+            onTap: () => Navigator.pop(dctx),
+            child: const Icon(Icons.close, color: Colors.white54, size: 22)),
+      ]),
+      content: SizedBox(
+        width: 560,
+        height: 440,
+        child: user == null
+            ? const Center(child: Text('로그인이 필요해요', style: TextStyle(color: Colors.white54)))
+            : StreamBuilder<DocumentSnapshot>(
+                stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                builder: (c, snap) {
+                  if (!snap.hasData) {
+                    return const Center(child: CircularProgressIndicator(color: _kGold));
+                  }
+                  final data = snap.data!.data() as Map<String, dynamic>? ?? {};
+                  final inv = List<dynamic>.from(data['inventory'] ?? []);
+                  int have(String nm, String type) {
+                    for (final it in inv) {
+                      if ((it['type'] ?? '') == type && (it['name'] ?? '') == nm) {
+                        return ((it['quantity'] ?? 0) as num).toInt();
+                      }
+                    }
+                    return 0;
+                  }
+                  final gems = kGemOrder.reversed.toList(); // 다이아 → 크리스탈
+                  return ListView.builder(
+                    itemCount: gems.length,
+                    itemBuilder: (c, i) => _gemCard(gems[i], have),
+                  );
+                }),
+      ),
+    );
+  }
+
+  /// 보석 한 장 — 필요한 어종을 전부 보여주고, 다 모였을 때만 교환 버튼이 켜진다.
+  Widget _gemCard(String gem, int Function(String, String) have) {
+    final recipe = kGemRecipe[gem] ?? const <String, int>{};
+    final int owned = have(gem, 'GEM');
+    bool ok = true;
+    for (final e in recipe.entries) {
+      if (have(e.key, 'FISH') < e.value) ok = false;
+    }
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: ok ? _kGold.withOpacity(0.10) : Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: ok ? _kGold : Colors.white12, width: ok ? 1.6 : 1.0),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Image.asset('assets/items/${kGemIcon[gem]}',
+              width: 36, height: 36,
+              errorBuilder: (a, b, c) => const SizedBox(width: 36, height: 36)),
+          const SizedBox(width: 8),
+          Text(gem,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(width: 8),
+          if (owned > 0)
+            Text('보유 $owned개',
+                style: const TextStyle(color: _kGold, fontSize: 12, fontWeight: FontWeight.bold)),
+          const Spacer(),
+          GestureDetector(
+            onTap: ok ? () => _tradeGem(gem) : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                  color: ok ? _kGold : Colors.white12,
+                  borderRadius: BorderRadius.circular(8)),
+              child: Text(ok ? '교환' : '모으는 중',
+                  style: TextStyle(
+                      color: ok ? Colors.black : Colors.white30,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: recipe.entries.map((e) {
+            final int h = have(e.key, 'FISH');
+            final bool done = h >= e.value;
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: done ? const Color(0xFF1E3B2E) : Colors.black26,
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                    color: done ? const Color(0xFF8FE3C8) : Colors.white12),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Image.asset(fishImageByName(e.key),
+                    width: 22, height: 22, fit: BoxFit.contain,
+                    errorBuilder: (a, b, c) => const SizedBox(width: 22, height: 22)),
+                const SizedBox(width: 5),
+                Text('${e.key}  ',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                Text('$h',
+                    style: TextStyle(
+                        color: done ? const Color(0xFF8FE3C8) : Colors.orangeAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold)),
+                Text('/${e.value}',
+                    style: const TextStyle(color: Colors.white38, fontSize: 12)),
+              ]),
+            );
+          }).toList(),
+        ),
+      ]),
+    );
+  }
+
+  /// 조합대로 물고기를 거둬가고 보석 1개를 준다.
+  Future<void> _tradeGem(String gemName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    final recipe = kGemRecipe[gemName] ?? const <String, int>{};
+    if (recipe.isEmpty) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+      // 1) 전부 있는지 다시 확인(창을 열어둔 사이 팔았을 수도 있다)
+      for (final e in recipe.entries) {
+        final idx = inv.indexWhere((x) =>
+            x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
+        final int q = idx < 0 ? 0 : ((inv[idx]['quantity'] ?? 0) as num).toInt();
+        if (q < e.value) {
+          _infoPopup('💎 아직이에요', '${e.key}이(가) ${e.value}마리 있어야 해요.\n(지금 $q마리)');
+          return;
+        }
+      }
+      // 2) 거둬가기 (뒤에서부터 지워야 인덱스가 안 밀린다)
+      for (final e in recipe.entries) {
+        final idx = inv.indexWhere((x) =>
+            x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
+        if (idx < 0) continue;
+        final int q = ((inv[idx]['quantity'] ?? 0) as num).toInt();
+        if (q - e.value <= 0) {
+          inv.removeAt(idx);
+        } else {
+          inv[idx]['quantity'] = q - e.value;
+        }
+      }
+      // 3) 보석 넣기
+      final gi = inv.indexWhere((x) =>
+          x is Map && (x['name'] ?? '') == gemName && (x['type'] ?? '') == 'GEM');
+      if (gi >= 0) {
+        inv[gi]['quantity'] = ((inv[gi]['quantity'] ?? 0) as num).toInt() + 1;
+      } else {
+        inv.add(makeGem(gemName));
+      }
+      await ref.update({'inventory': inv});
+      audioManager.playSfx('sfx_landing_success.mp3');
+      if (!mounted) return;
+      final total = recipe.values.fold<int>(0, (a, b) => a + b);
+      _infoPopup('💎 교환 완료',
+          '물고기 $total마리 잘 받았습니다.\n\n'
+          '$gemName 여기 있습니다.\n'
+          '민물 광장의 바르탄 영감님을 찾아가십시오.');
+    } catch (e) {
+      if (mounted) _infoPopup('교환 실패', '$e');
+    }
+  }
+
   // ───────────────────────── 🎓 튜토리얼 퀘스트 ─────────────────────────
   // 현재 진행 중 퀘스트(1~5 → 인덱스 0~4). 없으면 null
   Map<String, String>? get _tutQuestNow =>
@@ -374,6 +580,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   //    좌표를 코드에 넣고 배포 → 확인 → 다시 고치는 걸 반복하면 하루가 간다.
   //    끌어서 옮기고 저장하면 Firestore(config/plaza_layout)에 남는다.
   //    ⚠️ showAll 이 켜질 때까지 새 건물·NPC는 GM에게만 보인다(작업 중인 걸 유저가 보면 안 됨).
+  /// 🧭 [GM] 배치 도구 스위치 — 건물·NPC 자리를 잡을 때만 true 로 바꿔 배포한다.
+  ///   평소엔 꺼둔다. 화면에 버튼이 떠 있으면 실수로 눌러 배치가 틀어지고,
+  ///   스크린샷·화면공유에도 찍힌다(2026-09-05 배치 작업 끝나고 끔).
+  static const bool kLayoutToolOn = false;
+
   bool _layoutMode = false;          // 배치 모드 on/off
   String? _layoutSel;                // 지금 잡고 있는 대상 키
   bool _layoutShowAll = false;       // true면 모든 유저에게 공개
@@ -411,6 +622,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     return {'cx': cx, 'cy': cy, 'h': h, 'z': 0.0};
   }
 
+  /// 🧍 NPC 앞뒤 깊이 — 저장된 위치가 있으면 그 발 높이, 없으면 호출부 기본값.
+  ///   +0.004 는 '같은 줄에 선 건물보다는 앞'이 되게 하는 아주 작은 여유값.
+  double _npcDepth(String suffix, double cy) {
+    final v = _layout[(widget.isSea ? 'sea' : 'fw') + suffix];
+    return ((v != null ? v['cy'] : null) ?? cy) + 0.004;
+  }
+
   /// 앞뒤 보정값(없으면 0)
   double _z(Map<String, double> v) => v['z'] ?? 0.0;
 
@@ -419,9 +637,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final p = widget.isSea ? 'sea' : 'fw';
     return {
       if (widget.isSea) ...{
-        'fish_house': '💎 교환소', 'fish_npc': '🐟 생선장수',
+        'fish_house': '💎 교환소', 'fish_npc': '💎 제나스',
       } else ...{
-        'craft_house': '🔨 제작소', 'craft_npc': '🧔 무쇠 영감',
+        'craft_house': '🔨 공방', 'craft_npc': '🔨 바르탄',
       },
       '${p}_portal_fishing': '🌀 낚시터문', '${p}_npc_fishing': '나루',
       '${p}_portal_arena': '⚔️ 아레나문', '${p}_npc_arena': '한별',
@@ -558,6 +776,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    // 🧍 [시작 지점] 민물 광장만 기념탑 앞으로. 기본값(0.5, 0.74)은 퀘스트 두루마리 그림
+    //    한복판이라, 들어오자마자 두루마리 뒤에 가려 머리만 보였다(2026-09-05 사용자 지정).
+    //    바다·길드홀은 두루마리 위치가 달라 기본값 그대로 둔다.
+    if (!widget.isSea && !_isGuildHall) _charPos = const Offset(0.656, 0.581);
     _level = widget.level;
     // 🐋 모임터 채팅은 '전체' 탭 그대로 — 이 광장의 전체채팅은 raidlobby/{길드ID} 채널로 필터되어
     //    자동으로 '모임터 참가자끼리'만 보인다(별도 길드탭 강제 불필요 + 길드 없는 계정 크래시 방지).
@@ -1748,7 +1970,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     Offset(0.006, 0.495), Offset(0.165, 0.411), Offset(0.267, 0.331), Offset(0.421, 0.285),
     Offset(0.411, 0.230), Offset(0.472, 0.271), Offset(0.603, 0.246), Offset(0.710, 0.346),
     Offset(0.779, 0.398), Offset(0.823, 0.397), Offset(0.823, 0.332), Offset(0.983, 0.326),
-    Offset(0.996, 0.490), Offset(0.784, 0.540), Offset(0.914, 0.668), Offset(0.994, 0.623),
+    // 🏪 (2026-09-05) 옛 상점 자리를 파고들던 홈 3점 제거 — 상점을 옮겼는데 홈이 남아
+    //    보이지 않는 유리벽처럼 길을 막았다(바다광장도 9/4에 같은 이유로 정리).
+    //    지운 값: Offset(0.784,0.540) · Offset(0.914,0.668) · Offset(0.994,0.623)
+    Offset(0.996, 0.490),
     Offset(0.994, 0.992), Offset(0.006, 0.989),
   ];
   // 🌊 바다광장 걷기 경계 (계단 때문에 점 많음)
@@ -1794,10 +2019,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     [Offset(0.166, 0.663), Offset(0.060, 0.664), Offset(0.059, 0.599), Offset(0.166, 0.581)],
     // 🏛️ 길드 아지트 건물 발자국(외곽) — 안으로 못 걸어들어가게
     [Offset(0.191, 0.411), Offset(0.425, 0.411), Offset(0.425, 0.338), Offset(0.250, 0.338)],
-    // 🏛️ 아레나 탑 (외곽 경계 틈 보강)
-    [Offset(0.779, 0.391), Offset(0.743, 0.392), Offset(0.705, 0.395), Offset(0.705, 0.302),
-     Offset(0.807, 0.334), Offset(0.804, 0.390)],
-    // (낚시터·상점은 외곽 경계로 이미 차단)
+    // ⚔️ 아레나 탑 (2026-09-05 사용자 다시 찍음 — 예전 것은 오른쪽으로 튀어나와
+    //    멀쩡한 바닥까지 막고 있었다)
+    //    탑 그림 가로폭(0.701~0.798)에 맞춘 네모. 위로는 0.345에서 끊어 뒤로 돌아갈 수 있게 둔다.
+    [Offset(0.800, 0.345), Offset(0.800, 0.392), Offset(0.700, 0.392), Offset(0.700, 0.345)],
+    // 🏪 상점 — 예전엔 '외곽 경계로 차단'이었는데 상점을 옮기면서 그게 깨졌다.
+    //    (2026-09-05 사용자 직접 찍음)
+    [Offset(1.000, 0.678), Offset(0.873, 0.666), Offset(0.813, 0.596),
+     Offset(0.860, 0.544), Offset(1.000, 0.547)],
+    // 🔨 낚싯대 제작소 — 건물 그림에 몸이 겹치는 자리까지 통째로 막는다.
+    //    건물은 밑변 한 줄(cy 0.392)로 앞뒤를 판정해서, 그보다 위(작은 y)에 서면
+    //    옆에 서 있어도 '건물 뒤'로 그려져 몸이 잘렸다. 그래서 발자국이 아니라
+    //    '건물 그림이 덮는 영역'을 막는다. (2026-09-05 사용자 직접 찍음)
+    [Offset(1.000, 0.390), Offset(0.893, 0.393), Offset(0.859, 0.366),
+     Offset(0.861, 0.330), Offset(0.996, 0.318)],
+    // 🌲 소나무 6그루 밑동 — 줄기만 막는다(가지는 통과 → 나무 뒤로 지나가면 가려짐).
+    //    크기는 나무 그림 폭의 24%, 세로는 그림 높이의 4%로 잡고 밑변보다 살짝 아래까지.
+    [Offset(0.200, 0.472), Offset(0.226, 0.472), Offset(0.226, 0.488), Offset(0.200, 0.488)],
+    [Offset(0.014, 0.854), Offset(0.044, 0.854), Offset(0.044, 0.874), Offset(0.014, 0.874)],
+    [Offset(0.294, 0.878), Offset(0.324, 0.878), Offset(0.324, 0.898), Offset(0.294, 0.898)],
+    [Offset(0.881, 0.337), Offset(0.903, 0.337), Offset(0.903, 0.351), Offset(0.881, 0.351)],
+    [Offset(0.614, 0.318), Offset(0.634, 0.318), Offset(0.634, 0.331), Offset(0.614, 0.331)],
+    [Offset(0.696, 0.962), Offset(0.730, 0.962), Offset(0.730, 0.984), Offset(0.696, 0.984)],
+    // (낚시터 포탈은 외곽 경계로 차단)
   ];
   // 🌊 바다광장 못 가는 구역 (낚시터·아레나·상점은 외곽 경계로 차단)
   static const List<List<Offset>> _seaObstacles = [
@@ -1809,6 +2053,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     [Offset(0.234, 0.902), Offset(0.334, 0.856), Offset(0.348, 0.916), Offset(0.245, 0.941)],
     // 🏛️ 길드 아지트 건물 발자국(외곽) — 안으로 못 걸어들어가게
     [Offset(0.010, 0.505), Offset(0.265, 0.505), Offset(0.280, 0.435), Offset(0.090, 0.435)],
+    // 💎 보석 교환소 — 데크가 아니라 '2층 건물 몸통'을 막는다.
+    //    건물 깊이값(z -0.09)으로 앞뒤 판정선을 0.334로 올려놨기 때문에,
+    //    이 박스보다 아래(데크)에 서면 캐릭터가 건물 앞에 보이고,
+    //    위로 돌아가면 건물 뒤로 숨는다. (2026-09-05 사용자 직접 찍음)
+    [Offset(0.828, 0.307), Offset(0.751, 0.309), Offset(0.741, 0.338),
+     Offset(0.790, 0.387), Offset(0.818, 0.349), Offset(0.866, 0.408),
+     Offset(0.930, 0.342)],
+    // 🏪 바다 상점 — 옛 자리 홈을 지운 뒤로 막는 게 없었다. 교환소와 같은 방식으로
+    //    건물 몸통만 막는다(상점은 원래 깊이 -0.13 보정이 있어 데크가 앞으로 나온다).
+    //    (2026-09-05 사용자 직접 찍음)
+    [Offset(0.998, 0.536), Offset(0.847, 0.540), Offset(0.830, 0.570),
+     Offset(0.883, 0.630), Offset(0.913, 0.596), Offset(0.955, 0.609),
+     Offset(0.961, 0.653), Offset(0.999, 0.645)],
   ];
   List<List<Offset>> get _activeObstacles => _isGuildHall ? const [] : (widget.isSea ? _seaObstacles : _freshObstacles);
 
@@ -1863,10 +2120,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     for (final o in _activeObstacles) {
       consider(o);
     }
-    // 경계선 위 점은 살짝 현재 위치 쪽으로 밀어 walkable 안으로
-    final nudged = Offset(
-        best.dx + (_charPos.dx - best.dx) * 0.04, best.dy + (_charPos.dy - best.dy) * 0.04);
-    return _inWalkable(nudged) ? nudged : best;
+    // 경계선 위 점은 살짝 현재 위치 쪽으로 밀어 walkable 안으로.
+    //   ⚠️ [2026-09-05] 예전엔 한 번(4%)만 밀어보고, 그래도 못 가는 곳이면 best 를
+    //      그대로 돌려줬다. 그런데 best 는 '가장 가까운 경계점'일 뿐 걷을 수 있는 곳이
+    //      아니다 — 진입금지 구역이 광장 바깥 경계와 겹치는 모서리에서는 그 점이
+    //      건물 '안'으로 잡혀서, 모서리를 비비면 건물을 통과해 버렸다.
+    //   → 여러 단계로 밀어보고, 끝내 못 찾으면 제자리에 세운다(통과보다 멈추는 게 낫다).
+    for (final f in const [0.04, 0.10, 0.20, 0.35, 0.55, 0.80]) {
+      final n = Offset(best.dx + (_charPos.dx - best.dx) * f,
+                       best.dy + (_charPos.dy - best.dy) * f);
+      if (_inWalkable(n)) return n;
+    }
+    return _inWalkable(_charPos) ? _charPos : best;
   }
 
   // 🖱️ 지점 탭 → 조이스틱과 동일한 '매 틱 한 걸음씩' 이동.
@@ -3300,40 +3565,66 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             sprites.add(MapEntry(ry, _remoteAvatar(e.key, e.value, worldW, worldH, sizeRef)));
                           }
                           // 발높이(y) 오름차순 → 위(뒤)부터 그림 → 아래(앞)가 위에 겹침
+                          // 🧍 [2026-09-05] 시설 NPC도 앞뒤 정렬에 넣는다.
+                          //   예전엔 정렬 밖에 두어 '항상 맨 앞'이었다. 그래서 NPC 바로 앞에
+                          //   서 있는데도 내 캐릭터가 NPC에 가려졌다(나무는 정렬을 타서 정상).
+                          //   ⚠️ NPC는 건물 데크 위(=건물 밑변보다 위)에 서는 경우가 많아
+                          //      그냥 발 높이로 정렬하면 건물 뒤로 숨는다. 그래서 아주 살짝(+0.004)
+                          //      앞으로 당겨, 같은 줄에 선 건물보다는 항상 앞에 오게 한다.
+                          //      (상점은 원래 -0.13 보정이 있어 데크가 앞으로 나온다)
+                          if (!_isGuildHall) {
+                            if (_isGm || _layoutShowAll) {
+                              final k = widget.isSea ? 'fish_npc' : 'craft_npc';
+                              final hk = widget.isSea ? 'fish_house' : 'craft_house';
+                              // 🧍 이 NPC들은 건물 '데크 위'에 세운다. 데크는 건물 밑변보다 위라
+                              //   발 높이 그대로 정렬하면 건물 뒤로 숨는다(2026-09-05).
+                              //   → 발 높이와 건물 깊이 중 큰 쪽을 써서 데크 어디에 세워도 건물 앞에 온다.
+                              final hv = _lay(hk);
+                              final v = _lay(k);
+                              final double nd =
+                                  math.max(v['cy']!, hv['cy']! + _z(hv)) + 0.004;
+                              // 배치 모드에선 끌어 옮길 수 있는 판, 평소엔 이름표 달린 진짜 NPC.
+                              sprites.add(MapEntry(nd, (_isGm && _layoutMode)
+                                  ? _layoutPiece(worldW, worldH, sizeRef, k)
+                                  : _standNpc(worldW, worldH, sizeRef, v['cx']!, v['cy']!,
+                                      widget.isSea ? 'npc_fishbuyer.png' : 'npc_craft.png',
+                                      widget.isSea ? 'npc_shop.png' : 'npc_manager.png',
+                                      widget.isSea ? '제나스' : '바르탄',
+                                      widget.isSea ? '💎 보석 교환소' : '낚싯대 공방',
+                                      widget.isSea ? _onZenasTap : _onBartanTap,
+                                      scale: v['h']!)));
+                            }
+                            sprites.add(MapEntry(_npcDepth('_npc_rank', widget.isSea ? 0.930 : 0.662),
+                                _npcAt('_npc_rank', widget.isSea ? 0.307 : 0.146,
+                                    widget.isSea ? 0.930 : 0.662, 1.0, worldW, worldH, sizeRef,
+                                    'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹', _onGaramTap)));
+                            sprites.add(MapEntry(_npcDepth('_npc_guild', widget.isSea ? 0.540 : 0.424),
+                                _npcAt('_npc_guild', widget.isSea ? 0.120 : 0.294,
+                                    widget.isSea ? 0.540 : 0.424, 0.85, worldW, worldH, sizeRef,
+                                    'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드홀',
+                                    () => _openNpcIntro('npc_guild.png', 'guild', '길드홀 입장', _enterGuildHall))));
+                            sprites.add(MapEntry(_npcDepth('_npc_fishing', widget.isSea ? 0.340 : 0.270),
+                                _npcAt('_npc_fishing', widget.isSea ? 0.350 : 0.500,
+                                    widget.isSea ? 0.340 : 0.270, 0.9, worldW, worldH, sizeRef,
+                                    'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
+                                    () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap))));
+                            sprites.add(MapEntry(_npcDepth('_npc_arena', widget.isSea ? 0.310 : 0.391),
+                                _npcAt('_npc_arena', widget.isSea ? 0.610 : 0.725,
+                                    widget.isSea ? 0.310 : 0.391, 0.82, worldW, worldH, sizeRef,
+                                    'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
+                                    _onHanbyeolTap)));
+                            sprites.add(MapEntry(_npcDepth('_npc_shop', widget.isSea ? 0.600 : 0.630),
+                                _npcAt('_npc_shop', widget.isSea ? 0.900 : 0.910,
+                                    widget.isSea ? 0.600 : 0.630, 1.1, worldW, worldH, sizeRef,
+                                    'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
+                                    () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore))));
+                            // 📋 일일퀘스트 매니저 '아라'
+                            sprites.add(MapEntry((widget.isSea ? 0.913 : 0.920) + 0.004,
+                                _araNpc(worldW, worldH, sizeRef)));
+                          }
                           sprites.sort((a, b) => a.key.compareTo(b.key));
                           return sprites.map((e) => e.value).toList();
                         })(),
-                        // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
-                        //    🐋 레이드 모임터에선 시설 NPC/아라 없음(캐릭터만 모임).
-                        if (!_isGuildHall) ...[
-                          // 🧭 제작·보석 NPC — 기존 NPC들과 마찬가지로 앞뒤 정렬을 타지 않는다.
-                          //    건물 데크 위에 세우려면 세로값이 건물보다 작아야 하는데,
-                          //    정렬에 끼우면 그 순간 건물 뒤로 숨어버린다(2026-09-04).
-                          if (_isGm || _layoutShowAll)
-                            _layoutPiece(worldW, worldH, sizeRef,
-                                widget.isSea ? 'fish_npc' : 'craft_npc'),
-                        _npcAt('_npc_rank', widget.isSea ? 0.307 : 0.146,
-                            widget.isSea ? 0.930 : 0.662, 1.0, worldW, worldH, sizeRef,
-                            'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹', _onGaramTap),
-                        _npcAt('_npc_guild', widget.isSea ? 0.120 : 0.294,
-                            widget.isSea ? 0.540 : 0.424, 0.85, worldW, worldH, sizeRef,
-                            'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드홀',
-                            () => _openNpcIntro('npc_guild.png', 'guild', '길드홀 입장', _enterGuildHall)),
-                        _npcAt('_npc_fishing', widget.isSea ? 0.350 : 0.500,
-                            widget.isSea ? 0.340 : 0.270, 0.9, worldW, worldH, sizeRef,
-                            'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
-                            () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap)),
-                        _npcAt('_npc_arena', widget.isSea ? 0.610 : 0.725,
-                            widget.isSea ? 0.310 : 0.391, 0.82, worldW, worldH, sizeRef,
-                            'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
-                            _onHanbyeolTap),
-                        _npcAt('_npc_shop', widget.isSea ? 0.900 : 0.910,
-                            widget.isSea ? 0.600 : 0.630, 1.1, worldW, worldH, sizeRef,
-                            'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
-                            () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore)),
-                        // 📋 일일퀘스트 매니저 '아라'
-                        _araNpc(worldW, worldH, sizeRef),
-                        ],
                       ],
                     ),
               ),
@@ -4137,9 +4428,13 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       top: cy * worldH - figH, // 발이 cy에 오도록(그림은 bottomCenter로 하단 정렬)
       width: figW,
       height: figH,
-      child: GestureDetector(
-        // 🚧 좌표 찍는 중엔 NPC 클릭(상점 열기 등)이 방해가 된다
-        onTap: (_isGm && _layoutMode && _pickMode) ? null : onTap,
+      // 🚧 좌표 찍는 중엔 NPC가 탭을 통째로 삼키면 안 된다.
+      //    onTap 만 null 로 두면 opaque 히트테스트가 그대로라 'NPC 뒤쪽 바닥'을 못 찍었다.
+      //    (2026-09-04 진입금지 좌표 찍다가 여기서 막혔다) → 아예 손을 안 타게 한다.
+      child: IgnorePointer(
+        ignoring: _isGm && _layoutMode && _pickMode,
+        child: GestureDetector(
+        onTap: onTap,
         behavior: HitTestBehavior.opaque,
         child: Stack(
           clipBehavior: Clip.none,
@@ -4166,14 +4461,19 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 if (bang) Center(child: _tutBang()), // ❗ 고정 높이 없이(안 잘리게)
                 if (bang) const SizedBox(height: 2),
                 Center(
+                  // 🏷️ 밝은 금빛 + 검은 테두리 — 모래·잔디·물처럼 밝은 배경에서도 읽히게.
+                  //    예전엔 진한 금색(_kGold)이라 낮 배경에 묻혔다(2026-09-05).
                   child: Text(name,
                       style: const TextStyle(
-                        color: _kGold,
+                        color: Color(0xFFFFEFB8),
                         fontSize: 15,
                         fontWeight: FontWeight.w900,
                         shadows: [
-                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
-                          Shadow(color: Colors.black, blurRadius: 2),
+                          Shadow(color: Colors.black, blurRadius: 5, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black87, offset: Offset(1, 0)),
+                          Shadow(color: Colors.black87, offset: Offset(-1, 0)),
+                          Shadow(color: Colors.black87, offset: Offset(0, -1)),
+                          Shadow(color: Colors.black87, offset: Offset(0, 1)),
                         ],
                       )),
                 ),
@@ -4181,6 +4481,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -5075,11 +5376,87 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     ));
   }
 
+  /// 🔪 [광장] 고등어·무늬오징어를 미끼조각으로 나눌지 물어본다(낚시터와 같은 규칙).
+  void _askSliceFishPlaza(
+      Map<String, dynamic> fish, String sliceName, void Function(void Function()) setD) {
+    final String nm = fish['name'].toString();
+    final int qty = ((fish['quantity'] ?? 0) as num).toInt();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: _kGold, width: 2)),
+        title: const Text('🔪 미끼로 손질할까요?',
+            style: TextStyle(color: _kGold, fontSize: 19, fontWeight: FontWeight.bold)),
+        content: Text(
+            '[$nm] 한 마리를 손질해서\n'
+            '[$sliceName] $kSliceCount개를 만들어요.\n\n'
+            '보유: $nm $qty마리',
+            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('아니요', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),
+            onPressed: () { Navigator.pop(ctx); _sliceFishPlaza(nm, sliceName, setD); },
+            child: const Text('예, 손질할게요', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🔪 [광장] 물고기 −1, 미끼조각 +kSliceCount
+  Future<void> _sliceFishPlaza(
+      String fishName, String sliceName, void Function(void Function()) setD) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+      final fi = inv.indexWhere((e) =>
+          e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
+      if (fi < 0) return;
+      final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
+      if (fq <= 0) return;
+      if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
+      final bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
+      if (bi >= 0) {
+        inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
+      } else {
+        inv.add(makeBaitSlice(sliceName));
+      }
+      await ref.update({'inventory': inv});
+      if (!mounted) return;
+      setState(() => _inventory = inv);   // 스트림보다 먼저 화면에 반영
+      setD(() {});
+      audioManager.playSfx('sfx_click.mp3');
+      _infoPopup('🔪 손질 완료',
+          '[$sliceName] $kSliceCount개를 만들었어요!\n\n'
+          '낚시터에서 미끼교체로 골라 쓰시면 됩니다. 🎣');
+    } catch (e) {
+      if (mounted) _infoPopup('손질 실패', '$e');
+    }
+  }
+
   void _equipFromStatus(Map<String, dynamic> item, void Function(void Function()) setD) {
     final n = item['name'].toString().replaceAll(' ', '').toUpperCase();
     final t = (item['type'] ?? '').toString().toUpperCase();
     // 📦 상자는 장착 대상이 아님(열기는 onTap에서 처리) — 마지막 else(미끼) catch-all 방지
     if (t == 'BOX') return;
+    // 🐟🦑 잡은 물고기 — 미끼 슬롯에 들어가면 안 된다(catch-all에 걸려 장착되던 버그).
+    //    고등어·무늬오징어는 낚시터와 똑같이 '미끼조각'으로 손질할 수 있게 한다(2026-09-05).
+    if (t == 'FISH') {
+      final String? slice = sliceBaitNameOf(item['name'].toString());
+      if (slice != null) { _askSliceFishPlaza(item, slice, setD); return; }
+      _infoPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.');
+      return;
+    }
     // 🎁 기간제 이벤트 아이템은 장착 불가 — 가방에 있으면 효과 자동 적용(보유 버프)
     if (t == 'EVENT') {
       // 🛡️ 능력치 엠블럼(secLeft)은 보유만으론 안 되고 낚시터에서 켜야 한다.
@@ -5156,6 +5533,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           return;
         }
       }
+    }
+    // 💎 [2026-09-05] 보석 등 '재료'는 장착 대상이 아니다. 아래 분기가 못 알아본 건
+    //    전부 미끼로 처리해서, 보석을 누르면 미끼 슬롯에 끼워졌다(실제로 당함).
+    if (isMaterialItem(item)) {
+      _infoPopup('💎 재료 아이템', '보석은 장착하는 물건이 아니에요.\n가방에 두면 낚싯대를 만들 때 재료로 쓰입니다.\n\n민물 광장의 바르탄 영감님을 찾아가세요! 🔨');
+      return;
     }
     bool same(Map<String, dynamic>? cur) => cur != null && cur['name'] == item['name'];
     if (t == 'COOLER' || n.contains('아이스박스') || n.contains('쿨러') || n.contains('보냉')) {
@@ -5241,6 +5624,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
             bool match(Map<String, dynamic> it) {
               final c = (it['category'] ?? '').toString().toUpperCase();
               final t = (it['type'] ?? '').toString().toUpperCase();
+              // 🧰 재료(보석)는 '재료' 탭에서만. 민물·바다에 섞이면 장비 찾기가 힘들다.
+              if (isMaterialItem(it) && invTab != '전체' && invTab != '재료') return false;
               // 이용권·입장권·물약·카드·엠블럼은 게임스토어 탭에서만 본다
               final storeOnly = isStoreOnlyItem(it);
               switch (invTab) {
@@ -5252,6 +5637,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                   return t == 'BAIT';
                 case '물고기':
                   return t == 'FISH';
+                case '재료':
+                  return isMaterialItem(it);
                 case '게임스토어':
                   return isStoreTabItem(it);
               }
@@ -5416,6 +5803,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         tabBtn('바다'),
                         tabBtn('미끼'),
                         tabBtn('물고기'),
+                        tabBtn('재료'),
                         tabBtn('게임스토어'),
                       ]),
                       const Divider(color: Colors.white12, height: 1),
@@ -7909,8 +8297,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       ]),
                     ),
                   ),
-                  // 🧭 [GM] 배치 모드 — 새 건물·NPC 자리 잡기
-                  if (_isGm) ...[
+                  // 🧭 [GM] 배치 모드 — 새 건물·NPC 자리 잡기 (kLayoutToolOn 으로 켠다)
+                  if (_isGm && kLayoutToolOn) ...[
                     const SizedBox(width: 6),
                     InkWell(
                       onTap: () => setState(() {
