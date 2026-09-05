@@ -944,6 +944,44 @@ final List<Map<String, dynamic>> seaFishPool = [
 ///    신규만 주면 기존 유저가 서운하므로 함께 연다(2026-09-02 사용자 결정).
 const bool kWelcomeSetOn = true;
 
+// 🐟🦑 [생미끼] 잡은 물고기를 잘라 미끼로 쓴다. 민물의 민물새우와 같은 결.
+//   물고기를 통째로 미끼 슬롯에 넣으면 입질 한 번에 한 마리가 사라져 아까웠다.
+//   그래서 가방에서 눌러 '조각'으로 나눈 뒤, 조각을 미끼로 쓴다(2026-09-05).
+//   ⚠️ 조각은 fishing_logic 의 baitAffinity 에 어종 20종을 다 적어야 한다.
+//      안 적은 어종은 '보통(1.0)'이 되어 작은 고기까지 물어버린다.
+const int kSliceCount = 10;   // 한 마리 → 조각 몇 개
+
+/// 잘라서 미끼로 쓸 수 있는 물고기 → 나오는 조각 이름
+const Map<String, String> kSliceableFish = {
+  '고등어': '고등어 미끼조각',
+  '무늬오징어': '오징어 미끼조각',
+};
+
+/// 이 물고기를 조각낼 수 있는가 (이름에 포함되면 됨 — '고등어' 등)
+String? sliceBaitNameOf(String fishName) {
+  for (final e in kSliceableFish.entries) {
+    if (fishName.contains(e.key)) return e.value;
+  }
+  return null;
+}
+
+/// 조각 아이템 한 묶음(수량 kSliceCount)
+Map<String, dynamic> makeBaitSlice(String sliceName) {
+  final bool squid = sliceName.contains('오징어');
+  return {
+    'name': sliceName,
+    'price': 0,
+    'category': 'SEA',
+    'type': 'BAIT',
+    'quantity': kSliceCount,
+    'stats': {'S': squid ? 15 : 10},
+    'icon': squid ? 'bait_sea_squid.png' : 'bait_sea_mackerel.png',
+    'desc': squid
+        ? '잡은 무늬오징어를 잘라 만든 생미끼예요.\n문어 · 갈치 · 참돔이 반응해요.'
+        : '잡은 고등어를 잘라 만든 생미끼예요.\n방어 · 부시리가 반응해요.',
+  };
+}
+
 // 🎁 신규 유저에게 지급되는 12종 스타터 팩!
 List<Map<String, dynamic>> getInitialStarterPack() {
   return [

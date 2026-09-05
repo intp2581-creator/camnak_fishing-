@@ -8,6 +8,7 @@ import 'game_config.dart'; // 🎉 이벤트 설정 로더(loadGameEvent)
 // 👇 방금 우리가 만든 로그인/출입문 파일 하나만 딱 불러오면 끝!
 // (나머지는 지들끼리 꼬리에 꼬리를 물고 알아서 연결됩니다 ㅋㅋ)
 import 'ui_login.dart';
+import 'magnifier.dart'; // 🔍 폰에서 글씨가 작을 때 쓰는 돋보기
 
 // 🏢 앱 초기화 및 심장부 (Global Entry Point)
 // 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -61,9 +62,13 @@ class MyApp extends StatelessWidget {
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: ClipRect(
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(width: 1280, height: 720, child: child!),
+                // 🔍 돋보기 — 폰에서 글씨가 작아 안 보일 때 켜서 확대해 본다.
+                //    앱 전체를 감싸므로 인벤토리·NPC 대화창 같은 팝업 위에도 버튼이 뜬다.
+                child: MagnifierShell(
+                  child: FittedBox(
+                    fit: BoxFit.contain,
+                    child: SizedBox(width: 1280, height: 720, child: child!),
+                  ),
                 ),
               ),
             ),

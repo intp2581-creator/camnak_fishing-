@@ -153,7 +153,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
         title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
-        content: Text('오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 20분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        content: Text('오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 20분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)\n\n📶 신호가 약한 곳(지하 · 이동 중 등)에서는 참가를 피해 주세요.\n접속이 끊기면 그 시점까지의 성적으로 정산되고,\n사용한 입장권은 돌려드리지 않습니다.', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
@@ -195,17 +195,43 @@ class _ArenaScreenState extends State<ArenaScreen> {
       body: Column(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16), // 📈 상하 여백도 빵빵하게!
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16), // 안내가 3줄이라 여백은 줄임
             color: Colors.grey.shade900,
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.campaign, color: Colors.amber, size: 28), // 📈 확성기 아이콘도 키움!
-                SizedBox(width: 10),
-                Text(
-                  '대회 입장 시 캠핑피싱 최상급 장비 자동 착용!',
-                  // 📈 [수정] 안내 문구 폰트 크기를 18로 떡상!!
-                  style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 20), 
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.campaign, color: Colors.amber, size: 28), // 📈 확성기 아이콘도 키움!
+                    SizedBox(width: 10),
+                    Text(
+                      '대회 입장 시 캠핑피싱 최상급 장비 자동 착용!',
+                      // 📈 [수정] 안내 문구 폰트 크기를 18로 떡상!!
+                      style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 20),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12),
+                // 📶 [2026-09-05] 대회 중 접속이 끊기면 그 시점까지의 성적으로 정산된다.
+                //    폰으로 하는 조사님이 많아 "입장권 쓰고 들어왔는데 튕겼다"는 이의가 나올 수 있어
+                //    입장 전에 미리 알린다.
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.wifi_off, color: Colors.redAccent, size: 22),
+                    SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '인터넷·와이파이 신호가 약한 곳에서는 참가를 피해 주세요.\n'
+                        '대회 중 접속이 끊기면 그 시점까지의 성적으로 정산되며,\n'
+                        '사용한 입장권은 돌려드리지 않습니다.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold,
+                            fontSize: 15, height: 1.4),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -237,12 +263,16 @@ class _ArenaScreenState extends State<ArenaScreen> {
                   return ts != null && (nowMs - ts.millisecondsSinceEpoch) < 60000;
                 }).toList();
                 if (docs.isEmpty) {
+                  // 🩹 상단 안내가 3줄로 늘면서 세로가 좁은 화면에서 잘렸다(2026-09-05).
+                  //    창 크기가 제각각이라 고정 크기로는 또 넘친다 → 남는 자리에 맞춰 줄인다.
                   return Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // 💡 큼직한 확성기 배경 아이콘 추가! (빈 공간 채우기 용도)
-                        const Icon(Icons.campaign_outlined, size: 120, color: Colors.white12), 
+                        const Icon(Icons.campaign_outlined, size: 88, color: Colors.white12), 
                         const SizedBox(height: 30),
                         const Text(
                           '현재 대기 중인 대회가 없습니다.\n직접 대회를 개최해 보세요!',
@@ -256,6 +286,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         ),
                       ],
                     ),
+                  ),
                   );
                 }
 

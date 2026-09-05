@@ -17,6 +17,7 @@ import 'ui_lobby.dart';
 import 'ui_tutorial_npc.dart'; // 👧 윤슬 가이드 부품 가져오기!
 import 'ui_guild.dart'; // 🛡️ 길드 정보 보기 + 접속표시
 import 'fishing_live.dart'; // 🎣👀 친구 낚시 라이브 관전(방송측)
+import 'arena_log.dart'; // ⚔️📋 아레나 접속 기록(튕김 확인용)
 import 'weather.dart'; // 🌧️ 실시간 날씨(기상청) 오버레이
 import 'sound_settings.dart'; // 🔊 사운드 설정 다이얼로그
 // 🎖️ 등급분류 표시 위젯(buildRatingMark/showGameRatingDialog/kGameRatingNumber)은 game_config.dart로 이동.
@@ -69,7 +70,8 @@ class FishingScreen extends StatefulWidget {
 // 🎤 GM 윤슬 공지 마지막 등장 시각 — 전역(낚시터 이동해도 10분 쿨다운 유지, 화면마다 리셋 방지)
 DateTime? gLastGaramNoticeTime;
 
-class _FishingScreenState extends State<FishingScreen> with TickerProviderStateMixin {
+class _FishingScreenState extends State<FishingScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   // 💡 낚시터 전용 윤슬님 튜토리얼 스텝 (-1: 퇴근, 0~3: 설명 중)
   int _fishingStep = -1;
   Timer? _garamTimer; // 🎤 GM 윤슬 공지 주기 체크 타이머(낚시 중 등장 판정)
@@ -303,6 +305,7 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -359,15 +362,24 @@ class _FishingScreenState extends State<FishingScreen> with TickerProviderStateM
                     subtitle: Text('잔량: ${bait['quantity']}개', style: const TextStyle(color: Colors.grey)),
                     trailing: isEquipped ? const Icon(Icons.check_circle, color: Color(0xFFD4AF37)) : null,
                     onTap: () {
-                      setState(() {
-                        equippedBait = bait; 
-                      });
+                      // 🪱 [2026-09-05] 이미 던져둔 미끼는 물속에 있다. 그걸 다른 미끼로
+                      //    바꿔치기할 수는 없다(사용자 지적). 줄을 감아 들이고 —
+                      //    물속에 있던 미끼는 버려지며 — 새 미끼로 다시 던진다.
+                      final bool wasCast = isFloatInWater || isCasting;
+                      final String? oldName =
+                          (equippedBait != null) ? equippedBait!['name'].toString() : null;
+                      final bool sameBait = oldName == bait['name'].toString();
+
+                      setState(() { equippedBait = bait; });
                       Navigator.pop(ctx);
-                      
-                      // 🎨 [럭셔리 패치] 하얀 스낵바 버리고 KREFT 전용 황금 팝업창 발사!
+
+                      if (wasCast && !sameBait) {
+                        _recastAfterBaitChange(oldName, bait['name'].toString());
+                        return;
+                      }
                       _showNotificationPopup(
-                        '✨ 미끼 교체 완료', 
-                        '[${bait['name']}] (으)로 미끼를 변경했습니다.\n이제 대물을 낚아보세요! 🎣', 
+                        '✨ 미끼 교체 완료',
+                        '[${bait['name']}] (으)로 미끼를 변경했습니다.\n이제 대물을 낚아보세요! 🎣',
                         const Color(0xFFD4AF37)
                       );
                     },
@@ -495,6 +507,10 @@ Widget _whisperUnreadBadge() {
 }
   // 🏢 State: 상태 변수들
   bool isSettingUp = true;
+  /// 🪱 파이팅 중에 미끼가 떨어졌으면 그 이름을 여기 담아둔다.
+  ///   입질 순간(=챔질 직전)에 안내를 띄우면 '당기기'를 눌러야 할 때 팝업이 가려버린다.
+  ///   그래서 사투는 그대로 끝내고, 물고기를 올린 뒤 캐스팅할 때 알려준다(2026-09-05).
+  String? _baitOutName;
   int _currentLevel = 0;
   int selectedRodCount = 2;
   // 🎣 [루어 모드] 민물 낚시터에서 '루어낚시' 버튼으로 진입 → 화면은 바다식(손 낚싯대·좌대 없음), 물고기는 민물(루어 어종은 루어미끼 상성으로).
@@ -566,7 +582,8 @@ Widget _whisperUnreadBadge() {
   int _myGaramRank = 0; // 🎖️ 가람 주간 개인랭킹 순위(0=없음) → PCS 보너스
   bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
   bool _arenaWalkoverWin = false;    // 🏳️ 상대 전원 기권 → 혼자 남아 나감(기권승) → dispose에서 실격 처리 안 함
-  bool _arenaExitDone = false;       // 🚪 종료 후 대기실 복귀 1회만(버튼·자동 이동 중복 방지)
+  Timer? _arenaExitTimer;            // 🚪 종료 후 대기실 복귀 재시도(한 번 실패해도 계속 두드린다)
+  int _arenaCatch = 0;               // ⚔️📋 이번 대회에서 잡은 마릿수(접속 기록에 같이 남긴다)
   VoidCallback? _arenaEndClose;      // 🚪 종료 팝업 닫고 대기실로(버튼/자동타이머 공유)
 
   // ⚔️ 아레나 시간 종료 상태? → true면 챔질·입질·재캐스팅 전부 차단(뭘 하든 정지)
@@ -653,9 +670,21 @@ Widget _whisperUnreadBadge() {
   DateTime? _joinTime;
   String _timerDayKey = ''; // 📅 낚시 타이머의 '현재 날짜'(yyyy-MM-dd). 게임 중 자정 넘김 감지용.
 
+  // 🔁 창이 뒤에 있다가 다시 앞으로 오면 — 브라우저가 뒤 탭의 타이머를 1분에 한 번꼴로
+  //    늦추기 때문에, 그 사이 아레나가 끝났어도 복귀가 지연될 수 있다.
+  //    돌아온 순간 곧바로 대기실 복귀를 한 번 더 두드린다(2026-09-05).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) return;
+    if (widget.roomId == null || !_arenaEndedNaturally) return;
+    _arenaEndClose?.call();
+  }
+
   @override
   void initState() {
   super.initState();
+  WidgetsBinding.instance.addObserver(this);
     HardwareKeyboard.instance.addHandler(_onEnterFocusChat); // ⏎ 엔터로 채팅창 활성화
     WeatherService.instance.refresh(); // 🌧️ 실시간 날씨(위치→기상청) 요청
     loadGameEvent().then((_) { if (mounted) setState(() {}); }); // 🎉 이벤트 설정 새로고침(배너·배율 반영)
@@ -688,6 +717,22 @@ Widget _whisperUnreadBadge() {
       _fishingStep = 0;
     }
     
+    // ⚔️📋 아레나면 접속 기록 시작 — 튕김(창 닫힘·네트워크 끊김)을 서버가 찍어준다.
+    //    방(arenas 문서)은 경기 후 지워지므로 별도 경로에 남긴다.
+    if (widget.roomId != null) {
+      final String? auid = FirebaseAuth.instance.currentUser?.uid;
+      if (auid != null) {
+        ArenaLog.start(
+          roomId: widget.roomId!,
+          uid: auid,
+          nick: widget.nickname,
+          roomTitle: widget.title,
+          timeLeft: () => arenaTimeLeft,
+          score: () => _arenaCatch,
+        );
+      }
+    }
+
     // 🌟 2. 낚시터 입장하자마자 현재 시간을 딱! 찍어둡니다.
     _joinTime = DateTime.now(); 
 
@@ -850,6 +895,16 @@ Widget _whisperUnreadBadge() {
   
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _arenaExitTimer?.cancel();
+    // ⚔️📋 화면을 정상적으로 빠져나감 → '튕김'이 아니라고 기록해 둔다.
+    if (widget.roomId != null) {
+      ArenaLog.finish(
+        endedNaturally: _arenaEndedNaturally,
+        timeLeft: arenaTimeLeft,
+        score: _arenaCatch,
+      );
+    }
     try { _baitNoticeEntry?.remove(); } catch (_) {} _baitNoticeEntry = null; // 🍞 미끼 알림 오버레이 정리
     // ⚔️ 아레나 경기 도중(시간 종료 전) 이탈 → 실격 기록 (실수든 고의든 종료 전 이탈 = 실격)
     //    단, 기권승(_arenaWalkoverWin)으로 나가는 사람은 실격 아님(유일 완주자로 정산받아야 함)
@@ -1174,10 +1229,16 @@ Widget _whisperUnreadBadge() {
           builder: (dialogContext) {
             // 🚪 이 팝업만 정확히 닫고 → 낚시방 닫기(대기실 복귀). 버튼/자동타이머가 공유(1회만).
             _arenaEndClose = () {
-              if (_arenaExitDone) return;
-              _arenaExitDone = true;
-              if (Navigator.canPop(dialogContext)) Navigator.of(dialogContext).pop(); // 종료 팝업 닫기
-              if (mounted && Navigator.canPop(context)) Navigator.of(context).pop();   // 낚시방→대기실(dispose 정산)
+              if (!mounted) return;
+              // 🚪 [2026-09-05] 예전엔 pop()을 딱 한 번만 했다. 그래서 유저가 가방·길드·채팅창을
+              //    열어둔 채로 경기가 끝나면, 그 창만 닫히고 낚시 화면에는 그대로 갇혔다.
+              //    (정산은 서버에서 끝나 채팅에 상금이 찍히는데 화면은 00:00에서 멈춰 있었다)
+              //    → 내 낚시방 위에 쌓인 팝업을 전부 걷어낸 뒤에 낚시방을 닫는다.
+              final ModalRoute<dynamic>? myRoute = ModalRoute.of(context);
+              if (myRoute != null) {
+                Navigator.of(context).popUntil((r) => r == myRoute);
+              }
+              if (Navigator.canPop(context)) Navigator.of(context).pop(); // 낚시방→대기실(dispose 정산)
             };
             return AlertDialog(
               backgroundColor: Colors.black87,
@@ -1197,8 +1258,14 @@ Widget _whisperUnreadBadge() {
             );
           },
         );
-        // ⏱️ 버튼 안 눌러도 2초 뒤 무조건 자동으로 대기실 이동(정산)
-        Future.delayed(const Duration(seconds: 2), () => _arenaEndClose?.call());
+        // ⏱️ 버튼 안 눌러도 자동으로 대기실 이동(정산).
+        //    한 번만 시도하면 그 순간 팝업이 열려 있거나 화면이 백그라운드라 실패했을 때
+        //    영영 갇힌다 → 실제로 나갈 때까지(=이 화면이 dispose 될 때까지) 2초마다 재시도.
+        _arenaExitTimer?.cancel();
+        _arenaExitTimer = Timer.periodic(const Duration(seconds: 2), (t) {
+          if (!mounted) { t.cancel(); return; }
+          _arenaEndClose?.call();
+        });
       });
       return; // 🚨 여기서 리턴시켜서 일반 60분 타이머가 안 돌아가게 막습니다!
     }
@@ -1443,6 +1510,7 @@ Widget _whisperUnreadBadge() {
       await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted) return;
       setState(() { isFighting = false; });
+      _onFightOverBaitCheck();   // 🪱 사투 중 미끼가 떨어졌으면 여기서 줄을 감는다
 
       // 📦 상자는 항상 성공 → 인벤토리에 담고 종료(일반 보상 로직 건너뜀)
       if (fish['isBox'] == true) {
@@ -1476,6 +1544,7 @@ Widget _whisperUnreadBadge() {
               double currentMaxSize = pDoc.exists && pDoc.data()!.containsKey('maxSize') ? (pDoc.data()!['maxSize'] ?? 0.0).toDouble() : 0.0;
               double bestSize = caughtSize > currentMaxSize ? caughtSize : currentMaxSize;
 
+              _arenaCatch++;   // ⚔️📋 접속 기록에 남길 마릿수
               await pRef.set({
                 'nickname': widget.nickname,
                 'score': FieldValue.increment(1),
@@ -1769,6 +1838,97 @@ Widget _whisperUnreadBadge() {
     });
   }
 
+  /// 🪱 낚시 중 미끼를 바꿨을 때 — 던져둔 미끼는 버리고 처음(셋팅) 상태로 돌린다.
+  ///   물속에 있던 미끼가 새 미끼로 둔갑하는 게 이상해서 넣었다(2026-09-05 사용자 지적).
+  Future<void> _recastAfterBaitChange(String? oldName, String newName) async {
+    _biteTimer?.cancel();
+    _escapeTimer?.cancel();
+    setState(() {
+      isFloatInWater = false;
+      isCasting = false;
+      isSettingUp = true;      // '캐스팅 시작!' 버튼이 다시 나온다
+      bitingRods.clear();
+    });
+    FishingLive.setPhase('idle');
+
+    if (oldName != null) await _discardBaitOne(oldName);
+
+    if (!mounted) return;
+    _showNotificationPopup(
+      '🎣 줄을 감았어요',
+      oldName == null
+          ? '[$newName] (으)로 바꿨어요.\n다시 캐스팅해 주세요!'
+          : '물에 들어가 있던 [$oldName] 1개는 버려졌어요.\n'
+            '[$newName] (으)로 바꿨으니 다시 캐스팅해 주세요! 🎣',
+      const Color(0xFFD4AF37),
+    );
+  }
+
+  /// 🪱 미끼 1개를 그냥 버린다(입질 없이). 자동교체는 하지 않는다 —
+  ///   방금 고른 미끼가 이미 장착돼 있기 때문.
+  Future<void> _discardBaitOne(String baitName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+      for (int i = 0; i < inv.length; i++) {
+        if (inv[i]['name'] != baitName) continue;
+        final int q = ((inv[i]['quantity'] ?? 0) as num).toInt();
+        if (q <= 1) { inv.removeAt(i); } else { inv[i]['quantity'] = q - 1; }
+        await ref.update({'inventory': inv});
+        return;
+      }
+    } catch (e) { print('미끼 버리기 실패: $e'); }
+  }
+
+  /// 🪱 사투가 끝난 시점 — 미끼가 떨어져 있었으면 줄을 감아 들인다.
+  ///   안내 팝업은 여기서 띄우지 않는다. 물고기 결과창과 겹치기 때문에,
+  ///   조사님이 '캐스팅 시작!'을 누를 때 띄운다(_baitOutName 사용).
+  void _onFightOverBaitCheck() {
+    if (_baitOutName == null) return;
+    final bool wasCast = !isSettingUp;
+    _biteTimer?.cancel();
+    _escapeTimer?.cancel();
+    setState(() {
+      // 가방에 없는 미끼가 장착된 채로 남으면 소모 없이 낚시가 된다 → 즉시 해제.
+      equippedBait = null;
+      globalEquippedBait = null;
+      if (wasCast) {
+        isFloatInWater = false;
+        isCasting = false;
+        isSettingUp = true;
+        bitingRods.clear();
+      }
+    });
+    if (wasCast) FishingLive.setPhase('idle');
+  }
+
+  /// 🪱 가방에서 '지금 낚시터에 쓸 수 있는 미끼' 중 수량이 가장 많은 것.
+  ///   미끼교체 창과 같은 기준으로 거른다(민물/바다, 루어모드).
+  Map<String, dynamic>? _pickMostBait(List<dynamic> inventory) {
+    final String wantCat = widget.isSea ? 'SEA' : 'FW';
+    Map<String, dynamic>? best;
+    int bestQty = 0;
+    for (final it in inventory) {
+      final bool isB = (it['type'] ?? '').toString().toUpperCase() == 'BAIT' ||
+                       (it['category'] ?? '').toString().toUpperCase() == 'BAIT';
+      if (!isB) continue;
+      final String c = (it['category'] ?? '').toString().toUpperCase();
+      if (!(c == wantCat || c == 'COMMON')) continue;
+      if (!widget.isSea) {
+        final String nm = it['name'].toString();
+        final bool isLureBait = nm.contains('스푼') || nm.contains('웜') || nm.contains('플라이');
+        if (_lureMode != isLureBait) continue;
+      }
+      final int q = ((it['quantity'] ?? 0) as num).toInt();
+      if (q > bestQty) { bestQty = q; best = Map<String, dynamic>.from(it); }
+    }
+    return best;
+  }
+
   Future<void> _useBaitOne() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || equippedBait == null) return;
@@ -1781,35 +1941,49 @@ Widget _whisperUnreadBadge() {
       List<dynamic> inventory = List.from(snapshot.data()?['inventory'] ?? []);
       String targetBaitName = equippedBait!['name'];
 
+      bool found = false;
+      bool ranOut = false;   // 이번 소모로 미끼가 바닥났나
       for (int i = 0; i < inventory.length; i++) {
         if (inventory[i]['name'] == targetBaitName) {
           int q = inventory[i]['quantity'] ?? 0;
           if (q > 0) {
+            found = true;
             inventory[i]['quantity'] = q - 1;
             if (inventory[i]['quantity'] == 0) {
               inventory.removeAt(i);
-              // 🔁 같은 종류(민물/바다) 미끼가 가방에 남아있으면 자동 교체
-              final wantCat = widget.isSea ? 'SEA' : 'FW';
-              Map<String, dynamic>? nextBait;
-              for (final it in inventory) {
-                final m = it as Map<String, dynamic>;
-                final t = (m['type'] ?? '').toString().toUpperCase();
-                final c = (m['category'] ?? '').toString().toUpperCase();
-                final qn = (m['quantity'] is num) ? (m['quantity'] as num).toInt() : 0;
-                if (t == 'BAIT' && c == wantCat && qn > 0) { nextBait = m; break; }
-              }
-              setState(() { equippedBait = nextBait; });
-              // ⚠️ 반드시 토스트로! (전투 오버레이가 다이얼로그라 위에 모달을 또 띄우면
-              //    당기기 버튼이 가려지고 Navigator.pop이 꼬여 전투가 멈춰버림 — 화면 프리즈 버그)
-              if (nextBait != null) {
-                if (mounted) _baitToast('🔁 $targetBaitName 소진 → ${nextBait['name']}(으)로 자동 교체!', const Color(0xFFD4AF37));
-              } else {
-                if (mounted) _baitToast('🛑 미끼가 모두 떨어졌어요! 가방/상점에서 준비하세요.', Colors.orangeAccent);
-              }
+              // 🪱 [2026-09-05] 자동 교체를 없앴다. 가방에 있는 아무 미끼나 집어오다 보니
+              //    에기(두족류 전용)처럼 대부분 어종에 안 통하는 미끼로 바뀌어
+              //    입질이 뚝 끊기는 일이 있었다(유저 제보). 이제 유저가 직접 고른다.
+              //    ⚠️ 여기는 입질이 온 순간이다 — 지금 줄을 감고 팝업을 띄우면
+              //       '당기기'를 눌러야 할 화면을 가려버린다. 표시만 해두고
+              //       사투가 끝난 뒤(_onFightOverBaitCheck) 처리한다.
+              if (widget.roomId == null) _baitOutName = targetBaitName;
+              ranOut = true;
             }
             break;
           }
         }
+      }
+      // 가방에 그 미끼가 아예 없다(다른 창에서 팔았거나 이미 소진) → 똑같이 '다 썼다'로.
+      if (!found) {
+        ranOut = true;
+        if (widget.roomId == null) _baitOutName = targetBaitName;
+      }
+
+      // ⚔️ [아레나] 미끼가 바닥나면 '가장 많이 가진 미끼'로 자동 이어 준다.
+      //    일반 낚시터는 자동 교체를 없앴지만(엉뚱한 미끼로 바뀌어 입질이 끊겼다는 제보),
+      //    아레나는 10분 단판이라 줄을 감고 고르게 하면 시간 손해가 너무 크다.
+      //    노리는 어종에 맞는 미끼는 대회 중에 상점에서 사서 바꾸면 된다(사서 끼면 자동 장착).
+      //    ⚠️ 이걸 안 하면 없는 미끼가 장착된 채로 남아, 미끼 없이 그 상성으로 계속 낚인다.
+      if (ranOut && widget.roomId != null && mounted) {
+        final Map<String, dynamic>? next = _pickMostBait(inventory);
+        setState(() { equippedBait = next; });
+        _baitToast(
+          next == null
+              ? '🪱 [$targetBaitName] 을(를) 다 썼어요!\n상점에서 미끼를 구매해 주세요'
+              : '🪱 [$targetBaitName] 소진 → [${next['name']}] (으)로 교체했어요\n원하는 미끼는 상점에서 사서 바꾸세요',
+          next == null ? Colors.orangeAccent : const Color(0xFFD4AF37),
+        );
       }
       await userDoc.update({'inventory': inventory});
     } catch (e) { print("미끼 소모 중 에러: $e"); }
@@ -2631,7 +2805,7 @@ void _recast() {  // 기존 코드
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
     // 🪱 미끼 없으면 캐스팅 불가
     if (equippedBait == null) {
-      _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착해야 낚시를 할 수 있어요.\n가방에서 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+      _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
       return;
     }
     // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
@@ -4002,9 +4176,25 @@ Positioned(
       });
       _showNotificationPopup('🎣 장비 자동 세팅', '보유한 최고 장비로 세팅했어요!\n(없는 장비는 임시 기본으로 채웠어요)', const Color(0xFFD4AF37));
     }
+    // 🪱 사투 중에 미끼가 떨어졌던 경우 — 물고기를 올린 지금 알려준다.
+    if (_baitOutName != null) {
+      final String out = _baitOutName!;
+      setState(() {
+        _baitOutName = null;
+        equippedBait = null;
+        globalEquippedBait = null;
+      });
+      _showNotificationPopup(
+        '🪱 미끼를 다 썼어요',
+        '[$out] 을(를) 다 썼어요.\n\n'
+        '미끼교체에서 쓸 미끼를 고르고\n다시 캐스팅해 주세요! 🎣',
+        const Color(0xFFD4AF37),
+      );
+      return;
+    }
     // 🪱 자동장착 후에도 미끼가 없으면 캐스팅 차단 (모든 미끼 소진 = 낚시 불가)
     if (equippedBait == null) {
-      _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+      _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
       return;
     }
               // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
@@ -4633,15 +4823,106 @@ Positioned(
     );
   }
 
+  /// 🐟🦑 잡은 물고기를 미끼 조각으로 나눌지 묻는다.
+  ///   민물에서 새우를 잡아 쓰듯, 바다에서도 잡은 고기를 잘라 쓴다(2026-09-05).
+  void _askSliceFish(Map<String, dynamic> fish, String sliceName) {
+    final String fishName = fish['name'].toString();
+    final int have = ((fish['quantity'] ?? 1) as num).toInt();
+    showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+        title: const Text('🔪 미끼로 손질할까요?',
+            style: TextStyle(color: Color(0xFFD4AF37), fontSize: 18, fontWeight: FontWeight.bold)),
+        content: Text(
+          '[$fishName] 한 마리를 손질해서\n'
+          '[$sliceName] $kSliceCount개를 만들어요.\n\n'
+          '보유: $fishName $have마리',
+          style: const TextStyle(color: Colors.white70, fontSize: 14.5, height: 1.6),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c),
+              child: const Text('아니요', style: TextStyle(color: Colors.white38))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
+            onPressed: () { Navigator.pop(c); _sliceFishToBait(fishName, sliceName); },
+            child: const Text('예, 손질할게요', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 물고기 1마리 차감 → 미끼 조각 kSliceCount개를 가방에 넣는다.
+  Future<void> _sliceFishToBait(String fishName, String sliceName) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+      if (!snap.exists) return;
+      final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+
+      final int fi = inv.indexWhere((e) =>
+          e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
+      if (fi < 0) return;
+      final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
+      if (fq <= 0) return;
+      if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
+
+      final int bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
+      if (bi >= 0) {
+        inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
+      } else {
+        inv.add(makeBaitSlice(sliceName));
+      }
+      await ref.update({'inventory': inv});
+      if (!mounted) return;
+      audioManager.playSfx('sfx_click.mp3');
+      _showNotificationPopup(
+        '🔪 손질 완료',
+        '[$sliceName] $kSliceCount개를 만들었어요!\n\n'
+        '미끼교체에서 골라 쓰시면 됩니다. 🎣',
+        const Color(0xFFD4AF37),
+      );
+    } catch (e) {
+      if (mounted) _showNotificationPopup('손질 실패', '$e', Colors.redAccent);
+    }
+  }
+
   void _showEquipPopup(Map<String, dynamic> item) {
     // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (제공된 대회용 장비만 사용 → 완전 평준화 유지)
     if (widget.roomId != null) {
-      _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
-      return;
+      // 🐟 물고기는 장비가 아니다. '대회용 장비만 쓰세요'가 뜨면 엉뚱하게 읽힌다(2026-09-05).
+      if ((item['type'] ?? '') == 'FISH') {
+        final bool canSlice = sliceBaitNameOf(item['name'].toString()) != null;
+        _showNotificationPopup(
+          canSlice ? '🔪 대회 중이에요' : '미끼 불가 🐟',
+          canSlice
+              ? '대회 중에는 물고기를 손질할 수 없어요.\n대회가 끝난 뒤 가방에서 손질해 주세요.'
+              : '잡은 물고기는 미끼로 쓸 수 없어요.',
+          Colors.orangeAccent,
+        );
+        return;
+      }
+      // 🪱 미끼는 대회 중에도 바꿀 수 있다 — 방마다 노리는 어종이 다른데
+      //    강제 지급된 에기로 고정되면 참돔방·우럭방에선 한 마리도 못 잡는다.
+      //    (미끼교체 창은 원래 열렸는데 이 창만 막혀 있어 앞뒤가 안 맞았다. 2026-09-05)
+      //    아래로 흘려보내면 민물/바다 검사와 재캐스팅이 일반 낚시와 똑같이 걸린다.
+      if (!_isBaitItem(item)) {
+        _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
+        return;
+      }
     }
-    // 🐟 잡은 물고기는 미끼 슬롯에 못 들어감(고등어만 참치용 생미끼로 예외)
-    if ((item['type'] ?? '') == 'FISH' && !item['name'].toString().contains('고등어')) {
-      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
+    // 🐟🦑 잡은 물고기 — 자를 수 있는 것이면 '조각내기'를 묻고, 아니면 안내만.
+    if ((item['type'] ?? '') == 'FISH') {
+      final String? slice = sliceBaitNameOf(item['name'].toString());
+      if (slice != null) { _askSliceFish(item, slice); return; }
+      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.', Colors.orangeAccent);
       return;
     }
     // 🎁 이벤트 아이템은 가방 보유만으로 자동 적용 — 장착 불필요(미끼 슬롯 오장착·소모 버그 방지)
@@ -4716,6 +4997,13 @@ Positioned(
       }
     }
 
+    // 🪱 던져둔 채로 미끼를 빼면 낚시를 이어갈 수 없다(미끼 없이 계속 낚이던 구멍).
+    //    일반 '장착 해제' 창까지 거치면 같은 걸 두 번 묻게 되니, 여기서 바로 전용 확인창으로.
+    if (isEquipped && _isBaitItem(item) && (isFloatInWater || isCasting)) {
+      _askUnequipBait(item);
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -4731,6 +5019,11 @@ Positioned(
             style: ElevatedButton.styleFrom(backgroundColor: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37), foregroundColor: isEquipped ? Colors.white : Colors.black),
             onPressed: () {
               audioManager.playSfx("sfx_click.mp3");
+              // 🪱 미끼를 '새로 끼우는' 경우인지 미리 본다 — 물에 던져둔 미끼는 바꿔치기할 수 없으므로
+              //    줄을 감아 들이고 다시 던지게 한다(미끼교체 창과 같은 규칙).
+              final bool baitSwap = !isEquipped && _isBaitItem(item);
+              final String? oldBaitName = equippedBait?['name']?.toString();
+              final bool wasCast = isFloatInWater || isCasting;
               // 🦐 새우 채집망 등 '도구(TRAP)'는 미끼/장비가 아님 → catch-all else로 미끼 장착되던 버그 차단.
               //    (미끼로 장착되면 캐스팅 시 소모돼 사라짐)
               if (!isEquipped && (item['type'] ?? '').toString().toUpperCase() == 'TRAP') {
@@ -4776,6 +5069,9 @@ Positioned(
                 }
               });
               Navigator.pop(context);
+              if (baitSwap && wasCast && oldBaitName != iName) {
+                _recastAfterBaitChange(oldBaitName, iName);
+              }
             },
             child: Text(isEquipped ? '해제하기' : '장착하기', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
@@ -4784,15 +5080,79 @@ Positioned(
     );
   }
 
+  /// 🪱 던져둔 상태에서 미끼를 해제하려 할 때 — 낚시가 끝난다는 걸 먼저 알린다.
+  void _askUnequipBait(Map<String, dynamic> item) {
+    final String nm = item['name'].toString();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: Colors.redAccent, width: 2)),
+        title: const Text('🪱 미끼를 해제할까요?',
+            style: TextStyle(color: Colors.redAccent, fontSize: 19, fontWeight: FontWeight.bold)),
+        content: Text(
+            '[$nm] 을(를) 해제하면 낚시가 종료됩니다.\n\n'
+            '물에 들어가 있던 [$nm] 1개는 버려집니다.\n\n'
+            '해제하시겠습니까?',
+            style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.5)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('아니요', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            onPressed: () { Navigator.pop(ctx); _unequipBaitAndStop(nm); },
+            child: const Text('해제하기', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 🪱 미끼 해제 + 줄 회수 → '캐스팅 시작!' 화면으로.
+  ///   물속 미끼 1개는 교체할 때와 똑같이 버려진다(빼놨다 다시 끼워 아끼는 편법 방지).
+  Future<void> _unequipBaitAndStop(String baitName) async {
+    _biteTimer?.cancel();
+    _escapeTimer?.cancel();
+    setState(() {
+      equippedBait = null;
+      globalEquippedBait = null;
+      isFloatInWater = false;
+      isCasting = false;
+      isSettingUp = true;
+      bitingRods.clear();
+    });
+    FishingLive.setPhase('idle');
+    await _discardBaitOne(baitName);
+    if (!mounted) return;
+    _showNotificationPopup(
+      '🎣 낚시를 종료했어요',
+      '미끼를 해제하고 줄을 감았어요.\n\n'
+      '미끼를 장착하면 다시 시작할 수 있어요! 🪱',
+      const Color(0xFFD4AF37),
+    );
+  }
+
+  /// 🪱 미끼 아이템인가 (type=BAIT 또는 category=BAIT)
+  bool _isBaitItem(Map<String, dynamic> item) =>
+      (item['type'] ?? '').toString().toUpperCase() == 'BAIT' ||
+      (item['category'] ?? '').toString().toUpperCase() == 'BAIT';
+
   void _quickEquipItem(Map<String, dynamic> item) {
-    // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (완전 평준화 유지)
-    if (widget.roomId != null) {
+    // 🛡️ [아레나 검문소] 대회 중에는 장비 변경 금지! (완전 평준화 유지) — 단 미끼는 예외.
+    if (widget.roomId != null && !_isBaitItem(item) && (item['type'] ?? '') != 'FISH') {
       _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
       return;
     }
-    // 🐟 잡은 물고기는 미끼 슬롯에 못 들어감(고등어만 참치용 생미끼로 예외)
-    if ((item['type'] ?? '') == 'FISH' && !item['name'].toString().contains('고등어')) {
-      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.\n(참치용 생미끼는 고등어만 가능)', Colors.orangeAccent);
+    // 🐟🦑 잡은 물고기 — 자를 수 있는 것이면 '조각내기'를 묻고, 아니면 안내만.
+    if ((item['type'] ?? '') == 'FISH') {
+      final String? slice = sliceBaitNameOf(item['name'].toString());
+      if (slice != null) { _askSliceFish(item, slice); return; }
+      _showNotificationPopup('미끼 불가 🐟', '잡은 물고기는 미끼로 쓸 수 없어요.', Colors.orangeAccent);
       return;
     }
     // 🎁 이벤트 아이템은 가방 보유만으로 자동 적용 — 장착 불필요(미끼 슬롯 오장착·소모 버그 방지)
@@ -4827,7 +5187,12 @@ Positioned(
     if (category == 'RAID' || isRaidRod(item)) { _showNotificationPopup('🐲 레이드 전용 장비', '레이드 낚싯대는 길드 보스레이드에서만 쓸 수 있어요!\n(일반 낚시터에선 일반 낚싯대를 장착하세요)', Colors.redAccent); return; }
     if (widget.isSea && category == 'FW') { _showNotificationPopup('착용 불가 🚫', '바다 낚시터에서는 민물 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
     if (!widget.isSea && category == 'SEA') { _showNotificationPopup('착용 불가 🚫', '민물 낚시터에서는 바다 장비를 쓸 수 없습니다!', Colors.redAccent); return; }
-    audioManager.playSfx("sfx_click.mp3"); 
+    audioManager.playSfx("sfx_click.mp3");
+
+    // 🪱 미끼 교체면 줄을 감아 들인다(미끼교체 창·장착 팝업과 같은 규칙)
+    final bool baitSwap = _isBaitItem(item);
+    final String? oldBaitName = equippedBait?['name']?.toString();
+    final bool wasCast = isFloatInWater || isCasting;
 
     setState(() {
       String cleanName = item['name'].toString().replaceAll(' ', '').toUpperCase();
@@ -4845,6 +5210,10 @@ Positioned(
       else if (cleanName.contains('밑밥')) equippedGroundbait = item;
       else equippedBait = item;
     });
+    if (baitSwap && wasCast && oldBaitName != item['name'].toString()) {
+      _recastAfterBaitChange(oldBaitName, item['name'].toString());
+      return;
+    }
     _showNotificationPopup('⚡ 장착 완료!', '${item['name']} 장비가\n완벽하게 세팅되었습니다.', const Color(0xFFD4AF37));
   }
 
@@ -5218,7 +5587,7 @@ void _showTodayMissionInfo() {
               audioManager.playSfx("sfx_click.mp3");
               // 🪱 미끼 모두 소진 시 재캐스팅 차단 (미끼 없으면 낚시 불가)
               if (equippedBait == null) {
-                _showNotificationPopup('🪱 미끼가 없어요!', '미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
+                _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
                 return;
               }
 

@@ -369,6 +369,82 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   bool _questDone = false; // #11 오늘 일일 퀘스트 완료(보상 수령)했는지
   String _rank = '초보'; // #13 승급 칭호(퀘스트 통과 결과)
   bool _isGm = false;    // 🛡️ 운영자(GM) 계정 여부(권한)
+
+  // 🧭 [광장 배치 도구 — GM 전용] 새 건물·NPC를 광장 어디에 세울지 눈으로 보고 정한다.
+  //    좌표를 코드에 넣고 배포 → 확인 → 다시 고치는 걸 반복하면 하루가 간다.
+  //    끌어서 옮기고 저장하면 Firestore(config/plaza_layout)에 남는다.
+  //    ⚠️ showAll 이 켜질 때까지 새 건물·NPC는 GM에게만 보인다(작업 중인 걸 유저가 보면 안 됨).
+  bool _layoutMode = false;          // 배치 모드 on/off
+  String? _layoutSel;                // 지금 잡고 있는 대상 키
+  bool _layoutShowAll = false;       // true면 모든 유저에게 공개
+  Offset? _layoutPanelPos;           // 조작판 위치(끌어서 옮김). null이면 화면 가운데
+
+  // 🚧 [좌표 찍기] 진입금지 구역을 만들 때 쓴다. 바닥을 눌러 꼭짓점을 찍으면
+  //    화면에 번호가 붙고, 목록이 그대로 코드에 넣을 수 있는 형태로 나온다.
+  bool _pickMode = false;
+  final List<Offset> _picked = [];
+  bool _layoutPanelFold = false;     // 조작판 접기
+  // ⚠️ static 인 이유: 민물↔바다 전환은 화면을 새로 만든다(pushReplacement).
+  //    인스턴스 변수면 옮기던 게 통째로 날아간다(2026-09-04 실제로 당함).
+  static final Map<String, Map<String, double>> _layout = {};   // key -> {cx, cy, h}
+  static bool _layoutDirty = false;   // 저장 안 한 변경이 있는가
+
+  /// 🧭 배치 기본값 — 저장된 게 없으면 이 자리에서 시작한다.
+  static const Map<String, Map<String, double>> _layoutDefaults = {
+    // z = 앞뒤 보정. 건물은 바닥 한 점으로 앞뒤를 정하는데 그림이 옆으로 넓어서,
+    //   옆에 선 캐릭터가 건물 뒤로 숨는다. 음수로 주면 건물이 더 뒤로 간다.
+    'craft_house':  {'cx': 0.62, 'cy': 0.55, 'h': 0.42, 'z': 0.0},   // 민물: 제작소 건물
+    'craft_npc':    {'cx': 0.62, 'cy': 0.60, 'h': 1.00, 'z': 0.0},   // 민물: 무쇠 영감 (h=크기)
+    'fish_house':   {'cx': 0.45, 'cy': 0.62, 'h': 0.46, 'z': 0.0},   // 바다: 보석 교환소
+    'fish_npc':     {'cx': 0.45, 'cy': 0.68, 'h': 1.00, 'z': 0.0},   // 바다: 보석상
+  };
+
+  /// 🧭 이 키가 지금 광장(민물/바다)에 속하는지
+  bool _layoutInThisPlaza(String key) =>
+      widget.isSea ? key.startsWith('fish_') : key.startsWith('craft_');
+
+  /// 🧭 기존 광장 물건도 옮길 수 있게 — 저장된 좌표가 있으면 그걸 쓰고,
+  ///   없으면 호출부에 적힌 기본값을 그대로 쓴다. (기본값을 한 곳에 모을 필요가 없다)
+  Map<String, double> _pos(String key, double cx, double cy, double h) {
+    final v = _layout[key];
+    if (v != null) return v;
+    return {'cx': cx, 'cy': cy, 'h': h, 'z': 0.0};
+  }
+
+  /// 앞뒤 보정값(없으면 0)
+  double _z(Map<String, double> v) => v['z'] ?? 0.0;
+
+  /// 🧭 지금 광장에서 옮길 수 있는 것들 — 키와 이름표
+  Map<String, String> get _layoutTargets {
+    final p = widget.isSea ? 'sea' : 'fw';
+    return {
+      if (widget.isSea) ...{
+        'fish_house': '💎 교환소', 'fish_npc': '🐟 생선장수',
+      } else ...{
+        'craft_house': '🔨 제작소', 'craft_npc': '🧔 무쇠 영감',
+      },
+      '${p}_portal_fishing': '🌀 낚시터문', '${p}_npc_fishing': '나루',
+      '${p}_portal_arena': '⚔️ 아레나문', '${p}_npc_arena': '한별',
+      '${p}_portal_shop': '🏪 상점', '${p}_npc_shop': '서윤',
+      '${p}_portal_rank': '🏆 랭킹문', '${p}_npc_rank': '가람',
+      '${p}_portal_quest': '📜 퀘스트문',
+      '${p}_house_guild': '🏛️ 길드홀', '${p}_npc_guild': '윤슬',
+    };
+  }
+
+  Map<String, double> _lay(String key) {
+    final v = _layout[key];
+    if (v != null) return v;
+    return Map<String, double>.from(
+        _layoutDefaults[key] ?? const {'cx': 0.5, 'cy': 0.5, 'h': 0.4, 'z': 0.0});
+  }
+
+  /// 조작판에서 아직 안 옮긴 기존 물건을 처음 고를 때 쓸 값.
+  ///   실제 기본값은 호출부에 있으므로, 여기선 화면 가운데를 준다.
+  ///   → 한 번 톡 찍으면 그 자리로 오고, 그때부터 정확히 다뤄진다.
+  Map<String, double> _lay2(String key) =>
+      Map<String, double>.from(_layoutDefaults[key] ??
+          const {'cx': 0.5, 'cy': 0.5, 'h': 1.0, 'z': 0.0});
   bool _showGmBadge = false; // 🕵️ 머리 위 GM 배지 표시 여부(hideGmBadge로 끌 수 있음)
   Map<String, int> _daejangCatch = {}; // #13 6대장 누적 카운트
   bool _fwDone = false; // 📋 오늘 민물 일일 완료
@@ -741,6 +817,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final data = doc.data() ?? {};
       _isGm = data['isGm'] == true; // 🛡️ 운영자 권한(공지 작성 등)
+      _loadPlazaLayout(); // 🧭 새 건물·NPC 배치 좌표(운영자가 정해둔 것)
       // 🕵️ 배지 숨김: isGm이어도 users/{uid}.hideGmBadge==true 면 광장에 GM 배지 안 뜸
       //    (부계정으로 조용히 플레이할 때. 권한 자체는 유지)
       _showGmBadge = _isGm && data['hideGmBadge'] != true;
@@ -1679,8 +1756,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     Offset(0.008, 0.462), Offset(0.048, 0.467), Offset(0.063, 0.408), Offset(0.259, 0.303),
     Offset(0.288, 0.337), Offset(0.388, 0.342), Offset(0.420, 0.310), Offset(0.412, 0.269),
     Offset(0.583, 0.261), Offset(0.606, 0.322), Offset(0.690, 0.328), Offset(0.712, 0.284),
-    Offset(0.878, 0.329), Offset(0.998, 0.398), Offset(0.998, 0.466), Offset(0.780, 0.492),
-    Offset(0.780, 0.528), Offset(0.992, 0.547), Offset(0.995, 0.996), Offset(0.902, 0.973),
+    // 🏪 (2026-09-04) 옛 상점 자리를 파고들던 홈 2점 제거 — 상점을 옮겼는데 홈이 남아
+    //    보이지 않는 유리벽처럼 길을 막았다. Offset(0.780,0.492)·Offset(0.780,0.528)
+    Offset(0.878, 0.329), Offset(0.998, 0.398), Offset(0.998, 0.466),
+    Offset(0.992, 0.547), Offset(0.995, 0.996), Offset(0.902, 0.973),
     Offset(0.793, 0.829), Offset(0.622, 0.800), Offset(0.598, 0.696), Offset(0.575, 0.702),
     Offset(0.589, 0.832), Offset(0.718, 0.832), Offset(0.819, 0.895), Offset(0.877, 0.998),
     Offset(0.176, 0.994), Offset(0.237, 0.880), Offset(0.349, 0.817), Offset(0.434, 0.820),
@@ -2073,6 +2152,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   // 🏛️ 광장 종류 전환 (민물광장 ↔ 바다광장) — 낚시 종류에 맞춰 해당 광장으로 교체
   void _switchPlazaWorld(bool sea) {
     if (!mounted) return;
+    // 🧭 옮기던 배치가 저장 전이면 먼저 저장한다 — 화면이 새로 만들어지므로
+    //    안 그러면 작업한 게 조용히 사라진다.
+    if (_isGm && _layoutDirty) { _savePlazaLayout(); }
     _leavePlazaPresence(); // 🚪 현재 광장에서 사라짐(고스트 방지)
     final spot = sea ? locations['갯바위']![0] : locations['저수지']![0];
     Navigator.pushReplacement(
@@ -3011,9 +3093,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         Positioned.fill(
                           child: GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTapUp: (d) => _moveTo(
-                                Offset(d.localPosition.dx / worldW, d.localPosition.dy / worldH),
-                                worldW, worldH),
+                            onTapUp: (d) {
+                              final wp = Offset(d.localPosition.dx / worldW,
+                                                d.localPosition.dy / worldH);
+                              // 🚧 좌표 찍기 모드: 바닥을 누르면 꼭짓점이 하나씩 쌓인다.
+                              if (_isGm && _layoutMode && _pickMode) {
+                                setState(() => _picked.add(wp));
+                                return;
+                              }
+                              // 🧭 배치 모드: 바닥을 누르면 '선택한 것'이 그 자리로 온다.
+                              //    큰 건물은 끌기보다 이게 훨씬 정확하다.
+                              if (_isGm && _layoutMode && _layoutSel != null) {
+                                setState(() {
+                                  final cur = Map<String, double>.from(_lay(_layoutSel!));
+                                  cur['cx'] = wp.dx.clamp(0.02, 0.98);
+                                  cur['cy'] = wp.dy.clamp(0.05, 0.99);
+                                  _layout[_layoutSel!] = cur;
+                                  _layoutDirty = true;
+                                });
+                                return;
+                              }
+                              _moveTo(wp, worldW, worldH);
+                            },
                             onScaleStart: (_) => _zoomStartScale = _zoomScale,
                             onScaleUpdate: (d) {
                               if (d.pointerCount >= 2) {
@@ -3023,6 +3124,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                             },
                           ),
                         ),
+                        // 🚧 좌표 찍기 — 찍은 순서대로 번호를 단다
+                        if (_isGm && _layoutMode && _pickMode)
+                          ...List.generate(_picked.length, (i) {
+                            final p = _picked[i];
+                            return Positioned(
+                              left: p.dx * worldW - 11,
+                              top: p.dy * worldH - 11,
+                              child: IgnorePointer(
+                                child: Container(
+                                  width: 22, height: 22,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xCCE0392B),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.6),
+                                  ),
+                                  child: Text('${i + 1}',
+                                      style: const TextStyle(color: Colors.white,
+                                          fontSize: 11, fontWeight: FontWeight.w900)),
+                                ),
+                              ),
+                            );
+                          }),
                         // 🔧 좌표 수집 마커
                         if (_devCoords && _lastTapWorld != null)
                           Positioned(
@@ -3058,12 +3182,24 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           } else if (!widget.isSea) {
                             // 🏞️ 민물광장 시설 포털
                             sprites.add(MapEntry(0.590, _plazaPortal(worldW, worldH, sizeRef, 0.540, 0.590, kCenterpieceFile, kCenterpieceHFrac)));
-                            sprites.add(MapEntry(0.663, _plazaPortal(worldW, worldH, sizeRef, 0.110, 0.663, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.405, _guildHousePortal(worldW, worldH, sizeRef, 0.290, 0.405, 0.51))); // 🏛️ 길드홀 건물(간판=길드명)
-                            sprites.add(MapEntry(0.256, _plazaPortal(worldW, worldH, sizeRef, 0.507, 0.256, 'portal_fishing_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.390, _plazaPortal(worldW, worldH, sizeRef, 0.760, 0.390, 'portal_arena_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.55, _plazaPortal(worldW, worldH, sizeRef, 0.910, 0.680, 'portal_shop_fw.png', 0.48))); // 깊이키=건물 앞바닥(렌더는 0.680), 앞 캐릭터 안 가리게
-                            sprites.add(MapEntry(0.897, _plazaPortal(worldW, worldH, sizeRef, 0.480, 0.897, 'portal_quest_fw.png', 0.36)));
+                            { final v = _pos('fw_portal_rank', 0.110, 0.663, 0.42);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_rank_fw.png', v['h']!))); }
+                            { final v = _pos('fw_house_guild', 0.290, 0.405, 0.51);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _guildHousePortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, v['h']!))); }
+                            // 🧭 [제작 시스템] 아직 작업 중 — showAll 켜기 전엔 GM에게만 보인다
+                            if (_isGm || _layoutShowAll) {
+                            { final v = _lay('craft_house');
+                              sprites.add(MapEntry(v['cy']! + _z(v), _layoutPiece(worldW, worldH, sizeRef, 'craft_house'))); }
+                            }
+                            { final v = _pos('fw_portal_fishing', 0.507, 0.256, 0.40);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_fishing_fw.png', v['h']!))); }
+                            { final v = _pos('fw_portal_arena', 0.760, 0.390, 0.42);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_arena_fw.png', v['h']!))); }
+                            // 🏪 상점은 건물이 커서 '앞바닥'을 깊이로 쓴다(렌더 위치보다 0.13 앞) — 앞 캐릭터를 안 가리게
+                            { final v = _pos('fw_portal_shop', 0.910, 0.680, 0.48);
+                              sprites.add(MapEntry(v['cy']! - 0.13 + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_shop_fw.png', v['h']!))); }
+                            { final v = _pos('fw_portal_quest', 0.480, 0.897, 0.36);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_quest_fw.png', v['h']!))); }
                             // 🌲 소나무 장식 (화단 위 · 깊이정렬 · 원근으로 먼 건 작게)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.213, 0.483, 'tree_pine1_fw.png', 0.38)));
                             sprites.add(MapEntry(0.867, _plazaPortal(worldW, worldH, sizeRef, 0.029, 0.867, 'tree_pine2_fw.png', 0.46)));
@@ -3074,12 +3210,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           } else {
                             // 🌊 바다광장 시설 포털 (민물 포털 재활용, 좌표만 바다용 — 좌표모드로 미세조정 예정 · 추정값)
                             sprites.add(MapEntry(0.483, _plazaPortal(worldW, worldH, sizeRef, 0.533, 0.483, kCenterpieceFile, kCenterpieceHFrac)));
-                            sprites.add(MapEntry(0.910, _plazaPortal(worldW, worldH, sizeRef, 0.287, 0.910, 'portal_rank_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.500, _guildHousePortal(worldW, worldH, sizeRef, 0.140, 0.500, 0.48))); // 🏛️ 길드홀 건물(바다)
-                            sprites.add(MapEntry(0.330, _plazaPortal(worldW, worldH, sizeRef, 0.350, 0.330, 'portal_fishing_fw.png', 0.40)));
-                            sprites.add(MapEntry(0.310, _plazaPortal(worldW, worldH, sizeRef, 0.640, 0.310, 'portal_arena_fw.png', 0.42)));
-                            sprites.add(MapEntry(0.52, _plazaPortal(worldW, worldH, sizeRef, 0.900, 0.650, 'portal_shop_fw.png', 0.48))); // 렌더 0.650(여백보정), 깊이키 0.52
-                            sprites.add(MapEntry(0.913, _plazaPortal(worldW, worldH, sizeRef, 0.754, 0.913, 'portal_quest_fw.png', 0.36, flip: true)));
+                            { final v = _pos('sea_portal_rank', 0.287, 0.910, 0.42);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']! + _z(v), 'portal_rank_fw.png', v['h']!))); }
+                            { final v = _pos('sea_house_guild', 0.140, 0.500, 0.48);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _guildHousePortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, v['h']!))); }
+                            if (_isGm || _layoutShowAll) {
+                            { final v = _lay('fish_house');
+                              sprites.add(MapEntry(v['cy']! + _z(v), _layoutPiece(worldW, worldH, sizeRef, 'fish_house'))); }
+                            }
+                            { final v = _pos('sea_portal_fishing', 0.350, 0.330, 0.40);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_fishing_fw.png', v['h']!))); }
+                            { final v = _pos('sea_portal_arena', 0.640, 0.310, 0.42);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_arena_fw.png', v['h']!))); }
+                            { final v = _pos('sea_portal_shop', 0.900, 0.650, 0.48);
+                              sprites.add(MapEntry(v['cy']! - 0.13 + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_shop_fw.png', v['h']!))); }
+                            { final v = _pos('sea_portal_quest', 0.754, 0.913, 0.36);
+                              sprites.add(MapEntry(v['cy']! + _z(v), _plazaPortal(worldW, worldH, sizeRef, v['cx']!, v['cy']!, 'portal_quest_fw.png', v['h']!, flip: true))); }
                           }
                           // 🧍 내 캐릭터 (탭 통과)
                           sprites.add(MapEntry(_charPos.dy, AnimatedPositioned(
@@ -3160,26 +3306,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                         // 4) 시설 NPC (각 시설 앞에 한 명씩) — img 없으면 임시 fallback
                         //    🐋 레이드 모임터에선 시설 NPC/아라 없음(캐릭터만 모임).
                         if (!_isGuildHall) ...[
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.307 : 0.146,
-                            widget.isSea ? 0.930 : 0.662, 'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹',
-                            _onGaramTap,
-                            scale: 1.0),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.120 : 0.294,
-                            widget.isSea ? 0.540 : 0.424, 'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드홀',
-                            () => _openNpcIntro('npc_guild.png', 'guild', '길드홀 입장', _enterGuildHall),
-                            scale: 0.85),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.350 : 0.500,
-                            widget.isSea ? 0.340 : 0.270, 'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
-                            () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap),
-                            scale: 0.9),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.610 : 0.725,
-                            widget.isSea ? 0.310 : 0.391, 'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
-                            _onHanbyeolTap,
-                            scale: 0.82),
-                        _standNpc(worldW, worldH, sizeRef, widget.isSea ? 0.900 : 0.910,
-                            widget.isSea ? 0.600 : 0.630, 'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
-                            () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore),
-                            scale: 1.1),
+                          // 🧭 제작·보석 NPC — 기존 NPC들과 마찬가지로 앞뒤 정렬을 타지 않는다.
+                          //    건물 데크 위에 세우려면 세로값이 건물보다 작아야 하는데,
+                          //    정렬에 끼우면 그 순간 건물 뒤로 숨어버린다(2026-09-04).
+                          if (_isGm || _layoutShowAll)
+                            _layoutPiece(worldW, worldH, sizeRef,
+                                widget.isSea ? 'fish_npc' : 'craft_npc'),
+                        _npcAt('_npc_rank', widget.isSea ? 0.307 : 0.146,
+                            widget.isSea ? 0.930 : 0.662, 1.0, worldW, worldH, sizeRef,
+                            'npc_rank.png', 'npc_rank.png', '가람', '🏆 랭킹', _onGaramTap),
+                        _npcAt('_npc_guild', widget.isSea ? 0.120 : 0.294,
+                            widget.isSea ? 0.540 : 0.424, 0.85, worldW, worldH, sizeRef,
+                            'npc_guild.png', 'npc_manager_congrats.png', '윤슬', '🏛️ 길드홀',
+                            () => _openNpcIntro('npc_guild.png', 'guild', '길드홀 입장', _enterGuildHall)),
+                        _npcAt('_npc_fishing', widget.isSea ? 0.350 : 0.500,
+                            widget.isSea ? 0.340 : 0.270, 0.9, worldW, worldH, sizeRef,
+                            'npc_fishing.png', 'npc_girl_intro.png', '나루', '🌀 낚시터',
+                            () => _openNpcIntro('npc_fishing.png', 'fishing', '낚시터 이동', _openMinimap)),
+                        _npcAt('_npc_arena', widget.isSea ? 0.610 : 0.725,
+                            widget.isSea ? 0.310 : 0.391, 0.82, worldW, worldH, sizeRef,
+                            'npc_arena.png', 'npc_girl_point.png', '한별', '⚔️ 아레나',
+                            _onHanbyeolTap),
+                        _npcAt('_npc_shop', widget.isSea ? 0.900 : 0.910,
+                            widget.isSea ? 0.600 : 0.630, 1.1, worldW, worldH, sizeRef,
+                            'npc_shop.png', 'npc_manager.png', '서윤', '🏪 상점',
+                            () => _openNpcIntro('npc_shop.png', 'shop', '상점 들어가기', _openStore)),
                         // 📋 일일퀘스트 매니저 '아라'
                         _araNpc(worldW, worldH, sizeRef),
                         ],
@@ -3219,6 +3370,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
               // 🕹️ 가상 조이스틱 (우하단)
               _joystick(),
+
+              // 🧭 [GM 전용] 배치 조작판 — 배치 모드일 때만
+              if (_isGm && _layoutMode) _layoutPanel(),
 
               // 🏛️ [GM 전용] 길드 아지트 바로가기 — 캠피싱(isGm)만 보임. (길드홀 안에선 숨김)
               //   🙈 hideGmBadge(부캐로 일반 플레이) 계정은 이 버튼도 숨긴다 —
@@ -3954,6 +4108,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🧍 시설 NPC (포털/시설 앞에 한 명씩 세움). img 없으면 fallback 이미지로.
+  /// 🧭 배치 가능한 NPC — 저장된 좌표가 있으면 그 자리로, 없으면 코드 기본값.
+  ///   suffix 는 '_npc_shop' 처럼 광장 접두사(fw_/sea_) 없이 넘긴다.
+  Widget _npcAt(String suffix, double cx, double cy, double sc,
+      double worldW, double worldH, double sizeRef,
+      String img, String fallback, String name, String label, VoidCallback onTap) {
+    final v = _pos((widget.isSea ? 'sea' : 'fw') + suffix, cx, cy, sc);
+    return _standNpc(worldW, worldH, sizeRef, v['cx']!, v['cy']!, img, fallback,
+        name, label, onTap, scale: v['h']!);
+  }
+
   Widget _standNpc(double worldW, double worldH, double sizeH, double cx, double cy,
       String img, String fallback, String name, String label, VoidCallback onTap, {double scale = 1.0}) {
     // 🧍 원근 크기(아주 약하게): 나루(먼 쪽) 기존 크기 기준 + 가까울수록 살짝만 큼. scale=NPC별 보정.
@@ -3974,7 +4138,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       width: figW,
       height: figH,
       child: GestureDetector(
-        onTap: onTap,
+        // 🚧 좌표 찍는 중엔 NPC 클릭(상점 열기 등)이 방해가 된다
+        onTap: (_isGm && _layoutMode && _pickMode) ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: Stack(
           clipBehavior: Clip.none,
@@ -4106,6 +4271,381 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       ),
     );
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // 🧭 [광장 배치 도구 — GM 전용]
+  //   새 건물·NPC를 광장 어디에 세울지 눈으로 보고 정한다. 좌표를 코드에 박고
+  //   배포 → 확인 → 다시 고치기를 반복하면 하루가 간다. 끌어서 옮기고 저장하면
+  //   Firestore(config/plaza_layout)에 남아 배포 없이 바로 반영된다.
+  // ═══════════════════════════════════════════════════════════════
+
+  Future<void> _loadPlazaLayout() async {
+    try {
+      final d = await FirebaseFirestore.instance
+          .collection('config').doc('plaza_layout').get();
+      final m = d.data() ?? {};
+      final out = <String, Map<String, double>>{};
+      // 🧭 저장된 키는 뭐든 읽는다 — 기존 포탈·NPC까지 다루므로 목록을 미리 못 박지 않는다.
+      m.forEach((k, v) {
+        if (k == 'showAll' || v is! Map) return;
+        if (v['cx'] == null || v['cy'] == null || v['h'] == null) return;
+        out[k] = {
+          'cx': (v['cx'] as num).toDouble(),
+          'cy': (v['cy'] as num).toDouble(),
+          'h': (v['h'] as num).toDouble(),
+          'z': v['z'] == null ? 0.0 : (v['z'] as num).toDouble(),
+        };
+      });
+      if (!mounted) return;
+      setState(() {
+        // 옮기던 중인 건 서버 값으로 덮지 않는다(작업 중인 배치 보존)
+        out.forEach((k, v) => _layout.putIfAbsent(k, () => v));
+        _layoutShowAll = m['showAll'] == true;
+      });
+    } catch (_) { /* 못 읽어도 기본 자리로 뜬다 */ }
+  }
+
+  Future<void> _savePlazaLayout() async {
+    try {
+      final body = <String, dynamic>{'showAll': _layoutShowAll};
+      // 옮긴 것만 저장한다(안 건드린 건 코드 기본값 그대로 둔다).
+      _layout.forEach((k, v) {
+        body[k] = {'cx': v['cx'], 'cy': v['cy'], 'h': v['h'], 'z': v['z'] ?? 0.0};
+      });
+      for (final k in _layoutDefaults.keys) {
+        final v = _lay(k);
+        body[k] = {'cx': v['cx'], 'cy': v['cy'], 'h': v['h'], 'z': v['z'] ?? 0.0};
+      }
+      await FirebaseFirestore.instance
+          .collection('config').doc('plaza_layout').set(body, SetOptions(merge: true));
+      _layoutDirty = false;
+      if (mounted) {
+        _infoPopup('🧭 저장했어요',
+            _layoutShowAll
+                ? '배치를 저장했고 모든 조사님에게 공개됩니다.'
+                : '배치를 저장했습니다.\n아직 운영자에게만 보입니다.');
+      }
+    } catch (e) {
+      if (mounted) _infoPopup('저장 실패', '$e');
+    }
+  }
+
+  /// 🧭 배치 대상 하나 — 배치 모드면 끌어서 옮길 수 있다.
+  ///   건물·NPC 모두 '발이 cy에 오도록' 바닥 중앙 기준(기존 광장 규칙과 동일).
+  Widget _layoutPiece(double worldW, double worldH, double sizeRef, String key) {
+    final v = _lay(key);
+    final bool isNpc = key.endsWith('_npc');
+    final bool sel = _layoutSel == key;
+
+    // NPC는 기존 NPC와 같은 크기 규칙(세로 0.28 × 보정), 건물은 sizeRef × h
+    final double figH = isNpc ? sizeRef * 0.28 * v['h']! : sizeRef * v['h']!;
+    final double figW = isNpc ? figH * 0.6 : figH * 1.42;
+
+    final String path = isNpc
+        ? (key == 'craft_npc'
+            ? 'assets/images/npc_craft.png'
+            : 'assets/images/npc_fishbuyer.png')
+        : (key == 'craft_house'
+            ? 'assets/plaza/house_craft_fw.png'
+            : 'assets/plaza/house_fishbuyer_sea.png');
+
+    Widget art = Image.asset(path,
+        height: figH,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        errorBuilder: (a, b, c) => Container(
+              width: figW,
+              height: figH,
+              color: Colors.red.withOpacity(0.25),
+              alignment: Alignment.center,
+              child: Text('그림 없음\n$key',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white, fontSize: 11)),
+            ));
+
+    if (_layoutMode) {
+      art = Container(
+        decoration: BoxDecoration(
+          border: Border.all(
+              color: sel ? _kGold : Colors.cyanAccent, width: sel ? 2.5 : 1.2),
+          color: sel ? _kGold.withOpacity(0.10) : Colors.transparent,
+        ),
+        child: art,
+      );
+    }
+
+    return Positioned(
+      left: v['cx']! * worldW - figW / 2,
+      top: v['cy']! * worldH - figH,
+      width: figW,
+      height: figH,
+      // 🚧 좌표 찍는 중엔 건물·NPC가 탭을 가로채면 안 된다 — 뒤쪽 바닥을 못 찍는다.
+      child: (_layoutMode && !_pickMode)
+          ? GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanStart: (_) => setState(() => _layoutSel = key),
+              onPanUpdate: (d) {
+                setState(() {
+                  final cur = Map<String, double>.from(_lay(key));
+                  // 🔍 화면이 Transform.scale로 확대돼 있으면 손가락 거리도 그만큼 나눠야 한다
+                  cur['cx'] = (cur['cx']! + d.delta.dx / _zoomScale / worldW).clamp(0.02, 0.98);
+                  cur['cy'] = (cur['cy']! + d.delta.dy / _zoomScale / worldH).clamp(0.05, 0.99);
+                  _layout[key] = cur;
+                  _layoutDirty = true;
+                });
+              },
+              onTap: () => setState(() => _layoutSel = key),
+              child: art,
+            )
+          : IgnorePointer(child: art),
+    );
+  }
+
+  /// 🧭 배치 조작판 — 선택한 대상의 좌표·크기를 눈금으로 미세조정.
+  Widget _layoutPanel() {
+    final names = _layoutTargets;
+    final keys = names.keys.toList();
+    if (keys.isEmpty) return const SizedBox.shrink();
+    final String sel =
+        (_layoutSel != null && keys.contains(_layoutSel)) ? _layoutSel! : keys.first;
+    // 기존 물건은 기본값이 호출부에 있으므로, 아직 안 옮겼으면 _layout 에 없다.
+    final v = _layout[sel] ?? _lay2(sel);
+
+    void bump(String f, double d) => setState(() {
+          final cur = Map<String, double>.from(_lay(sel));
+          cur[f] = double.parse(((cur[f] ?? 0.0) + d).toStringAsFixed(4));
+          _layout[sel] = cur;
+          _layoutDirty = true;
+        });
+
+    Widget row(String label, String f, double step) => Row(children: [
+          SizedBox(
+              width: 30,
+              child: Text(label,
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold))),
+          _sqBtn('−', () => bump(f, -step)),
+          SizedBox(
+              width: 60,
+              child: Text((v[f] ?? 0.0).toStringAsFixed(3),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: _kGold, fontSize: 13, fontWeight: FontWeight.w900))),
+          _sqBtn('+', () => bump(f, step)),
+        ]);
+
+    // 🧭 조작판은 화면 가운데에서 시작하고, 머리말을 잡아 끌면 어디로든 옮길 수 있다.
+    //    (오른쪽 아래에 두었더니 상점 자리를 가려서 못 찍는 문제가 있었다)
+    final Size scr = MediaQuery.of(context).size;
+    // 오른쪽은 상점·교환소가 몰려 있어 가리고, 가운데도 걸린다 → 왼쪽에서 시작.
+    //   (위쪽 광장정보 패널 아래, 아래쪽 채팅창 위)
+    final Offset pos = _layoutPanelPos ?? Offset(14, scr.height * 0.18);
+
+    return Positioned(
+      left: pos.dx,
+      top: pos.dy,
+      child: Container(
+        width: 252,
+        constraints: BoxConstraints(maxHeight: scr.height * 0.86),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+        decoration: BoxDecoration(
+          color: const Color(0xF2121212),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _kGold, width: 1.4),
+        ),
+        child: SingleChildScrollView(child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✋ 머리말 = 손잡이. 여기를 끌어서 창을 옮긴다.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: (d) => setState(() {
+                  final n = (_layoutPanelPos ?? pos) + d.delta;
+                  _layoutPanelPos = Offset(
+                      n.dx.clamp(0.0, scr.width - 60),
+                      n.dy.clamp(0.0, scr.height - 60));
+                }),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 6, top: 2),
+                  child: Row(children: [
+                    const Icon(Icons.drag_indicator, color: Colors.white38, size: 16),
+                    const SizedBox(width: 2),
+                    const Text('🧭 배치 모드',
+                        style: TextStyle(
+                            color: _kGold, fontSize: 14, fontWeight: FontWeight.w900)),
+                    if (_layoutDirty)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 6),
+                        child: Text('● 저장 안 됨',
+                            style: TextStyle(color: Color(0xFFE0704A), fontSize: 10.5,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => setState(() => _layoutPanelFold = !_layoutPanelFold),
+                      child: Icon(
+                          _layoutPanelFold ? Icons.expand_more : Icons.expand_less,
+                          color: Colors.white54, size: 20),
+                    ),
+                  ]),
+                ),
+              ),
+              if (_layoutPanelFold)
+                const Text('창을 펴려면 ∨ 를 누르세요',
+                    style: TextStyle(color: Colors.white24, fontSize: 10.5)),
+              if (!_layoutPanelFold) ...[
+              const Text('① 아래에서 대상 선택  ② 바닥을 누르면 그 자리로\n③ 눈금으로 미세조정',
+                  style: TextStyle(color: Colors.white38, fontSize: 11)),
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 108),
+                child: SingleChildScrollView(
+                  child: Wrap(
+                  spacing: 5,
+                  runSpacing: 5,
+                  children: keys.map((k) {
+                    final on = k == sel;
+                    return GestureDetector(
+                      onTap: () => setState(() => _layoutSel = k),
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: on ? _kGold : Colors.white10,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(names[k]!,
+                            style: TextStyle(
+                                color: on ? Colors.black : Colors.white70,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    );
+                  }).toList()),
+                ),
+              ),
+              const SizedBox(height: 10),
+              row('가로', 'cx', 0.005),
+              const SizedBox(height: 4),
+              row('세로', 'cy', 0.005),
+              const SizedBox(height: 4),
+              row('크기', 'h', 0.01),
+              const SizedBox(height: 4),
+              row('앞뒤', 'z', 0.02),
+              const SizedBox(height: 10),
+              // 🚧 진입금지 구역용 좌표 찍기
+              Row(children: [
+                GestureDetector(
+                  onTap: () => setState(() { _pickMode = !_pickMode; }),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _pickMode ? const Color(0xFFE0392B) : Colors.white10,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text('🚧 좌표 찍기',
+                        style: TextStyle(
+                            color: _pickMode ? Colors.white : Colors.white70,
+                            fontSize: 11.5, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                if (_picked.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => setState(() => _picked.removeLast()),
+                    child: const Text('한 점 취소',
+                        style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => setState(() => _picked.clear()),
+                    child: const Text('모두 지움',
+                        style: TextStyle(color: Colors.white38, fontSize: 11)),
+                  ),
+                ],
+              ]),
+              if (_pickMode) ...[
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(maxHeight: 96),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.black45,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.white12),
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      _picked.isEmpty
+                          ? '바닥을 눌러 꼭짓점을 찍으세요.\n(시계 방향으로 4점이면 충분)'
+                          : _picked
+                              .map((p) =>
+                                  'Offset(${p.dx.toStringAsFixed(3)}, ${p.dy.toStringAsFixed(3)}),')
+                              .join('\n'),
+                      style: const TextStyle(
+                          color: Color(0xFF8FE3C8), fontSize: 11, height: 1.5,
+                          fontFamily: 'monospace'),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () => setState(() => _layoutShowAll = !_layoutShowAll),
+                child: Row(children: [
+                  Icon(
+                      _layoutShowAll
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      color: _layoutShowAll ? _kGold : Colors.white38,
+                      size: 18),
+                  const SizedBox(width: 4),
+                  const Text('모든 조사님에게 공개',
+                      style: TextStyle(color: Colors.white70, fontSize: 11.5)),
+                ]),
+              ),
+              const SizedBox(height: 8),
+              Row(children: [
+                Expanded(
+                    child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: _kGold,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 8)),
+                  onPressed: _savePlazaLayout,
+                  child: const Text('저장',
+                      style:
+                          TextStyle(fontWeight: FontWeight.w900, fontSize: 13)),
+                )),
+                const SizedBox(width: 6),
+                TextButton(
+                  onPressed: () => setState(() => _layout.remove(sel)),
+                  child: const Text('되돌리기',
+                      style: TextStyle(color: Colors.white38, fontSize: 12)),
+                ),
+              ]),
+              ],
+            ])),
+      ),
+    );
+  }
+
+  Widget _sqBtn(String t, VoidCallback onTap) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 28,
+          height: 26,
+          alignment: Alignment.center,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+              color: Colors.white12, borderRadius: BorderRadius.circular(5)),
+          child: Text(t,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+        ),
+      );
 
   Widget _plazaPortal(double worldW, double worldH, double sizeRef, double cx, double cy, String file, double hFrac, {bool flip = false}) {
     return Positioned(
@@ -7369,6 +7909,29 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       ]),
                     ),
                   ),
+                  // 🧭 [GM] 배치 모드 — 새 건물·NPC 자리 잡기
+                  if (_isGm) ...[
+                    const SizedBox(width: 6),
+                    InkWell(
+                      onTap: () => setState(() {
+                        _layoutMode = !_layoutMode;
+                        if (!_layoutMode) _layoutSel = null;
+                      }),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                            color: _layoutMode ? _kGold : Colors.black54,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: _kGold, width: 0.8)),
+                        child: Text('🧭 배치',
+                            style: TextStyle(
+                                color: _layoutMode ? Colors.black : _kGold,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900)),
+                      ),
+                    ),
+                  ],
                   const SizedBox(width: 6),
                   // 🔀 광장 전환 (민물↔바다 바로가기)
                   InkWell(

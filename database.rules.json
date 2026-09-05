@@ -51,10 +51,24 @@
       "$uid": {
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid",
-        "meta": { ".write": "auth != null && auth.uid === $uid" },
-        "state": { ".write": "auth != null && auth.uid === $uid" },
+        "meta": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "state": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
         "watchers": {
-          "$w": { ".write": "auth != null && auth.uid === $w" }
+          "$w": {
+            ".write": "auth != null && auth.uid === $w"
+          }
+        }
+      }
+    },
+    "arena_logs": {
+      ".read": "auth != null",
+      "$room": {
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid"
         }
       }
     }
