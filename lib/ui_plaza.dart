@@ -30,6 +30,22 @@ import 'app_version.dart'; // 🔖 새 버전 알림(새로고침 안내)
 
 const Color _kGold = Color(0xFFD4AF37);
 
+/// 🏷️ 광장 NPC 이름표 — 한 곳에서 관리한다.
+///   NPC마다 그리는 함수가 달라 색·그림자가 제각각이었다(2026-09-05).
+///   색은 '친구에게 공유' 버튼과 같은 짙은 금색, 검은 테두리를 둘러 밝은 배경에서도 읽히게.
+const TextStyle kNpcNameStyle = TextStyle(
+  color: _kGold,
+  fontSize: 15,
+  fontWeight: FontWeight.w900,
+  shadows: [
+    Shadow(color: Colors.black, blurRadius: 5, offset: Offset(0, 1)),
+    Shadow(color: Colors.black87, offset: Offset(1, 0)),
+    Shadow(color: Colors.black87, offset: Offset(-1, 0)),
+    Shadow(color: Colors.black87, offset: Offset(0, -1)),
+    Shadow(color: Colors.black87, offset: Offset(0, 1)),
+  ],
+);
+
 class PlazaScreen extends StatefulWidget {
   final String nickname;
   final int level;
@@ -4379,16 +4395,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 if (araBang) Center(child: _tutBang()), // ❗ 고정 높이 없이(안 잘리게)
                 if (araBang) const SizedBox(height: 2),
                 const Center(
-                  child: Text('아라',
-                      style: TextStyle(
-                        color: _kGold,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        shadows: [
-                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
-                          Shadow(color: Colors.black, blurRadius: 2),
-                        ],
-                      )),
+                  child: Text('아라', style: kNpcNameStyle),
                 ),
               ]),
             ),
@@ -4461,21 +4468,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 if (bang) Center(child: _tutBang()), // ❗ 고정 높이 없이(안 잘리게)
                 if (bang) const SizedBox(height: 2),
                 Center(
-                  // 🏷️ 밝은 금빛 + 검은 테두리 — 모래·잔디·물처럼 밝은 배경에서도 읽히게.
-                  //    예전엔 진한 금색(_kGold)이라 낮 배경에 묻혔다(2026-09-05).
-                  child: Text(name,
-                      style: const TextStyle(
-                        color: Color(0xFFFFEFB8),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w900,
-                        shadows: [
-                          Shadow(color: Colors.black, blurRadius: 5, offset: Offset(0, 1)),
-                          Shadow(color: Colors.black87, offset: Offset(1, 0)),
-                          Shadow(color: Colors.black87, offset: Offset(-1, 0)),
-                          Shadow(color: Colors.black87, offset: Offset(0, -1)),
-                          Shadow(color: Colors.black87, offset: Offset(0, 1)),
-                        ],
-                      )),
+                  child: Text(name, style: kNpcNameStyle),
                 ),
               ]),
             ),
