@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구매내역 — 캠피싱 KREFT</title>
+  <link rel="canonical" href="https://kreft.co.kr/orders.html">
+  <meta name="robots" content="noindex">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="캠피싱 KREFT">
+  <meta property="og:title" content="구매내역 — 캠피싱 KREFT">
+  <meta property="og:description" content="게임스토어에서 결제하신 내역을 확인하실 수 있습니다.">
+  <meta property="og:url" content="https://kreft.co.kr/orders.html">
+  <meta property="og:image" content="https://kreft.co.kr/assets/og-cover.jpg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b1a22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KREFT">
+<meta name="description" content="캠피싱 KREFT 구매내역 — 결제하신 내역과 처리 상태를 확인하실 수 있습니다.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  .note{background:var(--sky1);border:1px solid var(--line);border-radius:14px;
+    padding:15px 18px;font-size:14px;line-height:1.85;color:var(--ink-soft);margin-bottom:20px}
+  .note b{color:var(--ink)}
+
+  /* 📋 표 — 넓은 화면에선 표, 폰에선 카드로 접힌다(가로 스크롤은 읽기 나쁘다). */
+  .otable{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:16px}
+  .orow{display:grid;grid-template-columns:112px 1fr 64px 108px 96px;
+    gap:12px;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line)}
+  .orow:last-child{border-bottom:none}
+  .ohead{background:var(--sky1);font-size:12.5px;font-weight:800;color:var(--ink-soft)}
+  .oname{font-weight:800;font-size:15px;color:var(--ink)}
+  .oid{font-size:11.5px;color:#9fb6bf;margin-top:3px;word-break:break-all}
+  .odate{font-size:13px;color:var(--ink-soft)}
+  .oqty{font-size:14px;color:var(--ink-soft);text-align:center}
+  .oamt{font-size:15px;font-weight:800;color:var(--ink);text-align:right}
+  .ost{font-size:12px;font-weight:800;padding:4px 11px;border-radius:20px;
+    text-align:center;justify-self:end;white-space:nowrap}
+  .ost.paid{background:#e3f6ee;color:#1b8a5f}
+  .ost.ready{background:#fdf3d8;color:#8a6b00}
+  .ost.failed{background:#fdeaea;color:#b3212a}
+  .ost.canceled{background:#eceff1;color:#61707a}
+
+  .empty{padding:56px 20px;text-align:center;color:#9fb6bf;line-height:1.9}
+  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+  .empty .btn{margin-top:14px}
+
+  .btn{display:inline-block;border:1px solid var(--line);background:#fff;color:var(--ink);
+    font-weight:700;font-size:15px;padding:11px 22px;border-radius:12px;cursor:pointer;
+    font-family:inherit;text-decoration:none}
+  .btn:hover{border-color:var(--blue);color:var(--blue-ink)}
+  .btn.primary{background:var(--blue-ink);border-color:var(--blue-ink);color:#fff}
+
+  .help{font-size:13.5px;line-height:1.95;color:var(--ink-soft);margin-bottom:40px}
+  .help b{color:var(--ink)}
+  .help a{color:var(--emerald);font-weight:700}
+
+  @media(max-width:720px){
+    .orow{grid-template-columns:1fr auto;gap:6px 12px;padding:16px 17px}
+    .ohead{display:none}
+    .orow .oname{grid-column:1/2}
+    .orow .ost{grid-column:2/3;grid-row:1/2}
+    .orow .odate{grid-column:1/2}
+    .orow .oqty{grid-column:1/2;text-align:left}
+    .orow .oamt{grid-column:2/3;text-align:right}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+      <a href="gift.html">선물함</a>
+      <a href="support.html">고객지원</a>
+    </nav>
+    <div class="right">
+      <span class="me" data-auth-in style="display:none" data-me-nick></span>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🧾 구매내역</h1>
+  <p>게임스토어에서 결제하신 내역입니다</p>
+</div></div>
+
+<div class="wrap">
+
+  <div class="note">
+    <b>결제하신 계정으로 로그인</b>하시면 최근 50건까지 보입니다.
+    결제가 끝나면 아이템은 <b>게임 계정 가방으로 즉시</b> 들어갑니다.<br>
+    아이템이 보이지 않으시면 게임을 새로고침해 주세요. 그래도 없으면 아래 문의처로 연락 주세요.
+  </div>
+
+  <div id="wrap"><div class="empty">불러오는 중…</div></div>
+
+  <div class="help">
+    <b>취소 · 환불 안내</b><br>
+    · 결제 후 <b>7일 이내</b>이고 <b>아직 사용하지 않으셨다면</b> 전액 환불(청약철회)해 드립니다.<br>
+    · 패키지 상품은 <b>상자를 열면</b> 사용이 시작된 것으로 보아 환불이 제한됩니다.<br>
+    · 상품 하자 · 오지급 · 중복 결제는 기간과 관계없이 전액 환불 또는 재지급해 드립니다.<br>
+    · 자세한 내용은 <a href="policy.html#item" target="_blank" rel="noopener">유료 아이템 · 청약철회 · 환불 안내</a>를 확인해 주세요.<br>
+    <br>
+    <b>문의</b> intoas@naver.com · 02-487-2581 (평일 09:00~18:00) ·
+    <a href="support.html">1:1 문의</a>
+  </div>
+
+</div>
+
+<footer><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="about.html">회사소개</a> · <a data-play href="#">지금 플레이</a> ·
+  <a href="policy.html#terms">이용약관</a> ·
+  <a href="policy.html#privacy">개인정보처리방침</a> ·
+  <a href="orders.html">구매내역</a><br>
+  <b style="color:#cfe3ea">(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  (28166) 충북 청주시 흥덕구 오송읍 오송가락로 235, 상가동 203호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script type="module" src="auth.js"></script>
+<script>
+(function(){
+  var API = 'https://us-central1-camnak-fishing.cloudfunctions.net/myOrders';
+  document.querySelectorAll('[data-play]').forEach(function(a){ a.href = 'play.html'; });
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function won(n){ return (Number(n)||0).toLocaleString('ko-KR') + '원'; }
+
+  // 서버가 쓰는 상태값 그대로 — payment.js 의 status 와 맞춰야 한다.
+  var ST = {
+    paid:     {t:'결제완료', c:'paid'},
+    ready:    {t:'결제대기', c:'ready'},
+    failed:   {t:'결제실패', c:'failed'},
+    canceled: {t:'취소',     c:'canceled'},
+    refunded: {t:'환불완료', c:'canceled'}
+  };
+
+  function when(ms){
+    if(!ms) return '';
+    var d = new Date(ms);
+    function p(n){ return (n<10?'0':'') + n; }
+    return d.getFullYear() + '.' + p(d.getMonth()+1) + '.' + p(d.getDate())
+         + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function rowHtml(r){
+    var s = ST[r.status] || {t: r.status || '-', c:'ready'};
+    return '<div class="orow">'
+      + '<div class="odate">' + esc(when(r.createdAt)) + '</div>'
+      + '<div><div class="oname">' + esc(r.itemName || '-') + '</div>'
+      +   '<div class="oid">주문번호 ' + esc(r.orderId) + '</div></div>'
+      + '<div class="oqty">' + (Number(r.qty)||1) + '개</div>'
+      + '<div class="oamt">' + won(r.amount) + '</div>'
+      + '<div class="ost ' + s.c + '">' + esc(s.t) + '</div>'
+      + '</div>';
+  }
+
+  function showLogin(){
+    $('wrap').innerHTML = '<div class="empty"><b>로그인이 필요합니다</b>'
+      + '결제하신 계정으로 로그인하시면 구매내역을 보실 수 있습니다.'
+      + '<div><a class="btn primary" href="#" data-do-login>로그인</a></div></div>';
+  }
+
+  function showEmpty(){
+    $('wrap').innerHTML = '<div class="empty"><b>아직 구매하신 내역이 없습니다</b>'
+      + '게임스토어에서 아이템을 구매하시면 이곳에 표시됩니다.'
+      + '<div><a class="btn" href="store.html">게임스토어 보기</a></div></div>';
+  }
+
+  async function load(){
+    var u = window.__auth && window.__auth.currentUser;
+    if(!u){ showLogin(); return; }
+    $('wrap').innerHTML = '<div class="empty">불러오는 중…</div>';
+    try{
+      var t = await u.getIdToken();
+      var r = await fetch(API, {headers:{Authorization:'Bearer ' + t}});
+      var j = await r.json();
+      if(!j.ok) throw new Error(j.err || '구매내역을 불러오지 못했습니다');
+      if(!j.rows || !j.rows.length){ showEmpty(); return; }
+      $('wrap').innerHTML = '<div class="otable">'
+        + '<div class="orow ohead"><div>결제일시</div><div>상품</div>'
+        +   '<div style="text-align:center">수량</div>'
+        +   '<div style="text-align:right">금액</div>'
+        +   '<div style="text-align:right">상태</div></div>'
+        + j.rows.map(rowHtml).join('')
+        + '</div>';
+    }catch(e){
+      $('wrap').innerHTML = '<div class="empty"><b>구매내역을 불러오지 못했어요</b>'
+        + esc(e.message) + '</div>';
+    }
+  }
+
+  // 로그인 상태가 잡히면 그때 부른다(auth.js 가 먼저 붙어야 한다).
+  var tries = 0;
+  (function wait(){
+    if(window.__auth){ window.__auth.onAuthStateChanged(function(){ load(); }); return; }
+    if(++tries > 60){ showLogin(); return; }
+    setTimeout(wait, 100);
+  })();
+})();
+</script>
+</body>
+</html>
