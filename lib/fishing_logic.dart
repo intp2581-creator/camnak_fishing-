@@ -366,8 +366,11 @@ class FishingLogic {
   static Map<String, dynamic> openGiftBox(List<dynamic> inventory, String gid) {
     final inv = List<dynamic>.from(
         inventory.map((e) => e is Map ? Map<String, dynamic>.from(e) : e));
+    // 📦 이름이 '선물 상자'가 아니어도 gift 목록이 있으면 같은 상자로 본다.
+    //    성장패키지처럼 '산 물건'은 이름·아이콘을 따로 둬야 유저가 구분한다(2026-09-06).
     final bi = inv.indexWhere((i) =>
-        (i is Map) && (i['name'] ?? '') == kGiftBoxName && (i['gid'] ?? '') == gid);
+        (i is Map) && (i['gid'] ?? '') == gid &&
+        ((i['name'] ?? '') == kGiftBoxName || i['gift'] is List));
     if (bi < 0) {
       return {'inv': inv, 'ok': false, 'title': '', 'msg': '',
               'exp': 0, 'gold': 0, 'items': <String, int>{}};
