@@ -1848,6 +1848,10 @@ Widget _whisperUnreadBadge() {
       isCasting = false;
       isSettingUp = true;      // '캐스팅 시작!' 버튼이 다시 나온다
       bitingRods.clear();
+      // 🚨 사투는 끝났다. 이 기록이 남으면 다음 캐스팅 뒤 입질이 영영 안 온다
+      //    (_scheduleNextBite 가 '아직 사투 중'으로 보고 계속 건너뛴다).
+      isFighting = false;
+      fightingRodIndex = null;
     });
     FishingLive.setPhase('idle');
 
@@ -1896,6 +1900,10 @@ Widget _whisperUnreadBadge() {
       // 가방에 없는 미끼가 장착된 채로 남으면 소모 없이 낚시가 된다 → 즉시 해제.
       equippedBait = null;
       globalEquippedBait = null;
+      // 🚨 사투는 끝났다. 이 기록이 남으면 다음 캐스팅 뒤 입질이 영영 안 온다
+      //    (_scheduleNextBite 가 '아직 사투 중'으로 보고 계속 건너뛴다).
+      isFighting = false;
+      fightingRodIndex = null;
       if (wasCast) {
         isFloatInWater = false;
         isCasting = false;
@@ -4206,7 +4214,11 @@ Positioned(
     }
               // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
               audioManager.playSfx("sfx_casting.mp3"); _castController.forward(from: 0.0);
-              setState(() { isSettingUp = false; isCasting = true; bitingRods.clear(); });
+              // 🚨 사투 기록 리셋 — _recast()(빨간 캐스팅 버튼)와 같은 처리.
+              //    여기 빠져 있어서 '사투 중 미끼 소진 → 새 미끼 → 캐스팅' 하면
+              //    입질이 영영 안 왔다(2026-09-06 아레투사 제보).
+              setState(() { isSettingUp = false; isCasting = true; bitingRods.clear();
+                isFighting = false; fightingRodIndex = null; });
               // 🎣👀 관전: 첫 캐스팅(여기까진 '셋팅 중'이었다) + 확정된 대편성·찌·케미 전달
               FishingLive.setPhase('casting');
               _syncLiveGear();
@@ -5141,6 +5153,10 @@ Positioned(
       isCasting = false;
       isSettingUp = true;
       bitingRods.clear();
+      // 🚨 사투는 끝났다. 이 기록이 남으면 다음 캐스팅 뒤 입질이 영영 안 온다
+      //    (_scheduleNextBite 가 '아직 사투 중'으로 보고 계속 건너뛴다).
+      isFighting = false;
+      fightingRodIndex = null;
     });
     FishingLive.setPhase('idle');
     await _discardBaitOne(baitName);
