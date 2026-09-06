@@ -234,6 +234,14 @@ class _SpectateFishingScreenState extends State<SpectateFishingScreen> {
                   child: Center(child: _spectateBadge()),
                 ),
 
+                // 📢 실시간 자막 — 낚시꾼 화면과 같은 ticker_news 를 구독한다.
+                //   관전자도 소식을 봐야 한다. 보는 앞에서 친구가 랭킹을 갱신했는데
+                //   관전 화면엔 자막이 없어 축하를 못 해줬다(2026-09-06 제보).
+                const Positioned(
+                  top: 60, left: 200, right: 160,
+                  child: IgnorePointer(child: RankingTicker()),
+                ),
+
                 // ↩️ 좌상단: 뒤로 + 낚시장소
                 Positioned(
                   top: 18, left: 18,

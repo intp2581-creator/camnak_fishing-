@@ -2944,8 +2944,11 @@ void _recast() {  // 기존 코드
           // 🌦️ 날씨 뱃지(지역·기온) — 타이머 바로 아래에 딱 붙임
           const Positioned(top: 78, left: 0, right: 0, child: IgnorePointer(child: Center(child: WeatherBadge()))),
           // 👀 관전자 표시(누가 내 낚시를 보는지) — 일반 낚시(아레나 아님)일 때만
+          //   ⚠️ top 은 아래 자막(top 112 · 높이 34 → 146까지)보다 아래여야 한다.
+          //      예전엔 104라 112~130이 겹쳐, 관전자가 붙으면 이 배지의 검은 띠가
+          //      자막 글자를 덮어버렸다(자막은 띠 없이 그림자로만 읽히는 디자인).
           if (widget.roomId == null)
-            Positioned(top: 104, left: 0, right: 0, child: IgnorePointer(child: Center(
+            Positioned(top: 148, left: 0, right: 0, child: IgnorePointer(child: Center(
               child: ValueListenableBuilder<List<String>>(
                 valueListenable: FishingLive.watcherNamesNotifier,
                 builder: (c, names, _) {
