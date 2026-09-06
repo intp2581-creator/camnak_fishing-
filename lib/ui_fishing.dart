@@ -2518,14 +2518,25 @@ Widget _whisperUnreadBadge() {
       }
       final bool beatRecord = topSize > 0 && caughtSize > topSize;
       final bool firstBig = topSize <= 0 && speciesMax > 0 && caughtSize >= speciesMax * 0.4;
-      if (beatRecord || firstBig) {
+      // 🎰 전설 어종(참치·초어)은 1위가 아니어도 무조건 방송한다.
+      //    한 달에 한두 마리뿐이라 도배될 일이 없다. 조용히 지나가면 아무도 모르고,
+      //    이미 1위 기록(참치 191cm 등)이 높아서 갱신 조건으로는 평생 안 뜬다.
+      final bool isLegend = kLegendAppearRate.containsKey(fishName);
+      if (beatRecord || firstBig || isLegend) {
         final sizeStr = caughtSize == caughtSize.roundToDouble()
             ? caughtSize.toStringAsFixed(0)
             : caughtSize.toStringAsFixed(1);
-        final tail = beatRecord ? '최대어 랭킹 1위를 갱신했습니다!' : '최대어 랭킹 1위에 등극했습니다! 🥇';
+        final String text;
+        if (beatRecord || firstBig) {
+          final tail = beatRecord ? '최대어 랭킹 1위를 갱신했습니다!' : '최대어 랭킹 1위에 등극했습니다! 🥇';
+          text = '🎉 축하합니다! ${widget.nickname}님이 ${widget.locationName}에서 '
+              '$fishName $sizeStr$unit를 잡아 $tail';
+        } else {
+          text = '🎰 ${widget.nickname}님이 ${widget.locationName}에서 '
+              '전설의 $fishName $sizeStr$unit를 낚았습니다!';
+        }
         await FirebaseFirestore.instance.collection('ticker_news').add({
-          'text': '🎉 축하합니다! ${widget.nickname}님이 ${widget.locationName}에서 '
-              '$fishName $sizeStr$unit를 잡아 $tail',
+          'text': text,
           'nickname': widget.nickname,
           'timestamp': FieldValue.serverTimestamp(),
         });

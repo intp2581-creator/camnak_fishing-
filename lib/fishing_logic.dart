@@ -448,6 +448,13 @@ class FishingLogic {
     // 📍 매시간 바뀌는 핫스팟(민물·바다 20곳 중 한 곳). 부를 때마다 새로 계산한다.
     bool isHotSpot = (locationName == currentHotSpot());
 
+    // 🎰 이번 입질에 어떤 '전설 어종'을 후보에 올릴지 — 어종마다 따로 굴린다.
+    //    대부분의 입질에선 전부 빠진다. (설명은 game_config.dart kLegendAppearRate)
+    final Set<String> legendAllowed = {
+      for (final e in kLegendAppearRate.entries)
+        if (math.Random().nextDouble() < e.value) e.key
+    };
+
     int currentStars = 1;
     locations.forEach((category, locList) {
       for (var loc in locList) {
@@ -495,15 +502,9 @@ final Map<String, Map<String, double>> baitAffinity = {
   //      그래서 일반 어종은 전부 0.0. 생미끼는 갯지렁이·크릴로는 안 되는
   //      참치·부시리·방어를 노릴 때만 쓰는 물건이다.
   //   🐟 고등어 = 회유성 대물. 방어에 가장 강하다.
-  '고등어 미끼': {'참돔': 0.0, '감성돔': 0.0, '문어': 0.0, '고등어': 0.0, '우럭': 0.0, '갈치': 0.5,
-             '광어': 0.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 0.0,
-             '학꽁치': 0.0, '참치': 1.0, '성대': 0.0, '농어': 1.0, '부시리': 1.5,
-             '돌돔': 0.0, '방어': 2.0, '쥐노래미': 0.0, '무늬오징어': 0.0},
+  '고등어 미끼': {'참돔': 0.3, '감성돔': 0.0, '문어': 0.5, '고등어': 0.0, '우럭': 1.2, '갈치': 2.0, '광어': 1.5, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 0.5, '학꽁치': 0.0, '참치': 1.0, '성대': 0.6, '농어': 1.0, '부시리': 1.5, '돌돔': 0.0, '방어': 2.0, '쥐노래미': 0.5, '무늬오징어': 0.0},
   //   🦑 무늬오징어 = 문어·갈치·참돔에 강하다. 에기로만 잡히는 걸 미끼로 쓸지가 고민.
-  '오징어 미끼': {'참돔': 1.0, '감성돔': 0.0, '문어': 1.5, '고등어': 0.0, '우럭': 0.0, '갈치': 1.5,
-             '광어': 0.0, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 0.0,
-             '학꽁치': 0.0, '참치': 1.0, '성대': 0.0, '농어': 0.0, '부시리': 1.5,
-             '돌돔': 0.0, '방어': 1.2, '쥐노래미': 0.0, '무늬오징어': 0.0},
+  '오징어 미끼': {'참돔': 1.5, '감성돔': 0.4, '문어': 1.5, '고등어': 0.0, '우럭': 1.0, '갈치': 1.5, '광어': 0.8, '갑오징어': 0.0, '주꾸미': 0.0, '벵에돔': 0.0, '볼락': 1.2, '학꽁치': 0.0, '참치': 1.0, '성대': 0.5, '농어': 1.5, '부시리': 1.5, '돌돔': 0.0, '방어': 1.2, '쥐노래미': 0.6, '무늬오징어': 0.0},
 };
 
 // 🎣 가중치(확률) 룰렛 돌리기
@@ -516,6 +517,9 @@ for (var fish in availableFishes) {
   if (isHotSpot && w <= 15 && !kHotSpotRareExclude.contains(fish['name'])) {
     w = (w * kHotSpotRareMult).round();
   }
+  // 🎰 전설 어종(참치·초어) 확률문 — 이번 입질에 안 걸렸으면 후보에서 뺀다.
+  if (kLegendAppearRate.containsKey(fish['name']) &&
+      !legendAllowed.contains(fish['name'])) w = 0;
   
   // 🎯 미끼 상성 보너스 적용
   String fName = fish['name'];
@@ -571,6 +575,9 @@ for (var fish in availableFishes) {
   if (isHotSpot && w <= 15 && !kHotSpotRareExclude.contains(fish['name'])) {
     w = (w * kHotSpotRareMult).round();
   }
+  // 🎰 전설 어종(참치·초어) 확률문 — 이번 입질에 안 걸렸으면 후보에서 뺀다.
+  if (kLegendAppearRate.containsKey(fish['name']) &&
+      !legendAllowed.contains(fish['name'])) w = 0;
   
   // 🎯 미끼 상성 보너스 (위와 동일하게!)
   String fName = fish['name'];
@@ -641,12 +648,22 @@ for (var fish in availableFishes) {
       pts = (pts * 1.2).round();
     }
 
-    // 🎰 레어 잭팟 어종(자라·참치) — 출현확률 낮음(weight 5), 1시간에 한 마리 볼까말까.
-    //    크기 무관 EXP·포인트 ×3 (사이즈 비례라 큰 놈일수록 자연히 더 큰 잭팟)
-    const List<String> rareFishes = ['자라', '참치'];
+    // 🎰 레어 잭팟 어종 — 크기 무관 EXP·포인트 ×3 (사이즈 비례라 큰 놈일수록 큰 잭팟)
+    //    참치·초어는 확률문(kLegendAppearRate)으로 한 달 한두 마리까지 눌러뒀다.
+    //    자라는 가중치 5로만 조절 — 15~30cm 잡어라 흔해도 판을 흔들지 않는다.
+    //    ⚠️ 여기에 어종을 넣으면 보상이 3배가 된다. 확률문과 짝을 맞출 것.
+    const List<String> rareFishes = ['자라', '참치', '초어'];
     if (rareFishes.contains(selectedFish['name'])) {
       exp = (exp * 3).round();
       pts = (pts * 3).round();
+    }
+
+    // 🎁 전설 어종 별도 보상 — 잭팟 ×3 '뒤'에 더한다(3배로 부풀지 않게).
+    //    이벤트 배율은 아래에서 이 값에도 걸린다(경험치 2배 이벤트면 보너스도 2배).
+    final bonus = kLegendBonus[selectedFish['name']];
+    if (bonus != null) {
+      exp += bonus['exp'] ?? 0;
+      pts += bonus['pts'] ?? 0;
     }
 
     // 🎉 이벤트 배율(Firestore config/event) — 전체 경험치·포인트 배율 + 6대장 추가 배율.
