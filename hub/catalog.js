@@ -182,10 +182,36 @@ const MALL_IDX = {
   skin_master: 228,
 };
 
-// 구매하기 링크. 승인 전에는 아임웹으로, 승인 뒤에는 우리 주문서로.
+// 🎫 이 브라우저가 '결제 허용'(canPay) 계정인지. meApi 가 알려준다.
+//    PG 심사자는 주소를 따로 받지 않고 실제 유저와 같은 길로 결제창까지 가야 한다.
+//    로그인 확인이 끝나기 전에는 false — 그 사이엔 아임웹으로 보인다.
+let CAN_PAY = false;
+
+// 구매하기 링크.
+//   USE_OWN_PAY = 전체 전환(승인 후)   ·   CAN_PAY = 이 계정만(심사용)
 function buyHref(key, qty) {
   const k = CKEY(key);
-  if (USE_OWN_PAY) return 'order.html?item=' + encodeURIComponent(k) + '&qty=' + (qty || 1);
+  if (USE_OWN_PAY || CAN_PAY) {
+    return 'order.html?item=' + encodeURIComponent(k) + '&qty=' + (qty || 1);
+  }
   const idx = MALL_IDX[k];
   return idx ? (MALL_BASE + idx) : 'store.html';
+}
+
+// 로그인 뒤 한 번 물어보고, 결과가 오면 화면을 다시 그린다(onReady).
+//   화면이 한 번 바뀌어 보이지 않도록, 답이 오기 전에는 아무것도 안 한다.
+function loadCanPay(onReady) {
+  const wait = setInterval(async function () {
+    const u = window.__auth && window.__auth.currentUser;
+    if (!u) return;
+    clearInterval(wait);
+    try {
+      const t = await u.getIdToken();
+      const j = await fetch(
+          'https://us-central1-camnak-fishing.cloudfunctions.net/meApi',
+          {headers: {Authorization: 'Bearer ' + t}}).then((r) => r.json());
+      if (j && j.ok && j.canPay === true) { CAN_PAY = true; if (onReady) onReady(); }
+    } catch (e) { /* 못 물어봤으면 지금까지대로 아임웹으로 */ }
+  }, 250);
+  setTimeout(function () { clearInterval(wait); }, 8000);
 }

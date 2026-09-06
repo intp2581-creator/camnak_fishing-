@@ -883,6 +883,8 @@ exports.meApi = functions.https.onRequest(async (req, res) => {
       rank: d.rank || "초보",
       level: calcLevel(d.exp || 0),
       isGm: d.isGm === true,
+      // 🎫 PG 심사용 '결제 허용' — 이 계정만 우리 결제 흐름으로 보낸다.
+      canPay: d.canPay === true,
     });
   } catch (e) {
     console.error("[meApi]", e);
