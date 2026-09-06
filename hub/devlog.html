@@ -113,6 +113,15 @@
   .card.plain.devlog{border-top-color:#7B5CD6}
   .card.plain .cbody{padding-top:15px}
   .card.plain .cbody .pill{margin-bottom:9px}
+  /* 🎨 표지 — 그림이 없으면 제목 앞 이모지를 크게 띄운다.
+     그림 카드와 글 카드가 섞이면 높이가 들쭉날쭉해 지저분해서다(2026-09-06). */
+  .card .thumb .emo{position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-size:58px;line-height:1;
+    text-shadow:0 6px 18px rgba(0,0,0,.35)}
+  .card .thumb.notice{background:linear-gradient(140deg,#fff1cc,#f6dc9b)}
+  .card .thumb.update{background:linear-gradient(140deg,#dcebff,#b9d4f7)}
+  .card .thumb.event {background:linear-gradient(140deg,#d5f6e9,#a8e6cd)}
+  .card .thumb.devlog{background:linear-gradient(140deg,#e6dcfa,#c9b6f2)}
   /* 상세 */
   .detail{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow-sm);overflow:hidden}
   .detail .dhead{padding:26px 30px 20px;border-bottom:2px solid var(--line)}
@@ -242,24 +251,30 @@
   function imgSrc(n){
     return n.img ? (String(n.img).indexOf('http')===0 ? n.img : 'assets/'+n.img) : '';
   }
-  // 그림이 있을 때만 판을 만든다. 없으면 제목 위에 작은 딱지만 붙인다.
-  function thumbHtml(n){
-    var src = imgSrc(n);
-    if(!src) return '';
-    return '<div class="thumb"><img src="'+esc(src)+'" alt="" loading="lazy">'
-      + '<span class="tag">'+(n.pinned?'📌 ':'')+(PILL[n.type]||'공지')+'</span></div>';
+  // 제목 맨 앞 이모지를 떼어낸다 — 표지로 크게 쓰고, 제목에선 뺀다(두 번 보이면 지저분).
+  var RE_EMO = /^([\p{Extended_Pictographic}]\uFE0F?)\s*/u;
+  function splitEmoji(t){
+    var m = String(t||'').match(RE_EMO);
+    return m ? {emo:m[1], title:String(t).slice(m[0].length)} : {emo:'', title:String(t||'')};
   }
-  function pillHtml(n){
-    return imgSrc(n) ? ''
-      : '<span class="pill '+n.type+'">'+(n.pinned?'📌 ':'')+(PILL[n.type]||'공지')+'</span>';
+  var FALLBACK={notice:'📢',update:'🆕',event:'🎁',devlog:'🔬'};
+  // 표지는 모든 카드에 만든다. 그림이 없으면 이모지를 띄운다 — 높이를 맞추려고.
+  function thumbHtml(n, emo){
+    var src = imgSrc(n);
+    var inner = src
+      ? '<img src="'+esc(src)+'" alt="" loading="lazy">'
+      : '<div class="emo">'+(emo || FALLBACK[n.type] || '📢')+'</div>';
+    return '<div class="thumb '+(src?'':n.type)+'">'+inner
+      + '<span class="tag">'+(n.pinned?'📌 ':'')+(PILL[n.type]||'공지')+'</span></div>';
   }
   function sectionHtml(items){
     return '<div class="cards">' + items.map(function(n){
       // 소개가 없으면 본문 앞머리를 쓴다. [page:...] 같은 표식은 빼고.
       var sum = n.summary || String(n.body||'').replace(/\[[a-z]+:[^\]]*\]/g,'').trim();
-      return '<div class="card '+(imgSrc(n)?'':'plain '+n.type)+'" onclick="location.href=\'devlog.html?id='+encodeURIComponent(n.id)+'\'">'
-        + thumbHtml(n)
-        + '<div class="cbody">'+pillHtml(n)+'<h3>'+esc(n.title)+(isNew(n)?NEWMARK:'')+'</h3>'
+      var sp = splitEmoji(n.title);
+      return '<div class="card" onclick="location.href=\'devlog.html?id='+encodeURIComponent(n.id)+'\'">'
+        + thumbHtml(n, sp.emo)
+        + '<div class="cbody"><h3>'+esc(sp.title)+(isNew(n)?NEWMARK:'')+'</h3>'
         + (sum ? '<p>'+esc(sum)+'</p>' : '')
         + '</div>'
         + '<div class="cfoot"><span class="who">'+esc(n.author||'캠피싱')+'</span>'
