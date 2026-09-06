@@ -17,9 +17,11 @@
 <style>
   :root{ --ink:#d9d2c4; --gold:#f6e3a8; --bg:#050505; }
   *{box-sizing:border-box}
-  body{margin:0;background:#000;color:var(--ink);
+  /* 🤍 글 바깥은 흰 바탕 — 가운데 검은 띠로 시선을 모은다(리니지 예고 페이지 방식). */
+  body{margin:0;background:#fff;color:var(--ink);
        font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.85;overflow-x:hidden}
-  .page{max-width:760px;margin:0 auto;background:var(--bg)}
+  .page{max-width:760px;margin:0 auto;background:var(--bg);
+        box-shadow:0 0 0 1px rgba(0,0,0,.06)}
 
   /* ══════════════════════════════════════════════════════
      ✨ 새김 금박 글씨 — 글자를 세 겹으로 쌓는다.
