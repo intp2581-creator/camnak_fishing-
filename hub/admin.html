@@ -75,9 +75,41 @@
       <h1 id="pageTitle">📢 공지 관리</h1>
       <button class="btn ghost" id="tabNotice">📢 공지</button>
       <button class="btn ghost" id="tabStore">🛒 상품</button>
+      <button class="btn ghost" id="tabOrder">🧾 주문·환불</button>
       <a class="btn ghost" id="viewLink" href="notice.html" target="_blank" style="text-decoration:none">페이지 보기 ↗</a>
       <span class="who" id="who"></span>
       <button class="btn ghost" id="logoutBtn">로그아웃</button>
+    </div>
+
+    <!-- 🧾 주문 · 환불 -->
+    <div id="orderBox" class="hide">
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="margin:0 0 4px;font-size:17px">주문 찾기</h2>
+        <p class="muted" style="margin:0 0 12px">
+          이메일이나 주문번호로 찾습니다. 비우고 검색하면 최근 50건이 나옵니다.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="odQ" placeholder="intoas@naver.com 또는 KREFT175..." style="flex:1;min-width:240px">
+          <button class="btn primary" id="odFind">검색</button>
+        </div>
+      </div>
+      <div class="card" id="odList">검색을 눌러 주세요.</div>
+
+      <div class="card hide" id="odRefund" style="margin-top:16px;border:1px solid #c0392b">
+        <h2 style="margin:0 0 4px;font-size:17px;color:#c0392b">환불</h2>
+        <p class="muted" id="odTarget" style="margin:0 0 12px"></p>
+        <label>환불 사유 <span class="muted">(포트원에 함께 기록됩니다)</span></label>
+        <input id="odReason" placeholder="예) 고객 요청 · 오지급 · 중복 결제" value="고객 요청">
+        <div class="chk" style="margin-top:10px">
+          <input type="checkbox" id="odReclaim">
+          <label for="odReclaim" style="margin:0">지급한 아이템도 회수 (상자를 안 열었을 때만 회수됩니다)</label>
+        </div>
+        <div class="msg" id="odMsg"></div>
+        <div class="btns" style="margin-top:12px">
+          <button class="btn primary" id="odDo" style="background:#c0392b;border-color:#c0392b">환불 실행</button>
+          <button class="btn ghost" id="odCancel">닫기</button>
+        </div>
+      </div>
     </div>
 
     <!-- 🛒 상품 관리 -->
@@ -297,13 +329,89 @@ async function sapi(body,qs){
 }
 
 function showTab(which){
-  const isStore = which==='store';
-  $('noticeBox').classList.toggle('hide', isStore);
+  const isStore = which==='store', isOrder = which==='order';
+  $('noticeBox').classList.toggle('hide', isStore || isOrder);
   $('storeBox').classList.toggle('hide', !isStore);
+  $('orderBox').classList.toggle('hide', !isOrder);
   if(!isStore) $('stEdit').classList.add('hide');
-  $('pageTitle').textContent = isStore ? '🛒 상품 관리' : '📢 공지 관리';
-  $('viewLink').href = isStore ? 'store.html' : 'notice.html';
+  if(!isOrder) $('odRefund').classList.add('hide');
+  $('pageTitle').textContent = isOrder ? '🧾 주문 · 환불'
+                             : isStore ? '🛒 상품 관리' : '📢 공지 관리';
+  $('viewLink').href = isOrder ? 'orders.html' : isStore ? 'store.html' : 'notice.html';
   if(isStore) loadStore();
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🧾 주문 · 환불
+//   콘솔에서만 환불하면 우리 orders 는 'paid' 로 남아 구매내역과 말이 달라진다.
+//   여기서 하면 돈과 기록이 같이 움직인다.
+// ═══════════════════════════════════════════════════════════
+const OAPI='https://us-central1-camnak-fishing.cloudfunctions.net/adminOrders';
+const RAPI='https://us-central1-camnak-fishing.cloudfunctions.net/payRefund';
+let odPick=null;
+
+const OD_ST={paid:['결제완료','#1b8a5f'],ready:['결제대기','#8a6b00'],
+             failed:['결제실패','#b3212a'],canceled:['취소','#61707a'],
+             refunded:['환불완료','#61707a'],partial_canceled:['부분취소','#61707a']};
+
+function odWhen(ms){
+  if(!ms) return '';
+  const d=new Date(ms), p=n=>(n<10?'0':'')+n;
+  return d.getFullYear()+'.'+p(d.getMonth()+1)+'.'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+}
+
+async function odLoad(){
+  const box=$('odList'); box.innerHTML='불러오는 중…';
+  try{
+    const t=await auth.currentUser.getIdToken();
+    const r=await fetch(OAPI+'?q='+encodeURIComponent($('odQ').value.trim()),
+      {headers:{Authorization:'Bearer '+t}});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.err||'불러오지 못했습니다');
+    if(!j.rows.length){ box.innerHTML='<p class="muted">해당하는 주문이 없습니다.</p>'; return; }
+    box.innerHTML='<table><tr><th>결제일시</th><th>이메일</th><th>상품</th><th>수량</th>'
+      +'<th>금액</th><th>상태</th><th></th></tr>'
+      + j.rows.map(function(v){
+          const st=OD_ST[v.status]||[v.status,'#61707a'];
+          return '<tr><td>'+odWhen(v.createdAt)+'</td><td>'+esc(v.email)+'</td>'
+            +'<td>'+esc(v.itemName)+'<br><span class="muted" style="font-size:11px">'+esc(v.orderId)+'</span></td>'
+            +'<td>'+v.qty+'</td><td>'+(v.amount||0).toLocaleString('ko-KR')+'원</td>'
+            +'<td><b style="color:'+st[1]+'">'+st[0]+'</b>'
+            +(v.refundNote?'<br><span class="muted" style="font-size:11px">'+esc(v.refundNote)+'</span>':'')+'</td>'
+            +'<td>'+(v.status==='paid'
+                ? '<button class="btn ghost" data-refund="'+esc(v.orderId)+'">환불</button>' : '')+'</td></tr>';
+        }).join('') + '</table>';
+  }catch(e){ box.innerHTML='<p class="muted">'+esc(e.message)+'</p>'; }
+}
+
+document.addEventListener('click', function(e){
+  const b=e.target.closest('[data-refund]');
+  if(!b) return;
+  odPick=b.dataset.refund;
+  $('odTarget').textContent='주문번호 '+odPick+' — 포트원에 취소를 넣고 주문 상태를 환불로 바꿉니다.';
+  $('odMsg').className='msg'; $('odMsg').textContent='';
+  $('odRefund').classList.remove('hide');
+  $('odRefund').scrollIntoView({block:'center'});
+});
+
+async function odRefundGo(){
+  if(!odPick) return;
+  const b=$('odDo'), m=$('odMsg');
+  if(!confirm('정말 환불하시겠습니까?\n\n주문번호 '+odPick+'\n되돌릴 수 없습니다.')) return;
+  b.disabled=true; b.textContent='환불 중…';
+  try{
+    const t=await auth.currentUser.getIdToken();
+    const r=await fetch(RAPI,{method:'POST',
+      headers:{'Content-Type':'application/json',Authorization:'Bearer '+t},
+      body:JSON.stringify({orderId:odPick, reason:$('odReason').value.trim(),
+                           reclaim:$('odReclaim').checked})});
+    const j=await r.json();
+    if(!j.ok) throw new Error(j.err||'환불하지 못했습니다');
+    m.className='msg ok';
+    m.textContent = j.already ? '이미 환불된 주문입니다.' : ('환불했습니다. '+(j.note||''));
+    odLoad();
+  }catch(e){ m.className='msg err'; m.textContent=e.message; }
+  b.disabled=false; b.textContent='환불 실행';
 }
 
 async function loadStore(){
@@ -343,6 +451,10 @@ function openStEdit(p){
 document.addEventListener('DOMContentLoaded',function(){
   if($('tabNotice')) $('tabNotice').onclick=function(){ showTab('notice'); };
   if($('tabStore'))  $('tabStore').onclick =function(){ showTab('store'); };
+  if($('tabOrder'))  $('tabOrder').onclick =function(){ showTab('order'); };
+  if($('odFind'))    $('odFind').onclick   = odLoad;
+  if($('odDo'))      $('odDo').onclick     = odRefundGo;
+  if($('odCancel'))  $('odCancel').onclick = function(){ $('odRefund').classList.add('hide'); };
   if($('stNew'))     $('stNew').onclick    =function(){ openStEdit(null); };
   if($('stCancel'))  $('stCancel').onclick =function(){ $('stEdit').classList.add('hide'); };
   if($('stSave'))    $('stSave').onclick   =async function(){

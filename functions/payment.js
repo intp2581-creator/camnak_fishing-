@@ -363,6 +363,150 @@ async function grantItem(db, order, orderId) {
 // ═══════════════════════════════════════════════════════════
 // ③ 내 주문 내역
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// 💸 [환불] 관리자만. 포트원에 취소를 넣고 우리 주문 기록도 함께 바꾼다.
+//
+//    콘솔에서만 환불하면 우리 orders 는 'paid' 인 채로 남는다 →
+//    구매내역에는 결제완료로 보이고, CS 때 서로 다른 말을 하게 된다.
+//
+//    아이템 회수(reclaim)는 선택이다.
+//      · 상자를 안 열었으면 gid 로 정확히 찾아 뺄 수 있다.
+//      · 이미 열었거나 써버렸으면 뺄 것이 없다 — 그때는 '못 뺐다'고 알려준다.
+// ═══════════════════════════════════════════════════════════
+async function requireGm(req) {
+  const user = await requireUser(req);
+  const d = await admin.firestore().collection("users").doc(user.uid).get();
+  if (!d.exists || d.data().isGm !== true) throw new Error("관리자만 사용할 수 있습니다");
+  return user;
+}
+
+// 🔙 지급했던 것을 되돌린다. 되돌린 목록을 문자열로 반환(못 되돌린 것도 적는다).
+async function reclaimItems(db, order, orderId) {
+  const p = PRODUCTS[order.itemKey];
+  if (!p) return "상품 정보 없음";
+
+  const uref = db.collection("users").doc(order.uid);
+  return await db.runTransaction(async (tx) => {
+    const snap = await tx.get(uref);
+    if (!snap.exists) return "계정 없음";
+    const inv = Array.from(snap.data().inventory || []);
+    const took = [];
+    const left = [];
+
+    if (Array.isArray(p.bundle)) {
+      // 📦 상자 — gid 로 이 주문의 상자만 정확히 찾는다. 안 열었으면 그대로 있다.
+      const before = inv.length;
+      for (let i = inv.length - 1; i >= 0; i--) {
+        const g = String((inv[i] || {}).gid || "");
+        if (g === orderId || g.indexOf(orderId + "-") === 0) inv.splice(i, 1);
+      }
+      const n = before - inv.length;
+      if (n > 0) took.push((p.boxName || p.name) + " " + n + "개");
+      else left.push((p.boxName || p.name) + " (이미 열었거나 없음)");
+    } else {
+      const want = Math.max(1, Number(order.qty || 1));
+      const i = inv.findIndex((it) => it && it.name === p.name);
+      if (i < 0) {
+        left.push(p.name + " (없음 — 이미 사용)");
+      } else if (p.limitType === "ONCE") {
+        inv.splice(i, 1);
+        took.push(p.name);
+      } else {
+        const have = Number(inv[i].quantity || 0);
+        const back = Math.min(have, want);
+        if (back >= have) inv.splice(i, 1);
+        else inv[i] = Object.assign({}, inv[i], {quantity: have - back});
+        took.push(p.name + " " + back + "개");
+        if (back < want) left.push(p.name + " " + (want - back) + "개 (이미 사용)");
+      }
+    }
+
+    tx.update(uref, {inventory: inv});
+    return (took.length ? "회수: " + took.join(", ") : "회수한 것 없음")
+         + (left.length ? " / 못 회수: " + left.join(", ") : "");
+  });
+}
+
+exports.payRefund = onRequest({region: "us-central1", cors: true}, async (req, res) => {
+  cors(res);
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  const db = admin.firestore();
+  try {
+    await requireGm(req);
+    const b = req.body || {};
+    const orderId = String(b.orderId || "").trim();
+    const reason = String(b.reason || "고객 요청").trim().slice(0, 200);
+    const reclaim = b.reclaim === true;
+    if (!orderId) return res.status(400).json({ok: false, err: "주문번호 없음"});
+
+    const ref = db.collection("orders").doc(orderId);
+    const snap = await ref.get();
+    if (!snap.exists) return res.status(404).json({ok: false, err: "주문을 찾을 수 없습니다"});
+    const order = snap.data();
+    if (order.status === "refunded") return res.json({ok: true, already: true});
+    if (order.status !== "paid") {
+      return res.status(400).json({ok: false, err: "결제완료 상태만 환불할 수 있습니다 (현재 " + order.status + ")"});
+    }
+
+    // ① 포트원에 취소를 넣는다. 여기서 실패하면 아무것도 바꾸지 않는다.
+    const r = await fetch(PORTONE_API + "/payments/" + encodeURIComponent(orderId) + "/cancel",
+        {method: "POST", headers: portoneHeaders(), body: JSON.stringify({reason})});
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      return res.status(400).json({ok: false,
+        err: "포트원 취소 실패 (" + r.status + ") " + JSON.stringify(out).slice(0, 200)});
+    }
+
+    // ② 아이템 회수 — 선택이다. 실패해도 환불 자체는 되돌리지 않는다(돈이 우선).
+    let note = "회수 안 함";
+    if (reclaim) {
+      try { note = await reclaimItems(db, order, orderId); } catch (e) {
+        note = "회수 실패: " + String(e.message || e);
+      }
+    }
+
+    await ref.update({
+      status: "refunded", refundReason: reason, refundNote: note,
+      refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    return res.json({ok: true, note});
+  } catch (e) {
+    return res.status(400).json({ok: false, err: String(e.message || e)});
+  }
+});
+
+// 🔎 [관리자] 주문 찾기 — 이메일·주문번호·상태로.
+exports.adminOrders = onRequest({region: "us-central1", cors: true}, async (req, res) => {
+  cors(res);
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  try {
+    await requireGm(req);
+    const db = admin.firestore();
+    const q = String(req.query.q || "").trim();
+
+    let rows = [];
+    if (q && q.indexOf("KREFT") === 0) {          // 주문번호로 바로
+      const d = await db.collection("orders").doc(q).get();
+      if (d.exists) rows = [Object.assign({orderId: d.id}, d.data())];
+    } else {
+      let ref = db.collection("orders");
+      if (q) ref = ref.where("email", "==", q.toLowerCase());
+      const snap = await ref.orderBy("createdAt", "desc").limit(50).get();
+      snap.forEach((d) => rows.push(Object.assign({orderId: d.id}, d.data())));
+    }
+
+    return res.json({ok: true, rows: rows.map((v) => ({
+      orderId: v.orderId, email: v.email || "", itemKey: v.itemKey || "",
+      itemName: v.itemName || "", qty: v.qty || 1, amount: v.amount || 0,
+      status: v.status || "", method: v.method || "",
+      refundNote: v.refundNote || "",
+      createdAt: v.createdAt ? v.createdAt.toMillis() : 0,
+    }))});
+  } catch (e) {
+    return res.status(400).json({ok: false, err: String(e.message || e)});
+  }
+});
+
 exports.myOrders = onRequest({region: "us-central1", cors: true}, async (req, res) => {
   cors(res);
   if (req.method === "OPTIONS") return res.status(204).send("");
