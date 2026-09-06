@@ -110,6 +110,9 @@
           · 지급 계정: <b id="uEmail">—</b>
         </div>
 
+        <!-- ⚖️ 상품 유형별 청약철회 안내 — 스킨은 지급=제공개시, 이용권은 미사용분 환불. -->
+        <div class="give" id="pRefund" style="background:#fffaf0;border-color:#f0e0c0"></div>
+
         <div class="row"><span>수량</span>
           <span class="qty" id="qtyBox">
             <button id="qMinus">−</button>
@@ -247,7 +250,7 @@
     badge_1:      {n:'캠피싱 뱃지',      p:2200,  img:'assets/st-badge1.jpg', d:'Lv.10 이상'},
     badge_2:      {n:'캠피싱 휘장',      p:5500,  img:'assets/st-badge2.jpg', d:'Lv.30 이상'},
     badge_3:      {n:'KREFT 정예 휘장', p:11000, img:'assets/st-badge3.jpg', d:'Lv.50 이상'},
-    growth_pack:  {n:'KREFT 성장패키지', p:5500, img:'assets/st-package.jpg', stack:true, max:1,
+    growth_pack:  {n:'KREFT 성장패키지', p:5500, img:'assets/st-package.jpg', stack:true, max:1, box:true,
                    d:'시작이 반! 성장에 필요한 것을 한 번에 담았습니다. 5종 구성품이 상자에 담겨 지급됩니다.'},
   };
 
@@ -348,14 +351,20 @@
     // 💳 상품 유형별 청약철회 안내 — 실제 동작이 달라 문구도 달라야 한다.
     //   · 스킨·뱃지·휘장 : 지급되면 자동으로 장착된다(안 쓸 방법이 없다) → 지급 = 제공 개시
     //   · 이용권·입장권   : 가방에 들어가고 눌러야 쓰인다 → 미사용분은 환불 가능
-    $('pRefund').innerHTML = itemKey.indexOf('ticket') === 0
+    //   · 상자 상품 : 가방에 상자로 들어가고 '열어야' 쓰인다 → 안 열었으면 환불
+    //   · 이용권·입장권 : 가방에 들어가고 눌러야 쓰인다 → 미사용분은 환불
+    //   · 스킨·뱃지·휘장 : 지급되면 자동 장착된다(안 쓸 방법이 없다) → 지급 = 제공 개시
+    $('pRefund').innerHTML = item.box
+      ? '· <b>지급 방식</b>: 결제하시면 가방에 <b>상자</b>로 들어갑니다. 눌러서 여시면 구성품이 풀립니다.<br>'
+        + '· <b>청약철회 · 환불</b>: 결제 후 7일 이내이고 <b>상자를 열지 않으셨다면</b> 전액 환불됩니다. '
+        + '상자를 여시면 제공이 개시된 것으로 보아 환불이 제한됩니다.<br>'
+      : itemKey.indexOf('ticket') === 0
       ? '· <b>청약철회 · 환불</b>: 아직 <b>사용하지 않은 분량</b>은 결제 후 7일 이내 전액 환불됩니다. '
         + '사용을 개시한 분량은 환불되지 않습니다.<br>'
       : '· <b>지급 즉시 적용</b>: 결제하시면 바로 캐릭터에 장착되어 광장·낚시터에서 외형과 능력치가 즉시 바뀝니다.<br>'
         + '· <b>청약철회 · 환불</b>: 위와 같이 <b>지급과 동시에 제공이 개시</b>되므로, 이후에는 '
         + '「전자상거래 등에서의 소비자보호에 관한 법률」 제17조 제2항 제5호에 따라 청약철회가 제한됩니다.<br>';
     $('sPrice').textContent = won(item.p);
-    $('sQty').textContent = qty + '개';
     $('sTotal').textContent = won(item.p * qty);
     $('qNum').value = qty;
     $('qMinus').disabled = qty <= 1;
