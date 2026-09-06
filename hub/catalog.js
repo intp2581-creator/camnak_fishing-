@@ -155,3 +155,37 @@ const KEY_ALIAS = {
   package_growth: 'growth_pack',
 };
 const CKEY = (k) => KEY_ALIAS[k] || String(k || '');
+
+// ═══════════════════════════════════════════════════════════
+// 🔀 [스위치] 구매하기가 어디로 갈지.
+//    false = 아임웹 상품 페이지(지금)   ·   true = 우리 주문서(order.html)
+//    ⚠️ PG 실연동 승인이 난 뒤에 true 로 올린다. 그때 같이 풀 것:
+//       functions/payment.js  TEST_MODE_GM_ONLY → false
+//       이 파일          CHANNEL_KEY → 실제 채널키
+// ═══════════════════════════════════════════════════════════
+const USE_OWN_PAY = false;
+
+// 🛒 아임웹 상품번호 — 승인 전까지 구매하기가 갈 곳.
+//    game_config.dart 의 kMallProductIdx 와 같은 값이어야 한다.
+const MALL_BASE = 'https://camnak.com/shop_view/?idx=';
+const MALL_IDX = {
+  growth_pack: 246,
+  ticket_1h: 223,
+  ticket_arena: 245,
+  badge_1: 244,
+  badge_2: 242,
+  badge_3: 243,
+  skin_novice: 224,
+  skin_mid: 225,
+  skin_expert: 226,
+  skin_pro: 227,
+  skin_master: 228,
+};
+
+// 구매하기 링크. 승인 전에는 아임웹으로, 승인 뒤에는 우리 주문서로.
+function buyHref(key, qty) {
+  const k = CKEY(key);
+  if (USE_OWN_PAY) return 'order.html?item=' + encodeURIComponent(k) + '&qty=' + (qty || 1);
+  const idx = MALL_IDX[k];
+  return idx ? (MALL_BASE + idx) : 'store.html';
+}
