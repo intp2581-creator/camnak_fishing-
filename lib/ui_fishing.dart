@@ -2672,7 +2672,7 @@ Widget _whisperUnreadBadge() {
       });
     } catch (_) { return; }
     if (!mounted) return;
-    audioManager.playSfx('sfx_hit.mp3');
+    audioManager.playTada(); // 🎉 짜잔~ (상자 낚았을 때와 같은 소리)
     _showGiftResult(res['title'].toString(), expDelta, goldDelta,
         Map<String, int>.from(res['items'] as Map));
   }
@@ -2729,7 +2729,7 @@ Widget _whisperUnreadBadge() {
     } catch (_) {}
 
     if (!mounted) return;
-    audioManager.playSfx('sfx_hit.mp3');
+    audioManager.playTada(); // 🎉 짜잔~ (상자 낚았을 때와 같은 소리)
     _showBoxResult(boxName, opened, expDelta, goldDelta, sellback, items);
   }
 
