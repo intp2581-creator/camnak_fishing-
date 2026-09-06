@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주문서 — 캠피싱 KREFT</title>
+  <link rel="canonical" href="https://kreft.co.kr/order.html">
+  <meta name="robots" content="noindex">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="캠피싱 KREFT">
+  <meta property="og:title" content="주문서 — 캠피싱 KREFT">
+  <meta property="og:description" content="주문자 정보와 결제수단을 확인하신 뒤 결제해 주세요.">
+  <meta property="og:url" content="https://kreft.co.kr/order.html">
+  <meta property="og:image" content="https://kreft.co.kr/assets/og-cover.jpg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b1a22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KREFT">
+<meta name="description" content="캠피싱 KREFT 주문서 — 주문자 정보 · 주문 상품 · 결제수단">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<script src="https://cdn.portone.io/v2/browser-sdk.js"></script>
+<style>
+  /* 🧾 주문서 — 왼쪽 주문 내용 / 오른쪽 결제 */
+  .od{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start;margin-bottom:44px}
+  @media(max-width:880px){ .od{grid-template-columns:1fr} }
+
+  .box{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:22px 24px;margin-bottom:18px}
+  .box h2{margin:0 0 16px;font-size:16.5px;font-weight:900}
+  .box .sub{margin:-10px 0 16px;font-size:13px;color:var(--ink-soft);line-height:1.75}
+
+  /* 주문 상품 */
+  .oitem{display:grid;grid-template-columns:78px 1fr auto;gap:14px;align-items:center}
+  .oitem img{width:78px;height:78px;object-fit:cover;border-radius:11px;display:block;
+    border:1px solid var(--line)}
+  .oitem .n{font-size:15.5px;font-weight:800;line-height:1.45}
+  .oitem .q{font-size:13px;color:var(--ink-soft);margin-top:4px}
+  .oitem .p{font-size:16px;font-weight:900;white-space:nowrap}
+
+  /* 주문자 정보 */
+  .frow{display:grid;grid-template-columns:78px 1fr;gap:12px;align-items:center;
+    padding:11px 0;border-bottom:1px solid var(--line)}
+  .frow:last-of-type{border-bottom:none}
+  .frow .k{font-size:13.5px;font-weight:700;color:var(--ink-soft)}
+  .frow .v{font-size:15px;font-weight:700;word-break:break-all}
+  .frow input{width:100%;height:44px;padding:0 13px;border:1px solid var(--line);
+    border-radius:10px;font-family:inherit;font-size:15px;font-weight:700}
+  .frow input.bad{border-color:#c0392b}
+  .fhint{margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.75}
+  .headrow{display:flex;align-items:center;justify-content:space-between;margin:0 0 16px}
+  .headrow h2{margin:0}
+
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:700;
+    font-size:13.5px;padding:8px 15px;border-radius:10px;cursor:pointer;font-family:inherit}
+  .btn:hover{border-color:var(--blue);color:var(--blue-ink)}
+
+  /* 결제수단 */
+  .pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .pm{display:flex;align-items:center;gap:8px;padding:13px 12px;border-radius:11px;
+    border:1px solid var(--line);background:#fff;font-family:inherit;font-size:14px;
+    font-weight:700;cursor:pointer;position:relative;color:var(--ink)}
+  .pm .ic{font-size:17px}
+  .pm.on{border-color:var(--emerald);background:#f2fbf7;box-shadow:0 0 0 2px rgba(49,201,141,.16)}
+  .pm.off{opacity:.5;cursor:default;flex-direction:column;gap:2px;align-items:flex-start}
+  .pm .tag{font-size:10.5px;font-weight:800;color:#8b9aa3}
+
+  /* 주문 요약 */
+  .sum{display:flex;align-items:center;justify-content:space-between;
+    padding:11px 0;font-size:14.5px;color:#33525f}
+  .sum.total{border-top:1px solid var(--line);margin-top:6px;padding-top:14px;
+    font-size:16px;font-weight:900;color:var(--ink)}
+  .sum.total b{font-size:22px;color:var(--emerald)}
+
+  .agree{display:flex;gap:10px;align-items:flex-start;margin:16px 0 0;
+    font-size:13.5px;line-height:1.75;color:#33525f}
+  .agree input{width:19px;height:19px;margin-top:1px;flex:none}
+  .agree a{color:var(--emerald);font-weight:700}
+
+  .pay{display:block;width:100%;margin-top:16px;padding:17px;border:none;border-radius:12px;
+    background:linear-gradient(135deg,#ffd23f,#e9b219);color:#4a3200;
+    font-family:inherit;font-size:17px;font-weight:900;cursor:pointer}
+  .pay:disabled{background:#e3ecf0;color:#9fb6bf;cursor:default}
+  .note{margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.75;text-align:center}
+  .note a{color:var(--emerald);font-weight:700}
+
+  .msg{display:none;background:#fdeaea;border:1px solid #f3d4d4;border-radius:12px;
+    padding:15px 18px;color:#b3212a;font-weight:700;margin-bottom:20px;line-height:1.7}
+  .steps{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink-soft);
+    margin-bottom:18px;flex-wrap:wrap}
+  .steps b{color:var(--ink)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+      <a href="gift.html">선물함</a>
+      <a href="support.html">고객지원</a>
+    </nav>
+    <div class="right">
+      <a class="me" data-auth-in style="display:none" href="mypage.html" data-me-nick></a>
+      <a data-auth-in style="display:none" href="mypage.html">마이페이지</a>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🧾 주문서</h1>
+  <p>주문자 정보와 결제수단을 확인하신 뒤 결제해 주세요</p>
+</div></div>
+
+<div class="wrap">
+
+  <p class="steps">
+    <span>상품 안내</span> › <b>주문서</b> › <span>결제</span>
+  </p>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="od" id="od" style="display:none">
+
+    <!-- 왼쪽 — 무엇을, 누가 -->
+    <div>
+      <div class="box">
+        <h2>주문 상품 정보</h2>
+        <div class="oitem">
+          <img id="pImg" src="" alt="">
+          <div>
+            <div class="n" id="pName">—</div>
+            <div class="q" id="pQty">—</div>
+          </div>
+          <div class="p" id="pPrice">—</div>
+        </div>
+        <p class="fhint">
+          게임 안에서만 쓰는 <b>디지털 아이템</b>입니다. 배송은 없으며,
+          결제 완료 <b>즉시</b> 게임 계정 가방으로 자동 지급됩니다.
+        </p>
+      </div>
+
+      <div class="box">
+        <div class="headrow">
+          <h2>주문자 정보</h2>
+          <button class="btn" id="editBtn" type="button">수정</button>
+        </div>
+        <p class="sub">캠피싱 회원정보에서 가져온 값입니다. 다르면 고쳐 주세요.</p>
+
+        <div class="frow"><div class="k">이름</div>
+          <div class="v" id="vName">—</div></div>
+        <div class="frow"><div class="k">연락처</div>
+          <div class="v" id="vPhone">—</div></div>
+        <div class="frow"><div class="k">이메일</div>
+          <div class="v" id="vEmail">—</div></div>
+
+        <p class="fhint" id="oHint">
+          연락처는 결제 진행과 결제내역 확인에만 쓰입니다.
+          이메일 계정으로 아이템이 지급되니 <b>결제 계정과 게임 계정이 같은지</b> 확인해 주세요.
+        </p>
+      </div>
+    </div>
+
+    <!-- 오른쪽 — 얼마를, 어떻게 -->
+    <div>
+      <div class="box" style="position:sticky;top:16px">
+        <h2>주문 요약</h2>
+        <div class="sum"><span>상품가격</span><span id="sPrice">—</span></div>
+        <div class="sum"><span>수량</span><span id="sQty">—</span></div>
+        <div class="sum"><span>배송비</span><span>없음 (디지털 상품)</span></div>
+        <div class="sum total"><span>총 결제금액</span><b id="sTotal">—</b></div>
+
+        <h2 style="margin:22px 0 12px">결제 수단</h2>
+        <div id="payMethods" class="pm-grid"></div>
+        <p class="fhint" id="pmHint"></p>
+
+        <label class="agree">
+          <input type="checkbox" id="agree">
+          <span>주문 내용과 <a href="policy.html#item" target="_blank" rel="noopener">청약철회·환불 안내</a>를
+            확인했으며, <b>구매조건 확인 및 결제진행에 동의</b>합니다. (필수)</span>
+        </label>
+
+        <button class="pay" id="payBtn" disabled>결제하기</button>
+
+        <p class="note">
+          <span id="pmList">결제수단: 신용·체크카드</span><br>
+          결제는 <b>포트원</b>을 통해 안전하게 처리됩니다
+        </p>
+        <p class="note" style="text-align:left;margin-top:12px">
+          <b>취소·환불 문의</b> intoas@naver.com · 02-487-2581 (평일 09:00~18:00)<br>
+          <a href="orders.html">🧾 내 구매내역 보기</a>
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="about.html">회사소개</a> · <a href="store.html">게임스토어</a> ·
+  <a href="policy.html#terms">이용약관</a> · <a href="policy.html#privacy">개인정보처리방침</a> ·
+  <a href="policy.html#item">청약철회·환불 안내</a> · <a href="orders.html">구매내역</a><br>
+  <b style="color:#cfe3ea">(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  (28166) 충북 청주시 흥덕구 오송읍 오송가락로 235, 상가동 203호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script type="module" src="auth.js"></script>
+<script src="catalog.js"></script>
+<script>
+(function(){
+  var FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/';
+  var ME = FN + 'meApi';
+  document.querySelectorAll('[data-play]').forEach(function(a){ a.href = 'play.html'; });
+
+  function $(id){ return document.getElementById(id); }
+  function won(n){ return (Number(n)||0).toLocaleString('ko-KR') + '원'; }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function hyphen(v){
+    var d = String(v||'').replace(/\D/g,'').slice(0,11);
+    if(d.length > 7)      return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+    if(d.length > 3)      return d.slice(0,3)+'-'+d.slice(3);
+    return d;
+  }
+  function phoneOK(v){ return /^01[016789]-?\d{3,4}-?\d{4}$/.test(String(v||'').replace(/\s/g,'')); }
+
+  function fail(t){
+    $('msg').style.display = 'block';
+    $('msg').innerHTML = t;
+    $('od').style.display = 'none';
+  }
+
+  var q    = new URLSearchParams(location.search);
+  var key  = q.get('item') || '';
+  var qty  = Math.max(1, Math.min(10, parseInt(q.get('qty') || '1', 10) || 1));
+  var item = CATALOG[key];
+
+  if(!item){
+    fail('상품 정보를 찾을 수 없습니다. <a href="store.html">게임스토어</a>에서 다시 선택해 주세요.');
+    return;
+  }
+  if(!item.stack) qty = 1;
+  if(item.max && qty > item.max) qty = item.max;
+
+  var me = null;
+  // 쓸 수 있는 결제수단이 하나뿐이면 미리 골라둔다 — 굳이 한 번 더 누르게 할 이유가 없다.
+  var payM = PAY_METHODS.find(function (m) { return m.on; }) || null;
+  var buyer = { name: '', phone: '', email: '' };
+  var editing = false;
+
+  // ── 그리기 ──────────────────────────────────────────────
+  function paintItem(){
+    $('pImg').src        = item.img;
+    $('pImg').alt        = item.n;
+    $('pName').textContent  = item.n;
+    $('pQty').textContent   = '수량 ' + qty + '개';
+    $('pPrice').textContent = won(item.p * qty);
+    $('sPrice').textContent = won(item.p);
+    $('sQty').textContent   = qty + '개';
+    $('sTotal').textContent = won(item.p * qty);
+    document.title = item.n + ' 주문서 — 캠피싱 KREFT';
+  }
+
+  function paintBuyer(){
+    $('vEmail').textContent = buyer.email || '—';
+    if(editing){
+      $('vName').innerHTML  = '<input id="iName" maxlength="40" placeholder="이름" value="'
+                              + esc(buyer.name) + '">';
+      $('vPhone').innerHTML = '<input id="iPhone" maxlength="13" inputmode="numeric" '
+                              + 'placeholder="010-1234-5678" value="' + esc(buyer.phone) + '">';
+      $('iPhone').oninput = function(e){ e.target.value = hyphen(e.target.value); refresh(); };
+      $('iName').oninput  = refresh;
+      $('editBtn').textContent = '확인';
+    }else{
+      $('vName').textContent  = buyer.name  || '입력해 주세요';
+      $('vPhone').textContent = buyer.phone || '입력해 주세요';
+      $('editBtn').textContent = '수정';
+    }
+    refresh();
+  }
+
+  $('editBtn').onclick = function(){
+    if(editing){
+      buyer.name  = ($('iName').value  || '').trim();
+      buyer.phone = ($('iPhone').value || '').trim();
+      saveBuyer();                 // 다음부터 자동으로 채워지도록 저장
+    }
+    editing = !editing;
+    paintBuyer();
+  };
+
+  // 💳 결제수단 — 승인 전인 것도 자리를 잡아둔다(레이아웃이 안 흔들린다)
+  function paintMethods(){
+    $('payMethods').innerHTML = PAY_METHODS.map(function(m){
+      return m.on
+        ? '<button type="button" class="pm' + (payM && payM.key === m.key ? ' on' : '')
+          + '" data-k="' + m.key + '"><span class="ic">' + m.ic + '</span>' + m.label + '</button>'
+        : '<div class="pm off"><span class="ic">' + m.ic + '</span>' + m.label
+          + '<span class="tag">준비 중</span></div>';
+    }).join('');
+    $('payMethods').querySelectorAll('button.pm').forEach(function(b){
+      b.onclick = function(){
+        payM = PAY_METHODS.find(function(m){ return m.key === b.dataset.k; });
+        paintMethods(); refresh();
+      };
+    });
+    var soon = PAY_METHODS.filter(function(m){ return !m.on; }).map(function(m){ return m.label; });
+    $('pmHint').textContent = soon.length ? soon.join(' · ') + '는 준비 중입니다. 곧 열립니다.' : '';
+    // 법정 고지 — 실제로 쓸 수 있는 수단만 적는다(사실과 달라선 안 된다)
+    var live = PAY_METHODS.filter(function(m){ return m.on; }).map(function(m){ return m.label; });
+    $('pmList').textContent = '결제수단: ' + (live.join(' · ') || '준비 중');
+  }
+
+  function refresh(){
+    var name  = editing ? ($('iName')  ? $('iName').value  : '') : buyer.name;
+    var phone = editing ? ($('iPhone') ? $('iPhone').value : '') : buyer.phone;
+    var ok = !!(me && String(name||'').trim() && phoneOK(phone) && payM && $('agree').checked && !editing);
+    $('payBtn').disabled = !ok;
+    // 왜 못 누르는지 알려준다 — 버튼만 회색이면 답답하다.
+    var why = '';
+    if(!editing){
+      if(!String(buyer.name||'').trim() || !phoneOK(buyer.phone)) why = '주문자 정보를 입력해 주세요. (수정 버튼)';
+      else if(!payM) why = '결제수단을 선택해 주세요.';
+      else if(!$('agree').checked) why = '구매조건 확인 및 결제진행에 동의해 주세요.';
+    }else{
+      why = '주문자 정보를 입력하고 「확인」을 눌러 주세요.';
+    }
+    $('oHint').innerHTML = why
+      ? '<b style="color:#c0392b">' + esc(why) + '</b>'
+      : '연락처는 결제 진행과 결제내역 확인에만 쓰입니다. 이메일 계정으로 아이템이 지급되니 '
+        + '<b>결제 계정과 게임 계정이 같은지</b> 확인해 주세요.';
+  }
+  $('agree').onchange = refresh;
+
+  // ── 주문자 정보 불러오기·저장 ──────────────────────────
+  async function loadBuyer(){
+    try{
+      var t = await me.getIdToken();
+      var j = await fetch(ME, { headers:{ Authorization:'Bearer ' + t } }).then(function(r){ return r.json(); });
+      if(j.ok && j.registered){
+        buyer.name  = j.buyerName  || '';
+        buyer.phone = hyphen(j.buyerPhone || '');
+      }
+    }catch(e){ console.warn('주문자 정보 불러오기 실패', e); }
+    buyer.email = me.email || '';
+    // 회원정보가 비어 있으면(예전 로그인 상태) 바로 입력칸을 연다.
+    editing = !(buyer.name && phoneOK(buyer.phone));
+    paintBuyer();
+  }
+
+  async function saveBuyer(){
+    if(!buyer.name || !phoneOK(buyer.phone)) return;
+    try{
+      var t = await me.getIdToken();
+      await fetch(ME, { method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:'Bearer ' + t},
+        body: JSON.stringify({ name: buyer.name, phone: buyer.phone }) });
+    }catch(e){ console.warn('주문자 정보 저장 실패', e); }
+  }
+
+  // ── 결제 ────────────────────────────────────────────────
+  $('payBtn').onclick = async function(){
+    var b = $('payBtn');
+    b.disabled = true; b.textContent = '준비 중…';
+    try{
+      var token = await me.getIdToken();
+      var H = {'Content-Type':'application/json','Authorization':'Bearer ' + token};
+
+      // ① 서버가 주문번호와 금액을 확정한다(금액은 서버에서만 정한다)
+      var prep = await fetch(FN + 'payPrepare', { method:'POST', headers:H,
+        body: JSON.stringify({ itemKey: key, qty: qty }) }).then(function(r){ return r.json(); });
+      if(!prep.ok) throw new Error(prep.err || '주문 생성 실패');
+
+      // ② 결제창 — 금액은 서버가 준 값 그대로
+      b.textContent = '결제창 여는 중…';
+      var req = {
+        storeId: prep.storeId,
+        channelKey: payM.channel,
+        paymentId: prep.orderId,
+        orderName: prep.itemName + (qty > 1 ? ' x' + qty : ''),
+        totalAmount: prep.amount,
+        currency: 'CURRENCY_KRW',
+        payMethod: payM.pay,
+        customer: {
+          fullName: buyer.name,
+          email: buyer.email,
+          phoneNumber: buyer.phone.replace(/-/g,''),   // ⚠️ 이니시스 V2 필수
+        },
+      };
+      if(payM.ep) req.easyPay = { easyPayProvider: payM.ep };
+      var rsp = await PortOne.requestPayment(req);
+      if(rsp.code) throw new Error(rsp.message || '결제가 취소되었습니다');
+
+      // ③ 서버 검증 + 지급
+      b.textContent = '결제 확인 중…';
+      var ver = await fetch(FN + 'payVerify', { method:'POST', headers:H,
+        body: JSON.stringify({ orderId: prep.orderId }) }).then(function(r){ return r.json(); });
+      if(!ver.ok) throw new Error(ver.err || '결제 검증 실패');
+
+      location.href = 'done.html?item=' + encodeURIComponent(prep.itemName) + '&qty=' + qty;
+    }catch(e){
+      alert(e.message || '결제에 실패했습니다.');
+      b.disabled = false; b.textContent = '결제하기';
+      refresh();
+    }
+  };
+
+  // ── 시작 ────────────────────────────────────────────────
+  paintItem();
+  paintMethods();
+
+  var poll = setInterval(function(){
+    var u = window.__auth && window.__auth.currentUser;
+    if(u){
+      clearInterval(poll);
+      me = u;
+      $('od').style.display = 'grid';
+      loadBuyer();
+    }
+  }, 250);
+  setTimeout(function(){
+    if(!me) fail('로그인이 필요합니다. 우측 상단에서 로그인해 주세요.');
+  }, 6000);
+})();
+</script>
+</body>
+</html>
