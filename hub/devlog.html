@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>공지 · 업데이트 — 캠피싱 KREFT</title>
-  <link rel="canonical" href="https://kreft.co.kr/notice.html">
+<title>KREFT 개발 일지 — 캠피싱 KREFT</title>
+  <link rel="canonical" href="https://kreft.co.kr/devlog.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="캠피싱 KREFT">
-  <meta property="og:title" content="공지 · 업데이트 — 캠피싱 KREFT">
+  <meta property="og:title" content="KREFT 개발 일지 — 캠피싱 KREFT">
   <meta property="og:description" content="캠피싱 KREFT 공지사항 및 업데이트 소식">
-  <meta property="og:url" content="https://kreft.co.kr/notice.html">
+  <meta property="og:url" content="https://kreft.co.kr/devlog.html">
   <meta property="og:image" content="https://kreft.co.kr/assets/og-cover.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -72,7 +72,7 @@
     font-size:14px;text-decoration:none;padding:9px 14px;border-radius:20px;
     border:1px solid rgba(49,201,141,.35);transition:.15s;white-space:nowrap}
   .evlink:hover{background:rgba(49,201,141,.1);border-color:var(--emerald)}
-  .pill.update{background:var(--blue)} .pill.event{background:var(--emerald)} .pill.notice{background:var(--yellow-deep)}
+  .pill.devlog{background:#7B5CD6} .pill.update{background:var(--blue)} .pill.event{background:var(--emerald)} .pill.notice{background:var(--yellow-deep)}
   .row .t{font-weight:700;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .row .pin{flex:none;color:var(--yellow-deep);font-size:14px}
   .row .d{margin-left:auto;color:#9fb6bf;font-size:13px;flex:none}
@@ -115,7 +115,7 @@
   <div class="bar">
     <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
     <nav>
-      <a class="on" href="notice.html">공지</a>
+      <a href="notice.html">공지</a>
       <a href="guide.html">게임가이드</a>
       <a href="event.html">이벤트</a>
       <a href="community.html">커뮤니티</a>
@@ -131,19 +131,16 @@
 </header>
 
 <div class="phead"><div class="wrap">
-  <h1 id="ph-title">📢 공지 · 업데이트</h1>
-  <p id="ph-sub">캠피싱 KREFT의 새로운 소식을 확인하세요</p>
+  <h1 id="ph-title">🔬 KREFT 개발 일지</h1>
+  <p id="ph-sub">지금 만들고 있는 것들 — 아직 확정된 내용이 아닙니다</p>
 </div></div>
 
 <div class="wrap">
   <!-- 목록 -->
   <div id="listView">
     <div class="tabs" id="tabs">
-      <a href="#sec-notice" class="evlink">📢 공지</a>
-      <a href="#sec-update" class="evlink">🆕 업데이트</a>
+      <a href="notice.html" class="evlink">📢 공지 · 업데이트 →</a>
       <a href="event.html" class="evlink">🎁 이벤트 보러가기 →</a>
-      <!-- 🔬 확정된 소식은 여기, 만들고 있는 것은 개발 일지로 나눈다(2026-09-06) -->
-      <a href="devlog.html" class="evlink">🔬 KREFT 개발 일지 →</a>
       <a id="writeBtn" data-gm-only class="btn primary" href="admin.html"
          style="margin-left:auto;text-decoration:none;padding:9px 18px;display:none">✏️ 글쓰기</a>
     </div>
@@ -196,21 +193,18 @@
   }
   function renderList(){
     var box=document.getElementById('list');
-    if(!ALL.length){box.innerHTML='<div class="empty">등록된 글이 없습니다.</div>';return;}
-    var html='';
-    for(var k=0;k<2;k++){
-      SECT = k===0 ? 'notice' : 'update';
-      html += '<h2 class="sech" id="sec-'+SECT+'">'+(k===0?'📢 공지':'🆕 업데이트')+'</h2>';
-      html += sectionHtml();
+    // 🔬 개발 일지만 모은다. 확정된 공지·업데이트는 notice.html 에서 본다.
+    var mine=ALL.filter(function(n){return n.type==='devlog';});
+    if(!mine.length){
+      box.innerHTML='<div class="empty">아직 올라온 개발 일지가 없습니다.<br>'
+        +'<span style="font-size:13px;color:#8b9aa3">준비 중인 소식이 생기면 여기에 적어 두겠습니다.</span></div>';
+      return;
     }
-    box.innerHTML = html;
+    box.innerHTML = sectionHtml(mine);
   }
-  function sectionHtml(){
-    // 이벤트 글은 이벤트 메뉴에서만 본다 — 업데이트 목록에 섞이지 않게
-    var items=ALL.filter(function(n){return SECT==='notice'?n.type==='notice':n.type==='update';});
-    if(!items.length){return '<div class="empty">등록된 글이 없습니다.</div>';}
+  function sectionHtml(items){
     return items.map(function(n){
-      return '<div class="row" onclick="location.href=\'notice.html?id='+encodeURIComponent(n.id)+'\'">'
+      return '<div class="row" onclick="location.href=\'devlog.html?id='+encodeURIComponent(n.id)+'\'">'
         +'<span class="pill '+n.type+'">'+(PILL[n.type]||'공지')+'</span>'
         +(n.pinned?'<span class="pin">📌</span>':'')
         +'<span class="t">'+esc(n.title)+(isNew(n)?NEWMARK:'')+'</span>'
@@ -227,7 +221,10 @@
     fetch(API+'?id='+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(j){
       if(!j.ok){document.getElementById('detail').innerHTML='<div class="loading">글을 찾을 수 없습니다.</div>';return;}
       var n=j.item;
-      document.getElementById('ph-title').textContent='📢 공지 · 업데이트';
+      // 🔗 본문이 [page:파일명] 이면 그 페이지가 본문이다. 바로 넘긴다.
+      var go=String(n.body||'').trim().match(/^\[page:([A-Za-z0-9._\-\/]+)\]$/);
+      if(go){location.replace(go[1]);return;}
+      document.getElementById('ph-title').textContent='🔬 KREFT 개발 일지';
       document.getElementById('ph-sub').textContent='';
       document.title=n.title+' — 캠피싱 KREFT';
       document.getElementById('detail').innerHTML=

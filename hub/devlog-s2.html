@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="캠피싱 KREFT 2차 업데이트 예고 — 상상 속 판타지 낚시터로 향하는 차원의 문이 열립니다.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="FANTASY KREFT — 2차 업데이트 예고">
+<meta property="og:description" content="현실에 없는 낚시터, 현실에 없는 물고기. 네 개의 세계로 향하는 문이 열립니다.">
+<meta property="og:image" content="https://kreft.co.kr/assets/devlog/portal.jpg">
+<meta property="og:url" content="https://kreft.co.kr/devlog-s2.html">
+<link rel="icon" href="favicon.ico">
+<title>2차 업데이트 예고 — 판타지 크래프트</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{ --ink:#d9d2c4; --gold:#f6e3a8; --bg:#050505; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#000;color:var(--ink);
+       font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.85;overflow-x:hidden}
+  .page{max-width:760px;margin:0 auto;background:var(--bg)}
+
+  /* ══════════════════════════════════════════════════════
+     ✨ 새김 금박 글씨 — 글자를 세 겹으로 쌓는다.
+        ① 뒤: 두꺼운 어두운 테두리(파낸 자국)
+        ② 앞: 금색 그라데이션(금속 반사)
+        ③ 전체에 바깥 광 + 그림자
+        data-t 에 같은 글자를 넣어야 한다(줄바꿈 없이 한 줄).
+     ══════════════════════════════════════════════════════ */
+  .au{position:relative;display:inline-block;color:transparent;
+      font-family:'Noto Serif KR','Noto Sans KR',serif;font-weight:900;
+      letter-spacing:.03em;line-height:1.34;
+      /* 자간은 마지막 글자 뒤에도 붙는다. 그만큼 오른쪽에 여백을 두어
+         세 겹이 모두 같은 자리에서 가운데로 놓이게 한다. */
+      text-align:left;padding-right:.03em;
+      filter:drop-shadow(0 .05em .10em rgba(0,0,0,.95))
+             drop-shadow(0 0 .55em rgba(214,164,72,.34))}
+  .au.lat{font-family:'Cinzel',serif;font-weight:900;letter-spacing:.10em}
+  .au::before,.au::after{content:attr(data-t);position:absolute;left:0;top:0;
+      width:100%;white-space:pre;text-align:left;padding-right:.03em}
+  .au::before{z-index:1;color:#20120a;
+      -webkit-text-stroke:.155em #20120a;paint-order:stroke fill}
+  .au::after{z-index:2;color:transparent;
+      background:linear-gradient(180deg,
+          #fffdf2 0%, #f9ecc0 20%, #e6c069 40%,
+          #a97a1e 56%, #d9ae52 70%, #fbf0c8 86%, #b8861f 100%);
+      -webkit-background-clip:text;background-clip:text}
+
+  .t-hero{font-size:clamp(34px,7.4vw,58px)}
+  .t-sec {font-size:clamp(27px,5.6vw,42px)}
+  .t-name{font-size:clamp(24px,5vw,35px)}
+  .t-min {font-size:clamp(19px,4.4vw,33px)}
+
+  /* 🏷️ 명패 — 양끝에 금 마름모가 달린 띠 */
+  .plaque{display:inline-block;position:relative;margin-top:18px;
+     padding:7px 40px;font-size:clamp(13px,2.7vw,16px);font-weight:700;
+     color:#f4e3b4;letter-spacing:.20em;text-indent:.20em;line-height:1.7;
+     background:linear-gradient(180deg,rgba(74,40,20,.92),rgba(26,13,8,.94));
+     border-top:1px solid rgba(226,186,108,.55);
+     border-bottom:1px solid rgba(226,186,108,.55);
+     text-shadow:0 1px 3px rgba(0,0,0,.9);
+     clip-path:polygon(15px 0,calc(100% - 15px) 0,100% 50%,
+                       calc(100% - 15px) 100%,15px 100%,0 50%)}
+  .plaque::before,.plaque::after{content:'';position:absolute;top:50%;
+     width:7px;height:7px;transform:translateY(-50%) rotate(45deg);
+     background:linear-gradient(135deg,#fbf0c8,#a97a1e)}
+  .plaque::before{left:8px} .plaque::after{right:8px}
+
+  /* ➖ 구분 — 금색 선 가운데 마름모 */
+  .flour{position:relative;width:180px;height:1px;margin:26px auto;
+     background:linear-gradient(90deg,transparent,rgba(201,154,46,.75),transparent)}
+  .flour::after{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;
+     transform:translate(-50%,-50%) rotate(45deg);
+     background:linear-gradient(135deg,#fbf0c8,#a97a1e)}
+  /* 파트와 파트 사이를 넉넉히 띄운다 */
+  .gap{height:34px;background:var(--bg)}
+  .gap.wide{height:64px}
+
+  /* ── 표지 ─────────────────────────────────────────────
+     제목을 위에 따로 두니 검은 여백만 커져서 균형이 깨졌다.
+     그림 아래쪽(계단 어두운 자리)에 얹는다. */
+  .cover{position:relative;line-height:0;background:var(--bg);
+         padding-top:26px}
+  .cover img{width:100%;display:block}
+  .cover .shade{position:absolute;inset:0;pointer-events:none;
+     background:linear-gradient(180deg,var(--bg) 0%,rgba(5,5,5,.26) 9%,
+                                rgba(5,5,5,0) 26%,rgba(5,5,5,.14) 56%,
+                                rgba(5,5,5,.62) 80%,rgba(5,5,5,.92) 94%,var(--bg) 100%)}
+  .cover .title{position:absolute;left:0;right:0;bottom:2.5%;
+     text-align:center;padding:0 20px;line-height:1.5}
+
+  /* ── 배경 그림 + 그 위 글씨 ───────────────────────────── */
+  .scene{position:relative;line-height:0}
+  .scene>img{width:100%;display:block}
+  .scene .veil{position:absolute;inset:0;
+       background:linear-gradient(180deg,rgba(0,0,0,.74) 0%,rgba(0,0,0,.16) 42%,
+                                          rgba(0,0,0,.36) 72%,var(--bg) 100%)}
+  .scene .on{position:absolute;left:0;right:0;top:7%;text-align:center;
+             padding:0 24px;line-height:1.5}
+  .scene .on.bottom{top:auto;bottom:6%}
+
+  .en{font-family:'Cinzel',serif;font-weight:600;
+      font-size:clamp(11px,2.2vw,14px);letter-spacing:.46em;color:#d3c5a0;
+      margin:12px 0 0;text-indent:.46em;text-shadow:0 2px 8px #000}
+  .kick{font-family:'Cinzel',serif;font-size:clamp(11px,2.3vw,13.5px);
+        letter-spacing:.34em;color:#bcac86;font-weight:700;
+        margin:0 0 16px;text-indent:.34em;text-shadow:0 2px 8px #000}
+  .lead{font-size:clamp(14px,2.8vw,16.5px);color:#e8e2d5;margin:14px 0 0;
+        text-shadow:0 2px 10px #000;font-weight:400}
+  .role{font-size:clamp(13px,2.6vw,15.5px);color:#a89f8d;margin:8px 0 0;line-height:1.7}
+  .role.dim{color:#7d7466;font-size:13px}
+
+  /* ── 어두운 글 구간 ───────────────────────────────────── */
+  .blk{padding:70px 26px;text-align:center;
+       background:radial-gradient(120% 80% at 50% 0%,#141118 0%,var(--bg) 70%)}
+  .blk p{margin:0 0 14px;font-size:15.5px;color:#cfc8ba}
+  .blk p.big{font-size:18px;color:#f0e9da;font-weight:700;line-height:1.9}
+  .sechead{padding:80px 26px 34px;text-align:center;background:var(--bg)}
+
+  /* ── 인물 — 상자 없이, 빛은 그림에 구워져 있다 ─────────── */
+  .fig{text-align:center;padding:0 0 56px;background:var(--bg);line-height:0}
+  /* 폰에서는 화면 폭을 채우고, 넓은 화면에서만 원본을 넘지 않게 잡는다. */
+  .fig img{width:100%;max-width:520px;display:block;margin:0 auto}
+  .fig .cap{line-height:1.5;margin-top:4px}
+
+  /* 세 사람을 한 줄에 — 크기를 서로 맞춘다 */
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+        padding:0 14px 20px;background:var(--bg);align-items:end}
+  .trio .fig{padding:0}
+  .trio .fig img{max-width:100%}
+  .trio .cap{margin-top:6px}
+  /* 세이라 그림은 지팡이가 왼쪽으로 뻗어, 그림 가운데보다 사람이 오른쪽에 있다.
+     이름을 그만큼 오른쪽으로 민다. */
+  .trio .nudge{position:relative;left:16%}
+
+  /* ── 아이템 — 상자 없이 나열, 판이 정사각이라 크기가 같다 ── */
+  .items{display:grid;gap:40px 16px;padding:0 18px 30px;background:var(--bg);
+         grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:start}
+  .items .it{text-align:center;position:relative}
+  .items .it::before{content:'';position:absolute;left:50%;top:38%;
+       transform:translate(-50%,-50%);width:104%;padding-bottom:104%;border-radius:50%;
+       pointer-events:none;
+       background:radial-gradient(50% 50% at 50% 50%,rgba(140,116,64,.24) 0%,rgba(0,0,0,0) 70%)}
+  .items .it img{position:relative;width:100%;max-width:140px;display:block;margin:0 auto 10px}
+  .items .it b{position:relative;display:block;font-size:14.5px;font-weight:900;
+       color:#f0dda4;letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+
+  .rods{padding:0 10px;background:var(--bg);text-align:center}
+  .rods .r{margin-bottom:56px}
+  /* 두 낚싯대는 그림 파일 자체가 같은 크기(737x1299)라 그냥 같은 폭으로 두면 된다.
+     세로로 길어서 폭을 좁게 잡아야 화면에 알맞다. */
+  .rods .r img{display:block;margin:0 auto;width:100%;max-width:400px}
+
+  /* ── 금색 상자(글 전용) ──────────────────────────────── */
+  .goldbox{margin:0 20px 60px;padding:34px 22px;border-radius:12px;text-align:center;
+     border:1px solid #3b2f16;background:linear-gradient(180deg,#171205,#0a0805)}
+  .goldbox p{margin:0 0 8px;font-size:16px;color:#d8d0bf}
+  .goldbox p.last{margin:0;color:var(--gold);font-weight:700;font-size:17px}
+
+  .foot{padding:38px 20px 52px;text-align:center;font-size:12.5px;color:#6b6355;
+        background:var(--bg);border-top:1px solid #191612}
+  .sign{font-family:'Cinzel',serif;font-size:15px;color:#b3aa99;
+        margin-bottom:12px;letter-spacing:.14em}
+  .memo{margin:0 20px 40px;padding:14px 16px;border-radius:10px;
+        border:1px solid #4a2222;background:#170d0d;color:#c98b8b;font-size:13px;line-height:1.9}
+</style>
+
+<div class="page">
+
+  <!-- ① 표지 ─────────────────────────────────────────── -->
+  <div class="cover">
+    <img src="https://kreft.co.kr/assets/devlog/portal.jpg?v=4" alt="">
+    <div class="shade"></div>
+    <div class="title">
+      <p class="kick">KREFT 2ND UPDATE</p>
+      <div class="au lat t-hero" data-t="FANTASY KREFT">FANTASY KREFT</div>
+      <div><span class="plaque">판타지 크래프트</span></div>
+    </div>
+  </div>
+
+  <!-- ② 세계관 ───────────────────────────────────────── -->
+  <div class="blk">
+    <div class="au t-sec" data-t="세계관">세계관</div>
+    <p class="en">WORLDVIEW</p>
+    <div class="flour"></div>
+    <p>캠피싱 KREFT는 리얼 낚시 게임입니다.<br>
+       낚시의 사실적인 요소가 대부분입니다.</p>
+    <div class="flour"></div>
+    <p class="big">이제 또다른 세계로 가는<br>차원의 문이 열립니다.</p>
+    <div style="margin-top:16px">
+      <span class="au t-name" data-t="“상상 속 판타지 낚시터”">“상상 속 판타지 낚시터”</span>
+    </div>
+  </div>
+
+  <!-- ③ 네 개의 세계 ─────────────────────────────────── -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="네 개의 세계">네 개의 세계</div>
+    <p class="en">FOUR REALMS</p>
+  </div>
+
+  <div class="scene">
+    <img src="https://kreft.co.kr/assets/devlog/bg_sky.jpg?v=3" alt="">
+    <div class="veil"></div>
+    <div class="on">
+      <div class="au t-sec" data-t="천공의 부유 군도">천공의 부유 군도</div>
+      <p class="en">THE FLOATING ISLES</p>
+    </div>
+    <div class="on bottom"><p class="lead">하늘에 떠 있는 아름다운 환상의 섬</p></div>
+  </div>
+  <div class="gap"></div>
+
+  <div class="scene">
+    <img src="https://kreft.co.kr/assets/devlog/bg_cave.jpg?v=3" alt="">
+    <div class="veil"></div>
+    <div class="on">
+      <div class="au t-sec" data-t="심연의 고대 동굴">심연의 고대 동굴</div>
+      <p class="en">THE ABYSSAL CAVERN</p>
+    </div>
+    <div class="on bottom"><p class="lead">바스라곤의 서식지 앞 지하 호수</p></div>
+  </div>
+  <div class="gap"></div>
+
+  <div class="scene">
+    <img src="https://kreft.co.kr/assets/devlog/bg_galaxy.jpg?v=3" alt="">
+    <div class="veil"></div>
+    <div class="on">
+      <div class="au t-sec" data-t="성운의 은하수 바다">성운의 은하수 바다</div>
+      <p class="en">SEA OF NEBULA</p>
+    </div>
+    <div class="on bottom"><p class="lead">머나먼 우주 끝에 펼쳐진 성운의 바다</p></div>
+  </div>
+  <div class="gap"></div>
+
+  <div class="scene">
+    <img src="https://kreft.co.kr/assets/devlog/bg_mureung.jpg?v=3" alt="">
+    <div class="veil"></div>
+    <div class="on">
+      <div class="au t-sec" data-t="무릉도원">무릉도원</div>
+      <p class="en">PEACH BLOSSOM VALLEY</p>
+    </div>
+    <div class="on bottom"><p class="lead">복숭아 꽃잎 날리는 신선들이 머무는 계곡</p></div>
+  </div>
+
+  <!-- ④ 등장인물 ─────────────────────────────────────── -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="등장인물">등장인물</div>
+    <p class="en">CHARACTERS</p>
+  </div>
+
+  <div class="fig">
+    <img src="https://kreft.co.kr/assets/devlog/npc_zenas.jpg?v=3" alt="">
+    <div class="cap">
+      <div class="au t-name" data-t="제나스">제나스</div>
+      <p class="role">합성에 필요한 보석 공급</p>
+    </div>
+  </div>
+
+  <div class="fig">
+    <img src="https://kreft.co.kr/assets/devlog/npc_bartan.jpg?v=3" alt="">
+    <div class="cap">
+      <div class="au t-name" data-t="바르탄">바르탄</div>
+      <p class="role">KREFT 낚싯대 제작</p>
+    </div>
+  </div>
+
+  <!-- 텔레포터 셋을 한 줄에 — 크기를 같게 -->
+  <div class="sechead" style="padding:34px 26px 26px">
+    <div class="au t-name" data-t="텔레포터">텔레포터</div>
+    <p class="en">TELEPORTERS</p>
+  </div>
+  <div class="trio">
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/npc_kael.jpg?v=3" alt="">
+      <div class="cap">
+        <div class="au t-min" data-t="카엘">카엘</div>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/npc_mureung.jpg?v=3" alt="">
+      <div class="cap">
+        <div class="au t-min" data-t="운학">운학</div>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/npc_galaxy.jpg?v=3" alt="">
+      <div class="cap">
+        <div class="au t-min nudge" data-t="세이라">세이라</div>
+      </div>
+    </div>
+  </div>
+  <div class="gap wide"></div>
+
+  <!-- ⑤ 재료 ─────────────────────────────────────────── -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="제작 재료">제작 재료</div>
+    <p class="en">MATERIALS</p>
+    <p class="lead" style="margin-top:18px">물고기를 모아 보석으로, 보석을 모아 낚싯대로.</p>
+  </div>
+
+  <div class="items">
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/gem_diamond.png?v=3"><b>다이아몬드</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/gem_ruby.png?v=3"><b>루비</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/gem_sapphire.png?v=3"><b>사파이어</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/gem_amethyst.png?v=3"><b>자수정</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/gem_crystal.png?v=3"><b>크리스탈</b></div>
+  </div>
+
+  <div class="flour" style="margin:26px auto 30px"></div>
+
+  <div class="items" style="grid-template-columns:repeat(3,1fr);max-width:520px;
+                            margin:0 auto;padding-bottom:20px">
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/rune_power.png?v=3"><b>파워 룬</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/rune_control.png?v=3"><b>컨트롤 룬</b></div>
+    <div class="it"><img src="https://kreft.co.kr/assets/devlog/rune_sense.png?v=3"><b>감도 룬</b></div>
+  </div>
+  <div class="gap wide"></div>
+
+  <!-- ⑥ 낚싯대 ───────────────────────────────────────── -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="KREFT 낚싯대">KREFT 낚싯대</div>
+    <p class="en">THE KREFT ROD</p>
+    <p class="lead" style="margin-top:18px">이 낚싯대가 있어야 차원의 문을 지날 수 있습니다.</p>
+  </div>
+
+  <div class="rods">
+    <div class="r">
+      <img src="https://kreft.co.kr/assets/devlog/rod_kreft.jpg?v=5" alt="">
+      <div class="au t-name" data-t="크레프트 낚싯대">크레프트 낚싯대</div>
+    </div>
+    <div class="r">
+      <img src="https://kreft.co.kr/assets/devlog/rod_unique.jpg?v=5" alt="">
+      <div class="au t-name" data-t="유니크 크레프트 낚싯대">유니크 크레프트 낚싯대</div>
+    </div>
+  </div>
+  <div class="gap"></div>
+
+  <!-- ⑦ 신규 캐릭터 스킨 ─────────────────────────────── -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="신규 캐릭터 스킨">신규 캐릭터 스킨</div>
+    <p class="en">NEW SKINS</p>
+  </div>
+
+  <div class="fig">
+    <img src="https://kreft.co.kr/assets/devlog/npc_valteria.jpg?v=3" alt="">
+    <div class="cap"><div class="au t-name" data-t="발테리아">발테리아</div></div>
+  </div>
+
+  <div class="fig" style="padding-bottom:70px">
+    <img src="https://kreft.co.kr/assets/devlog/npc_tairas.jpg?v=3" alt="">
+    <div class="cap"><div class="au t-name" data-t="타이라스 아르켄">타이라스 아르켄</div></div>
+  </div>
+
+  <!-- ⑧ 이미 시작되었습니다 ──────────────────────────── -->
+  <div class="goldbox">
+    <div class="au t-name" data-t="이미 시작되었습니다"
+         style="margin-bottom:18px">이미 시작되었습니다</div>
+    <p>미래를 준비하십시오.</p>
+    <p class="last">제나스를 만나보세요.</p>
+  </div>
+
+  <!-- ⑨ 마무리 ───────────────────────────────────────── -->
+  <div class="scene">
+    <img src="https://kreft.co.kr/assets/devlog/bg_sky.jpg?v=3" alt="" style="filter:brightness(.42)">
+    <div class="veil" style="background:linear-gradient(180deg,rgba(5,5,5,.86),rgba(5,5,5,.55) 45%,var(--bg))"></div>
+    <div class="on" style="top:26%">
+      <div class="au lat t-hero" data-t="COMING SOON"
+           style="font-size:clamp(30px,6.6vw,50px)">COMING SOON</div>
+      <div style="margin-top:6px"><span class="plaque">또다른 세계를 경험하십시오</span></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="sign">— 캠피싱 KREFT —</div>
+    개발 중인 내용으로 실제 업데이트 시 일부 변경될 수 있습니다.
+  </div>
+
+
+  <div style="padding:0 20px 60px;text-align:center;background:#050505">
+    <a href="devlog.html" style="display:inline-block;color:#c9bd9c;font-size:14px;
+       text-decoration:none;border:1px solid #2c2519;border-radius:22px;
+       padding:11px 26px;letter-spacing:.04em">← 개발 일지 목록</a>
+  </div>
+
+</div>
+
+</body>
+</html>

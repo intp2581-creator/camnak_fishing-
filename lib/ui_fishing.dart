@@ -2582,7 +2582,9 @@ Widget _whisperUnreadBadge() {
   // 📦 인벤토리에서 상자 탭 → 1개 / 모두 열기 선택
   void _openBoxDialog(Map<String, dynamic> box) {
     // 🎁 선물 상자는 확률이 아니라 '담긴 것'을 그대로 준다 — 전용 창으로
-    if ((box['name'] ?? '') == kGiftBoxName) { _openGiftDialog(box); return; }
+    // 📦 이름이 '선물 상자'가 아니어도 gift 목록이 있으면 같은 방식으로 연다.
+    //    성장패키지처럼 '산 물건'은 이름·아이콘을 따로 둬야 유저가 구분한다(2026-09-06).
+    if ((box['name'] ?? '') == kGiftBoxName || box['gift'] is List) { _openGiftDialog(box); return; }
     final int qty = ((box['quantity'] ?? 0) as num).toInt();
     if (qty <= 0) return;
     final bool mystery = box['name'] == '수상한 상자';

@@ -91,76 +91,53 @@
   <div class="notice warn" id="msg"></div>
 
   <div class="co" id="co" style="display:none">
+    <!-- 좌: 상품 이미지 -->
     <div>
-      <div class="card">
-        <h3>주문 상품</h3>
-        <div class="item">
-          <img id="pImg" src="" alt="">
-          <div>
-            <b id="pName">—</b>
-            <span id="pDesc"></span>
-            <!-- 📄 상품 상세(구성·이용조건·법정 고지)는 게임스토어 상세에서 확인 -->
-            <a id="pMore" href="#" target="_blank" rel="noopener"
-               style="display:inline-block;margin-top:4px;font-size:13px;color:var(--brand,#0a7ea4);text-decoration:underline">
-              상품 상세 보기 →</a>
-            <div class="qty" id="qtyBox">
-              <button id="qMinus">−</button>
-              <input id="qNum" value="1" readonly>
-              <button id="qPlus">＋</button>
-              <span style="font-size:13px;color:var(--ink-soft)">개</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>구매자</h3>
-        <div class="row"><span>게임 계정</span><b id="uEmail">—</b></div>
-        <p style="margin:10px 0 14px;font-size:13px;color:var(--ink-soft);line-height:1.75">
-          이 계정으로 아이템이 지급됩니다. 다른 계정으로 받으시려면
-          해당 계정으로 로그인 후 구매해 주세요.</p>
-        <!-- 📱 이니시스 V2 일반결제는 구매자 휴대폰 번호가 필수 -->
-        <label style="display:block;font-size:14px;font-weight:800;margin-bottom:6px">
-          휴대폰 번호 <span style="color:#c0392b">*</span></label>
-        <input id="uPhone" type="tel" inputmode="numeric" maxlength="13"
-          placeholder="010-1234-5678"
-          style="width:100%;height:46px;padding:0 14px;border:1px solid var(--line);
-                 border-radius:10px;font-family:inherit;font-size:15.5px;font-weight:700">
-        <p style="margin:8px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.7">
-          결제 진행과 결제내역 확인에만 사용됩니다. 한 번 입력하시면 다음부터 자동으로 채워집니다.</p>
-      </div>
-
-      <div class="card">
-        <h3>구매 전 확인해 주세요</h3>
-        <div class="notice">
-          · 본 상품은 <b>게임 내에서만 사용되는 디지털 아이템</b>입니다. 배송은 없습니다.<br>
-          · 결제 완료 즉시 게임 계정으로 자동 지급됩니다.<br>
-          · <b>교환</b>: 디지털 상품 특성상 교환은 제공하지 않습니다. <b>상품 하자 · 오지급 · 중복지급</b> 시에는 재지급 또는 전액 환불해 드립니다.<br>
-          <span id="pRefund"></span>
-          · <b>유효기간</b>: 구매일로부터 1년 (미사용 시 소멸)<br>
-          · 스킨·휘장은 <b>계정당 1개</b>만 보유할 수 있으며, 상품별 레벨·등급 조건이 있습니다.<br>
-          · 판매자: 주식회사 안테모사 · <a href="support.html" target="_blank">고객지원</a>으로 문의해 주세요<br>
-          · <b>미성년자 결제</b>: 만 19세 미만 회원이 법정대리인의 동의 없이 결제한 경우 본인 또는 법정대리인이 취소할 수 있습니다. (청소년 월 결제한도 50,000원)
-        </div>
-      </div>
+      <div class="card pimg"><img id="pImg" src="" alt=""></div>
     </div>
 
+    <!-- 우: 구매 패널 — 재구매하는 분은 여기서 바로 끝낼 수 있어야 한다(스크롤 없이) -->
     <div>
       <div class="card" style="position:sticky;top:16px">
-        <h3>결제 금액</h3>
-        <div class="row"><span>상품 금액</span><span id="sPrice">—</span></div>
-        <div class="row"><span>수량</span><span id="sQty">1개</span></div>
+        <h2 id="pName" class="pname">—</h2>
+        <div class="pprice"><span id="sPrice">—</span> <small>VAT 포함</small></div>
+        <p id="pDesc" class="pdesc"></p>
+
+        <div class="give">
+          <b>📦 지급 안내</b><br>
+          · 게임 안에서만 쓰는 <b>디지털 아이템</b>입니다. 배송은 없습니다.<br>
+          · 결제 완료 <b>즉시</b> 게임 계정 가방으로 자동 지급됩니다.<br>
+          · 지급 계정: <b id="uEmail">—</b>
+        </div>
+
+        <div class="row"><span>수량</span>
+          <span class="qty" id="qtyBox">
+            <button id="qMinus">−</button>
+            <input id="qNum" value="1" readonly>
+            <button id="qPlus">＋</button>
+          </span>
+        </div>
         <div class="row total"><span>총 결제금액</span><span id="sTotal">—</span></div>
+
+        <!-- 📱 이니시스 V2 일반결제는 구매자 휴대폰 번호가 필수 -->
+        <label class="flab">휴대폰 번호 <span style="color:#c0392b">*</span></label>
+        <input id="uPhone" type="tel" inputmode="numeric" maxlength="13" placeholder="010-1234-5678">
+        <p class="fhint">결제 진행과 결제내역 확인에만 사용됩니다. 한 번 입력하시면 다음부터 자동으로 채워집니다.</p>
+
+        <!-- 💳 결제수단 — 승인 전인 수단도 '준비 중'으로 자리를 잡아둔다. -->
+        <h3 style="margin:16px 0 8px">결제수단</h3>
+        <div id="payMethods" class="pm-grid"></div>
+        <p id="pmHint" style="margin:8px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.6"></p>
 
         <label class="agree">
           <input type="checkbox" id="agree">
-          <span>위 <b>구매 전 확인 사항</b>과 <a href="policy.html#item" target="_blank">청약철회·환불 안내</a>를
+          <span>아래 <b>상세정보</b>와 <a href="policy.html#item" target="_blank">청약철회·환불 안내</a>를
             확인했으며, 결제 진행에 동의합니다. (필수)</span>
         </label>
 
         <button class="pay" id="payBtn" disabled>결제하기</button>
         <p style="margin:12px 0 0;font-size:12.5px;color:var(--ink-soft);text-align:center">
-          결제수단: 신용카드 · 간편결제<br>
+          <span id="pmList">결제수단: 신용·체크카드</span><br>
           결제는 <b>포트원</b>을 통해 안전하게 처리됩니다</p>
         <p style="margin:10px 0 0;font-size:12px;color:var(--ink-soft);line-height:1.7">
           <b>취소·환불 문의</b> intoas@naver.com · 02-487-2581 (평일 09:00~18:00)<br>
@@ -169,7 +146,14 @@
       </div>
     </div>
   </div>
-</div>
+
+  <!-- 📄 상세정보 — 처음 보는 분은 여기까지 읽고, 재구매는 위에서 바로 결제. -->
+  <div id="detailWrap" style="display:none">
+    <div class="dtabs"><span class="on">상세정보</span></div>
+    <div class="card" style="margin-bottom:44px">
+      <div id="pDetail" class="detail"></div>
+    </div>
+  </div>
 
 <footer class="site" style="margin-top:28px"><div class="wrap">
   <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
@@ -183,12 +167,72 @@
   <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
 </div></footer>
 
+<style>
+  .co{align-items:start}
+  .pimg{padding:0;overflow:hidden}
+  .pimg img{width:100%;height:auto;display:block}
+  .pname{margin:0 0 6px;font-size:22px;font-weight:900;line-height:1.35}
+  .pprice{font-size:26px;font-weight:900;color:var(--emerald,#0a7ea4);margin:0 0 10px}
+  .pprice small{font-size:13px;font-weight:600;color:#8b9aa3}
+  .pdesc{margin:0 0 14px;font-size:14px;line-height:1.75;color:#33525f}
+  .give{background:#f5fbfd;border:1px solid #d8eef5;border-radius:12px;padding:12px 14px;
+        font-size:13px;line-height:1.9;color:#33525f;margin-bottom:14px}
+  .flab{display:block;font-size:14px;font-weight:800;margin:14px 0 6px}
+  #uPhone{width:100%;height:46px;padding:0 14px;border:1px solid var(--line);
+          border-radius:10px;font-family:inherit;font-size:15.5px;font-weight:700}
+  .fhint{margin:8px 0 0;font-size:12.5px;color:var(--ink-soft);line-height:1.7}
+  .dtabs{display:flex;gap:22px;justify-content:center;border-bottom:1px solid var(--line);
+         margin:10px 0 18px;padding-bottom:10px}
+  .dtabs span{font-size:15px;font-weight:800;color:#8b9aa3}
+  .dtabs span.on{color:var(--ink);border-bottom:2px solid var(--emerald,#0a7ea4);padding-bottom:10px}
+  .detail h4{margin:22px 0 10px;font-size:16px;font-weight:900}
+  .detail h4:first-child{margin-top:0}
+  .detail p{margin:0 0 10px;font-size:14.5px;line-height:1.9;color:#33525f}
+  .detail ul{margin:0 0 12px;padding-left:18px}
+  .detail li{font-size:14.5px;line-height:1.95;color:#33525f}
+  .detail .bundle{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:6px 0 14px}
+  .detail .bundle .b{border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .detail .bundle .b img{width:100%;max-width:96px;height:auto;margin:0 auto 6px;display:block}
+  .detail .bundle .b b{display:block;font-size:13.5px;margin-bottom:2px}
+  .detail .bundle .b span{font-size:12.5px;color:#8b9aa3;line-height:1.6}
+  .detail dl{margin:0;display:grid;grid-template-columns:96px 1fr;gap:0}
+  .detail dt{padding:9px 0;font-size:13.5px;font-weight:800;color:var(--ink);
+             border-top:1px solid var(--line)}
+  .detail dd{margin:0;padding:9px 0;font-size:13.5px;line-height:1.75;color:#33525f;
+             border-top:1px solid var(--line)}
+  .detail dt:first-of-type,.detail dd:nth-of-type(1){border-top:0}
+  .detail .sum{margin:0 0 12px;font-size:14.5px;line-height:1.8;color:#33525f}
+  .detail .stat{display:inline-block;margin:0 4px 4px 0;padding:3px 9px;border-radius:999px;
+                background:#eef7fa;color:#0a7ea4;font-size:12.5px;font-weight:800}
+  .pm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .pm{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+      height:62px;border:1.5px solid var(--line);border-radius:12px;background:#fff;
+      font-family:inherit;font-size:13.5px;font-weight:800;color:var(--ink);cursor:pointer;
+      transition:border-color .12s, background .12s}
+  .pm:hover{border-color:#9dd}
+  .pm.on{border-color:var(--emerald,#0a7ea4);background:#f2fbfd;
+         box-shadow:0 0 0 2px rgba(10,126,164,.12) inset}
+  .pm .ic{font-size:18px;line-height:1}
+  .pm.off{cursor:not-allowed;background:#f6f7f8;color:#aab1b6;border-style:dashed}
+  .pm.off .tag{font-size:11px;font-weight:700;color:#aab1b6}
+</style>
 <script type="module" src="auth.js"></script>
 <script type="module">
   import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
   const FN = 'https://us-central1-camnak-fishing.cloudfunctions.net/';
   const CHANNEL_KEY = 'channel-key-bda1f518-2031-435c-98bc-e2f2d66f189f'; // 테스트 채널
+
+  // 💳 [결제수단] 포트원은 PG마다 채널이 따로다. 승인이 순차로 나므로
+  //    승인된 것만 on:true 로 바꾸고 channel 에 그 PG의 채널키를 넣으면 열린다.
+  //    ⛔ 계좌이체·가상계좌는 넣지 않는다 — 입금 대기 주문이 쌓이고 지급이 늦어진다.
+  const PAY_METHODS = [
+    {key:'CARD',  label:'신용·체크카드', ic:'💳', on:true,  channel:CHANNEL_KEY, pay:'CARD'},
+    {key:'KAKAO', label:'카카오페이',   ic:'🟡', on:false, channel:'', pay:'EASY_PAY', ep:'EASY_PAY_PROVIDER_KAKAOPAY'},
+    {key:'NAVER', label:'네이버페이',   ic:'🟢', on:false, channel:'', pay:'EASY_PAY', ep:'EASY_PAY_PROVIDER_NAVERPAY'},
+    {key:'TOSS',  label:'토스페이',     ic:'🔵', on:false, channel:'', pay:'EASY_PAY', ep:'EASY_PAY_PROVIDER_TOSSPAY'},
+  ];
+  let payM = PAY_METHODS.find(m => m.on) || null;   // 지금 고른 결제수단
 
   // 🛒 상품 표시 정보(가격은 서버가 정한다 — 여기 값은 화면용일 뿐)
   const CATALOG = {
@@ -202,6 +246,88 @@
     badge_1:      {n:'캠피싱 뱃지',      p:2200,  img:'assets/st-badge1.jpg', d:'Lv.10 이상'},
     badge_2:      {n:'캠피싱 휘장',      p:5500,  img:'assets/st-badge2.jpg', d:'Lv.30 이상'},
     badge_3:      {n:'KREFT 정예 휘장', p:11000, img:'assets/st-badge3.jpg', d:'Lv.50 이상'},
+    growth_pack:  {n:'KREFT 성장패키지', p:5500, img:'assets/st-package.jpg', stack:true, max:1,
+                   d:'시작이 반! 성장에 필요한 것을 한 번에 담았습니다. 5종 구성품이 상자에 담겨 지급됩니다.'},
+  };
+
+  // 📄 상세 표시용 — 게임 안 값(game_config.dart)과 같아야 한다.
+  //    stat: 장착 시 오르는 능력치 · use: 쓰는 법 · cond: 이용 조건
+  const DETAIL = {
+    ticket_1h:    {use:'가방에서 눌러 사용하면 그 자리에서 낚시 시간이 60분 늘어납니다.',
+                   cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'수량 누적(여러 장 보유 가능)'},
+    ticket_arena: {use:'무료 입장을 다 쓴 뒤 아레나에 하루 한 번 더 참가할 수 있습니다. 낚시 시간 20분도 함께 채워집니다.',
+                   cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'수량 누적(여러 장 보유 가능)'},
+    skin_novice:  {stat:20,  cond:'Lv.10 이상 · 「하수」 승급 완료',   give:'계정당 1개'},
+    skin_mid:     {stat:50,  cond:'Lv.30 이상 · 「중수」 승급 완료',   give:'계정당 1개'},
+    skin_expert:  {stat:100, cond:'Lv.50 이상 · 「고수」 승급 완료',   give:'계정당 1개'},
+    skin_pro:     {stat:200, cond:'Lv.70 이상 · 「프로」 승급 완료',   give:'계정당 1개'},
+    skin_master:  {stat:300, cond:'Lv.100 이상 · 「마스터」 승급 완료', give:'계정당 1개'},
+    badge_1:      {stat:10,  cond:'Lv.10 이상',  give:'계정당 1개'},
+    badge_2:      {stat:30,  cond:'Lv.30 이상',  give:'계정당 1개'},
+    badge_3:      {stat:50,  cond:'Lv.50 이상',  give:'계정당 1개'},
+  };
+  const IS_SKIN = (k) => k.indexOf('skin_') === 0;
+
+  // 📄 [긴 상세] html 이 있는 상품은 이 내용을 그대로 보여준다(아임웹 상세와 같은 구성).
+  const LONG = {
+    growth_pack:
+      '<h4>구성품 5종</h4>'
+      + '<div class="bundle">'
+      +   '<div class="b"><img src="assets/item_emblem_boost.jpg" alt="">'
+      +     '<b>능력치 엠블럼 1개</b><span>켜면 1시간 동안 힘·컨트롤·감도 각 +10</span></div>'
+      +   '<div class="b"><img src="assets/item_potion_exp.jpg" alt="">'
+      +     '<b>경험치 물약 10병</b><span>마시면 10분 동안 경험치 2배</span></div>'
+      +   '<div class="b"><img src="assets/item_card_kreft.jpg" alt="">'
+      +     '<b>KREFT 2배 카드 10장</b><span>쓰면 10분 동안 KREFT 2배</span></div>'
+      +   '<div class="b"><img src="assets/st-ticket1h.jpg" alt="">'
+      +     '<b>낚시 1시간 이용권 1장</b><span>낚시 시간 1시간 충전</span></div>'
+      +   '<div class="b"><img src="assets/st-arena.jpg" alt="">'
+      +     '<b>아레나 입장권 1장</b><span>아레나 하루 1회 추가 참가</span></div>'
+      + '</div>'
+      + '<h4>사용 방법</h4><ul>'
+      +   '<li>물약과 카드는 가방에서 눌러 사용합니다. 누른 순간부터 10분간 적용됩니다.</li>'
+      +   '<li>엠블럼은 원할 때 켜고 끌 수 있습니다. 잠깐 자리를 비우실 땐 꺼두세요.</li>'
+      +   '<li>세 아이템 모두 <b>낚시터에 있는 동안에만</b> 시간이 줄어듭니다. 광장이나 상점에 계실 때는 멈춰 있습니다.</li>'
+      +   '<li>엠블럼은 뱃지·휘장과 함께 적용됩니다. 능력치가 더해집니다.</li>'
+      +   '<li>물약·카드·엠블럼은 <b>아레나와 보스레이드에서는 적용되지 않습니다.</b></li>'
+      + '</ul>'
+      + '<h4>이용 방법</h4><ul>'
+      +   '<li>이 페이지에서 결제합니다.</li>'
+      +   '<li>결제 즉시 게임 계정 가방으로 <b>「성장패키지 상자」</b>가 지급됩니다.</li>'
+      +   '<li>가방에서 상자를 <b>눌러 열면</b> 구성품 5종이 가방에 풀립니다.</li>'
+      +   '<li>원하실 때 하나씩 눌러 사용하시면 됩니다.</li>'
+      + '</ul>'
+      + '<h4>유효기간</h4><ul>'
+      +   '<li>구매일로부터 <b>1년</b>입니다. 기간 내에 사용하지 않으면 소멸됩니다. (게임 이용약관 제15조)</li>'
+      +   '<li>물약·카드·엠블럼은 사용(활성화)한 뒤 정해진 시간이 지나면 사라집니다.</li>'
+      + '</ul>'
+      + '<h4>구매 전 꼭 읽어주세요</h4><ul>'
+      +   '<li><b>디지털 상품</b>입니다. 택배 배송이 없는 게임 내 전용 아이템입니다.</li>'
+      +   '<li><b>계정 확인</b> — 결제 계정과 게임 로그인 계정이 같아야 지급됩니다. 다른 계정으로 접속하시면 아이템이 보이지 않습니다.</li>'
+      +   '<li><b>보관</b> — 지급된 상자는 가방에 보관되며, 유효기간 안에 원하시는 날 여시면 됩니다.</li>'
+      +   '<li>이 상품은 <b>여러 번 구매</b>하실 수 있습니다. (주문 1건당 1개)</li>'
+      + '</ul>'
+      + '<h4>환불 규정</h4><ul>'
+      +   '<li>결제 후 <b>7일 이내, 상자를 열지 않으셨다면</b> 전액 환불(청약철회)됩니다.</li>'
+      +   '<li><b>상자를 여신 경우 환불이 제한됩니다.</b> 여는 순간 구성품이 가방으로 지급되어 사용이 시작된 것으로 봅니다.</li>'
+      +   '<li>패키지는 묶음으로 구성된 하나의 상품입니다. 구성품을 나누어 환불하지 않습니다. '
+      +       '낱개 판매 상품과 금액이 동일하지 않으며(묶음 할인), 구성품에는 개별 금액이 정해져 있지 않습니다.</li>'
+      +   '<li>※ 상품 하자 · 오지급 · 중복 결제 시에는 전액 환불 또는 재지급해 드립니다.</li>'
+      + '</ul>'
+      + '<h4>교환 및 반품 가능 기간</h4><ul>'
+      +   '<li>계약내용에 관한 서면을 받은 날부터 7일. 다만 그 서면을 받은 때보다 재화등의 공급이 늦게 이루어진 경우에는 '
+      +       '재화등을 공급받거나 공급이 시작된 날부터 7일.</li>'
+      +   '<li>공급받은 상품 및 용역의 내용이 표시·광고의 내용과 다르거나 계약내용과 다르게 이행된 경우에는 '
+      +       '그 재화등을 공급받은 날부터 3개월 이내, 그 사실을 안 날 또는 알 수 있었던 날부터 30일 이내.</li>'
+      +   '<li>디지털 상품 특성상 교환은 제공하지 않습니다.</li>'
+      + '</ul>'
+      + '<h4>문의</h4>'
+      + '<p>intoas@naver.com · 02-487-2581 (평일 09:00~18:00)<br>'
+      +   'kreft.co.kr → 고객지원 → 1:1 문의</p>'
+      + '<h4>판매자</h4>'
+      + '<p>주식회사 안테모사 · 대표 이명선 · 사업자등록번호 499-87-02378<br>'
+      +   '통신판매업신고 제2026-충북청주-1745호 · 게임물제작업등록번호 제2026-000020호<br>'
+      +   '충북 청주시 흥덕구 · 원산지 대한민국</p>',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -218,7 +344,6 @@
     $('pDesc').textContent = item.d;
     $('pImg').src = item.img;
     // 결제 중 상세보기 → 그 상품만 보이는 페이지로. from=pay 면 그쪽 '구매하기'는 감춰진다.
-    $('pMore').href = 'store.html?item=' + encodeURIComponent(itemKey) + '&from=pay';
     // 💳 상품 유형별 청약철회 안내 — 실제 동작이 달라 문구도 달라야 한다.
     //   · 스킨·뱃지·휘장 : 지급되면 자동으로 장착된다(안 쓸 방법이 없다) → 지급 = 제공 개시
     //   · 이용권·입장권   : 가방에 들어가고 눌러야 쓰인다 → 미사용분은 환불 가능
@@ -233,15 +358,63 @@
     $('sTotal').textContent = won(item.p * qty);
     $('qNum').value = qty;
     $('qMinus').disabled = qty <= 1;
-    $('qPlus').disabled = !item.stack || qty >= 10;
+    $('qPlus').disabled = !item.stack || qty >= (item.max || 10);
     if (!item.stack) $('qtyBox').style.display = 'none';
   }
+  // 📄 상품 상세 그리기
+  function paintDetail() {
+    $('detailWrap').style.display = 'block';
+    if (LONG[itemKey]) { $('pDetail').innerHTML = LONG[itemKey]; return; }
+    const d = DETAIL[itemKey] || {};
+    const rows = [];
+    const use = d.use || (IS_SKIN(itemKey)
+      ? '가방에서 눌러 장착하면 캐릭터 겉모습이 바뀌고 능력치가 오릅니다. 스킨은 한 번에 하나만 장착됩니다.'
+      : '가방에서 눌러 장착하면 능력치가 오릅니다. 뱃지·휘장은 한 번에 하나만 장착됩니다.');
+    if (d.stat) {
+      rows.push(['능력치',
+        '<span class="stat">힘 +' + d.stat + '</span>' +
+        '<span class="stat">컨트롤 +' + d.stat + '</span>' +
+        '<span class="stat">감도 +' + d.stat + '</span>' +
+        '<div style="margin-top:6px;font-size:12.5px;color:#8b9aa3">장착했을 때만 적용됩니다. ' +
+        '(아레나 · 보스레이드는 장비가 평준화되어 적용되지 않습니다)</div>']);
+    }
+    rows.push(['사용 방법', use]);
+    rows.push(['이용 조건', d.cond || '—']);
+    rows.push(['지급', '결제 완료 즉시 게임 계정 가방으로 자동 지급 · ' + (d.give || '—')]);
+    rows.push(['유효기간', '구매일로부터 1년 (미사용 시 소멸)']);
+    rows.push(['판매자', '주식회사 안테모사 · 대표 이명선 · 사업자등록번호 499-87-02378']);
+    $('pDetail').innerHTML =
+      '<p class="sum">' + (item.d || '') + '</p><dl>' +
+      rows.map(function(r){ return '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>'; }).join('') +
+      '</dl>';
+  }
+
   if (item) {
     paint();
+    paintDetail();
     $('qMinus').onclick = () => { if (qty > 1) { qty--; paint(); } };
-    $('qPlus').onclick  = () => { if (qty < 10) { qty++; paint(); } };
+    $('qPlus').onclick  = () => { if (qty < (item.max || 10)) { qty++; paint(); } };
     const phoneOK = () => /^01[016789]-?\d{3,4}-?\d{4}$/.test($('uPhone').value.replace(/\s/g,''));
-    const refresh = () => { $('payBtn').disabled = !($('agree').checked && phoneOK()); };
+    const refresh = () => { $('payBtn').disabled = !($('agree').checked && phoneOK() && payM); };
+
+    // 💳 결제수단 타일 — 준비 중인 것도 보여서 자리를 잡아둔다(레이아웃이 안 흔들린다)
+    function paintMethods() {
+      $('payMethods').innerHTML = PAY_METHODS.map(m => m.on
+        ? '<button type="button" class="pm' + (payM && payM.key === m.key ? ' on' : '') +
+          '" data-k="' + m.key + '"><span class="ic">' + m.ic + '</span>' + m.label + '</button>'
+        : '<div class="pm off"><span class="ic">' + m.ic + '</span>' + m.label +
+          '<span class="tag">준비 중</span></div>').join('');
+      $('payMethods').querySelectorAll('button.pm').forEach(b => {
+        b.onclick = () => { payM = PAY_METHODS.find(m => m.key === b.dataset.k); paintMethods(); refresh(); };
+      });
+      const soon = PAY_METHODS.filter(m => !m.on).map(m => m.label);
+      $('pmHint').textContent = soon.length
+        ? soon.join(' · ') + '는 준비 중입니다. 곧 열립니다.' : '';
+      // 법정 고지: 실제로 쓸 수 있는 수단만 적는다(사실과 달라선 안 된다)
+      const live = PAY_METHODS.filter(m => m.on).map(m => m.label);
+      if ($('pmList')) $('pmList').textContent = '결제수단: ' + (live.join(' · ') || '준비 중');
+    }
+    paintMethods();
     $('agree').onchange = refresh;
     // 010-1234-5678 형태로 자동 하이픈
     $('uPhone').oninput = (e) => {
@@ -278,19 +451,22 @@
 
       // ② 결제창 (금액은 서버가 준 값 그대로)
       btn.textContent = '결제창 여는 중…';
-      const rsp = await PortOne.requestPayment({
+      if (!payM) throw new Error('결제수단을 선택해 주세요');
+      const req = {
         storeId: prep.storeId,
-        channelKey: CHANNEL_KEY,
+        channelKey: payM.channel,
         paymentId: prep.orderId,
         orderName: prep.itemName + (qty>1 ? ' x'+qty : ''),
         totalAmount: prep.amount,
         currency: 'CURRENCY_KRW',
-        payMethod: 'CARD',
+        payMethod: payM.pay,
         customer: {
           email: me.email,
           phoneNumber: $('uPhone').value.replace(/-/g,''), // ⚠️ 이니시스 V2 필수
         },
-      });
+      };
+      if (payM.ep) req.easyPay = {easyPayProvider: payM.ep};
+      const rsp = await PortOne.requestPayment(req);
       if (rsp.code) throw new Error(rsp.message || '결제가 취소되었습니다');
 
       // ③ 서버 검증 + 지급

@@ -32,6 +32,33 @@ const PRODUCTS = {
   "badge_1":     {name: "캠피싱 뱃지",      price: 2200,  limitType: "ONCE", reqLevel: 10},
   "badge_2":     {name: "캠피싱 휘장",      price: 5500,  limitType: "ONCE", reqLevel: 30},
   "badge_3":     {name: "KREFT 정예 휘장", price: 11000, limitType: "ONCE", reqLevel: 50},
+  // 🎁 묶음 상품 — bundle 이 있으면 그 목록을 통째로 지급한다(단품 name 은 안 쓴다).
+  //    아임웹 쪽 packageDatabase(index.js)와 구성이 같아야 한다.
+  "growth_pack": {
+    name: "KREFT 성장패키지", price: 5500, limitType: "STACK", maxQty: 1,
+    // 📦 상자로 지급한다 — 열어야 내용물이 풀린다.
+    //    낱개로 주면 "물약 하나 썼는데 환불되나요?"가 생긴다. 상자는 열었냐 아니냐로 딱 갈린다.
+    boxName: "성장패키지 상자", boxIcon: "item_box_growth.png",
+    boxMsg: "성장에 필요한 것을 한 번에 담았습니다.\n눌러서 열어보세요.",
+    bundle: [
+      {name: "경험치 물약", qty: 10, category: "BOOST", type: "BOOST", boost: "exp",
+        icon: "item_potion_exp.png",
+        desc: "마시면 10분 동안 경험치가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)"},
+      {name: "KREFT 2배 카드", qty: 10, category: "BOOST", type: "BOOST", boost: "pts",
+        icon: "item_card_kreft.png",
+        desc: "사용하면 10분 동안 KREFT가 2배로 들어와요.\n(아레나에서는 적용되지 않아요)"},
+      {name: "능력치 엠블럼", qty: 1, category: "COMMON", type: "EVENT",
+        icon: "item_emblem_boost.png", stats: {P: 10, C: 10, S: 10},
+        secLeft: 3600, active: false,
+        desc: "눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요. (휘장과 함께 적용)"},
+      {name: "낚시 1시간 이용권", qty: 1, category: "TICKET", type: "ETC",
+        icon: "item_ticket_1h.png",
+        desc: "낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)"},
+      {name: "아레나 입장권", qty: 1, category: "TICKET", type: "ETC",
+        icon: "arena_ticket.png",
+        desc: "아레나 무료 입장을 다 쓴 뒤 하루 1회 더 참가할 수 있어요."},
+    ],
+  },
 };
 
 const cors = (res) => {
@@ -89,6 +116,11 @@ exports.payPrepare = onRequest({region: "us-central1", cors: true}, async (req, 
       if (inv.some((i) => i && i.name === p.name)) {
         return res.status(400).json({ok: false, err: "이미 보유한 상품입니다"});
       }
+    }
+
+    // 🔢 주문당 수량 상한 — 프론트를 고쳐 보내도 여기서 막는다.
+    if (p.maxQty && qty > p.maxQty) {
+      return res.status(400).json({ok: false, err: "이 상품은 한 번에 " + p.maxQty + "개까지 구매할 수 있습니다"});
     }
 
     const orderId = "KREFT" + Date.now() + Math.floor(Math.random() * 900 + 100);
@@ -150,7 +182,7 @@ exports.payVerify = onRequest({region: "us-central1", cors: true}, async (req, r
     }
 
     // ✅ 검증 통과 → 지급 (트랜잭션으로 중복 지급 차단)
-    const granted = await grantItem(db, order);
+    const granted = await grantItem(db, order, orderId);
     await ref.update({
       status: "paid", paidAmount, paidStatus,
       pgProvider: (pay.channel || {}).pgProvider || "",
@@ -164,13 +196,32 @@ exports.payVerify = onRequest({region: "us-central1", cors: true}, async (req, r
 });
 
 // 🎁 인벤토리 지급 — 서버만 수행. STACK은 수량 누적, ONCE는 1개.
-async function grantItem(db, order) {
+async function grantItem(db, order, orderId) {
   const p = PRODUCTS[order.itemKey];
   if (!p) return false;
   const uref = db.collection("users").doc(order.uid);
   return db.runTransaction(async (tx) => {
     const u = await tx.get(uref);
     const inv = ((u.data() || {}).inventory || []).slice();
+    // 📦 묶음 상품 — 낱개가 아니라 '상자' 하나로 넣는다. 유저가 눌러 열면 내용물이 풀린다.
+    //    gid 에 주문번호를 넣어 두면, 환불 문의 때 '이 주문의 상자가 아직 있나'를 바로 볼 수 있다.
+    if (Array.isArray(p.bundle)) {
+      const n = Math.max(1, Number(order.qty || 1));
+      for (let k = 0; k < n; k++) {
+        inv.push({
+          name: p.boxName || p.name,
+          category: "BOX", type: "BOX", quantity: 1, cash: true,
+          icon: p.boxIcon || "item_box_gift.png",
+          gid: orderId + (n > 1 ? "-" + (k + 1) : ""),
+          giftTitle: p.name,
+          giftMsg: p.boxMsg || "",
+          gift: p.bundle.map((b) => Object.assign({}, b, {quantity: b.qty || 1})),
+          desc: p.name + "\n" + (p.boxMsg || "") + "\n\n눌러서 열어보세요.",
+        });
+      }
+      tx.update(uref, {inventory: inv});
+      return true;
+    }
     const idx = inv.findIndex((i) => i && i.name === p.name);
     if (p.limitType === "ONCE") {
       if (idx >= 0) return false;                       // 이미 보유

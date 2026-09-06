@@ -50,3 +50,6 @@ _recovery/
 # 실수로 들어간 대용량 설치파일 제외
 assets/images/TEFW_Installer.exe
 *.exe
+
+# 2차 업데이트 원본 그림 — 50MB 넘어 저장소에 담지 않는다(최적화본만 hub/assets/devlog 에)
+원본_2차업데이트/
