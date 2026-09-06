@@ -1111,20 +1111,24 @@ Map<String, dynamic> makeWelcomeGiftBox() => makeGiftBox(
 
 /// 🎁 신규 조사 환영 세트 — 튜토리얼(첫 붕어)을 마치면 지급한다.
 ///   가입 즉시가 아니라 튜토리얼 완료 시점인 이유: 가입만 하고 안 들어오는 계정에는
-///   나가지 않게 하고, 첫 성취에 보상을 붙여 다음 목표(Lv.5 낚싯대)로 이어주기 위함.
+///   나가지 않게 하고, 첫 성취에 보상을 붙여 다음 낚시로 이어주기 위함.
 ///   ⚠️ 두 번 주지 않도록 users/{uid}.welcomeSetGrantedAt 를 표식으로 쓴다.
 List<Map<String, dynamic>> getWelcomeSet() {
   if (!kWelcomeSetOn) return const [];
+  // 📦 유료 성장패키지와 같은 구성으로 맞춘다(2026-09-06).
+  //    낚싯대는 뺐다 — 상점에서 사 모으는 재미를 남겨둔다.
   return [
-    {...kItemPotionExp, 'quantity': 5},
-    {...kItemCardKreft, 'quantity': 5},
+    {...kItemPotionExp, 'quantity': 10},
+    {...kItemCardKreft, 'quantity': 10},
     makeEmblemBoost(),
-    {'name': 'CF-30T', 'category': 'FW', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
-      'icon': 'rod_fw_cf30.png',
-      'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(민물 · 기본대보다 훨씬 강해요)'},
-    {'name': 'CF350', 'category': 'SEA', 'type': 'ROD', 'reqLevel': 5, 'stats': {'P': 10, 'C': 10, 'S': 10},
-      'icon': 'rod_sea_cf350.png',
-      'desc': '🎁 신규 조사 환영 선물이에요.\nLv.5가 되면 바로 장착할 수 있어요.\n(바다 · 기본대보다 훨씬 강해요)'},
+    {'name': '낚시 1시간 이용권', 'price': 0, 'cash': true,
+      'category': 'TICKET', 'type': 'ETC', 'quantity': 1,
+      'icon': 'item_ticket_1h.png',
+      'desc': '낚시 시간을 1시간 추가해주는 이용권이에요.\n(계정당 1일 1회 사용 가능)'},
+    {'name': '아레나 입장권', 'price': 0, 'cash': true,
+      'category': 'TICKET', 'type': 'ETC', 'quantity': 1,
+      'icon': 'arena_ticket.png',
+      'desc': '아레나 무료 입장을 다 쓴 뒤 하루 1회 더 참가할 수 있어요.'},
   ];
 }
 
