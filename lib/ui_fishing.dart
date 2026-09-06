@@ -2616,9 +2616,11 @@ Widget _whisperUnreadBadge() {
     showDialog(context: context, barrierDismissible: true, builder: (dctx) => AlertDialog(
       backgroundColor: const Color(0xFF1A1A1A),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: gold, width: 1.4)),
-      title: Text('🎁 $title', style: const TextStyle(color: gold, fontSize: 18, fontWeight: FontWeight.bold)),
+      title: Text('${(box['name'] ?? '') == kGiftBoxName ? '🎁' : '📦'} $title', style: const TextStyle(color: gold, fontSize: 18, fontWeight: FontWeight.bold)),
       content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Image.asset('assets/items/$kGiftBoxIcon', height: 120, fit: BoxFit.contain,
+        // 📦 상자마다 제 아이콘이 있다(성장패키지 상자 등). 없으면 선물 상자 그림.
+        Image.asset('assets/items/${(box['icon'] ?? kGiftBoxIcon)}',
+            height: 120, fit: BoxFit.contain,
             errorBuilder: (a, b, c) => const SizedBox(height: 8)),
         const SizedBox(height: 12),
         if (msg.isNotEmpty)
