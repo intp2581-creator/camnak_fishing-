@@ -231,8 +231,9 @@
         +'<img src="assets/'+i.img+'" alt="'+i.n+'" loading="lazy"></div>'
         +'<div class="bd"><b>'+i.n+'</b><p>'+i.d+'</p>'
         +'<div class="pr">₩'+won(i.p)+'<small>VAT 포함</small></div>'
-        +'<button class="buy" data-detail="'+i.key+'" style="border:none;width:100%;'
-        +'font-family:inherit;cursor:pointer">자세히 보기</button>'
+        // 📄 팝업 대신 상품 상세 페이지로 — 아임웹과 같은 글이 그곳에 있다.
+        +'<a class="buy" href="product.html?item='+encodeURIComponent(i.key)+'" '
+        +'style="display:block;text-align:center">자세히 보기</a>'
         +((i.idx && !i.soon)
           ? '<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener" '
             +'style="background:#fff;color:var(--emerald);border:1px solid var(--emerald);margin-top:6px">구매하기</a>'

@@ -209,7 +209,8 @@
   function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-  var key  = new URLSearchParams(location.search).get('item') || '';
+  // 목록에서 다른 이름으로 와도 같은 상품으로 본다(catalog.js CKEY).
+  var key  = CKEY(new URLSearchParams(location.search).get('item') || '');
   var item = CATALOG[key];
 
   if(!item){

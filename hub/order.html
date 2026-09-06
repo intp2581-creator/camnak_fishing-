@@ -247,7 +247,7 @@
   }
 
   var q    = new URLSearchParams(location.search);
-  var key  = q.get('item') || '';
+  var key  = CKEY(q.get('item') || '');   // 목록의 옛 이름으로 와도 맞춰준다
   var qty  = Math.max(1, Math.min(10, parseInt(q.get('qty') || '1', 10) || 1));
   var item = CATALOG[key];
 

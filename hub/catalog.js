@@ -146,3 +146,12 @@ const LONG = {
 
 // 상자로 지급되는 상품 — '열어야' 쓰이기 시작하므로 환불 기준이 다르다.
 const IS_BOX = (k) => !!(CATALOG[k] && CATALOG[k].box);
+
+// 🔑 상품 키가 곳마다 다르다 — 게임스토어 목록(Firestore)은 pkg_growth,
+//    상세·결제는 growth_pack. 전환하는 날 "상품 정보를 찾을 수 없습니다" 가
+//    나지 않도록 여기서 이름을 맞춘다.
+const KEY_ALIAS = {
+  pkg_growth: 'growth_pack',
+  package_growth: 'growth_pack',
+};
+const CKEY = (k) => KEY_ALIAS[k] || String(k || '');
