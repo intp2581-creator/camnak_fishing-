@@ -1109,10 +1109,11 @@ Map<String, dynamic> makeWelcomeGiftBox() => makeGiftBox(
       items: getWelcomeSet(),
     );
 
-/// 🎁 신규 조사 환영 세트 — 튜토리얼(첫 붕어)을 마치면 지급한다.
-///   가입 즉시가 아니라 튜토리얼 완료 시점인 이유: 가입만 하고 안 들어오는 계정에는
-///   나가지 않게 하고, 첫 성취에 보상을 붙여 다음 낚시로 이어주기 위함.
-///   ⚠️ 두 번 주지 않도록 users/{uid}.welcomeSetGrantedAt 를 표식으로 쓴다.
+/// 🎁 신규 조사 환영 세트 — **가입할 때** 시작 아이템과 함께 상자로 들어간다.
+///   (getInitialStarterPack 안에서 makeWelcomeGiftBox() 로 담긴다 → ui_login.dart)
+///   ⚠️ 예전엔 튜토리얼 완료 시점이었다. 옛 설명이 남아 있어 홍보글에
+///      "튜토리얼 완료하면 지급"으로 잘못 나갈 뻔했다(2026-09-06).
+///   기존 유저 일괄 지급은 tools/grant_welcome_set.py 가 따로 맡는다.
 List<Map<String, dynamic>> getWelcomeSet() {
   if (!kWelcomeSetOn) return const [];
   // 📦 유료 성장패키지와 같은 구성으로 맞춘다(2026-09-06).
