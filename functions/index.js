@@ -842,7 +842,7 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
 //    Authorization: Bearer <FirebaseIdToken> 필요. 포인트/경험치 등 민감정보는 제외.
 exports.meApi = functions.https.onRequest(async (req, res) => {
   res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.set("Cache-Control", "no-store");
   if (req.method === "OPTIONS") return res.status(204).send("");
@@ -852,6 +852,24 @@ exports.meApi = functions.https.onRequest(async (req, res) => {
     let decoded;
     try { decoded = await admin.auth().verifyIdToken(m[1]); }
     catch (e) { return res.status(401).json({ ok: false, err: "invalid token" }); }
+    // 👤 [POST] 아임웹 회원정보(이름·연락처) 저장 — 결제 주문서에 자동으로 채우려고.
+    //    클라이언트가 users 문서에 직접 쓰지 않게 여기서만 받는다.
+    //    ⚠️ 빈 값으로 기존 값을 지우지 않는다(아임웹이 못 읽어 보낸 경우 대비).
+    if (req.method === "POST") {
+      const b = req.body || {};
+      const name = String(b.name || "").trim().slice(0, 40);
+      // 숫자와 하이픈만 남긴다 — 그 밖의 글자가 섞여 오면 저장하지 않는다.
+      const phone = String(b.phone || "").replace(/[^0-9-]/g, "").slice(0, 20);
+      const patch = {};
+      if (name) patch.buyerName = name;
+      if (phone) patch.buyerPhone = phone;
+      if (!Object.keys(patch).length) return res.json({ ok: true, saved: false });
+      patch.buyerInfoAt = admin.firestore.FieldValue.serverTimestamp();
+      await admin.firestore().collection("users").doc(decoded.uid)
+          .set(patch, { merge: true });
+      return res.json({ ok: true, saved: true });
+    }
+
     const doc = await admin.firestore().collection("users").doc(decoded.uid).get();
     if (!doc.exists) return res.json({ ok: true, registered: false, email: decoded.email || "" });
     const d = doc.data();
@@ -859,6 +877,9 @@ exports.meApi = functions.https.onRequest(async (req, res) => {
       ok: true, registered: true,
       email: decoded.email || "",
       nickname: d.nickname || "",
+      // 💳 결제 주문서에 자동으로 채울 값(아임웹 회원정보에서 받아둔 것)
+      buyerName: d.buyerName || "",
+      buyerPhone: d.buyerPhone || "",
       rank: d.rank || "초보",
       level: calcLevel(d.exp || 0),
       isGm: d.isGm === true,

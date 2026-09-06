@@ -38,6 +38,17 @@ function b64urlDecode(v) {
   } catch (e) { return ''; }
 }
 
+// 👤 아임웹이 같이 실어 보내는 이름·연락처(#n= #p=). 없으면 빈 값.
+//    결제 주문서에 자동으로 채우려고 받는다(2026-09-06).
+function readIncomingProfile() {
+  var h = (location.hash || '').replace(/^#/, '');
+  function pick(key) {
+    var m = h.match(new RegExp('(?:^|&)' + key + '=([^&]+)'));
+    return m ? b64urlDecode(m[1]) : '';
+  }
+  return { name: pick('n'), phone: pick('p') };
+}
+
 function readIncomingEmail() {
   // 1) 신규 방식: #k=<base64url>
   var h = (location.hash || '').replace(/^#/, '');
@@ -66,6 +77,7 @@ function authToast(msg) {
 
 async function autoLoginFromUrl() {
   var got = readIncomingEmail();
+  var prof = readIncomingProfile();      // 이름·연락처(있을 때만)
   var email = (got.email || '').trim();
   // 흔적은 무조건 지운다(성공/실패 무관) — 주소창·히스토리에 계정이 남지 않도록
   function scrub() {
@@ -94,11 +106,23 @@ async function autoLoginFromUrl() {
         }
       }
     }
+    // 👤 아임웹 회원정보를 계정에 저장 — 결제 주문서에서 쓴다.
+    //    실패해도 로그인은 그대로 진행한다(있으면 좋은 것이지 없으면 못 쓰는 게 아니다).
+    if (prof.name || prof.phone) {
+      try {
+        var tk = await auth.currentUser.getIdToken();
+        await fetch(ME_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tk },
+          body: JSON.stringify({ name: prof.name, phone: prof.phone }),
+        });
+      } catch (e2) { console.warn('회원정보 저장 실패:', e2); }
+    }
   } catch (e) {
     console.warn('자동 로그인 실패:', e.code || e);
     authToast('로그인에 실패했어요. 잠시 후 다시 시도해 주세요.');
   } finally {
-    scrub();
+    scrub();          // 주소창의 #k= #n= #p= 를 지운다
   }
 }
 

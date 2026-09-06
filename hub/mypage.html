@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>마이페이지 — 캠피싱 KREFT</title>
+  <link rel="canonical" href="https://kreft.co.kr/mypage.html">
+  <meta name="robots" content="noindex">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="캠피싱 KREFT">
+  <meta property="og:title" content="마이페이지 — 캠피싱 KREFT">
+  <meta property="og:description" content="내 정보와 구매내역, 선물함, 문의내역을 한곳에서 확인하세요.">
+  <meta property="og:url" content="https://kreft.co.kr/mypage.html">
+  <meta property="og:image" content="https://kreft.co.kr/assets/og-cover.jpg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="theme-color" content="#0b1a22">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="KREFT">
+<meta name="description" content="캠피싱 KREFT 마이페이지 — 내 정보 · 구매내역 · 선물함 · 문의내역">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="page.css">
+<style>
+  /* 🙋 위 — 조사 카드(닉네임·등급·레벨) */
+  .who{border-radius:18px;padding:24px 26px;margin-bottom:20px;
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+    background:linear-gradient(135deg,#14313d,#0e2430);color:#eaf4f8}
+  .who .av{width:56px;height:56px;border-radius:50%;flex:none;display:flex;
+    align-items:center;justify-content:center;font-size:27px;
+    background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18)}
+  .who .t b{display:block;font-size:20px;font-weight:900;line-height:1.4}
+  .who .t span{font-size:13.5px;color:#a9c6d0}
+  .who .lv{margin-left:auto;font-size:13px;color:#a9c6d0;text-align:right;line-height:1.8}
+  .who .lv b{color:#ffd23f;font-size:15px}
+
+  /* 📇 내 정보 */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:22px 24px;margin-bottom:20px}
+  .card h2{margin:0 0 4px;font-size:17px;font-weight:800}
+  .card .sub{margin:0 0 16px;font-size:13.5px;color:var(--ink-soft);line-height:1.75}
+
+  .frow{display:grid;grid-template-columns:96px 1fr auto;gap:12px;align-items:center;
+    padding:13px 0;border-bottom:1px solid var(--line)}
+  .frow:last-of-type{border-bottom:none}
+  .frow .k{font-size:13.5px;font-weight:700;color:var(--ink-soft)}
+  .frow .v{font-size:15px;font-weight:700;word-break:break-all}
+  .frow .v.none{color:#9fb6bf;font-weight:500}
+  .frow input{width:100%;height:42px;padding:0 13px;border:1px solid var(--line);
+    border-radius:10px;font-family:inherit;font-size:15px;font-weight:700}
+
+  .btn{display:inline-block;border:1px solid var(--line);background:#fff;color:var(--ink);
+    font-weight:700;font-size:14.5px;padding:10px 18px;border-radius:11px;cursor:pointer;
+    font-family:inherit;text-decoration:none;white-space:nowrap}
+  .btn:hover{border-color:var(--blue);color:var(--blue-ink)}
+  .btn.primary{background:var(--blue-ink);border-color:var(--blue-ink);color:#fff}
+  .btn.primary:hover{color:#fff;opacity:.92}
+  .btn:disabled{opacity:.5;cursor:default}
+
+  .msg{margin:14px 0 0;font-size:13.5px;font-weight:700;display:none}
+  .msg.ok{color:#1b8a5f;display:block}
+  .msg.err{color:#c0392b;display:block}
+
+  /* 🔗 바로가기 */
+  .links{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    margin-bottom:44px}
+  .link{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow-sm);padding:20px;text-decoration:none;color:inherit;
+    transition:.15s;display:block}
+  .link:hover{transform:translateY(-2px);border-color:var(--emerald)}
+  .link .ic{font-size:26px;line-height:1;margin-bottom:9px}
+  .link b{display:block;font-size:16px;font-weight:800;margin-bottom:3px}
+  .link span{font-size:13px;color:var(--ink-soft);line-height:1.65}
+
+  .empty{padding:56px 20px;text-align:center;color:#9fb6bf;line-height:1.9}
+  .empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+  .empty .btn{margin-top:14px}
+
+  .note{font-size:12.5px;color:var(--ink-soft);line-height:1.85;margin:0}
+  .note a{color:var(--emerald);font-weight:700}
+
+  @media(max-width:560px){
+    .frow{grid-template-columns:80px 1fr;gap:8px}
+    .frow .btnwrap{grid-column:1/3}
+    .who .lv{margin-left:0;text-align:left;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="logo" href="index.html"><img src="assets/logo-title.png" alt="캠피싱 KREFT"></a>
+    <nav>
+      <a href="notice.html">공지</a>
+      <a href="guide.html">게임가이드</a>
+      <a href="community.html">커뮤니티</a>
+      <a href="guild.html">길드홀</a>
+      <a href="store.html">게임스토어</a>
+      <a href="gift.html">선물함</a>
+      <a href="support.html">고객지원</a>
+    </nav>
+    <div class="right">
+      <a class="me" data-auth-in style="display:none" href="mypage.html" data-me-nick></a>
+      <a data-auth-in style="display:none" href="mypage.html">마이페이지</a>
+      <a data-auth-in style="display:none" data-do-logout href="#">로그아웃</a>
+      <a data-auth-out data-do-login href="#">로그인</a>
+      <a class="play" data-play href="#">🎮 지금 플레이</a>
+    </div>
+  </div>
+</header>
+
+<div class="phead"><div class="wrap">
+  <h1>🙋 마이페이지</h1>
+  <p>내 정보와 구매내역을 한곳에서 확인하세요</p>
+</div></div>
+
+<div class="wrap">
+  <div id="body"><div class="empty">불러오는 중…</div></div>
+</div>
+
+<footer><div class="wrap">
+  <div style="color:#fff;font-weight:800;margin-bottom:8px">캠피싱 KREFT</div>
+  <a href="index.html">홈으로</a> · <a href="about.html">회사소개</a> · <a data-play href="#">지금 플레이</a> ·
+  <a href="policy.html#terms">이용약관</a> ·
+  <a href="policy.html#privacy">개인정보처리방침</a> ·
+  <a href="orders.html">구매내역</a><br>
+  <b style="color:#cfe3ea">(주)안테모사</b> | 대표이사 이명선 | 사업자등록번호 499-87-02378<br>
+  통신판매업신고 제2026-충북청주-1745호 | 게임물제작업등록번호 제2026-000020호<br>
+  (28166) 충북 청주시 흥덕구 오송읍 오송가락로 235, 상가동 203호<br>
+  문의 intoas@naver.com | 02-487-2581 (평일 09:00~18:00)<br>
+  <span style="opacity:.7">ⓒ 2026 CamFishing KREFT. All rights reserved.</span>
+</div></footer>
+
+<script type="module" src="auth.js"></script>
+<script>
+(function(){
+  var ME = 'https://us-central1-camnak-fishing.cloudfunctions.net/meApi';
+  document.querySelectorAll('[data-play]').forEach(function(a){ a.href = 'play.html'; });
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+  // 010-1234-5678 꼴로 보기 좋게. 형식이 다르면 그대로 둔다.
+  function prettyPhone(p){
+    var d = String(p||'').replace(/[^0-9]/g,'');
+    if(d.length === 11) return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7);
+    if(d.length === 10) return d.slice(0,3)+'-'+d.slice(3,6)+'-'+d.slice(6);
+    return String(p||'');
+  }
+
+  function showLogin(){
+    $('body').innerHTML = '<div class="empty"><b>로그인이 필요합니다</b>'
+      + '캠피싱 회원으로 로그인하시면 내 정보를 보실 수 있습니다.'
+      + '<div><a class="btn primary" href="#" data-do-login>로그인</a></div></div>';
+  }
+
+  var LINKS = ''
+    + '<div class="links">'
+    +   '<a class="link" href="orders.html"><div class="ic">🧾</div>'
+    +     '<b>구매내역</b><span>결제하신 내역과 처리 상태</span></a>'
+    +   '<a class="link" href="gift.html"><div class="ic">🎁</div>'
+    +     '<b>선물함</b><span>받을 선물이 있는지 확인</span></a>'
+    +   '<a class="link" href="support.html"><div class="ic">💬</div>'
+    +     '<b>1:1 문의</b><span>문의 남기기 · 답변 확인</span></a>'
+    + '</div>';
+
+  function paint(me){
+    var nick  = me.nickname || '';
+    var name  = me.buyerName || '';
+    var phone = me.buyerPhone || '';
+
+    $('body').innerHTML = ''
+      + '<div class="who">'
+      +   '<div class="av">🎣</div>'
+      +   '<div class="t"><b>' + esc(nick || '조사님') + '</b>'
+      +     '<span>' + esc(me.email || '') + '</span></div>'
+      +   '<div class="lv">' + esc(me.rank || '초보') + ' · <b>Lv.' + (me.level||1) + '</b></div>'
+      + '</div>'
+
+      + '<div class="card">'
+      +   '<h2>내 정보</h2>'
+      +   '<p class="sub">결제하실 때 주문자 정보로 쓰입니다. '
+      +     '캠피싱 쇼핑몰 회원정보에서 가져온 값이며, 이곳에서 고치셔도 됩니다.</p>'
+
+      +   '<div class="frow"><div class="k">닉네임</div>'
+      +     '<div class="v">' + (nick ? esc(nick) : '<span class="none">게임에서 정합니다</span>') + '</div><div></div></div>'
+
+      +   '<div class="frow"><div class="k">이메일</div>'
+      +     '<div class="v">' + esc(me.email || '') + '</div><div></div></div>'
+
+      +   '<div class="frow"><div class="k">이름</div>'
+      +     '<div class="v" id="vName">' + (name ? esc(name)
+             : '<span class="none">아직 없습니다</span>') + '</div>'
+      +     '<div class="btnwrap"></div></div>'
+
+      +   '<div class="frow"><div class="k">연락처</div>'
+      +     '<div class="v" id="vPhone">' + (phone ? esc(prettyPhone(phone))
+             : '<span class="none">아직 없습니다</span>') + '</div>'
+      +     '<div class="btnwrap"><button class="btn" id="editBtn">수정</button></div></div>'
+
+      +   '<p class="msg" id="msg"></p>'
+      + '</div>'
+
+      + LINKS
+
+      + '<div class="card" style="margin-bottom:44px">'
+      +   '<h2>개인정보 안내</h2>'
+      +   '<p class="note">'
+      +     '이름과 연락처는 <b>결제 진행과 주문 확인</b>에만 쓰입니다. '
+      +     '보관·파기 기준은 <a href="policy.html#privacy">개인정보처리방침</a>을 확인해 주세요.<br>'
+      +     '계정 삭제나 개인정보 열람·정정·삭제를 원하시면 '
+      +     '<a href="support.html">1:1 문의</a>로 알려주시면 처리해 드립니다.'
+      +   '</p>'
+      + '</div>';
+
+    $('editBtn').onclick = function(){ edit(name, phone); };
+  }
+
+  // ✏️ 이름·연락처를 입력칸으로 바꾼다.
+  function edit(name, phone){
+    $('vName').innerHTML  = '<input id="iName" maxlength="40" placeholder="이름" value="'
+                            + esc(name) + '">';
+    $('vPhone').innerHTML = '<input id="iPhone" maxlength="20" inputmode="numeric" '
+                            + 'placeholder="010-1234-5678" value="' + esc(prettyPhone(phone)) + '">';
+    var wrap = $('editBtn').parentNode;
+    wrap.innerHTML = '<button class="btn primary" id="saveBtn">저장</button>';
+    $('saveBtn').onclick = save;
+  }
+
+  async function save(){
+    var b = $('saveBtn'), m = $('msg');
+    var name  = ($('iName').value || '').trim();
+    var phone = ($('iPhone').value || '').replace(/[^0-9-]/g, '');
+    if(!name){ m.className='msg err'; m.textContent='이름을 입력해 주세요.'; return; }
+    if(phone.replace(/[^0-9]/g,'').length < 10){
+      m.className='msg err'; m.textContent='연락처를 정확히 입력해 주세요.'; return; }
+
+    b.disabled = true; b.textContent = '저장 중…';
+    try{
+      var u = window.__auth && window.__auth.currentUser;
+      var t = await u.getIdToken();
+      var r = await fetch(ME, { method:'POST',
+        headers:{'Content-Type':'application/json', Authorization:'Bearer ' + t},
+        body: JSON.stringify({ name: name, phone: phone }) });
+      var j = await r.json();
+      if(!j.ok) throw new Error(j.err || '저장하지 못했습니다');
+      m.className='msg ok'; m.textContent='저장했습니다.';
+      load();               // 다시 그려서 저장된 값으로 되돌린다
+    }catch(e){
+      m.className='msg err'; m.textContent = e.message;
+      b.disabled = false; b.textContent = '저장';
+    }
+  }
+
+  async function load(){
+    var u = window.__auth && window.__auth.currentUser;
+    if(!u){ showLogin(); return; }
+    try{
+      var t = await u.getIdToken();
+      var r = await fetch(ME, { headers:{ Authorization:'Bearer ' + t } });
+      var j = await r.json();
+      if(!j.ok) throw new Error(j.err || '불러오지 못했습니다');
+      if(!j.registered){
+        $('body').innerHTML = '<div class="empty"><b>아직 게임 계정이 없습니다</b>'
+          + '게임에 한 번 접속해 닉네임을 정하시면 마이페이지를 쓰실 수 있습니다.'
+          + '<div><a class="btn primary" data-play href="play.html">🎮 지금 플레이</a></div></div>';
+        return;
+      }
+      paint(j);
+    }catch(e){
+      $('body').innerHTML = '<div class="empty"><b>불러오지 못했어요</b>' + esc(e.message) + '</div>';
+    }
+  }
+
+  var tries = 0;
+  (function wait(){
+    if(window.__auth){ window.__auth.onAuthStateChanged(function(){ load(); }); return; }
+    if(++tries > 60){ showLogin(); return; }
+    setTimeout(wait, 100);
+  })();
+})();
+</script>
+</body>
+</html>
