@@ -76,11 +76,20 @@ async function requireUser(req) {
   return {uid: decoded.uid, email: (decoded.email || "").toLowerCase()};
 }
 
-// 🚧 테스트 채널 동안은 GM 계정만 결제 가능
+// 🚧 테스트 채널 동안은 '운영자' 또는 '결제 허용' 표시가 있는 계정만 결제 가능.
+//
+//   canPay 를 따로 둔 이유: PG 심사자에게 계정을 줘야 하는데,
+//   isGm 을 주면 관리자 화면(공지 작성·환불·주문 조회)까지 열린다.
+//   canPay 만 켜면 결제창까지는 가되 관리자 화면은 못 들어간다.
+//
+//   ⚠️ 테스트 채널이라 결제해도 돈이 안 나간다 → 이 표시를 켠 계정은
+//      공짜로 아이템을 가져갈 수 있다. 심사가 끝나면 반드시 끈다.
+//      (tools/set_canpay.py 로 켜고 끈다)
 async function requirePayable(user) {
   if (!TEST_MODE_GM_ONLY) return;
   const d = await admin.firestore().collection("users").doc(user.uid).get();
-  if (!d.exists || d.data().isGm !== true) {
+  const v = d.exists ? d.data() : {};
+  if (v.isGm !== true && v.canPay !== true) {
     throw new Error("결제 준비 중입니다. 잠시 후 다시 이용해 주세요.");
   }
 }
