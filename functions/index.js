@@ -742,6 +742,8 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
         if (d.published === false) return;
         items.push({
           id: doc.id, type: d.type || "notice", title: d.title || "",
+          // 🖼️ 목록을 카드로 그리려면 대표 이미지와 한 줄 요약이 필요하다(2026-09-06).
+          img: d.img || "", summary: d.summary || "",
           date: d.date || (d.createdAt ? d.createdAt.toDate().toISOString().substring(0, 10) : ""),
           pinned: d.pinned === true, views: d.views || 0,
           createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
@@ -788,7 +790,8 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
         const d = doc.data();
         items.push({ id: doc.id, type: d.type || "notice", title: d.title || "",
           date: d.date || "", pinned: d.pinned === true, published: d.published !== false,
-          views: d.views || 0, body: d.body || "" });
+          views: d.views || 0, body: d.body || "",
+          img: d.img || "", summary: d.summary || "" });
       });
       return res.json({ ok: true, items });
     }
@@ -798,15 +801,18 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
     if (!title) return res.status(400).json({ ok: false, err: "제목을 입력해 주세요" });
     if (title.length > 200) return res.status(400).json({ ok: false, err: "제목이 너무 깁니다" });
     if (body.length > 30000) return res.status(400).json({ ok: false, err: "본문이 너무 깁니다" });
-    const type = ["notice", "update", "event"].includes(String(b.type)) ? String(b.type) : "notice";
+    const type = ["notice", "update", "event", "devlog"].includes(String(b.type)) ? String(b.type) : "notice";
 
     // 🖼️ 대표 이미지 한 장(선택). 본문은 esc()로 이스케이프되어 태그가 안 먹으므로
     //    이미지는 별도 필드로 받아 공지 상단에 띄운다. 경로는 hub/assets 파일명이나 https URL만.
     const rawImg = String(b.img || "").trim().slice(0, 300);
     const img = /^(https:\/\/[^\s"'<>]+|[\w.-]+\.(?:jpg|jpeg|png|webp|gif))$/i.test(rawImg) ? rawImg : "";
 
+    // 📝 목록 카드에 두 줄로 붙는 소개. 없으면 본문 앞머리를 쓴다.
+    const summary = String(b.summary || "").trim().slice(0, 300);
+
     const payload = {
-      type, title, body, img,
+      type, title, body, img, summary,
       pinned: b.pinned === true,
       published: b.published !== false,
       date: String(b.date || "").match(/^\d{4}[.-]\d{2}[.-]\d{2}$/) ? String(b.date).replace(/-/g, ".") : getTodayKST().replace(/-/g, "."),

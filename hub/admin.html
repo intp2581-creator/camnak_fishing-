@@ -144,6 +144,10 @@
       </div>
       <label>제목</label>
       <input type="text" id="f-title" placeholder="예) 기본 능력치 상향 안내">
+      <label>대표 이미지 <span class="muted">(목록 카드에 뜨는 그림 — hub/assets/ 안 파일명 또는 https 주소)</span></label>
+      <input type="text" id="f-img" placeholder="예) devlog/thumb_s2.jpg">
+      <label>한 줄 소개 <span class="muted">(목록 카드에 두 줄까지 — 비우면 본문 앞머리를 씁니다)</span></label>
+      <input type="text" id="f-summary" placeholder="예) 상상 속 판타지 낚시터로 향하는 차원의 문이 열립니다.">
       <label>내용</label>
       <textarea id="f-body" placeholder="공지 내용을 입력하세요. 줄바꿈은 그대로 표시됩니다."></textarea>
       <div class="chk"><input type="checkbox" id="f-pinned"><label for="f-pinned" style="margin:0">📌 상단 고정</label></div>
@@ -229,12 +233,14 @@ function startEdit(id){
   $('formTitle').textContent='글 수정 중';
   $('f-type').value=n.type; $('f-date').value=n.date||''; $('f-title').value=n.title||'';
   $('f-body').value=n.body||''; $('f-pinned').checked=!!n.pinned; $('f-published').checked=!!n.published;
+  $('f-img').value=n.img||''; $('f-summary').value=n.summary||'';
   $('cancelBtn').classList.remove('hide');
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function resetForm(){
   editId=null; $('formTitle').textContent='새 글 작성';
   $('f-title').value=''; $('f-body').value=''; $('f-date').value='';
+  $('f-img').value=''; $('f-summary').value='';
   $('f-pinned').checked=false; $('f-published').checked=true; $('f-type').value='notice';
   $('cancelBtn').classList.add('hide');
 }
@@ -254,6 +260,7 @@ $('saveBtn').onclick=async()=>{
   $('saveBtn').disabled=true;
   const j=await api({action:'save',id:editId||undefined,type:$('f-type').value,title,
     body:$('f-body').value,date:$('f-date').value.trim(),
+    img:$('f-img').value.trim(),summary:$('f-summary').value.trim(),
     pinned:$('f-pinned').checked,published:$('f-published').checked});
   $('saveBtn').disabled=false;
   if(j.ok){msg($('saveMsg'),editId?'수정했습니다 ✅':'등록했습니다 ✅',true);resetForm();loadList();}
