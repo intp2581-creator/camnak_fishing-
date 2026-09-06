@@ -4960,8 +4960,11 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // 🎒 인벤토리 (읽기 전용 보기)
+  //   아이콘이 비어 있으면 빈 문자열을 돌려준다 → 부르는 쪽에서 상자 그림으로 그린다.
+  //   ⚠️ 예전에는 기본 민물대(rod_fw_cf20.png)를 돌려줬다. 그래서 아이콘 없이 지급된
+  //      아이템이 전부 '낚싯대'로 보였다 (2026-09-06 빨강테리 아레나 입장권 제보).
   String _itemIconPath(String icon) {
-    if (icon.isEmpty) return 'assets/items/rod_fw_cf20.png';
+    if (icon.isEmpty) return '';
     // 🐟 물고기 수집 이미지: 어떤 폴더로 저장됐든 실제 위치로 보정
     final file = icon.split('/').last;
     if (file.startsWith('fish_fw')) return 'assets/fish_fw/$file';
@@ -5002,10 +5005,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 Center(
                   child: Padding(
                     padding: const EdgeInsets.all(8),
-                    child: Image.asset(icon,
-                        fit: BoxFit.contain,
-                        errorBuilder: (a, b, c) =>
-                            const Icon(Icons.inventory_2, color: Colors.white24, size: 30)),
+                    child: icon.isEmpty
+                        ? const Icon(Icons.inventory_2, color: Colors.white24, size: 30)
+                        : Image.asset(icon,
+                            fit: BoxFit.contain,
+                            errorBuilder: (a, b, c) =>
+                                const Icon(Icons.inventory_2, color: Colors.white24, size: 30)),
                   ),
                 ),
                 if (equipped)
@@ -5056,13 +5061,14 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: hasItem ? _kGold : Colors.white24, width: 1.5),
         ),
-        child: hasItem
+        child: iconPath.isNotEmpty
             ? Padding(
                 padding: const EdgeInsets.all(4),
                 child: Image.asset(iconPath,
                     fit: BoxFit.contain,
                     errorBuilder: (a, b, c) => Icon(fallback, color: _kGold, size: 20)))
-            : Icon(fallback, color: Colors.white30, size: 22),
+            : Icon(fallback,
+                color: hasItem ? _kGold : Colors.white30, size: hasItem ? 20 : 22),
       ),
       const SizedBox(height: 3),
       Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w800)),

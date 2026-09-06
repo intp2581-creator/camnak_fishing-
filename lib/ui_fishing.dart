@@ -4652,7 +4652,9 @@ Positioned(
                                 Column(
                                   mainAxisAlignment: MainAxisAlignment.center, 
                                   children: [ 
-                                    _getIconImagePath(itemToShow) != null
+                                    // 🎒 아이콘이 없는 아이템은 낚싯대가 아니라 상자 그림으로.
+                                    //    (_getIconImagePath 는 아이콘이 없으면 기본 낚싯대를 돌려준다)
+                                    (itemToShow['icon']?.toString() ?? '').isNotEmpty
                                       ? ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.asset(_getIconImagePath(itemToShow)!, width: 75, height: 75, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.inventory_2, color: Colors.white30, size: 40)))
                                       : const Icon(Icons.inventory_2, color: Colors.white54, size: 40),
                                     const SizedBox(height: 6), 
