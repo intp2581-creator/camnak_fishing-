@@ -158,6 +158,9 @@
       </div>
     </div>
 
+    <!-- 📢 공지 탭 — 글쓰기 폼과 목록을 함께 감싼다.
+         (폼이 밖에 있어 상품·주문 탭에서도 보였다) -->
+    <div id="noticeBox">
     <div class="card">
       <div style="font-weight:800;font-size:16px" id="formTitle">새 글 작성</div>
       <div class="rowf">
@@ -191,7 +194,6 @@
       </div>
     </div>
 
-    <div id="noticeBox">
     <div class="card">
       <div style="font-weight:800;font-size:16px;margin-bottom:6px">작성된 글</div>
       <div id="listBox"><p class="muted">불러오는 중…</p></div>
@@ -322,7 +324,9 @@ const CATN={ticket:'이용권',skin:'스킨',badge:'뱃지·휘장',package:'패
 let stEditId=null;
 
 async function sapi(body,qs){
-  const t=await window.__auth.currentUser.getIdToken();
+  // ⚠️ 관리자 화면은 auth.js 를 쓰지 않는다. 제 로그인(auth)을 써야 한다.
+  //    window.__auth 를 찾다가 '불러오는 중…'에서 멈춰 있었다(2026-09-06 고침).
+  const t=await auth.currentUser.getIdToken();
   const opt = body
     ? {method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+t},body:JSON.stringify(body)}
     : {headers:{'Authorization':'Bearer '+t}};
