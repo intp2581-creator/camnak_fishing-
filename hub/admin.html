@@ -311,7 +311,8 @@ onAuthStateChanged(auth,async u=>{
   $('who').textContent=u.email;
   loadList();
 });
-function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+// ⚠️ esc 가 두 번 선언돼 스크립트가 통째로 죽어 있었다(2026-09-06 발견).
+//    위쪽 const esc 가 작은따옴표까지 처리하므로 그것만 남긴다.
 
 /* ═══════════════ 🛒 상품 관리 ═══════════════
    상품이 store.html 안에 배열로 박혀 있어 하나 추가할 때마다 배포해야 했다.

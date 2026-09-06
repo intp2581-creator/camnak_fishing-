@@ -1,0 +1,50 @@
+{
+  "indexes": [
+    {
+      "//": "🧾 구매내역(myOrders) — '내 주문'을 '최신순'으로. 두 조건을 같이 쓰면 색인이 필요하다.",
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "uid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "//": "🔎 관리자 주문 찾기(adminOrders) — 이메일로 걸러 최신순.",
+      "collectionGroup": "orders",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "email",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "//": "🏆 최대어 랭킹(배스) — 예전부터 콘솔에 있던 색인. 파일에 없으면 나중에 지워질 수 있어 적어둔다.",
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "maxCatch.`배스`.size",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "maxCatch.`배스`.time",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
