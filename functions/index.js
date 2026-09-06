@@ -742,8 +742,12 @@ exports.noticesApi = functions.https.onRequest(async (req, res) => {
         if (d.published === false) return;
         items.push({
           id: doc.id, type: d.type || "notice", title: d.title || "",
-          // 🖼️ 목록을 카드로 그리려면 대표 이미지와 한 줄 요약이 필요하다(2026-09-06).
-          img: d.img || "", summary: d.summary || "",
+          // 🖼️ 목록을 카드로 그리려면 대표 이미지와 두 줄 소개가 필요하다(2026-09-06).
+          //    소개를 안 적은 옛 글은 본문 앞머리를 잘라 보낸다(본문 전체는 안 보낸다 — 목록이 무거워진다).
+          img: d.img || "",
+          summary: d.summary || String(d.body || "")
+              .replace(/\[[a-z]+:[^\]]*\]/g, "")
+              .replace(/\s+/g, " ").trim().slice(0, 140),
           date: d.date || (d.createdAt ? d.createdAt.toDate().toISOString().substring(0, 10) : ""),
           pinned: d.pinned === true, views: d.views || 0,
           createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
