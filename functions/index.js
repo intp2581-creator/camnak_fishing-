@@ -897,6 +897,8 @@ exports.communityApi = require("./community").communityApi;
 exports.payPrepare = require("./payment").payPrepare;
 exports.payVerify  = require("./payment").payVerify;
 exports.myOrders   = require("./payment").myOrders;
+// 🔔 포트원이 결제 결과를 서버로 직접 알려주는 자리(유저 창이 닫혀도 지급된다)
+exports.payWebhook = require("./payment").payWebhook;
 
 // 🎧 고객지원 1:1 문의 (support.js)
 exports.supportApi = require("./support").supportApi;

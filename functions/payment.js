@@ -10,6 +10,7 @@
 
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 const PORTONE_API = "https://api.portone.io";
 const STORE_ID = "store-e9532395-b849-4a65-9ef8-957c94000051";
@@ -151,48 +152,170 @@ exports.payVerify = onRequest({region: "us-central1", cors: true}, async (req, r
     const orderId = String((req.body || {}).orderId || "");
     if (!orderId) return res.status(400).json({ok: false, err: "주문번호 없음"});
 
-    const ref = db.collection("orders").doc(orderId);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ok: false, err: "주문을 찾을 수 없습니다"});
-    const order = snap.data();
-    if (order.uid !== user.uid) return res.status(403).json({ok: false, err: "본인 주문이 아닙니다"});
-    if (order.status === "paid") return res.json({ok: true, already: true}); // 멱등
-
-    // 🔎 포트원에서 실제 결제 내역 조회
-    const r = await fetch(PORTONE_API + "/payments/" + encodeURIComponent(orderId),
-        {headers: portoneHeaders()});
-    if (!r.ok) {
-      await ref.update({status: "failed", note: "조회실패 " + r.status});
-      return res.status(400).json({ok: false, err: "결제 조회 실패"});
-    }
-    const pay = await r.json();
-    const paidAmount = ((pay.amount || {}).total) || 0;
-    const paidStatus = pay.status;
-
-    // ⭐ 금액·상태 대조 — 하나라도 어긋나면 지급하지 않고 즉시 취소
-    if (paidStatus !== "PAID" || paidAmount !== order.amount) {
-      await ref.update({status: "failed", paidAmount, paidStatus,
-        note: "금액/상태 불일치 (기대 " + order.amount + ")"});
-      try {
-        await fetch(PORTONE_API + "/payments/" + encodeURIComponent(orderId) + "/cancel",
-            {method: "POST", headers: portoneHeaders(),
-              body: JSON.stringify({reason: "금액 불일치 - 자동 취소"})});
-      } catch (_) {}
-      return res.status(400).json({ok: false, err: "결제 금액이 일치하지 않아 취소되었습니다"});
-    }
-
-    // ✅ 검증 통과 → 지급 (트랜잭션으로 중복 지급 차단)
-    const granted = await grantItem(db, order, orderId);
-    await ref.update({
-      status: "paid", paidAmount, paidStatus,
-      pgProvider: (pay.channel || {}).pgProvider || "",
-      method: ((pay.method || {}).type) || "",
-      granted, grantedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    return res.json({ok: true, itemName: order.itemName, qty: order.qty});
+    const out = await settleOrder(db, orderId, {uid: user.uid});
+    if (!out.ok) return res.status(out.code || 400).json({ok: false, err: out.err});
+    return res.json(out.already
+      ? {ok: true, already: true}
+      : {ok: true, itemName: out.itemName, qty: out.qty});
   } catch (e) {
     return res.status(500).json({ok: false, err: String(e.message || e)});
   }
+});
+
+// ═══════════════════════════════════════════════════════════
+// 🧮 [공용] 주문 하나를 검증하고 지급까지 끝낸다.
+//    payVerify(브라우저)와 payWebhook(포트원) 둘 다 이것을 쓴다 —
+//    두 벌로 두면 언젠가 어긋나고, 어긋나면 돈이 안 맞는다.
+//
+//    opts.uid 를 주면 '본인 주문인지'까지 본다(브라우저 호출).
+//    웹훅은 포트원이 부르는 것이라 uid 가 없다 — 서명으로 이미 신원을 확인했다.
+// ═══════════════════════════════════════════════════════════
+async function settleOrder(db, orderId, opts) {
+  const o = opts || {};
+  const ref = db.collection("orders").doc(orderId);
+  const snap = await ref.get();
+  if (!snap.exists) return {ok: false, code: 404, err: "주문을 찾을 수 없습니다"};
+
+  const order = snap.data();
+  if (o.uid && order.uid !== o.uid) {
+    return {ok: false, code: 403, err: "본인 주문이 아닙니다"};
+  }
+  // 이미 지급했으면 다시 하지 않는다. 웹훅과 브라우저가 동시에 와도 한 번만 나간다.
+  if (order.status === "paid") return {ok: true, already: true};
+
+  // 🔎 포트원에서 '실제 결제된 내역'을 다시 조회한다. 화면이 하는 말은 믿지 않는다.
+  const r = await fetch(PORTONE_API + "/payments/" + encodeURIComponent(orderId),
+      {headers: portoneHeaders()});
+  if (!r.ok) {
+    await ref.update({status: "failed", note: "조회실패 " + r.status});
+    return {ok: false, code: 400, err: "결제 조회 실패"};
+  }
+  const pay = await r.json();
+  const paidAmount = ((pay.amount || {}).total) || 0;
+  const paidStatus = pay.status;
+
+  // ⭐ 금액·상태가 하나라도 어긋나면 지급하지 않고 즉시 취소한다.
+  if (paidStatus !== "PAID" || paidAmount !== order.amount) {
+    await ref.update({status: "failed", paidAmount, paidStatus,
+      note: "금액/상태 불일치 (기대 " + order.amount + ")"});
+    try {
+      await fetch(PORTONE_API + "/payments/" + encodeURIComponent(orderId) + "/cancel",
+          {method: "POST", headers: portoneHeaders(),
+            body: JSON.stringify({reason: "금액 불일치 - 자동 취소"})});
+    } catch (_) {}
+    return {ok: false, code: 400, err: "결제 금액이 일치하지 않아 취소되었습니다"};
+  }
+
+  const granted = await grantItem(db, order, orderId);
+  await ref.update({
+    status: "paid", paidAmount, paidStatus,
+    pgProvider: (pay.channel || {}).pgProvider || "",
+    method: ((pay.method || {}).type) || "",
+    granted, grantedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return {ok: true, itemName: order.itemName, qty: order.qty};
+}
+
+// ═══════════════════════════════════════════════════════════
+// 🔔 [결제 웹훅] 포트원이 결제 결과를 서버로 직접 알려준다.
+//
+//    왜 필요한가: 지금은 브라우저가 payVerify 를 불러야 지급된다.
+//    결제 직후 창을 닫거나 인터넷이 끊기면 '돈은 나갔는데 아이템이 없는' 상태가 된다.
+//    웹훅은 그 구멍을 막는다 — 유저가 무엇을 하든 서버가 결과를 받는다.
+//
+//    ⚠️ 아무나 부를 수 있는 주소이므로 반드시 '서명'을 확인한다.
+//       포트원 콘솔 → 결제연동 → 웹훅에서 주소를 등록하고,
+//       거기서 준 시크릿을 functions/.env 의 PORTONE_WEBHOOK_SECRET 에 넣는다.
+// ═══════════════════════════════════════════════════════════
+
+// 📝 웹훅이 온 기록. 문제가 생겼을 때 '왔는데 처리를 못 한 건지'를 봐야 한다.
+async function logHook(db, id, data) {
+  try {
+    await db.collection("webhook_logs").doc(id || String(Date.now())).set(
+        Object.assign({at: admin.firestore.FieldValue.serverTimestamp()}, data),
+        {merge: true});
+  } catch (_) {}
+}
+
+// 🔐 서명 확인 — 포트원은 Standard Webhooks 규격을 쓴다.
+//    서명 대상은 "{webhook-id}.{webhook-timestamp}.{본문}" 이고,
+//    시크릿은 'whsec_' 뒤가 base64 다.
+function verifyHookSignature(req, rawBody) {
+  const secretRaw = process.env.PORTONE_WEBHOOK_SECRET || "";
+  if (!secretRaw) return {ok: false, why: "PORTONE_WEBHOOK_SECRET 미설정"};
+
+  const id = req.get("webhook-id") || "";
+  const ts = req.get("webhook-timestamp") || "";
+  const sigHeader = req.get("webhook-signature") || "";
+  if (!id || !ts || !sigHeader) return {ok: false, why: "서명 헤더 없음"};
+
+  // ⏱️ 너무 오래된 요청은 받지 않는다(가로채 다시 보내는 것을 막는다).
+  const age = Math.abs(Date.now() / 1000 - Number(ts));
+  if (!Number.isFinite(age) || age > 300) return {ok: false, why: "시각이 너무 벌어짐"};
+
+  const key = Buffer.from(secretRaw.replace(/^whsec_/, ""), "base64");
+  const expected = crypto.createHmac("sha256", key)
+      .update(id + "." + ts + "." + rawBody).digest("base64");
+
+  // 헤더에 여러 개가 들어올 수 있다: "v1,xxx v1,yyy"
+  const given = sigHeader.split(" ")
+      .map((v) => v.includes(",") ? v.split(",")[1] : v)
+      .filter(Boolean);
+  const eb = Buffer.from(expected);
+  const hit = given.some((g) => {
+    const gb = Buffer.from(g);
+    return gb.length === eb.length && crypto.timingSafeEqual(gb, eb);
+  });
+  return hit ? {ok: true, id} : {ok: false, why: "서명 불일치"};
+}
+
+exports.payWebhook = onRequest({region: "us-central1"}, async (req, res) => {
+  if (req.method !== "POST") return res.status(405).send("method");
+  const db = admin.firestore();
+
+  // rawBody 로 서명을 확인한다 — JSON 으로 다시 만들면 글자가 달라져 서명이 안 맞는다.
+  const raw = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body || {});
+  const v = verifyHookSignature(req, raw);
+  if (!v.ok) {
+    console.error("[payWebhook] 서명 실패:", v.why);
+    await logHook(db, req.get("webhook-id"), {ok: false, why: v.why, raw: raw.slice(0, 500)});
+    return res.status(401).send("bad signature");
+  }
+
+  let body = {};
+  try { body = JSON.parse(raw); } catch (_) {}
+  const type = String(body.type || "");
+  const orderId = String(((body.data || {}).paymentId) || "");
+
+  // ⚠️ 포트원은 200 을 못 받으면 계속 재시도한다.
+  //    우리가 처리 못 하는 종류라도 200 으로 받아준다(재시도가 쌓이면 더 나쁘다).
+  if (!orderId) {
+    await logHook(db, v.id, {ok: true, type, note: "paymentId 없음"});
+    return res.status(200).send("ok");
+  }
+
+  try {
+    if (type === "Transaction.Paid") {
+      const out = await settleOrder(db, orderId);
+      await logHook(db, v.id, {ok: true, type, orderId,
+        result: out.already ? "이미 지급됨" : (out.ok ? "지급" : ("실패: " + out.err))});
+    } else if (type === "Transaction.Cancelled" || type === "Transaction.PartialCancelled") {
+      // 환불·취소 — 아이템 회수는 사람이 판단해야 하므로 여기서는 '기록만' 한다.
+      await db.collection("orders").doc(orderId).set({
+        status: type === "Transaction.Cancelled" ? "canceled" : "partial_canceled",
+        canceledAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      await logHook(db, v.id, {ok: true, type, orderId, result: "취소 기록"});
+    } else {
+      await logHook(db, v.id, {ok: true, type, orderId, result: "처리 대상 아님"});
+    }
+  } catch (e) {
+    console.error("[payWebhook]", e);
+    await logHook(db, v.id, {ok: false, type, orderId, why: String(e.message || e)});
+    // 우리 쪽 일시 오류이므로 재시도를 받는다.
+    return res.status(500).send("error");
+  }
+  return res.status(200).send("ok");
 });
 
 // 🎁 인벤토리 지급 — 서버만 수행. STACK은 수량 누적, ONCE는 1개.
