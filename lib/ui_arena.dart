@@ -322,7 +322,7 @@ class _ArenaScreenState extends State<ArenaScreen> {
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 8.0),
                           child: Text(
-                            '[${data['type'] ?? '민물'}] ${data['winCondition'] ?? '마릿수전'} | 참가비: ${data['entryFee'] ?? 1000}P | 🏆 누구나 참가\n모집: ${data['currentPlayers'] ?? 1}/${data['maxPlayers'] ?? 5}명 | 시간: 10분 | 개설자: $hostName',
+                            '[${data['type'] ?? '민물'}] ${data['winCondition'] ?? '마릿수전'} | 참가비: ${data['entryFee'] ?? 1000} KREFT | 🏆 누구나 참가\n모집: ${data['currentPlayers'] ?? 1}/${data['maxPlayers'] ?? 5}명 | 시간: 10분 | 개설자: $hostName',
                             style: const TextStyle(color: Colors.grey, height: 1.4, fontSize: 13),
                           ),
                         ),

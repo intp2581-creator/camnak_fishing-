@@ -704,7 +704,7 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: _kGold.withOpacity(0.4))),
-              child: Text('🎁 보상  +${rExp}EXP · +${rPt}P$boxTxt',
+              child: Text('🎁 보상  +${rExp}EXP · +${rPt} KREFT$boxTxt',
                   style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
             ),
             // 🐲 다음 존 안내 — 길드홀로 돌아가 다시 레디 후 도전

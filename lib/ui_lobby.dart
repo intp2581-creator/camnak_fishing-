@@ -122,7 +122,7 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
          "🏆 오늘의 일일 퀘스트!\n"
          "🐟 ${mission['fish']} ${mission['count']}마리 잡기\n"
          "🎣 어느 낚시터든 OK!\n"
-         "✅ 오늘 안에 완료하면 500K 지급!";
+         "✅ 오늘 안에 완료하면 500 KREFT 지급!";
 }
   
   // 💰 매일 첫 접속 500P 지급 & 날짜 체크 로직
@@ -1756,7 +1756,7 @@ class _StoreScreenState extends State<StoreScreen> {
                       style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold)),
                 )
               else if ((item['type'] ?? '') == 'FISH')
-                Text('보유 수량: $qty마리  (마리당 ${fishSellPrice(itemName)}P)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
+                Text('보유 수량: $qty마리  (마리당 ${fishSellPrice(itemName)} KREFT)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
               else if (isGear && qty > 1)
                 Text(isTop ? '보유 수량: $qty개  (쓰는 1개 보호 · 여분만 판매)' : '보유 수량: $qty개  (한 개씩 판매돼요)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
               else if (bait)

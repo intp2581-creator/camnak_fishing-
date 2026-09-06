@@ -383,11 +383,11 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
                   decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white24)),
                   child: Column(
                     children: [
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('총 상금:', style: TextStyle(color: Colors.grey)), Text('${prize}P', style: const TextStyle(color: Colors.grey))]),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('총 상금:', style: TextStyle(color: Colors.grey)), Text('${prize} KREFT', style: const TextStyle(color: Colors.grey))]),
                       const SizedBox(height: 6),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('운영 수수료 (10%):', style: TextStyle(color: Colors.redAccent)), Text('-${taxAmount}P', style: const TextStyle(color: Colors.redAccent))]),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('운영 수수료 (10%):', style: TextStyle(color: Colors.redAccent)), Text('-${taxAmount} KREFT', style: const TextStyle(color: Colors.redAccent))]),
                       const Divider(color: Colors.white24, height: 20),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('우승자 지급액:', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), Text('${finalPrize}P', style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold))]),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('우승자 지급액:', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)), Text('${finalPrize} KREFT', style: const TextStyle(color: Colors.amber, fontSize: 18, fontWeight: FontWeight.bold))]),
                     ],
                   ),
                 ),
@@ -562,7 +562,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           });
           tx.update(arenaRef, {'status': 'finished', 'winnerNick': winner['nickname'], 'totalPrize': prize, 'walkover': true});
         });
-        await arenaRef.collection('messages').add({'text': '🏳️ 상대가 모두 기권! ${winner['nickname']}님 기권승! ${finalPrize}P 획득 (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+        await arenaRef.collection('messages').add({'text': '🏳️ 상대가 모두 기권! ${winner['nickname']}님 기권승! ${finalPrize} KREFT 획득 (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
         return;
       }
       int prize = fee * allDocs.length;
@@ -592,7 +592,7 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       });
       
       // 3. 채팅창 시스템 메시지도 '세금 뗀 실제 획득 금액'으로 안내!
-      await arenaRef.collection('messages').add({'text': '🏆 [정산 완료] ${winner['nickname']}님 ${finalPrize}P 획득! (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
+      await arenaRef.collection('messages').add({'text': '🏆 [정산 완료] ${winner['nickname']}님 ${finalPrize} KREFT 획득! (수수료 제외)', 'sender': '시스템', 'createdAt': FieldValue.serverTimestamp()});
     } catch (e) { print("정산 에러: $e"); }
     finally { if (mounted) setState(() => _isSettling = false); }
   }
@@ -638,10 +638,10 @@ Container(
           return Row(
             children: [
               const Icon(Icons.monetization_on, color: kreftGold, size: 20),
-              Text(' 참가비: ${widget.roomData['entryFee']}P ', style: const TextStyle(color: Colors.white, fontSize: 18)),
+              Text(' 참가비: ${widget.roomData['entryFee']} KREFT ', style: const TextStyle(color: Colors.white, fontSize: 18)),
               const Text('|', style: TextStyle(color: Colors.white24, fontSize: 18)),
               const Icon(Icons.emoji_events, color: kreftGold, size: 20),
-              Text(' 총상금: ${total}P', style: const TextStyle(color: kreftGold, fontSize: 18, fontWeight: FontWeight.bold)),
+              Text(' 총상금: ${total} KREFT', style: const TextStyle(color: kreftGold, fontSize: 18, fontWeight: FontWeight.bold)),
             ],
           );
         },

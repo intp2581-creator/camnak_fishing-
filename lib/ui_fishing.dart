@@ -1782,7 +1782,7 @@ Widget _whisperUnreadBadge() {
             const SizedBox(height: 20),
             const Text('와아아!! 대박!! 진짜 붕어를 낚으셨네요! 🎊\n정말 잘하셨어요!', textAlign: TextAlign.center, style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            const Text('약속했던 1,000 P를 선물로 드립니다!\n캠피싱 낚시 대회에서 즐거운 시간 되세요~~ 🥰', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, height: 1.5)),
+            const Text('약속했던 1,000 KREFT를 선물로 드립니다!\n캠피싱 낚시 대회에서 즐거운 시간 되세요~~ 🥰', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, height: 1.5)),
           ],
         ),
         actions: [
@@ -2179,7 +2179,7 @@ Widget _whisperUnreadBadge() {
                         fwDone
                             ? qRow('🌊 바다 — ${seaM['fish']} 잡기', seaP, seaM['count'] as int, seaDone)
                             : note('🌊 바다 — 민물 완료 후 열려요 🔒'),
-                        note('완료하면 아라에게 각 ${dailyMissionPrize}P!'),
+                        note('완료하면 아라에게 각 ${dailyMissionPrize} KREFT!'),
                       ]),
                       // 🐟 서윤 의뢰
                       section('🐟 서윤 의뢰', [
@@ -5285,7 +5285,7 @@ void _showTodayMissionInfo() {
           const SizedBox(height: 10),
           const Text('📢 오늘의 미션!', style: TextStyle(color: Color(0xFFD4AF37), fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          Text('${mission['fish']} ${mission['count']}마리를 잡으세요!\n(어느 낚시터든 OK)\n\n완료 시 🏆 ${mission['prize']}P 지급!',
+          Text('${mission['fish']} ${mission['count']}마리를 잡으세요!\n(어느 낚시터든 OK)\n\n완료 시 🏆 ${mission['prize']} KREFT 지급!',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.6)),
         ],

@@ -726,16 +726,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       return '$g\n🎉 일일 퀘스트 2개 모두 완료!\n수고하셨어요, 내일도 도전해요!';
     }
     if (!_fwDone) {
-      return '$g\n🏞️ [민물] 오늘의 일일 퀘스트\n🐟 ${fw['fish']} ${fw['count']}마리 잡기 ($_fwProg/${fw['count']})\n✅ 완료하면 ${dailyMissionPrize}P!\n\n(완료하면 바다 퀘스트가 열려요)';
+      return '$g\n🏞️ [민물] 오늘의 일일 퀘스트\n🐟 ${fw['fish']} ${fw['count']}마리 잡기 ($_fwProg/${fw['count']})\n✅ 완료하면 ${dailyMissionPrize} KREFT!\n\n(완료하면 바다 퀘스트가 열려요)';
     }
-    return '$g\n🌊 [바다] 일일 퀘스트\n🐟 ${sea['fish']} ${sea['count']}마리 잡기 ($_seaProg/${sea['count']})\n✅ 완료하면 ${dailyMissionPrize}P!';
+    return '$g\n🌊 [바다] 일일 퀘스트\n🐟 ${sea['fish']} ${sea['count']}마리 잡기 ($_seaProg/${sea['count']})\n✅ 완료하면 ${dailyMissionPrize} KREFT!';
   }
 
   // 🎁 첫 접속 통합 인사: 인사 + 500P 보상 + 오늘의 미션(민물) 한 번에
   String _getWelcomeText() {
     final fw = getTodayFwMission();
     return '${widget.nickname} 님, 어서오세요! 😊\n'
-        '🎁 접속 보상 500K 지급 완료!\n\n'
+        '🎁 접속 보상 500 KREFT 지급 완료!\n\n'
         '🏞️ 오늘의 민물 일일 퀘스트\n'
         '🐟 ${fw['fish']} ${fw['count']}마리 잡으세요\n'
         '✅ 민물 완료후 바다 퀘스트 열려요)\n\n'
@@ -763,7 +763,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     final sb = StringBuffer('${widget.nickname} 조사님, 좋은 소식이에요! 🎉\n\n${ev.name}\n\n');
     if (hasMult) sb.write('지금 낚시하면 보상이 팍팍 올라가요!\n');
     if (hasItem) {
-      sb.write('🛒 상점(보조장비)에서 [${ev.itemName}]를\n${ev.itemPrice}P에 기간 한정 판매 중!\n가방에 넣어두면 효과가 자동 적용돼요 ⏳\n');
+      sb.write('🛒 상점(보조장비)에서 [${ev.itemName}]를\n${ev.itemPrice} KREFT에 기간 한정 판매 중!\n가방에 넣어두면 효과가 자동 적용돼요 ⏳\n');
     }
     sb.write('이 기회 놓치지 마세요 🎣');
     return sb.toString();
