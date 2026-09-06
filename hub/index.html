@@ -162,6 +162,7 @@
   .qnews a:hover{color:var(--blue-ink)}
   .qnews .np{flex:none;font-size:11px;font-family:"Noto Sans KR";padding:3px 9px;border-radius:14px;color:#fff}
   .np.update{background:var(--blue)} .np.event{background:var(--emerald)} .np.notice{background:var(--yellow-deep)}
+  .np.devlog{background:#7B5CD6}
   .qnews .qd{margin-left:auto;color:#9fb6bf;font-size:12.5px;flex:none}
   .qicons{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-content:start}
   .qic{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 6px;border-radius:16px;
@@ -667,14 +668,16 @@
   /* ====== 슬라이드 라벨 ====== */
   var LABELS = ['캠피싱 낚시터','길드 보스레이드','아레나','이벤트'];
 
-  var pillTxt={update:'업데이트',event:'이벤트',notice:'공지'};
+  var pillTxt={update:'업데이트',event:'이벤트',notice:'공지',devlog:'개발 일지'};
   function escH(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function paintNotices(items){
     var box=document.getElementById('qnews');
     box.querySelectorAll('a').forEach(function(a){a.remove();});
     if(!items.length){box.insertAdjacentHTML('beforeend','<a href="notice.html"><span>등록된 공지가 없습니다</span></a>');return;}
     box.insertAdjacentHTML('beforeend', items.slice(0,4).map(function(n){
-      return '<a href="notice.html?id='+encodeURIComponent(n.id)+'"><span class="np '+n.type+'">'+(pillTxt[n.type]||'공지')+'</span>'
+      // 🔬 개발 일지는 제 게시판으로 — 공지 상세로 가면 본문이 그대로 보인다.
+      var page = n.type==='devlog' ? 'devlog.html' : 'notice.html';
+      return '<a href="'+page+'?id='+encodeURIComponent(n.id)+'"><span class="np '+n.type+'">'+(pillTxt[n.type]||'공지')+'</span>'
         +'<span>'+escH(n.title)+'</span><span class="qd">'+escH(n.date||'')+'</span></a>';
     }).join(''));
   }

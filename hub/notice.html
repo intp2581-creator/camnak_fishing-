@@ -207,6 +207,7 @@
   }
   function sectionHtml(){
     // 이벤트 글은 이벤트 메뉴에서만 본다 — 업데이트 목록에 섞이지 않게
+    // 🔬 개발 일지는 devlog.html 에서만 본다 — 확정된 소식과 섞이면 안 된다.
     var items=ALL.filter(function(n){return SECT==='notice'?n.type==='notice':n.type==='update';});
     if(!items.length){return '<div class="empty">등록된 글이 없습니다.</div>';}
     return items.map(function(n){
@@ -227,6 +228,10 @@
     fetch(API+'?id='+encodeURIComponent(id)).then(function(r){return r.json()}).then(function(j){
       if(!j.ok){document.getElementById('detail').innerHTML='<div class="loading">글을 찾을 수 없습니다.</div>';return;}
       var n=j.item;
+      // 🔗 본문이 [page:파일명] 하나면 그 페이지가 본문이다. 바로 넘긴다.
+      //    개발 일지처럼 디자인이 센 글은 CSS 가 홈페이지 전체를 덮어써서 본문에 못 넣는다.
+      var go=String(n.body||'').trim().match(/^\[page:([A-Za-z0-9._\-\/]+)\]$/);
+      if(go){location.replace(go[1]);return;}
       document.getElementById('ph-title').textContent='📢 공지 · 업데이트';
       document.getElementById('ph-sub').textContent='';
       document.title=n.title+' — 캠피싱 KREFT';
