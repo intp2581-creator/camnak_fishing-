@@ -511,7 +511,11 @@ int totalWeight = 0;
 for (var fish in availableFishes) {
   int w = fish['weight'] as int? ?? 10;
   // (지정어종 ×5 제거) — 이제 미끼 상성 + 장소 종류 + 별점 규칙만으로 출현 결정
-  if (isHotSpot && w <= 15) w = (w * 2);
+  // 📍 핫스팟: 귀한 어종(참치·방어·초어)이 더 자주 나온다. 자라는 제외.
+  //    ⚠️ 아래 두 번째 반복문과 반드시 같은 식이어야 한다(룰렛이 깨진다).
+  if (isHotSpot && w <= 15 && !kHotSpotRareExclude.contains(fish['name'])) {
+    w = (w * kHotSpotRareMult).round();
+  }
   
   // 🎯 미끼 상성 보너스 적용
   String fName = fish['name'];
@@ -562,7 +566,11 @@ int currentWeight = 0;
 for (var fish in availableFishes) {
   int w = fish['weight'] as int? ?? 10;
   // (지정어종 ×5 제거) — 이제 미끼 상성 + 장소 종류 + 별점 규칙만으로 출현 결정
-  if (isHotSpot && w <= 15) w = (w * 2);
+  // 📍 핫스팟: 귀한 어종(참치·방어·초어)이 더 자주 나온다. 자라는 제외.
+  //    ⚠️ 아래 두 번째 반복문과 반드시 같은 식이어야 한다(룰렛이 깨진다).
+  if (isHotSpot && w <= 15 && !kHotSpotRareExclude.contains(fish['name'])) {
+    w = (w * kHotSpotRareMult).round();
+  }
   
   // 🎯 미끼 상성 보너스 (위와 동일하게!)
   String fName = fish['name'];
