@@ -445,7 +445,8 @@ class FishingLogic {
       if (availableFishes.isEmpty) availableFishes = [pool.first]; 
     }
 
-    bool isHotSpot = (locationName == fwHotSpot || locationName == seaHotSpot);
+    // 📍 매시간 바뀌는 핫스팟(민물·바다 20곳 중 한 곳). 부를 때마다 새로 계산한다.
+    bool isHotSpot = (locationName == currentHotSpot());
 
     int currentStars = 1;
     locations.forEach((category, locList) {

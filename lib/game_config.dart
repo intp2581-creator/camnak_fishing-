@@ -588,9 +588,32 @@ final ValueNotifier<int> remainingTimeNotifier = ValueNotifier<int>(3600);
 // 🚨 전 화면 공용 핫타임 당첨자 기록 장부!
 final Set<String> globalAnnouncedWinners = {};
 
-// 📍 오늘의 핫스팟 (민물/바다)
-String? fwHotSpot;   
-String? seaHotSpot; 
+// 📍 핫스팟(오늘의 명당) — 민물·바다 20곳을 한 통에 넣고 '매시간' 한 곳.
+//
+//   ⚠️ 값을 미리 담아두지 않는다. 부를 때마다 KST 시각으로 계산한다.
+//      예전에는 로비 화면 initState 에서 하루치를 한 번 담았는데, 그 로비가
+//      쓰이지 않게 되면서(로그인→광장 직행) 값이 null 인 채 방치돼
+//      핫스팟이 통째로 꺼져 있었다. 담아두지 않으면 이 사고가 안 난다.
+//
+//   시각만 씨앗으로 쓰므로 ▸ 모든 유저가 같은 곳 ▸ 정시에 저절로 바뀜
+//   ▸ 새로고침해도 안 바뀜 ▸ 자정을 넘겨도 알아서 갱신된다.
+//   유저에겐 알리지 않는다(복불복). 저별점 낚시터에 머무는 조사에게
+//   가끔 윗단계 씨알을 만날 기회를 주는 장치다.
+const List<String> kHotSpotPool = [
+  // 민물 10
+  '예산 예당지', '안성 고삼지', '충주 충주호', '춘천 파로호', '진천 백곡지',
+  '예산 신양수로', '청양 지천', '인천 청라수로', '해남 금자천', '충주 달천',
+  // 바다 10
+  '통영 척포 갯바위', '신안 가거도', '완도 청산도', '여수 거문도', '제주 섶섬',
+  '거제 선상', '오천항 선상', '완도 선상', '통영 선상', '대천 선상',
+];
+
+/// 지금 이 시각의 핫스팟 한 곳. (KST 기준, 매시 정각에 바뀜)
+String currentHotSpot() {
+  final DateTime kst = DateTime.now().toUtc().add(const Duration(hours: 9));
+  final int seed = ((kst.year * 100 + kst.month) * 100 + kst.day) * 100 + kst.hour;
+  return kHotSpotPool[math.Random(seed).nextInt(kHotSpotPool.length)];
+}
 
 // 🎒 낚시터 이동 시 장비 유지 시스템 (기억 장치)
 Map<String, dynamic>? globalEquippedRod;
