@@ -133,6 +133,42 @@ async function requirePayable(user) {
 // 🚫 이 상품을 이미 가지고 있는가 — '열지 않은 상자'도 보유로 친다.
 //   스킨·뱃지는 상자로 지급되므로, 상자만 보고 있으면 '아직 없다'가 되어
 //   같은 상품을 또 살 수 있게 된다(2026-09-07 상자 도입으로 생긴 구멍).
+// ⭐ 상품 정보를 찾는다. 코드 지급표가 먼저다.
+//   지급표에 있는 키는 여기서 바로 돌아간다 — 지금 파는 상품의 결제 경로는
+//   이 함수가 생기기 전과 완전히 같다.
+//   지급표에 없는 키만 상품 문서(store_products.grant)를 본다. 관리 화면에서
+//   만든 새 상품이다. 아임웹이 빠지면 새 상품을 코드 없이 낼 수 있어야 한다.
+//
+//   ⚠️ 금액은 여기서 읽은 값만 쓴다. 클라이언트가 보낸 금액은 여전히 무시한다.
+async function productOf(key) {
+  if (PRODUCTS[key]) return PRODUCTS[key];
+  if (!key) return null;
+  const s = await admin.firestore().collection("store_products")
+      .where("key", "==", key).limit(1).get();
+  if (s.empty) return null;
+  const v = s.docs[0].data();
+  const g = v.grant || {};
+  // 줄 것이 없거나 금액이 없으면 상품으로 치지 않는다 — 결제만 되고
+  // 물건이 안 들어가느니 '없는 상품'이 낫다.
+  if (!Array.isArray(g.bundle) || !g.bundle.length) return null;
+  if (!(Number(g.price) > 0)) return null;
+  const p = {
+    name: String(v.n || key),
+    price: Math.round(Number(g.price)),
+    limitType: g.limitType === "ONCE" ? "ONCE" : "STACK",
+    bundle: g.bundle,
+    fromAdmin: true,            // 관리 화면에서 만든 상품(로그에 남기려고)
+  };
+  if (Number(g.maxQty) > 0) p.maxQty = Math.round(Number(g.maxQty));
+  if (Number(g.reqLevel) > 0) p.reqLevel = Math.round(Number(g.reqLevel));
+  if (g.boxName) {
+    p.boxName = String(g.boxName);
+    p.boxIcon = String(g.boxIcon || "item_box_cash.png");
+    p.boxMsg = String(g.boxMsg || "눌러서 열면 아이템을 받습니다.");
+  }
+  return p;
+}
+
 function alreadyOwned(inv, p, bought, key) {
   // 🧾 산 적이 있으면 팔았어도 다시 못 산다 — 계정당 1회이기 때문.
   //    (팔고 재구매가 되면 현금 → KREFT 환전 통로가 열린다)
@@ -165,7 +201,7 @@ exports.payPrepare = onRequest({region: "us-central1", cors: true}, async (req, 
     await requirePayable(user);            // 🚧 테스트 채널 동안 GM만
     const itemKey = String((req.body || {}).itemKey || "");
     const qty = Math.max(1, Math.min(10, parseInt((req.body || {}).qty || "1", 10)));
-    const p = PRODUCTS[itemKey];
+    const p = await productOf(itemKey);
     if (!p) return res.status(400).json({ok: false, err: "없는 상품입니다"});
     if (p.limitType === "ONCE" && qty !== 1) {
       return res.status(400).json({ok: false, err: "이 상품은 1개만 구매할 수 있어요"});
@@ -177,7 +213,9 @@ exports.payPrepare = onRequest({region: "us-central1", cors: true}, async (req, 
       const u = await db.collection("users").doc(user.uid).get();
       const inv = (u.data() || {}).inventory || [];
       const bought = (u.data() || {}).cashBought || {};
-      if (alreadyOwned(inv, p, bought, key)) {
+      // ⚠️ itemKey 다. 여기서 key 라고 써서 ONCE 상품(스킨·뱃지)은 결제 준비가
+      //    그 자리에서 터졌다 — GM 만 닿는 구간이라 여태 안 드러났다(2026-09-07).
+      if (alreadyOwned(inv, p, bought, itemKey)) {
         return res.status(400).json({ok: false, err: "이미 보유한 상품입니다"});
       }
     }
@@ -383,7 +421,7 @@ exports.payWebhook = onRequest({region: "us-central1"}, async (req, res) => {
 
 // 🎁 인벤토리 지급 — 서버만 수행. STACK은 수량 누적, ONCE는 1개.
 async function grantItem(db, order, orderId) {
-  const p = PRODUCTS[order.itemKey];
+  const p = await productOf(order.itemKey);
   if (!p) return false;
   const uref = db.collection("users").doc(order.uid);
   return db.runTransaction(async (tx) => {
@@ -455,7 +493,7 @@ async function requireGm(req) {
 
 // 🔙 지급했던 것을 되돌린다. 되돌린 목록을 문자열로 반환(못 되돌린 것도 적는다).
 async function reclaimItems(db, order, orderId) {
-  const p = PRODUCTS[order.itemKey];
+  const p = await productOf(order.itemKey);
   if (!p) return "상품 정보 없음";
 
   const uref = db.collection("users").doc(order.uid);
@@ -540,7 +578,7 @@ exports.payRefund = onRequest({region: "us-central1", cors: true}, async (req, r
 
     // 🧾 계정당 1회 상품이면 '샀다' 기록을 지운다.
     //   안 지우면 환불받고도 영영 다시 살 수 없다(구매 이력으로 막고 있으므로).
-    const prod = PRODUCTS[order.itemKey];
+    const prod = await productOf(order.itemKey);
     if (prod && prod.limitType === "ONCE") {
       try {
         await db.collection("users").doc(order.uid).set(
@@ -612,3 +650,4 @@ exports.myOrders = onRequest({region: "us-central1", cors: true}, async (req, re
 });
 
 exports.PRODUCTS = PRODUCTS;
+exports.productOf = productOf;
