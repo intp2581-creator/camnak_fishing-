@@ -1306,7 +1306,7 @@ final List<Map<String, dynamic>> storeAuxItems = [
   // 🧵 낚싯줄 — 내구도 200m. 랜딩 실패·줄끊기 때 −10m, 0m면 끊어진다.
   //   '일반'은 능력치 없는 필수 소모품(민물·바다 공용), 고급은 힘 +10.
   //   ⚠️ 일반은 레벨 제한이 없다 — 낚시에 반드시 필요한 물건이라 Lv.1도 사야 한다.
-  {'name': '일반 낚싯줄', 'price': 3000, 'category': 'COMMON', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'icon': 'line_normal.png', 'desc': '낚시에 꼭 필요한 기본 낚싯줄이에요.\n민물·바다 어디서나 쓸 수 있어요.\n\n내구도 200m — 물고기를 놓치거나 줄을 끊으면 10m씩 줄어들어요.'},
+  {'name': '일반 낚싯줄', 'price': 2000, 'category': 'COMMON', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'icon': 'line_normal.png', 'desc': '낚시에 꼭 필요한 기본 낚싯줄이에요.\n민물·바다 어디서나 쓸 수 있어요.\n\n내구도 200m — 물고기를 놓치거나 줄을 끊으면 10m씩 줄어들어요.'},
   // 🧵 낚시줄 — 힘 +10, 내구도 200m(랜딩 실패 시 −10m, 0m면 끊어짐)
   {'name': '민물 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
   {'name': '바다 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},

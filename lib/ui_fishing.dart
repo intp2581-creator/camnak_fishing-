@@ -6388,7 +6388,8 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
           //    처음부터 열어두면 '마음에 안 드는 어종은 바로 끊기'로 악용된다.
           if (widget.onCutLine != null)
             Positioned(
-              top: 448, left: 0, right: 0,
+              // 게이지 바(y 475~490) 바로 아래. 제한시간 밑이 아니라 바 밑이 눈에 잘 들어온다.
+              top: 505, left: 0, right: 0,
               child: Center(
                 child: ValueListenableBuilder<int>(
                   valueListenable: timeNotifier,
