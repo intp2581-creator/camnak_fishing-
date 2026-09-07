@@ -152,11 +152,19 @@
         <div><label>진열 순서 <span class="muted">(작을수록 앞)</span></label><input id="st-order" type="number" placeholder="10"></div>
       </div>
 
-      <label>이미지 파일명 <span class="muted">(hub/assets/ 안에 있는 파일)</span></label>
+      <label>상품 이미지 <span class="muted">(파일을 고르시면 올라갑니다 · jpg · png · 2MB 이하)</span></label>
       <div style="display:flex;gap:12px;align-items:flex-start">
-        <input id="st-img" placeholder="st-package.jpg" style="flex:1">
-        <div style="width:110px;flex:none;text-align:center">
-          <img id="st-imgPrev" alt="" style="width:110px;height:82px;object-fit:cover;
+        <div style="flex:1">
+          <button type="button" class="btn ghost" id="st-imgPick">🖼️ 이미지 고르기</button>
+          <input type="file" id="st-imgFile" accept="image/*" class="hide">
+          <input id="st-img" placeholder="올린 이미지 주소 또는 assets/ 안 파일명" style="margin-top:10px">
+          <p class="muted" style="margin:6px 0 0;line-height:1.6">
+            올리면 홈페이지와 게임이 같은 그림을 봅니다. 배포는 필요 없습니다.<br>
+            기존 상품처럼 <b>파일명만</b>(st-package.jpg) 적혀 있으면 그대로 둬도 됩니다.
+          </p>
+        </div>
+        <div style="width:130px;flex:none;text-align:center">
+          <img id="st-imgPrev" alt="" style="width:130px;height:97px;object-fit:cover;
                border:1px solid var(--line);border-radius:8px;background:#f2f6f8;display:none">
           <div id="st-imgMsg" class="muted" style="font-size:12px;margin-top:4px"></div>
         </div>
@@ -516,7 +524,7 @@ async function loadStore(){
           +'<button class="linkbtn" data-mv="up" data-i="'+i+'" '+(i===0?'disabled style="opacity:.25"':'')+'>▲</button>'
           +'<button class="linkbtn" data-mv="dn" data-i="'+i+'" '+(i===j.items.length-1?'disabled style="opacity:.25"':'')+'>▼</button></td>'
         +'<td>'+(p.img
-            ? '<img src="assets/'+esc(p.img)+'" alt="" style="width:46px;height:34px;'
+            ? '<img src="'+esc(stImgSrc(p.img))+'" alt="" style="width:46px;height:34px;'
               +'object-fit:cover;border-radius:5px;border:1px solid var(--line)" '
               +'onerror="this.style.display=\'none\'">'
             : '<span class="muted">-</span>')+'</td>'
@@ -558,17 +566,59 @@ async function stMove(i, dir){
   loadStore();
 }
 
-/* 이미지 미리보기 — 파일명 오타를 스토어가 아니라 여기서 알게 한다. */
+/* 이미지 미리보기 — 파일명 오타를 스토어가 아니라 여기서 알게 한다.
+   올린 이미지는 주소(http…), 기존 상품은 파일명. 둘 다 알아듣는다. */
+function stImgSrc(v){
+  v = String(v||'').trim();
+  if (!v) return '';
+  return /^https?:/.test(v) ? v : 'assets/' + v;
+}
 function stImgPreview(){
   const v = $('st-img').value.trim();
   const im = $('st-imgPrev'), ms = $('st-imgMsg');
   if (!v) { im.style.display='none'; ms.textContent=''; return; }
   im.style.display='';
   ms.textContent='확인 중…'; ms.style.color='';
-  im.onload = function(){ ms.textContent='확인됨'; ms.style.color='#1c8b5f'; };
+  im.onload = function(){
+    ms.textContent = /^https?:/.test(v) ? '올린 이미지' : '확인됨';
+    ms.style.color='#1c8b5f';
+  };
   im.onerror= function(){ im.style.display='none';
                           ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
-  im.src = 'assets/' + v;
+  im.src = stImgSrc(v);
+}
+
+/* 🖼️ 고른 파일을 브라우저에서 먼저 줄이고 올린다.
+   원본 사진을 그대로 보내면 몇 MB가 되어 거부당한다 — 스토어 카드에 쓰기엔
+   가로 900px 이면 충분하다. */
+function stUpload(file){
+  const ms = $('st-imgMsg');
+  if (!file) return;
+  ms.textContent='읽는 중…'; ms.style.color='';
+  const fr = new FileReader();
+  fr.onload = function(){
+    const img = new Image();
+    img.onload = function(){
+      const max = 900;
+      const sc = Math.min(1, max / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas');
+      cv.width = Math.round(img.width * sc);
+      cv.height = Math.round(img.height * sc);
+      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+      // 투명한 그림(png)은 jpg 로 바꾸면 배경이 검게 나온다 — png 는 png 로 둔다.
+      const isPng = /image\/png/.test(file.type);
+      const data = cv.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.88);
+      ms.textContent='올리는 중…';
+      sapi({action:'upload', data: data, name: file.name}).then(function(j){
+        if(!j.ok){ ms.textContent = j.err || '올리지 못했습니다'; ms.style.color='#c0392b'; return; }
+        $('st-img').value = j.url;
+        stImgPreview();
+      }).catch(function(){ ms.textContent='올리지 못했습니다'; ms.style.color='#c0392b'; });
+    };
+    img.onerror = function(){ ms.textContent='이미지를 읽지 못했습니다'; ms.style.color='#c0392b'; };
+    img.src = fr.result;
+  };
+  fr.readAsDataURL(file);
 }
 
 /* 고른 지급 키가 실제로 무엇을 주는지, 지금 입력값과 어긋나는지 보여준다. */
@@ -659,6 +709,10 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('st-key'))    $('st-key').onchange  = stKeyInfo;
   if($('st-p'))      $('st-p').oninput     = stKeyInfo;
   if($('st-img'))    $('st-img').onchange  = stImgPreview;
+  if($('st-imgPick')) $('st-imgPick').onclick=function(){ $('st-imgFile').click(); };
+  if($('st-imgFile')) $('st-imgFile').onchange=function(){
+    stUpload(this.files && this.files[0]); this.value='';
+  };
   if($('st-soon'))   $('st-soon').onchange =function(){
     $('st-soonWrap').classList.toggle('hide', $('st-soon').value!=='1');
   };

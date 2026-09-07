@@ -223,12 +223,18 @@
   ];
 
   function won(n){return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+  // 이미지는 파일명(기존 상품)일 수도, 관리 화면에서 올린 주소(새 상품)일 수도 있다.
+  function simg(v){
+    v = String(v||'').trim();
+    if (!v) return '';
+    return (/^https?:/.test(v) || v.indexOf('assets/') === 0) ? v : 'assets/' + v;
+  }
   function render(cat){
     var list = cat==='all' ? ITEMS : ITEMS.filter(function(i){return i.c===cat;});
     document.getElementById('sgrid').innerHTML = list.map(function(i,n){
       return '<div class="scard">'
         +'<div class="im">'+(i.lv?'<span class="lv">Lv.'+i.lv+' 이상</span>':'')
-        +'<img src="assets/'+i.img+'" alt="'+i.n+'" loading="lazy"></div>'
+        +'<img src="'+simg(i.img)+'" alt="'+i.n+'" loading="lazy"></div>'
         +'<div class="bd"><b>'+i.n+'</b><p>'+i.d+'</p>'
         +'<div class="pr">₩'+won(i.p)+'<small>VAT 포함</small></div>'
         // 📄 팝업 대신 상품 상세 페이지로 — 아임웹과 같은 글이 그곳에 있다.

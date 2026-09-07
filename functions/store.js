@@ -9,6 +9,7 @@
 //   POST {action:"save"}    추가·수정 (GM만)
 //   POST {action:"delete"}  삭제 (GM만)
 //   POST {action:"sort"}    순서 일괄 저장 (GM만)
+//   POST {action:"upload"}  상품 이미지 업로드 (GM만) → 주소를 돌려준다
 //
 //   ⚠️ 게임 안 KREFT 상점(낚싯대·릴·미끼)은 여기서 다루지 않는다.
 //      파워·레벨게이트는 밸런스 수치라 코드에 두는 편이 안전하다.
@@ -22,6 +23,27 @@ const {PRODUCTS} = require("./payment");
 
 const COL = "store_products";
 const CATS = ["ticket", "skin", "badge", "package", "etc"];
+
+// 🖼️ 상품 이미지 저장. 화면에서 미리 줄여 보내므로 여기선 용량만 본다.
+//   파일 이름에 시각을 붙인다 — 같은 이름으로 덮어쓰면 브라우저가 옛 그림을
+//   캐시에서 꺼내와 '바꿨는데 안 바뀐다'가 된다.
+async function saveImage(dataUri, name) {
+  const m = String(dataUri || "").match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!m) throw new Error("이미지 파일만 올릴 수 있습니다 (jpg · png · webp)");
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 2 * 1024 * 1024) throw new Error("이미지가 2MB를 넘습니다. 조금 줄여서 올려 주세요");
+  const ext = m[1] === "image/png" ? "png" : (m[1] === "image/webp" ? "webp" : "jpg");
+  const safe = String(name || "item").toLowerCase()
+      .replace(/[^a-z0-9._-]+/g, "-").replace(/\.[a-z0-9]+$/, "").slice(0, 40) || "item";
+  const path = "store/" + safe + "-" + Date.now() + "." + ext;
+  const bucket = admin.storage().bucket();
+  const file = bucket.file(path);
+  await file.save(buf, {
+    metadata: {contentType: m[1], cacheControl: "public,max-age=31536000,immutable"},
+  });
+  await file.makePublic();
+  return "https://storage.googleapis.com/" + bucket.name + "/" + path;
+}
 
 async function gm(req) {
   const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -68,7 +90,13 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
       s.forEach((doc) => {
         const v = doc.data();
         if (v.hidden === true) return;              // 숨김 상품 제외
-        rows.push({id: doc.id, ...v});
+        // 수량을 여러 개 살 수 있는지, 상자로 지급되는지는 지급표가 정한다.
+        // 화면이 제 나름대로 짐작하면 '주문서와 다른 안내'가 되어 분쟁이 된다.
+        const g = PRODUCTS[v.key];
+        rows.push({id: doc.id, ...v,
+          stack: !!(g && g.limitType === "STACK"),
+          max: (g && g.maxQty) || (g && g.limitType === "STACK" ? 10 : 1),
+          box: !!(g && g.boxName)});
       });
       rows.sort((a, b) => (a.order || 0) - (b.order || 0));
       return res.json({ok: true, items: rows});
@@ -157,6 +185,13 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
       return res.json({ok: true});
     }
 
+    // 🖼️ 이미지 업로드 — 주소만 돌려준다. 상품에 넣는 것은 저장할 때.
+    if (action === "upload") {
+      const url = await saveImage(b.data, b.name);
+      console.log("[상품 이미지] " + url + " (by " + u.nick + ")");
+      return res.json({ok: true, url});
+    }
+
     // 순서 일괄 저장 — [{id, order}, ...]
     if (action === "sort") {
       const rows = Array.isArray(b.rows) ? b.rows.slice(0, 200) : [];
@@ -171,6 +206,10 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
 
     return res.status(400).json({ok: false, err: "알 수 없는 요청"});
   } catch (e) {
-    return res.status(401).json({ok: false, err: String(e.message || e)});
+    // 로그인·권한 문제만 401. 나머지는 400 으로 — 전부 401 로 내려보내면
+    // 화면에 '로그인이 필요합니다'로 보여 진짜 원인이 가려진다.
+    const msg = String(e.message || e);
+    const authErr = msg.indexOf("로그인") > -1 || msg.indexOf("운영자") > -1;
+    return res.status(authErr ? 401 : 400).json({ok: false, err: msg});
   }
 });

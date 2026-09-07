@@ -696,9 +696,7 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
                                 return Container(decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white10)));
                               }
                               var item = filteredItems[index];
-                              String iconPath = item['icon'] ?? '';
-                              if (iconPath.contains('../')) iconPath = iconPath.replaceAll('../', 'assets/');
-                              if (!iconPath.startsWith('assets/')) iconPath = iconPath.contains('.jpg') ? 'assets/images/$iconPath' : 'assets/items/$iconPath';
+                              final String iconPath = itemImagePath(item['icon'] ?? '');
 
                               return Container(
                                 decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.grey.shade800, width: 2)),
@@ -708,7 +706,8 @@ Widget _buildRankItem(int rank, String name, String displayVal, bool isMe, Strin
                                     Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Image.asset(iconPath, width: 45, height: 45, fit: BoxFit.contain, errorBuilder: (c,e,s) => const Icon(Icons.inventory_2, color: Colors.white54, size: 30)),
+                                        itemImage(iconPath, width: 45, height: 45,
+                                            fallback: const Icon(Icons.inventory_2, color: Colors.white54, size: 30)),
                                         const SizedBox(height: 5),
                                         FittedBox(fit: BoxFit.scaleDown, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 2), child: Text(item['name'], style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)))),
                                       ],
@@ -1700,10 +1699,7 @@ class _StoreScreenState extends State<StoreScreen> {
     final iconFile = imgPath.split('/').last;
     if (iconFile.startsWith('fish_fw')) { imgPath = 'assets/fish_fw/$iconFile'; }
     else if (iconFile.startsWith('fish_sea')) { imgPath = 'assets/fish_sea/$iconFile'; }
-    else {
-      if (imgPath.contains('../')) imgPath = imgPath.replaceAll('../', 'assets/');
-      if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
-    }
+    else { imgPath = itemImagePath(imgPath); }
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bool isFish = (item['type'] ?? '') == 'FISH';
     final bait = _isBaitItem(item);
@@ -1884,15 +1880,13 @@ class _StoreScreenState extends State<StoreScreen> {
     bool isBait = item['type'] == 'BAIT';
     bool isSkin = item['type'] == 'SKIN';
     String itemName = item['name'].toString();
-    String imgPath = item['icon']?.toString() ?? '';
-    if (imgPath.contains('../')) imgPath = imgPath.replaceAll('../', 'assets/');
-    if (!imgPath.startsWith('assets/')) imgPath = imgPath.contains('.jpg') ? 'assets/images/$imgPath' : 'assets/items/$imgPath';
+    final String imgPath = itemImagePath(item['icon']?.toString() ?? '');
 
     return Container(
       decoration: BoxDecoration(color: const Color(0xFF151515), borderRadius: BorderRadius.circular(15), border: Border.all(color: isSkin ? const Color(0xFFD4AF37).withOpacity(0.8) : Colors.white10, width: isSkin ? 1.5 : 1.0)),
       child: Row(
         children: [
-          Container(width: 140, padding: const EdgeInsets.all(15), decoration: const BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15))), child: Image.asset(imgPath, fit: BoxFit.contain, errorBuilder: (c, e, s) => const Icon(Icons.broken_image, color: Colors.white24, size: 40))),
+          Container(width: 140, padding: const EdgeInsets.all(15), decoration: const BoxDecoration(color: Colors.black38, borderRadius: BorderRadius.only(topLeft: Radius.circular(15), bottomLeft: Radius.circular(15))), child: itemImage(imgPath, fit: BoxFit.contain)),
           Container(width: 1, color: Colors.white10),
           Expanded(flex: 3, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [Text(itemName, style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900), overflow: TextOverflow.ellipsis), const SizedBox(height: 12), if (item['stats'] != null) Row(children: [_buildStatBadge('파워', item['stats']['P'] ?? 0, Colors.redAccent), const SizedBox(width: 6), _buildStatBadge('컨트롤', item['stats']['C'] ?? 0, Colors.blueAccent), const SizedBox(width: 6), _buildStatBadge('감도', item['stats']['S'] ?? 0, Colors.greenAccent)]) else if (isBait) Text('수량: x${item['quantity']}개', style: const TextStyle(color: Colors.yellowAccent, fontSize: 14, fontWeight: FontWeight.bold)) else Text((item['category'] ?? '') == 'PACKAGE' ? '패키지 상품' : '기본 장비', style: const TextStyle(color: Colors.grey, fontSize: 13))]))),
           Container(width: 1, color: Colors.white10),

@@ -1408,6 +1408,31 @@ const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 
 // =========================================================================
 List<Map<String, dynamic>> gServerStoreItems = [];
 
+/// 🖼️ 아이템 그림 한 장.
+///   게임에 들어 있는 파일이면 assets 에서, 관리 화면에서 올린 것이면 주소에서.
+///   새 상품을 낼 때마다 이미지를 게임에 넣고 다시 배포하지 않기 위한 것이다.
+Widget itemImage(String path,
+    {double? width, double? height, BoxFit fit = BoxFit.contain, Widget? fallback}) {
+  final Widget err = fallback ??
+      const Icon(Icons.broken_image, color: Colors.white24, size: 40);
+  if (path.startsWith('http')) {
+    return Image.network(path, width: width, height: height, fit: fit,
+        errorBuilder: (c, e, s) => err);
+  }
+  return Image.asset(path, width: width, height: height, fit: fit,
+      errorBuilder: (c, e, s) => err);
+}
+
+/// 게임 안 파일명을 실제 경로로 맞춘다. 올린 그림(주소)은 그대로 둔다.
+String itemImagePath(String p) {
+  if (p.isEmpty || p.startsWith('http')) return p;
+  if (p.contains('../')) p = p.replaceAll('../', 'assets/');
+  if (!p.startsWith('assets/')) {
+    p = p.contains('.jpg') ? 'assets/images/$p' : 'assets/items/$p';
+  }
+  return p;
+}
+
 /// 💰 5500 → '5,500'
 String _won(int n) => n.toString()
     .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+\b)'), (m) => '${m[1]},');
@@ -1444,7 +1469,8 @@ Future<void> loadServerStoreItems() async {
         'cash': true,
         'category': 'PACKAGE',
         'type': 'ETC',
-        'icon': img.isEmpty ? '' : '../images/$img',
+        // 관리 화면에서 올린 그림은 주소로 들어온다 — 그대로 쓴다.
+        'icon': img.isEmpty ? '' : (img.startsWith('http') ? img : '../images/$img'),
         // 🛒 게임 상점은 설명을 3줄만 보여준다(ui_lobby maxLines:3).
         //    긴 상세를 먼저 쓰면 '[구성품 5종]'만 뜨고 잘리므로 짧은 소개를 앞에 둔다.
         //    법정 고지는 코드 상품(storeSkinItems)과 같은 형식으로 자동으로 붙인다.

@@ -198,8 +198,26 @@
 <script type="module" src="auth.js"></script>
 <script src="catalog.js"></script>
 <script>
-(function(){
+(async function(){
   document.querySelectorAll('[data-play]').forEach(function(a){ a.href = 'play.html'; });
+
+  var SAPI = 'https://us-central1-camnak-fishing.cloudfunctions.net/storeApi?list=1';
+  var SROW = null;          // 이 상품의 서버 정보(관리 화면에서 만든 값)
+
+  // 이미지는 파일명(기존 상품)일 수도, 올린 주소(새 상품)일 수도 있다.
+  function imgSrc(v){
+    v = String(v||'').trim();
+    if (!v) return '';
+    if (/^https?:/.test(v) || v.indexOf('assets/') === 0) return v;
+    return 'assets/' + v;
+  }
+  async function loadRow(k){
+    try{
+      var j = await fetch(SAPI).then(function(r){ return r.json(); });
+      if(!j || !j.ok || !j.items) return null;
+      return j.items.filter(function(x){ return CKEY(x.key) === k; })[0] || null;
+    }catch(e){ return null; }
+  }
 
   var $ = function(id){ return document.getElementById(id); };
   var won = function(n){ return (Number(n)||0).toLocaleString('ko-KR') + '원'; };
@@ -209,6 +227,16 @@
   // 목록에서 다른 이름으로 와도 같은 상품으로 본다(catalog.js CKEY).
   var key  = CKEY(new URLSearchParams(location.search).get('item') || '');
   var item = CATALOG[key];
+
+  // 코드에 없는 상품 — 관리 화면에서 만든 새 상품이다. 서버 정보로 그린다.
+  // (기존 상품은 기다리지 않는다. 여기서 한 번 더 부르면 모든 상세페이지가 느려진다)
+  if(!item){
+    SROW = await loadRow(key);
+    if (SROW) {
+      item = {n: SROW.n, p: SROW.p||0, img: imgSrc(SROW.img), d: SROW.d||'',
+              stack: SROW.stack === true, max: SROW.max || 1, box: SROW.box === true};
+    }
+  }
 
   if(!item){
     $('msg').style.display = 'block';
@@ -228,7 +256,8 @@
   //   · 이용권 : 눌러야 쓰인다 → 미사용분 환불
   //   · 스킨   : 지급되면 자동 장착 → 지급 = 제공 개시
   function refundHtml(){
-    if (IS_BOX(key)) {
+    // 상자로 지급되는지는 지급표가 정한다. 코드에 없는 새 상품은 서버 값(item.box).
+    if (IS_BOX(key) || item.box === true) {
       return '· <b>지급 방식</b>: 결제하시면 가방에 <b>상자</b>로 들어갑니다. 눌러서 여시면 구성품이 풀립니다.<br>'
            + '· <b>청약철회 · 환불</b>: 결제 후 7일 이내이고 <b>상자를 열지 않으셨다면</b> 전액 환불됩니다. '
            + '상자를 여시면 제공이 개시된 것으로 보아 환불이 제한됩니다.';
@@ -245,7 +274,7 @@
   function paint(){
     $('pName').textContent  = item.n;
     $('pDesc').textContent  = item.d || '';
-    $('pImg').src           = item.img;
+    $('pImg').src           = imgSrc(item.img);
     $('pImg').alt           = item.n;
     $('pPrice').textContent = won(item.p);
     $('pRefund').innerHTML  = refundHtml();
@@ -260,6 +289,9 @@
 
     // 🔀 승인 전에는 아임웹 상품 페이지로, 승인 뒤에는 주문서로(catalog.js USE_OWN_PAY).
     var href = buyHref(key, qty);
+    // 코드의 MALL_IDX 에 없는 새 상품은 관리 화면에 적어 둔 아임웹 번호로 간다.
+    // (이게 없으면 구매하기가 상품 목록으로 되돌아가 버린다)
+    if (href === 'store.html' && SROW && SROW.idx) href = MALL_BASE + SROW.idx;
     var out  = !(USE_OWN_PAY || CAN_PAY);   // 아임웹일 때만 새 탭으로 연다
     [$('buyBtn'), $('sBuy')].forEach(function(a){
       a.href = href;
@@ -318,11 +350,8 @@
 
   /* 📝 운영자가 관리 화면에 쓴 상세 설명·판매 상태를 얹는다.
      못 불러오면 아무 일도 하지 않는다 — 코드에 있는 내용만으로도 페이지는 완성이다. */
-  fetch('https://us-central1-camnak-fishing.cloudfunctions.net/storeApi?list=1')
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      if(!j || !j.ok || !j.items) return;
-      var row = j.items.filter(function(x){ return CKEY(x.key) === key; })[0];
+  (SROW ? Promise.resolve(SROW) : loadRow(key))
+    .then(function(row){
       if(!row) return;
 
       // 운영자 글은 표 '위'에 — 아래 표는 표시광고·청약철회 문안이라 건드리지 않는다.
