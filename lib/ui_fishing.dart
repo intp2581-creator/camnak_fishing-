@@ -1144,20 +1144,27 @@ Widget _whisperUnreadBadge() {
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final inv = List<dynamic>.from(_latestInventory);
-      bool changed = false;
-      for (int i = inv.length - 1; i >= 0; i--) {
-        final it = inv[i];
-        if (it is! Map) continue;
-        if ((it['type'] ?? '') != 'EVENT' || !it.containsKey('secLeft')) continue;
-        if (gEmblemSec <= 0) {
-          inv.removeAt(i);
-          gEmblemOn = false; gEmblemName = '';
-        } else {
-          inv[i] = {...it, 'secLeft': gEmblemSec, 'active': gEmblemOn};
-        }
-        changed = true;
+      // 🛡️ '지금 켠 그 엠블럼' 하나만 건드린다.
+      //    예전엔 EVENT+secLeft 인 항목을 전부 돌며 같은 값으로 덮어쓰고,
+      //    남은 시간이 0이면 전부 지웠다 → 손도 안 댄 엠블럼까지 사라졌다.
+      int i = -1;
+      if (gEmblemId.isNotEmpty) {
+        i = inv.indexWhere((x) => x is Map && (x['eid'] ?? '') == gEmblemId);
       }
-      if (changed) await ref.update({'inventory': inv});
+      if (i < 0) {
+        // eid 가 아직 없는 예전 엠블럼 — 켜져 있는 것 하나만 찾는다.
+        i = inv.indexWhere((x) => x is Map &&
+            (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft') &&
+            x['active'] == true);
+      }
+      if (i < 0) return;   // 못 찾으면 아무것도 지우지 않는다(안전)
+      if (gEmblemSec <= 0) {
+        inv.removeAt(i);
+        gEmblemOn = false; gEmblemName = ''; gEmblemId = '';
+      } else {
+        inv[i] = {...inv[i] as Map, 'secLeft': gEmblemSec, 'active': gEmblemOn};
+      }
+      await ref.update({'inventory': inv});
     } catch (_) {}
   }
 
@@ -3080,8 +3087,15 @@ Positioned(
     //    인벤을 열지 않아도 되고, 잠깐 쉴 땐 꺼서 시간을 아낄 수 있다.
     Builder(builder: (_) {
       final inv = _latestInventory;
-      final int idx = inv.indexWhere((x) =>
-          x is Map && (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft'));
+      // 🛡️ 켜둔 것이 있으면 그것을, 없으면 첫 번째를 다룬다
+      //    (syncEmblemFromInventory 와 같은 규칙이어야 숫자가 안 어긋난다).
+      int idx = inv.indexWhere((x) => x is Map &&
+          (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft') &&
+          x['active'] == true);
+      if (idx < 0) {
+        idx = inv.indexWhere((x) =>
+            x is Map && (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft'));
+      }
       if (idx < 0) return const SizedBox.shrink();
       final it = inv[idx] as Map;
       final bool on = gEmblemOn;      // 전역 기준 — 칩과 숫자가 어긋나지 않게
@@ -3795,11 +3809,21 @@ Positioned(
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
-      final i = inv.indexWhere((x) =>
-          x is Map && (x['name'] ?? '') == (item['name'] ?? '') && x.containsKey('secLeft'));
+      // 🛡️ 이름은 엠블럼끼리 전부 같다 → 반드시 고유 id 로 찾는다.
+      //    예전 엠블럼은 eid 가 없으니, 이 자리에서 하나 붙여준다.
+      final String eid = (item['eid'] ?? '').toString();
+      int i = eid.isNotEmpty
+          ? inv.indexWhere((x) => x is Map && (x['eid'] ?? '') == eid)
+          : inv.indexWhere((x) => x is Map &&
+              (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft') &&
+              (x['eid'] ?? '') == '' &&
+              (x['secLeft'] ?? -1) == (item['secLeft'] ?? -2));
       if (i < 0) return;
-      inv[i] = {...inv[i] as Map, 'active': turnOn, 'secLeft': gEmblemSec};
+      final String useId = eid.isNotEmpty ? eid : newEmblemId();
+      inv[i] = {...inv[i] as Map,
+        'eid': useId, 'active': turnOn, 'secLeft': gEmblemSec};
       await ref.update({'inventory': inv});
+      gEmblemId = useId;
       gEmblemOn = turnOn;
       if (!mounted) return;
       setState(() {});

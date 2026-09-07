@@ -278,17 +278,34 @@ String eventItemName(List<dynamic> inventory) {
   return '';
 }
 
-/// 🛡️ 가방에서 엠블럼 상태를 전역으로 읽어온다(접속·화면 진입 시 1회).
+/// 🛡️ 엠블럼 고유 id — 지금 다루고 있는 그 한 개를 가리킨다.
+///   ⚠️ 엠블럼은 이름·아이콘이 전부 같아서 이름으로는 구분이 안 된다.
+///      예전엔 '첫 번째 것'으로 뭉뚱그려 다뤄서, 두 개를 가지면 서로 덮어쓰고
+///      하나를 다 쓰면 안 쓴 것까지 같이 지워졌다(2026-09-07 제보).
+String gEmblemId = '';
+
+/// 🛡️ 새 엠블럼 id. 예전 엠블럼(eid 없음)은 켤 때 이걸로 붙여준다.
+String newEmblemId() =>
+    'em${DateTime.now().microsecondsSinceEpoch}';
+
+/// 🛡️ 가방에서 '지금 다룰 엠블럼' 하나를 골라 전역에 읽어온다(접속·화면 진입 시 1회).
+///   켜둔 것이 있으면 그것을 최우선으로 — 없으면 첫 번째(켜기 버튼 표시용).
 void syncEmblemFromInventory(List<dynamic> inventory) {
+  Map? pick;
   for (final it in inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT' || !it.containsKey('secLeft')) continue;
-    gEmblemSec = (it['secLeft'] is num) ? (it['secLeft'] as num).toInt() : 0;
-    gEmblemOn = it['active'] == true;
-    gEmblemName = (it['name'] ?? '').toString();
+    if (it['active'] == true) { pick = it; break; }
+    pick ??= it;
+  }
+  if (pick == null) {
+    gEmblemSec = 0; gEmblemOn = false; gEmblemName = ''; gEmblemId = '';
     return;
   }
-  gEmblemSec = 0; gEmblemOn = false; gEmblemName = '';
+  gEmblemSec = (pick['secLeft'] is num) ? (pick['secLeft'] as num).toInt() : 0;
+  gEmblemOn = pick['active'] == true;
+  gEmblemName = (pick['name'] ?? '').toString();
+  gEmblemId = (pick['eid'] ?? '').toString();
 }
 
 /// 🎁 만료된 이벤트 아이템을 제거한 인벤 반환. 변화 없으면 null(쓰기 불필요).
