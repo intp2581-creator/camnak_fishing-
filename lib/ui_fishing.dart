@@ -1489,6 +1489,15 @@ Widget _whisperUnreadBadge() {
         strongVibrate([0, 120, 60, 120]); // 📳 챔질! (강하게 두 번)
         audioManager.playSfx("sfx_hit.mp3");
 
+        // ⚓ 바닥걸림(밑걸림) — 물고기가 아니라 바닥을 걸었다.
+        //    어느 낚시나 있는 일이라 미끼 종류를 가리지 않는다.
+        //    아레나는 제외 — 10분 단판에 운으로 갈리면 대회가 아니게 된다.
+        if (widget.roomId == null &&
+            math.Random().nextDouble() < kSnagChance) {
+          _startSnag();
+          return;
+        }
+
         // 👉 [2탄] 게임 두뇌(FishingLogic)에 일 시키기!
         var caughtFish = FishingLogic.generateFish(
           isSea: widget.isSea,
@@ -1520,11 +1529,55 @@ Widget _whisperUnreadBadge() {
     });
   }
 
+  // ⚓ 바닥걸림 — 물고기 대신 바닥을 걸었다.
+  //   사투 창을 열되 게임 루프는 돌지 않는다(게이지 가운데 고정).
+  //   줄을 끊어야만 벗어난다 → 낚싯줄 -10m + 미끼(루어 포함) 1개를 바닥에 두고 온다.
+  void _startSnag() {
+    setState(() { isFighting = true; });
+    audioManager.playSfx('sfx_hit.mp3');
+    FishingLive.setPhase('fighting'); // 관전 화면도 사투 장면으로
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Material(
+        color: Colors.transparent,
+        child: FishingFightingOverlay(
+          fish: const {'name': '바닥걸림', 'size': '0', 'unit': '', 'img': '',
+            'exp': 0, 'pts': 0, 'isBox': false},
+          playerTotalStats: 1,
+          locationStars: _getLocationStars(),
+          rodImageSuffix: rodSceneSuffix(equippedRod),
+          lureRodKey: _lureMode ? _lureRodKey() : '',
+          isSea: widget.isSea,
+          isSnag: true,
+          onCutLine: () async {
+            Navigator.pop(context);
+            await Future.delayed(const Duration(milliseconds: 100));
+            if (!mounted) return;
+            setState(() { isFighting = false; });
+            await _useBaitOne();       // 미끼·루어를 바닥에 두고 온다
+            _onFightOverBaitCheck();
+            _damageLineOnFail();       // 낚싯줄 -10m
+            audioManager.playSfx('sfx_break.mp3');
+            FishingLive.setPhase('lost');
+            _showNotificationPopup('⚓ 바닥걸림',
+                '채비가 바닥에 걸려 줄을 끊었어요.\n\n미끼와 낚싯줄 10m를 잃었습니다.',
+                Colors.orangeAccent, onConfirm: _recast);
+          },
+          onFinished: (bool ok, double sz) {},   // 바닥걸림은 게임 루프가 없어 호출되지 않음
+        ),
+      ),
+    );
+  }
+
   void _startFight(Map<String, dynamic> fish) {
     setState(() {
       isFighting = true; // ⭐ 1. 앗! 고기 물었다! 파이팅 상태 켜기!
     });
-    _useBaitOne(); // 🪱 #2 입질(파이팅 시작)마다 미끼 1개 소모 — 승리·실패 동일
+    // 🪱 먹는 미끼는 입질마다 소모. 루어류(스푼·웜·플라이·루어·에기)는
+    //    '채비'라서 물고기를 잡아도 안 닳는다 — 줄이 터지거나 바닥에 걸렸을 때만 잃는다.
+    //    (낚시신동님 제보 "주꾸미·문어를 잡든 에기가 없어지는 게 안 맞다")
+    if (!isLureTackle(equippedBait)) _useBaitOne();
 
     Map<String, int> myStats = getMyTotalStats();
     // 🏆 아레나는 완전 평준화(장비=마스터 지급 + 레벨 보너스 0) → 순수 실력 대결. 일반 낚시는 레벨 보너스 반영.
@@ -1566,6 +1619,7 @@ Widget _whisperUnreadBadge() {
                       await Future.delayed(const Duration(milliseconds: 100));
                       if (!mounted) return;
                       setState(() { isFighting = false; });
+                      if (isLureTackle(equippedBait)) _useBaitOne();
                       _onFightOverBaitCheck();
                       _damageLineOnFail();   // 🧵 랜딩 실패와 같은 대가 — 낚싯줄 -10m
                       audioManager.playSfx('sfx_break.mp3');
@@ -1745,6 +1799,8 @@ Widget _whisperUnreadBadge() {
         }
       } else {
         // 🚨 이 else가 아까 에러 났던 녀석입니다!
+        // 🎣 줄이 터지면 매달려 있던 루어도 같이 잃는다(실제 낚시 그대로).
+        if (isLureTackle(equippedBait)) _useBaitOne();
         _damageLineOnFail(); // 🧵 랜딩 실패 → 낚시줄 −10m (0m면 끊어짐)
         audioManager.playSfx("sfx_break.mp3");
         // 🎣👀 관전: 놓친 것도 알려야 한다. 안 그러면 관전 화면이 파이팅 장면에
@@ -5836,6 +5892,9 @@ class FishingFightingOverlay extends StatefulWidget {
   final bool spectator;
   // ✂️ 줄끊기 — 눌렀을 때 부모가 할 일(실패 처리 + 안내). null 이면 버튼이 안 뜬다.
   final VoidCallback? onCutLine;
+  // ⚓ 바닥걸림 — 물고기가 아니라 바닥을 걸었다. 게이지가 가운데 멈추고
+  //    게임 루프가 돌지 않는다. 줄을 끊어야만 벗어난다.
+  final bool isSnag;
   final Stream<Map<String, dynamic>>? spectatorStream; // {bar,stage,mode,timeLeft,pulling}
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
@@ -5848,6 +5907,7 @@ class FishingFightingOverlay extends StatefulWidget {
     this.onBroadcast,
     this.spectator = false,
     this.onCutLine,
+    this.isSnag = false,
     this.spectatorStream,
   });
   @override
@@ -5907,6 +5967,9 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
       knobNotifier.value = -1.0; _pullZone = -1; _armedRelease = false; // 🎣 물고기가 먼저 챔 — 노브 왼쪽에서 시작
     }
     HardwareKeyboard.instance.addHandler(_onCombatKey); // 🎣 [v235] PC A(풀기)/D(당기기) 키
+    // ⚓ 바닥걸림: 물고기가 없으니 게임 루프를 돌리지 않는다.
+    //    게이지는 가운데에 멈춘 채로 두고, 줄끊기만 열어 준다.
+    if (widget.isSnag) { gaugeNotifier.value = 0.5; return; }
     _startGame();
   }
 
@@ -6399,6 +6462,19 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
               child: ValueListenableBuilder<int>(
                 valueListenable: timeNotifier,
                 builder: (context, timeVal, child) {
+                  if (widget.isSnag) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.65),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(color: Colors.orangeAccent, width: 2),
+                      ),
+                      child: const Text('⚓ 바닥걸림!  줄을 끊어야 벗어날 수 있어요',
+                          style: TextStyle(color: Colors.orangeAccent, fontSize: 20,
+                              fontWeight: FontWeight.bold)),
+                    );
+                  }
                   return Text('제한시간: $timeVal초', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black45, blurRadius: 5)]));
                 }
               ),
@@ -6415,7 +6491,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                 child: ValueListenableBuilder<int>(
                   valueListenable: timeNotifier,
                   builder: (context, timeVal, child) {
-                    if (timeVal > 15) return const SizedBox.shrink();
+                    // ⚓ 바닥걸림은 기다릴 이유가 없다 — 바로 끊을 수 있게.
+                    if (!widget.isSnag && timeVal > 15) {
+                      return const SizedBox.shrink();
+                    }
                     return GestureDetector(
                       onTap: _cutLine,
                       child: Container(

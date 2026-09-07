@@ -666,6 +666,21 @@ const Map<String, double> kLegendAppearRate = {
 //
 //   기준: 1존 보스(무르가돈) 클리어 보상 EXP 2,000 · 10,000 KREFT 의 절반.
 //   ★5 낚시 시간당 약 12,000 KREFT 이므로 5,000 = 약 25분치.
+// ⚓ 바닥걸림(밑걸림) 확률 — 챔질했을 때 물고기가 아니라 바닥을 걸을 확률.
+//   어느 낚시나 밑걸림은 있으므로 미끼 종류를 가리지 않는다.
+//   걸리면 게이지가 가운데 멈추고, 줄을 끊어야 벗어난다(낚싯줄 -10m + 미끼 소모).
+//   ⚠️ 아레나는 제외 — 10분 단판에 운으로 갈리면 대회가 아니게 된다.
+const double kSnagChance = 0.10;
+
+/// 🧵 루어류인가 — 먹는 미끼가 아니라 '채비'다.
+///   물고기를 잡아도 안 닳고, 줄이 터지거나 바닥에 걸렸을 때만 잃는다.
+bool isLureTackle(Map<String, dynamic>? bait) {
+  if (bait == null) return false;
+  final n = (bait['name'] ?? '').toString();
+  return n.contains('스푼') || n.contains('웜') || n.contains('플라이') ||
+      n.contains('루어') || n.contains('에기');
+}
+
 const Map<String, Map<String, int>> kLegendBonus = {
   '참치': {'exp': 1000, 'pts': 5000},   // 1존 보스 보상의 절반
   '초어': {'exp':  500, 'pts': 2000},   // 민물·흔한 미끼(옥수수)로 잡혀 조금 낮게
