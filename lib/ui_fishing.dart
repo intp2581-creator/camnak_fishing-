@@ -1241,10 +1241,21 @@ Widget _whisperUnreadBadge() {
               //    열어둔 채로 경기가 끝나면, 그 창만 닫히고 낚시 화면에는 그대로 갇혔다.
               //    (정산은 서버에서 끝나 채팅에 상금이 찍히는데 화면은 00:00에서 멈춰 있었다)
               //    → 내 낚시방 위에 쌓인 팝업을 전부 걷어낸 뒤에 낚시방을 닫는다.
+              //
+              // 🚨 [2026-09-07] 위 변경 때 재시도를 '2초마다 무한 반복'으로 바꾼 것이 화근이었다.
+              //    낚시방이 닫히는 도중 타이머가 또 돌면 myRoute 가 이미 스택에서 빠져
+              //    popUntil 조건이 영영 안 맞고 → 화면을 전부 닫아 '검은 화면'이 됐다
+              //    (붕어야놀자님 제보 "아레나 끝나고 아무것도 안 보임").
+              //    mounted 검사로는 못 막는다 — 닫히는 도중에도 아직 true 다.
               final ModalRoute<dynamic>? myRoute = ModalRoute.of(context);
-              if (myRoute != null) {
-                Navigator.of(context).popUntil((r) => r == myRoute);
+              // ① 이미 스택에서 빠졌으면 손대지 않는다(여기서 pop 하면 남의 화면이 닫힌다).
+              if (myRoute == null || !myRoute.isActive) {
+                _arenaExitTimer?.cancel();
+                return;
               }
+              // ② r.isFirst 를 함께 둔다 — 조건이 안 맞아도 첫 화면에서 반드시 멈춰서,
+              //    스택이 통째로 비는 일(=검은 화면)이 원천적으로 불가능해진다.
+              Navigator.of(context).popUntil((r) => r == myRoute || r.isFirst);
               if (Navigator.canPop(context)) Navigator.of(context).pop(); // 낚시방→대기실(dispose 정산)
             };
             return AlertDialog(
@@ -4209,7 +4220,8 @@ Positioned(
                            }
               if (equippedRod == null) {
       // 🎣 빈손이면 먼저 '보유한 최고 장비' 자동 장착 (조용히)
-      _runAutoEquip(silent: true);
+      //    ⚠️ onlyEmpty — 유저가 고른 미끼를 건드리면 안 된다(2026-09-07 제보).
+      _runAutoEquip(silent: true, onlyEmpty: true);
       // 그래도 비어있는 슬롯(장비를 다 팔았을 때)만 임시 기본 장비로 채움
       setState(() {
         equippedRod ??= widget.isSea
@@ -4776,13 +4788,21 @@ Positioned(
     return true;
   }
 
-  void _runAutoEquip({bool silent = false}) {
+  /// ⚡ 자동 장착.
+  ///   [onlyEmpty] 를 주면 **비어 있는 슬롯만** 채운다. 이미 낀 것은 그대로 둔다.
+  ///   ⚠️ 이 옵션이 없던 시절, '캐스팅 시작!'이 빈 낚싯대를 채우려고 이 함수를
+  ///      부르면서 유저가 고른 미끼까지 '수량 많은 것'으로 갈아치웠다
+  ///      (2026-09-07 제보). 버튼으로 직접 누를 때만 전부 다시 맞춘다.
+  void _runAutoEquip({bool silent = false, bool onlyEmpty = false}) {
     // 🛡️ [아레나 검문소] 대회 중에는 자동 장착 금지!
     if (widget.roomId != null) {
       if (!silent) _showNotificationPopup('🚫 장착 불가!', '아레나(대회) 중에는 제공된 대회용 장비만 사용해야 합니다!', Colors.redAccent);
       return;
     }
     if (!silent) audioManager.playSfx("sfx_click.mp3");
+    // 📌 지금 끼고 있는 것(빈 슬롯만 채우는 모드에서 되돌리기 위해).
+    final keepSkin = equippedSkin, keepBait = equippedBait, keepRod = equippedRod;
+    final keepReel = equippedReel, keepFloat = equippedFloat, keepCooler = equippedCooler;
     setState(() {
       List<dynamic> validItems = _latestInventory.where((item) {
         String cat = item['category'] ?? '';
@@ -4852,6 +4872,17 @@ Positioned(
       equippedReel = bestReel;
       equippedFloat = _lureMode ? null : bestFloat; // 🎣 루어는 찌 안 씀(손 낚싯대)
       equippedCooler = bestCooler; // 🧊 아이스박스 자동 장착
+
+      // 🔒 빈 슬롯만 채우는 모드 — 원래 끼고 있던 것은 되돌린다.
+      //    특히 미끼: 유저가 방금 고른 것을 '수량 많은 것'으로 덮으면 안 된다.
+      if (onlyEmpty) {
+        if (keepSkin != null) equippedSkin = keepSkin;
+        if (keepBait != null) equippedBait = keepBait;
+        if (keepRod != null) equippedRod = keepRod;
+        if (keepReel != null) equippedReel = keepReel;
+        if (keepFloat != null && !_lureMode) equippedFloat = keepFloat;
+        if (keepCooler != null) equippedCooler = keepCooler;
+      }
       if (_lureMode) equippedGroundbait = null; // 🎣 루어는 밑밥 안 씀
       isRodEquipped = equippedRod != null;
 
