@@ -6493,7 +6493,10 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
                   valueListenable: timeNotifier,
                   builder: (context, timeVal, child) {
                     // ⚓ 바닥걸림은 기다릴 이유가 없다 — 바로 끊을 수 있게.
-                    if (!widget.isSnag && timeVal > 15) {
+                    // ⏱️ 일반 사투는 10초 지난 뒤부터(30→20).
+                    //    어차피 '풀기'를 밀어 게이지를 0으로 만들면 포기할 수 있고,
+                    //    그것도 10초쯤 걸린다 — 버튼은 그걸 편하게 해줄 뿐이다.
+                    if (!widget.isSnag && timeVal > 20) {
                       return const SizedBox.shrink();
                     }
                     return GestureDetector(
