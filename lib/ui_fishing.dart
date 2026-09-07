@@ -2956,6 +2956,16 @@ void _recast() {  // 기존 코드
     // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후엔 캐스팅 불가 (일일타이머와 별개라 이전엔 통과됐음)
     if (widget.roomId != null && (arenaTimeLeft <= 0 || _arenaEndedNaturally)) return;
     if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
+    // 🧵 낚싯줄 없으면 캐스팅 불가 (2026-09-07 필수품으로)
+    //   ⚠️ 아레나는 제외 — 평준화를 위해 낚싯줄을 강제로 빼기 때문에(841행)
+    //      막으면 대회에서 캐스팅 자체가 안 된다.
+    if (widget.roomId == null && equippedLine == null) {
+      _showNotificationPopup('🧵 낚싯줄이 없어요!',
+          '낚시를 하려면 낚싯줄이 필요해요.\n\n'
+          '상점에서 [일반 낚싯줄]을 구매하거나,\n'
+          '가방에서 낚싯줄을 장착해 주세요.', Colors.orangeAccent);
+      return;
+    }
     // 🪱 미끼 없으면 캐스팅 불가
     if (equippedBait == null) {
       _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
@@ -4330,7 +4340,9 @@ Positioned(
                                 return;
                              } // 👈 하이패스 게이트 종료
                            }
-              if (equippedRod == null) {
+              // 🧵 낚싯대뿐 아니라 낚싯줄이 없을 때도 자동보정을 돌린다.
+              //    낚싯줄이 필수가 되면서, 대는 있는데 줄만 없는 경우가 생긴다.
+              if (equippedRod == null || equippedLine == null) {
       // 🎣 빈손이면 먼저 '보유한 최고 장비' 자동 장착 (조용히)
       //    ⚠️ onlyEmpty — 유저가 고른 미끼를 건드리면 안 된다(2026-09-07 제보).
       _runAutoEquip(silent: true, onlyEmpty: true);
@@ -4364,6 +4376,14 @@ Positioned(
         '미끼교체에서 쓸 미끼를 고르고\n다시 캐스팅해 주세요! 🎣',
         const Color(0xFFD4AF37),
       );
+      return;
+    }
+    // 🧵 자동보정 후에도 낚싯줄이 없으면 캐스팅 차단 (아레나 제외 — 평준화)
+    if (widget.roomId == null && equippedLine == null) {
+      _showNotificationPopup('🧵 낚싯줄이 없어요!',
+          '낚시를 하려면 낚싯줄이 필요해요.\n\n'
+          '상점에서 [일반 낚싯줄]을 구매하거나,\n'
+          '가방에서 낚싯줄을 장착해 주세요.', Colors.orangeAccent);
       return;
     }
     // 🪱 자동장착 후에도 미끼가 없으면 캐스팅 차단 (모든 미끼 소진 = 낚시 불가)
@@ -4936,6 +4956,7 @@ Positioned(
     if (!silent) audioManager.playSfx("sfx_click.mp3");
     // 📌 지금 끼고 있는 것(빈 슬롯만 채우는 모드에서 되돌리기 위해).
     final keepSkin = equippedSkin, keepBait = equippedBait, keepRod = equippedRod;
+    final keepLine = equippedLine;
     final keepReel = equippedReel, keepFloat = equippedFloat, keepCooler = equippedCooler;
     setState(() {
       List<dynamic> validItems = _latestInventory.where((item) {
@@ -4995,7 +5016,15 @@ Positioned(
         else if (_typeIs(item, 'NET') || name.contains('뜰채')) { if (equippedNet == null) equippedNet = item; }
         else if (_typeIs(item, 'BELT') || name.contains('벨트')) { if (equippedBelt == null) equippedBelt = item; }
         else if (_typeIs(item, 'GLOVES') || name.contains('장갑')) { if (equippedGloves == null) equippedGloves = item; }
-        else if (_typeIs(item, 'LINE') || name.contains('낚시줄') || name.contains('낚싯줄')) { if (equippedLine == null) equippedLine = item; }
+        // 🧵 낚싯줄은 소모품이라 '비싼 것부터'가 아니라 '싼 것부터' 쓴다.
+        //    능력치 붙은 고급줄(20,000)이 자동으로 닳으면 유저가 손해다.
+        //    → 일반 낚싯줄을 먼저 끼고, 없을 때만 고급줄을 낀다.
+        else if (_typeIs(item, 'LINE') || name.contains('낚시줄') || name.contains('낚싯줄')) {
+          final bool isBasic = name.contains('일반');
+          final bool curBasic =
+              equippedLine != null && equippedLine!['name'].toString().contains('일반');
+          if (equippedLine == null || (isBasic && !curBasic)) equippedLine = item;
+        }
         else if (_typeIs(item, 'GROUNDBAIT') || name.contains('밑밥')) { if (equippedGroundbait == null) equippedGroundbait = item; }
         // 🪱 미끼는 '마지막 칸'이라, 위에서 안 걸린 게 전부 여기로 흘러들었다.
         //    type 이 BAIT 인 것만 받도록 좁힌다(옛 아이템은 이름으로 보조 판정).
@@ -5021,6 +5050,7 @@ Positioned(
         if (keepReel != null) equippedReel = keepReel;
         if (keepFloat != null && !_lureMode) equippedFloat = keepFloat;
         if (keepCooler != null) equippedCooler = keepCooler;
+        if (keepLine != null) equippedLine = keepLine;
       }
       if (_lureMode) equippedGroundbait = null; // 🎣 루어는 밑밥 안 씀
       isRodEquipped = equippedRod != null;
