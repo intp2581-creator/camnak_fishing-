@@ -1496,6 +1496,12 @@ Widget _whisperUnreadBadge() {
             math.Random().nextDouble() <
                 snagChance(isSea: widget.isSea, lureMode: _lureMode)) {
           _startSnag();
+          // 🔒 아래 '자물쇠 풀기'를 건너뛰고 나가므로 여기서 같이 푼다.
+          //    안 풀면 _isStrikeLocked 가 true 로 남아 그 뒤로 챔질·당기기
+          //    버튼이 아무 반응도 하지 않는다(2026-09-07 제보).
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) setState(() { _isStrikeLocked = false; });
+          });
           return;
         }
 
