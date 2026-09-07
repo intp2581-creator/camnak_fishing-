@@ -26,7 +26,7 @@
 옵션:
     --preset  chuseok | event | thanks
     --title   선물 제목            --msg    인사말
-    --potion --card --emblem --hour --arena   담을 아이템 개수
+    --potion --card --emblem --line --hour --arena   담을 아이템 개수
     --kreft   KREFT               --exp    경험치
     --start   받기 시작일 YYYY-MM-DD (없으면 즉시)
     --end     받기 마감일 YYYY-MM-DD (없으면 무기한 — 권장하지 않음)
@@ -131,6 +131,15 @@ def item_emblem():
             "desc": "눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요." + NL +
                     "낚시터에 있는 동안에만 시간이 줄어요." + NL +
                     "휘장과 함께 적용돼요. (아레나·보스레이드 제외)"}
+
+
+def item_line():
+    # 낚싯줄은 '남은 길이(dur)'를 따로 세는 물건이라 개수로 합치면 안 된다.
+    return {"name": "일반 낚싯줄", "price": 0, "category": "COMMON", "type": "LINE",
+            "quantity": 1, "dur": 200, "icon": "line_normal.png",
+            "desc": "낚시에 꼭 필요한 기본 낚싯줄이에요." + NL +
+                    "민물·바다 어디서나 쓸 수 있어요." + NL + NL +
+                    "내구도 200m — 물고기를 놓치거나 줄을 끊으면 10m씩 줄어들어요."}
 
 
 def item_hour(n):
@@ -241,6 +250,8 @@ def main():
         items.append(item_card(num("--card")))
     for _ in range(num("--emblem")):
         items.append(item_emblem())
+    for _ in range(num("--line")):
+        items.append(item_line())
     if num("--hour") > 0:
         items.append(item_hour(num("--hour")))
     if num("--arena") > 0:

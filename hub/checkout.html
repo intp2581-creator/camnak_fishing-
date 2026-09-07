@@ -493,5 +493,10 @@
     }
   };
 </script>
+<script>
+/* 🎮 '지금 플레이' 버튼 — 이 페이지엔 연결 코드가 빠져 있어
+   눌러도 아무 일이 없었다(href="#" 인 채로 방치). 2026-09-07 제보. */
+document.querySelectorAll('[data-play]').forEach(function(a){ a.href = 'play.html'; });
+</script>
 </body>
 </html>
