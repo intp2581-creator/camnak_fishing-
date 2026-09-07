@@ -25,14 +25,50 @@ const TEST_MODE_GM_ONLY = true;
 const PRODUCTS = {
   "ticket_1h":   {name: "낚시 1시간 이용권", price: 1100,  limitType: "STACK"},
   "ticket_arena":{name: "아레나 입장권",     price: 1100,  limitType: "STACK"},
-  "skin_novice": {name: "하수 조사",   price: 2200,  limitType: "ONCE", reqLevel: 10,  reqRank: "하수"},
-  "skin_mid":    {name: "중수 조사",   price: 5500,  limitType: "ONCE", reqLevel: 30,  reqRank: "중수"},
-  "skin_expert": {name: "고수 조사",   price: 11000, limitType: "ONCE", reqLevel: 50,  reqRank: "고수"},
-  "skin_pro":    {name: "프로 조사",   price: 22000, limitType: "ONCE", reqLevel: 70,  reqRank: "프로"},
-  "skin_master": {name: "마스터 조사", price: 55000, limitType: "ONCE", reqLevel: 100, reqRank: "마스터"},
-  "badge_1":     {name: "캠피싱 뱃지",      price: 2200,  limitType: "ONCE", reqLevel: 10},
-  "badge_2":     {name: "캠피싱 휘장",      price: 5500,  limitType: "ONCE", reqLevel: 30},
-  "badge_3":     {name: "KREFT 정예 휘장", price: 11000, limitType: "ONCE", reqLevel: 50},
+  // 📦 장착형(스킨·뱃지·휘장)은 '상자'로 지급한다 — 열어야 실제로 손에 들어온다.
+  //   약관이 "7일 이내 장착하지 않으신 상태면 전액 환불"인데, 낱개로 주면
+  //   자동장착이 알아서 입혀버려 유저가 '미장착'을 유지할 수 없었다(2026-09-07).
+  //   상자는 열었냐 아니냐로 딱 갈린다. ⛔ 약관 문구는 승인 문안이라 못 고친다.
+  "skin_novice": {name: "하수 조사",        price: 2200, limitType: "ONCE", reqLevel: 10,  reqRank: "하수",
+    boxName: "하수 조사 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "하수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
+      stats: {P: 20, C: 20, S: 20}, icon: "../images/skin_novice.jpg"}]},
+  "skin_mid": {name: "중수 조사",        price: 5500, limitType: "ONCE", reqLevel: 30,  reqRank: "중수",
+    boxName: "중수 조사 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "중수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
+      stats: {P: 50, C: 50, S: 50}, icon: "../images/skin_intermediate.jpg"}]},
+  "skin_expert": {name: "고수 조사",        price: 11000, limitType: "ONCE", reqLevel: 50,  reqRank: "고수",
+    boxName: "고수 조사 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "고수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
+      stats: {P: 100, C: 100, S: 100}, icon: "../images/skin_expert.jpg"}]},
+  "skin_pro": {name: "프로 조사",        price: 22000, limitType: "ONCE", reqLevel: 70,  reqRank: "프로",
+    boxName: "프로 조사 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "프로 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
+      stats: {P: 200, C: 200, S: 200}, icon: "../images/skin_pro.jpg"}]},
+  "skin_master": {name: "마스터 조사",       price: 55000, limitType: "ONCE", reqLevel: 100, reqRank: "마스터",
+    boxName: "마스터 조사 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "마스터 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
+      stats: {P: 300, C: 300, S: 300}, icon: "../images/skin_master.jpg"}]},
+  "badge_1": {name: "캠피싱 뱃지",       price: 2200, limitType: "ONCE", reqLevel: 10,
+    boxName: "캠피싱 뱃지 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "캠피싱 뱃지", qty: 1, cash: true, category: "COMMON", type: "ETC",
+      stats: {P: 10, C: 10, S: 10}, icon: "item_badge_1.png"}]},
+  "badge_2": {name: "캠피싱 휘장",       price: 5500, limitType: "ONCE", reqLevel: 30,
+    boxName: "캠피싱 휘장 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "캠피싱 휘장", qty: 1, cash: true, category: "COMMON", type: "ETC",
+      stats: {P: 30, C: 30, S: 30}, icon: "item_badge_2.png"}]},
+  "badge_3": {name: "KREFT 정예 휘장",  price: 11000, limitType: "ONCE", reqLevel: 50,
+    boxName: "KREFT 정예 휘장 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "KREFT 정예 휘장", qty: 1, cash: true, category: "COMMON", type: "ETC",
+      stats: {P: 50, C: 50, S: 50}, icon: "item_badge_3.png"}]},
   // 🎁 묶음 상품 — bundle 이 있으면 그 목록을 통째로 지급한다(단품 name 은 안 쓴다).
   //    아임웹 쪽 packageDatabase(index.js)와 구성이 같아야 한다.
   "growth_pack": {
@@ -94,6 +130,23 @@ async function requirePayable(user) {
   }
 }
 
+// 🚫 이 상품을 이미 가지고 있는가 — '열지 않은 상자'도 보유로 친다.
+//   스킨·뱃지는 상자로 지급되므로, 상자만 보고 있으면 '아직 없다'가 되어
+//   같은 상품을 또 살 수 있게 된다(2026-09-07 상자 도입으로 생긴 구멍).
+function alreadyOwned(inv, p, bought, key) {
+  // 🧾 산 적이 있으면 팔았어도 다시 못 산다 — 계정당 1회이기 때문.
+  //    (팔고 재구매가 되면 현금 → KREFT 환전 통로가 열린다)
+  if (bought && key && bought[key] === true) return true;
+  const boxName = p.boxName || "";
+  return (inv || []).some((i) => {
+    if (!i) return false;
+    if (i.name === p.name) return true;                 // 열어서 손에 든 것
+    if (boxName && i.name === boxName) return true;     // 아직 안 연 상자
+    // 상자 안에 그 아이템이 들어 있나(상자 이름을 바꿔도 잡히게)
+    return Array.isArray(i.gift) && i.gift.some((g) => g && g.name === p.name);
+  });
+}
+
 function portoneHeaders() {
   const secret = process.env.PORTONE_API_SECRET;
   if (!secret) throw new Error("PORTONE_API_SECRET 미설정");
@@ -123,7 +176,8 @@ exports.payPrepare = onRequest({region: "us-central1", cors: true}, async (req, 
     if (p.limitType === "ONCE") {
       const u = await db.collection("users").doc(user.uid).get();
       const inv = (u.data() || {}).inventory || [];
-      if (inv.some((i) => i && i.name === p.name)) {
+      const bought = (u.data() || {}).cashBought || {};
+      if (alreadyOwned(inv, p, bought, key)) {
         return res.status(400).json({ok: false, err: "이미 보유한 상품입니다"});
       }
     }
@@ -335,9 +389,14 @@ async function grantItem(db, order, orderId) {
   return db.runTransaction(async (tx) => {
     const u = await tx.get(uref);
     const inv = ((u.data() || {}).inventory || []).slice();
+    const bought = (u.data() || {}).cashBought || {};
     // 📦 묶음 상품 — 낱개가 아니라 '상자' 하나로 넣는다. 유저가 눌러 열면 내용물이 풀린다.
     //    gid 에 주문번호를 넣어 두면, 환불 문의 때 '이 주문의 상자가 아직 있나'를 바로 볼 수 있다.
     if (Array.isArray(p.bundle)) {
+      // 🚫 계정당 1개 상품은 여기서도 막는다. 예전엔 이 분기가 그냥 return 해서
+      //    아래 ONCE 검사에 도달하지 못했다(상자 도입으로 생긴 구멍).
+      if (p.limitType === "ONCE" &&
+          alreadyOwned(inv, p, bought, order.itemKey)) return false;
       const n = Math.max(1, Number(order.qty || 1));
       for (let k = 0; k < n; k++) {
         inv.push({
@@ -352,12 +411,17 @@ async function grantItem(db, order, orderId) {
         });
       }
       tx.update(uref, {inventory: inv});
+      // 🧾 계정당 1회 상품은 '샀다'를 남긴다(팔아도 재구매 불가).
+      if (p.limitType === "ONCE") {
+        tx.set(uref, {cashBought: {[order.itemKey]: true}}, {merge: true});
+      }
       return true;
     }
     const idx = inv.findIndex((i) => i && i.name === p.name);
     if (p.limitType === "ONCE") {
-      if (idx >= 0) return false;                       // 이미 보유
+      if (alreadyOwned(inv, p, bought, order.itemKey)) return false;  // 이미 보유·구매
       inv.push({name: p.name, quantity: 1, cash: true});
+      tx.set(uref, {cashBought: {[order.itemKey]: true}}, {merge: true});
     } else if (idx >= 0) {
       const q = Number(inv[idx].quantity || 0) + order.qty;
       inv[idx] = Object.assign({}, inv[idx], {quantity: q});
@@ -472,6 +536,17 @@ exports.payRefund = onRequest({region: "us-central1", cors: true}, async (req, r
       try { note = await reclaimItems(db, order, orderId); } catch (e) {
         note = "회수 실패: " + String(e.message || e);
       }
+    }
+
+    // 🧾 계정당 1회 상품이면 '샀다' 기록을 지운다.
+    //   안 지우면 환불받고도 영영 다시 살 수 없다(구매 이력으로 막고 있으므로).
+    const prod = PRODUCTS[order.itemKey];
+    if (prod && prod.limitType === "ONCE") {
+      try {
+        await db.collection("users").doc(order.uid).set(
+            {cashBought: {[order.itemKey]: admin.firestore.FieldValue.delete()}},
+            {merge: true});
+      } catch (e) { /* 기록 삭제 실패는 환불을 막지 않는다 */ }
     }
 
     await ref.update({

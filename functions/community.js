@@ -10,7 +10,8 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
-const BOARDS = ["free", "tip", "catch", "guild", "ask"];
+// 🏰 guild = 길드 소식(공개, 길드원 모집 등) · myguild = 우리 길드(같은 길드원만)
+const BOARDS = ["free", "tip", "catch", "guild", "myguild", "ask"];
 
 async function requireUser(req) {
   const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -42,8 +43,9 @@ async function requireUser(req) {
   };
 }
 
-// 🏰 길드 글을 볼 수 있는가 — 우리 길드 글이거나, guildId 없는 옛 글(전체 공지)이거나, GM.
-//   ⚠️ 로그인 안 한 사람에겐 길드 글을 아예 내보내지 않는다.
+// 🏰 '우리 길드'(myguild) 글을 볼 수 있는가 — 같은 길드원이거나, GM.
+//   ⚠️ 로그인 안 한 사람에겐 아예 내보내지 않는다.
+//   '길드 소식'(guild)은 공개 게시판이라 이 판정을 거치지 않는다.
 function canSeeGuildPost(d, me) {
   if (!me) return false;
   if (me.isGm) return true;
@@ -96,7 +98,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         }
         posts.doc(id).update({ views: admin.firestore.FieldValue.increment(1) }).catch(() => {});
         const d = doc.data();
-        if (d.board === "guild" && !canSeeGuildPost(d, viewer)) {
+        if (d.board === "myguild" && !canSeeGuildPost(d, viewer)) {
           return res.status(403).json({ ok: false, err: "우리 길드 게시판만 보실 수 있습니다" });
         }
         const cs = await comments.where("postId", "==", id).limit(200).get();
@@ -135,7 +137,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         if (d.deleted === true) return;
         if (board && d.board !== board) return;
         // 🏰 길드 글은 우리 길드 것만 (전체 목록에서도 남의 길드 글이 새면 안 된다)
-        if (d.board === "guild" && !canSeeGuildPost(d, viewer)) return;
+        if (d.board === "myguild" && !canSeeGuildPost(d, viewer)) return;
         if (items.length >= limit) return;
         items.push({
           id: doc.id, board: d.board, title: d.title || "",
@@ -186,7 +188,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
 
       // 🏰 길드 게시판은 길드에 속한 사람만 쓸 수 있고, 어느 길드 글인지 도장을 찍는다.
       //    이 값이 있어야 나중에 다른 길드에 안 보인다(클라이언트가 보낸 값은 믿지 않는다).
-      if (board === "guild" && !me.guildId) {
+      if (board === "myguild" && !me.guildId) {
         return res.status(400).json({ ok: false,
           err: "길드에 가입하셔야 길드 게시판에 글을 쓸 수 있습니다" });
       }
@@ -195,7 +197,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         board: board, title: title, body: body, images: [],
         author: me.nick, rank: me.rank, authorUid: me.uid, gm: me.isGm === true,
         views: 0, commentCount: 0, deleted: false,
-        ...(board === "guild" ? { guildId: me.guildId, guildName: me.guildName } : {}),
+        ...(board === "myguild" ? { guildId: me.guildId, guildName: me.guildName } : {}),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       let img = "", thumb = "";

@@ -1589,8 +1589,11 @@ int invSortRank(Map<String, dynamic> it) {
   final n = (it['name'] ?? '').toString();
   if (t == 'FISH') return 7;
   if (t == 'BAIT' || c == 'BAIT') return 6;
+  // 📦 상자를 '먼저' 본다. 이름으로 스킨을 판정하면 '하수 조사 상자'가
+  //    skinTierByName('하수')=2 로 걸려 스킨 칸으로 가버린다(2026-09-07).
+  //    유료 아이템 상자는 서로 붙어 있어야 정리돼 보인다.
+  if (t == 'BOX' || c == 'BOX' || n.endsWith('상자')) return 4;
   if (t == 'SKIN' || c == 'SKIN' || skinTierByName(n) > 0) return 0;
-  if (t == 'BOX' || n.contains('상자')) return 4;
   if (isStoreTabItem(it)) return 5;
   if (t == 'ROD') return 1;
   if (t == 'REEL' || t == 'FLOAT') return 2;
