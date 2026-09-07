@@ -201,6 +201,8 @@
   <!-- 상세 -->
   <div id="detailView" style="display:none">
     <div class="detail" id="detail"></div>
+    <!-- 🎁 받을 선물이 있을 때만 나타난다(아래 스크립트가 채움) -->
+    <div id="giftCta" style="display:none;margin:18px 0 0;text-align:center"></div>
     <div class="backrow"><a class="btn" href="notice.html">← 목록으로</a></div>
   </div>
 </div>
@@ -297,6 +299,36 @@
   }
 
 
+  /* 🎁 받을 수 있는 선물이 있으면 공지 아래에 '선물함 가기' 버튼을 띄운다.
+     로그인 안 했거나, 이미 받았거나, 기간이 끝났으면 뜨지 않는다.
+     공지마다 따로 손볼 필요 없이 선물만 걸면 알아서 붙는다. */
+  function showGiftCta(){
+    var box = document.getElementById('giftCta');
+    if (!box) return;
+    var wait = setInterval(function(){
+      var u = window.__auth && window.__auth.currentUser;
+      if (!u) return;
+      clearInterval(wait);
+      u.getIdToken().then(function(t){
+        return fetch('https://us-central1-camnak-fishing.cloudfunctions.net/giftApi?list=1',
+          {headers:{Authorization:'Bearer '+t}}).then(function(r){return r.json()});
+      }).then(function(j){
+        /* 서버가 기간 지난 미수령분은 이미 걸러 보낸다 → claimed 만 보면 된다. */
+        var can = (j && j.ok && Array.isArray(j.rows))
+          ? j.rows.filter(function(g){ return g.claimed !== true; }) : [];
+        if (!can.length) return;
+        box.innerHTML =
+          '<a class="btn btn-play" href="gift.html" style="display:inline-block;'
+          + 'padding:13px 26px;font-size:16px;font-weight:800">'
+          + '🎁 선물함에서 받기 (' + can.length + '건)</a>'
+          + '<div style="margin-top:8px;font-size:13.5px;color:#7c95a1">'
+          + '기간이 지나면 받으실 수 없습니다.</div>';
+        box.style.display = '';
+      }).catch(function(){ /* 못 물어봤으면 버튼 없이 그냥 둔다 */ });
+    }, 250);
+    setTimeout(function(){ clearInterval(wait); }, 8000);
+  }
+
   var id=new URLSearchParams(location.search).get('id');
   if(id){
     document.getElementById('listView').style.display='none';
@@ -328,6 +360,7 @@
             return '<img src="'+src+'" alt="" loading="lazy" '
                  + 'style="width:100%;max-width:420px;display:block;margin:14px auto;border-radius:12px">';
           })+'</div>';
+      showGiftCta();   // 🎁 받을 선물이 있으면 아래에 '선물함 가기' 버튼
     }).catch(function(){document.getElementById('detail').innerHTML='<div class="loading">불러오지 못했습니다.</div>';});
   }else{
     fetch(API+'?list=1&limit=50').then(function(r){return r.json()}).then(function(j){
