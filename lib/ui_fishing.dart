@@ -2092,7 +2092,11 @@ Widget _whisperUnreadBadge() {
         if (mounted) setState(() => equippedLine!['dur'] = dur);
         globalEquippedLine = equippedLine;
         await userDoc.update({'inventory': inv});
-        if (mounted && dur <= 30) _baitToast('🧵 낚시줄 잔여 ${dur}m — 곧 끊어져요!', Colors.orangeAccent);
+        // 🧵 경고 시작 30m → 50m. 실패 한 번에 10m 이므로 남은 횟수로 알려준다.
+        if (mounted && dur <= 50) {
+          _baitToast('🧵 낚싯줄 ${dur}m 남았어요 — ${(dur / 10).ceil()}번 더 놓치면 끊어져요!',
+              dur <= 30 ? Colors.redAccent : Colors.orangeAccent);
+        }
       }
     } catch (e) { debugPrint('낚시줄 내구도 처리 에러: $e'); }
   }
@@ -4775,7 +4779,24 @@ Positioned(
                                   ]
                                 ), 
                                 if (isCurrentlyEquipped) const Positioned(top: 4, right: 4, child: Icon(Icons.check_circle, color: Color(0xFFD4AF37), size: 18)),
-                                if (itemToShow['quantity'] != null && (itemToShow['type'] == 'BAIT' || itemToShow['type'] == 'FISH' || itemToShow['type'] == 'BOX' || ((itemToShow['quantity'] ?? 0) as num) > 1))
+                                // 🧵 낚싯줄은 개수가 아니라 '남은 길이'를 보여준다.
+                                //    quantity 가 1 이라 예전엔 배지가 아예 안 떠서 잔량을 알 수 없었다.
+                                if ((itemToShow['type'] ?? '') == 'LINE')
+                                  Builder(builder: (_) {
+                                    final int d = ((itemToShow!['dur'] ?? 200) as num).toInt();
+                                    final Color c = d <= 30
+                                        ? Colors.redAccent
+                                        : (d <= 80 ? Colors.orangeAccent : Colors.lightGreenAccent);
+                                    return Positioned(bottom: 4, right: 4, child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(color: Colors.black87,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: c.withOpacity(0.7), width: 0.8)),
+                                      child: Text('${d}m', style: TextStyle(color: c,
+                                          fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ));
+                                  })
+                                else if (itemToShow['quantity'] != null && (itemToShow['type'] == 'BAIT' || itemToShow['type'] == 'FISH' || itemToShow['type'] == 'BOX' || ((itemToShow['quantity'] ?? 0) as num) > 1))
                                   Positioned(bottom: 4, right: 4, child: Container(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2), decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.white54, width: 0.5)), child: Text('${itemToShow['quantity']}${itemToShow['type'] == 'FISH' ? '마리' : '개'}', style: const TextStyle(color: Colors.yellowAccent, fontSize: 10, fontWeight: FontWeight.bold))))
                               ])
                             )

@@ -5027,7 +5027,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                       decoration: BoxDecoration(
                           color: Colors.black87, borderRadius: BorderRadius.circular(6)),
-                      child: Text('$qty${(item['type'] ?? '') == 'FISH' ? '마리' : '개'}',
+                      // 🧵 낚싯줄은 개수(1개)가 아니라 남은 길이를 보여준다.
+                      child: Text((item['type'] ?? '') == 'LINE'
+                          ? '${((item['dur'] ?? 200) as num).toInt()}m'
+                          : '$qty${(item['type'] ?? '') == 'FISH' ? '마리' : '개'}',
                           style: const TextStyle(
                               color: _kGold, fontSize: 10, fontWeight: FontWeight.bold)),
                     ),
