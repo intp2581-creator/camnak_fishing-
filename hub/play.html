@@ -46,7 +46,8 @@
     border-radius:8px;cursor:pointer;white-space:nowrap}
   .pbar button:hover{background:rgba(255,255,255,.16);color:#fff}
 
-  .stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  /* position:relative — 계정이 바뀌었을 때 덮는 안내창(#acctLock)의 기준 */
+  .stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;
     padding:10px;background:
       radial-gradient(ellipse 70% 60% at 50% 40%, rgba(47,184,230,.08), transparent 70%),#07131a}
   .frame{width:100%;max-width:calc((100vh - 68px) * 16 / 9);aspect-ratio:16/9;
@@ -107,6 +108,7 @@
   var GAME_ORIGIN = 'https://camnak-fishing.web.app';
   var LOGIN_URL   = 'https://camnak.com/?gohub=1';
   var launched = false;
+  var playingEmail = '';   // 🔐 지금 게임 창에 띄운 계정(바뀌었는지 비교용)
 
   function panel(html){ document.getElementById('panel').innerHTML = html; }
 
@@ -119,6 +121,7 @@
   function launch(email){
     if (launched) return;
     launched = true;
+    playingEmail = email;
     var st = document.getElementById('stage');
     // ⚠️ geolocation 필수 — 빠지면 실시간 날씨(비·눈)가 iframe 안에서 동작하지 않는다.
     //    (아임웹 /30 페이지가 쓰던 allow와 동일하게 유지할 것, 2026-08-30)
@@ -149,6 +152,48 @@
     if (u && u.email){ clearInterval(poll); launch(u.email); return; }
     if (++tries > 24){ clearInterval(poll); askLogin(); }   // 약 6초
   }, 250);
+
+  /* 🔐 홈페이지 계정이 바뀌면(로그아웃·다른 계정 로그인) 게임 창을 덮는다.
+     게임은 주소가 달라 로그인이 따로 놀기 때문에, 그냥 두면 바깥 이름과
+     안쪽 캐릭터가 어긋난 채로 낚시하게 된다.
+     ⚠️ 낚시 중일 수 있으므로 몰래 다시 띄우지 않는다 — 유저가 누르게 한다. */
+  function lockGame(msg, btn, onClick){
+    if (document.getElementById('acctLock')) return;
+    var st = document.getElementById('stage');
+    if (!st) return;
+    var d = document.createElement('div');
+    d.id = 'acctLock';
+    d.style.cssText = 'position:absolute;inset:0;z-index:50;display:flex;'
+      + 'align-items:center;justify-content:center;background:rgba(8,20,28,.88);'
+      + 'backdrop-filter:blur(3px);padding:20px';
+    d.innerHTML = '<div style="max-width:420px;text-align:center;color:#eaf3f7">'
+      + '<div style="font-size:40px;margin-bottom:10px">🔐</div>'
+      + '<h2 style="margin:0 0 10px;font-size:22px">게임 연결이 끊어졌습니다</h2>'
+      + '<p style="margin:0 0 18px;line-height:1.7;color:#b9cdd7">' + msg + '</p>'
+      + '<button id="acctGo" style="padding:13px 26px;border:0;border-radius:10px;'
+      + 'background:#ffd34d;color:#1a1a1a;font-weight:800;font-size:16px;'
+      + 'cursor:pointer">' + btn + '</button></div>';
+    st.style.position = st.style.position || 'relative';
+    st.appendChild(d);
+    document.getElementById('acctGo').onclick = onClick;
+  }
+
+  /* 홈페이지 로그인 상태를 지켜본다. 게임 창을 띄운 뒤에만 의미가 있다. */
+  setInterval(function(){
+    if (!launched || document.getElementById('acctLock')) return;
+    var u = window.__auth && window.__auth.currentUser;
+    var em = u && u.email ? u.email : '';
+    if (em === playingEmail) return;                 // 그대로면 아무 일 없음
+    if (!em) {
+      lockGame('홈페이지에서 <b>로그아웃</b>하셨습니다.<br>'
+        + '다시 로그인하시면 이어서 낚시하실 수 있어요.',
+        '로그인하러 가기', function(){ location.href = LOGIN_URL; });
+    } else {
+      lockGame('홈페이지 계정이 <b>' + em + '</b> 으로 바뀌었습니다.<br>'
+        + '이 계정으로 다시 접속해 주세요.',
+        '이 계정으로 접속하기', function(){ location.reload(); });
+    }
+  }, 1500);
 
   // 전체화면
   document.getElementById('fsBtn').onclick = function(){
