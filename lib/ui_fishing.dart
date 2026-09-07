@@ -1558,6 +1558,22 @@ Widget _whisperUnreadBadge() {
               onBroadcast: (bar, stage, mode, timeLeft, pulling) =>
                   FishingLive.pushFight(bar, stage, mode, timeLeft, pulling),
 
+              // ✂️ 줄끊기 — 아레나(대회 성격이 바뀜)·상자(안 놓치는데 손해만)는 제외.
+              onCutLine: (widget.roomId != null || fish['isBox'] == true)
+                  ? null
+                  : () async {
+                      Navigator.pop(context);
+                      await Future.delayed(const Duration(milliseconds: 100));
+                      if (!mounted) return;
+                      setState(() { isFighting = false; });
+                      _onFightOverBaitCheck();
+                      _damageLineOnFail();   // 🧵 랜딩 실패와 같은 대가 — 낚싯줄 -10m
+                      audioManager.playSfx('sfx_break.mp3');
+                      FishingLive.setPhase('lost');
+                      _showNotificationPopup('✂️ 줄을 끊었습니다',
+                          '남은 시간을 아꼈어요.\n다음 입질을 노려보세요!',
+                          Colors.orangeAccent, onConfirm: _recast);
+                    },
               onFinished: (bool isSuccess, double size) async {
       Navigator.pop(context);
       await Future.delayed(const Duration(milliseconds: 100));
@@ -4823,6 +4839,11 @@ Positioned(
     return true;
   }
 
+  /// 🏷️ 아이템 type 이 t 인가(대소문자·공백 무시).
+  ///   이름 글자로 분류하면 새 아이템마다 사고가 난다 — type 을 먼저 본다.
+  bool _typeIs(dynamic item, String t) =>
+      (item is Map) && (item['type'] ?? '').toString().trim().toUpperCase() == t;
+
   /// ⚡ 자동 장착.
   ///   [onlyEmpty] 를 주면 **비어 있는 슬롯만** 채운다. 이미 낀 것은 그대로 둔다.
   ///   ⚠️ 이 옵션이 없던 시절, '캐스팅 시작!'이 빈 낚싯대를 채우려고 이 함수를
@@ -4890,12 +4911,17 @@ Positioned(
             if (equippedBadge == null || p > bestP) equippedBadge = item;
           }
         }
-        else if (name.contains('뜰채') && equippedNet == null) { equippedNet = item; }
-        else if (name.contains('벨트') && equippedBelt == null) { equippedBelt = item; }
-        else if (name.contains('장갑') && equippedGloves == null) { equippedGloves = item; }
-        else if (name.contains('낚시줄') && equippedLine == null) { equippedLine = item; }
-        else if (name.contains('밑밥') && equippedGroundbait == null) { equippedGroundbait = item; }
-        else if (name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('민물새우') || name.contains('스푼') || name.contains('웜') || name.contains('플라이') || name.contains('루어')) {
+        // 🏷️ [2026-09-07] type 이 있으면 그것을 믿는다. 이름 글자 판정은 옛 아이템용 보조.
+        //    ⚠️ 새 아이템을 넣을 때마다 이름이 안 맞아 맨 아래 '미끼' 칸으로 떨어지는
+        //       사고가 반복됐다. 예: '낚시줄'만 찾고 있어서 '낚싯줄'(사이시옷)은 못 잡는다.
+        else if (_typeIs(item, 'NET') || name.contains('뜰채')) { if (equippedNet == null) equippedNet = item; }
+        else if (_typeIs(item, 'BELT') || name.contains('벨트')) { if (equippedBelt == null) equippedBelt = item; }
+        else if (_typeIs(item, 'GLOVES') || name.contains('장갑')) { if (equippedGloves == null) equippedGloves = item; }
+        else if (_typeIs(item, 'LINE') || name.contains('낚시줄') || name.contains('낚싯줄')) { if (equippedLine == null) equippedLine = item; }
+        else if (_typeIs(item, 'GROUNDBAIT') || name.contains('밑밥')) { if (equippedGroundbait == null) equippedGroundbait = item; }
+        // 🪱 미끼는 '마지막 칸'이라, 위에서 안 걸린 게 전부 여기로 흘러들었다.
+        //    type 이 BAIT 인 것만 받도록 좁힌다(옛 아이템은 이름으로 보조 판정).
+        else if (_typeIs(item, 'BAIT') || name.contains('미끼') || name.contains('지렁이') || name.contains('글루텐') || name.contains('옥수수') || name.contains('크릴') || name.contains('에기') || name.contains('민물새우') || name.contains('스푼') || name.contains('웜') || name.contains('플라이') || name.contains('루어')) {
           bool isLureBait = name.contains('스푼') || name.contains('웜') || name.contains('플라이');
           bool wantBait = _lureMode ? isLureBait : !isLureBait; // 🎣 루어모드=루어미끼만, 일반=루어미끼 제외
           if (wantBait) { int qty = item['quantity'] as int? ?? 0; if (qty > maxBaitQty) { maxBaitQty = qty; bestBait = item; } }
@@ -5787,6 +5813,8 @@ class FishingFightingOverlay extends StatefulWidget {
   final void Function(double bar, int stage, String mode, int timeLeft, bool pulling)? onBroadcast;
   // 🎣👀 관전 모드: true면 게임로직·입력 없이 방송 스트림 값으로만 렌더(실제 낚싯대·바·손 그대로 재사용)
   final bool spectator;
+  // ✂️ 줄끊기 — 눌렀을 때 부모가 할 일(실패 처리 + 안내). null 이면 버튼이 안 뜬다.
+  final VoidCallback? onCutLine;
   final Stream<Map<String, dynamic>>? spectatorStream; // {bar,stage,mode,timeLeft,pulling}
   const FishingFightingOverlay({
     super.key, required this.fish, required this.playerTotalStats,
@@ -5798,6 +5826,7 @@ class FishingFightingOverlay extends StatefulWidget {
     this.isSea = false,
     this.onBroadcast,
     this.spectator = false,
+    this.onCutLine,
     this.spectatorStream,
   });
   @override
@@ -6083,6 +6112,14 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
     });
   }
 
+  // ✂️ 줄을 끊는다 — 결과는 랜딩 실패와 같고, 안내 문구만 부모가 다르게 띄운다.
+  void _cutLine() {
+    if (_isGameOver) return;
+    _isGameOver = true;
+    gameTimer?.cancel();
+    widget.onCutLine!();
+  }
+
   void _endGame(bool isSuccess) {
     if (_isGameOver) return;
     _isGameOver = true;
@@ -6346,6 +6383,36 @@ class _FishingFightingOverlayState extends State<FishingFightingOverlay> with Ti
               ),
             ),
           ),
+          // ✂️ 줄끊기 — 남은 15초부터 뜬다. 가망 없을 때 포기하고 시간을 아낀다.
+          //    (카피바라님 요청 "15초쯤 지난 시점에 줄끊기를 넣어달라")
+          //    처음부터 열어두면 '마음에 안 드는 어종은 바로 끊기'로 악용된다.
+          if (widget.onCutLine != null)
+            Positioned(
+              top: 448, left: 0, right: 0,
+              child: Center(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: timeNotifier,
+                  builder: (context, timeVal, child) {
+                    if (timeVal > 15) return const SizedBox.shrink();
+                    return GestureDetector(
+                      onTap: _cutLine,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.redAccent.withOpacity(0.8), width: 1.5),
+                        ),
+                        child: const Text('✂️ 줄 끊기',
+                            style: TextStyle(color: Colors.redAccent, fontSize: 15,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           Positioned(
             bottom: 230, left: 50, right: 50,
             child: Stack(

@@ -1137,6 +1137,8 @@ List<Map<String, dynamic>> getInitialStarterPack() {
     {'name': '갯지렁이', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_worm.png', 'desc': '바다 낚시 기본 미끼 (감도 +20)'},
     {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png', 'desc': '전천후 바다 미끼 (감도 +15)'},
     {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png', 'desc': '육식성 어종 전용 (감도 +10)'},
+    // 🧵 낚싯줄은 낚시에 꼭 필요하다 — 낚싯대·찌·릴처럼 처음부터 하나 준다.
+    {'name': '일반 낚싯줄', 'category': 'COMMON', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'icon': 'line_normal.png', 'desc': '낚시에 꼭 필요한 기본 낚싯줄이에요.\n민물·바다 어디서나 쓸 수 있어요.'},
     {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png', 'desc': '두족류 전용 미끼 (감도 +20)'},
     // 🎁 신규 조사 환영 선물 — '상자'로 준다(2026-09-04 사용자 결정).
     //   아이템으로 꽂아 넣으면 슬그머니 가방에 들어가 있어 받은 줄도 모른다.
@@ -1301,6 +1303,10 @@ final List<Map<String, dynamic>> storeAuxItems = [
   {'name': '바다 파워벨트', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'BELT', 'stats': {'P': 10}, 'icon': 'belt_sea.png', 'desc': '허리 힘을 실어주는 선상 파워벨트 (힘 +10 · 바다 전용)'},
   {'name': '민물 뜰채', 'price': 10000, 'reqLevel': 5, 'category': 'FW', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_fw.png', 'desc': '큰 물고기도 안정적으로 랜딩하는 민물 뜰채 (컨트롤 +10)'},
   {'name': '바다 뜰채', 'price': 10000, 'reqLevel': 5, 'category': 'SEA', 'type': 'NET', 'stats': {'C': 10}, 'icon': 'net_sea.png', 'desc': '대물 랜딩용 튼튼한 바다 뜰채 (컨트롤 +10)'},
+  // 🧵 낚싯줄 — 내구도 200m. 랜딩 실패·줄끊기 때 −10m, 0m면 끊어진다.
+  //   '일반'은 능력치 없는 필수 소모품(민물·바다 공용), 고급은 힘 +10.
+  //   ⚠️ 일반은 레벨 제한이 없다 — 낚시에 반드시 필요한 물건이라 Lv.1도 사야 한다.
+  {'name': '일반 낚싯줄', 'price': 3000, 'category': 'COMMON', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'icon': 'line_normal.png', 'desc': '낚시에 꼭 필요한 기본 낚싯줄이에요.\n민물·바다 어디서나 쓸 수 있어요.\n\n내구도 200m — 물고기를 놓치거나 줄을 끊으면 10m씩 줄어들어요.'},
   // 🧵 낚시줄 — 힘 +10, 내구도 200m(랜딩 실패 시 −10m, 0m면 끊어짐)
   {'name': '민물 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'FW', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_fw.png', 'desc': '고강도 민물 카본 라인 200m (힘 +10 · 랜딩 실패 시 −10m)'},
   {'name': '바다 낚시줄', 'price': 20000, 'reqLevel': 10, 'category': 'SEA', 'type': 'LINE', 'quantity': 1, 'dur': 200, 'stats': {'P': 10}, 'icon': 'line_sea.png', 'desc': '대물용 바다 원줄 200m (힘 +10 · 랜딩 실패 시 −10m)'},
