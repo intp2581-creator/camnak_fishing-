@@ -369,6 +369,7 @@
            '<textarea id="rBody" maxlength="3000"></textarea></div>'+
            '<div class="f"><label>스크린샷 첨부 <span style="font-weight:500;color:var(--ink-soft)">(선택 · 최대 3장)</span></label>'+
            '<input type="file" id="rFile" accept="image/*" multiple>'+
+           '<div id="rPrev" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>'+
            '<div id="fPrev" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px"></div></div>'+
            '<button class="btn" id="rSend">'+(j.isGm?'답변 등록':'추가 문의 보내기')+'</button> ';
       if (j.isGm) h += '<button class="btn g" id="rClose">처리 완료로 변경</button> ';
@@ -389,7 +390,9 @@
     }
     h += '<button class="btn g" onclick="go(\'mine\')">목록으로</button>';
     $('dBox').innerHTML = h;
-    shots = []; if ($('rFile')) $('rFile').onchange = (e)=> pickShots(e.target);
+    /* 🧹 앞 화면(새 문의)에서 고른 사진이 남아 답변에 붙어 나가지 않도록 비운다. */
+    shots = []; renderShots();
+    if ($('rFile')) $('rFile').onchange = (e)=> pickShots(e.target);
     if ($('rSend')) $('rSend').onclick = async () => {
       const body = $('rBody').value.trim();
       if (!body) return alert('내용을 입력해 주세요.');
@@ -466,7 +469,16 @@
     return cv.toDataURL('image/jpeg', q);
   }
   function renderShots(){
-    const box=$('fPrev'); if(!box) return;
+    /* 🖼️ 새 문의(fPrev)와 답변(rPrev) 중 '있는 칸을 모두' 그린다.
+       예전엔 fPrev 만 보고 있어서, 답변 화면에서 사진을 골라도 화면에
+       아무 반응이 없었다(2026-09-07 제보). 한쪽만 고르면 새 문의 폼이
+       숨겨진 채 DOM 에 남아 있을 때 답변 칸을 영영 못 그린다. */
+    const boxes = ['fPrev','rPrev'].map($).filter(Boolean);
+    if (!boxes.length) return;
+    boxes.forEach(box => { renderShotsInto(box); });
+  }
+
+  function renderShotsInto(box){
     box.innerHTML = shots.map((d,i)=>
       '<div style="position:relative">'+
       '<img src="'+d+'" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--line)">'+
