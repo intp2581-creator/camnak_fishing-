@@ -1555,7 +1555,10 @@ Widget _whisperUnreadBadge() {
             Navigator.pop(context);
             await Future.delayed(const Duration(milliseconds: 100));
             if (!mounted) return;
-            setState(() { isFighting = false; });
+            // 🐛 사투 기록을 반드시 같이 지운다. 챔질 때 fightingRodIndex 가
+            //    설정되는데 이걸 남기면 _scheduleNextBite 가 '아직 사투 중'으로
+            //    보고 입질을 영영 건너뛴다(v494 와 같은 함정).
+            setState(() { isFighting = false; fightingRodIndex = null; });
             await _useBaitOne();       // 미끼·루어를 바닥에 두고 온다
             _onFightOverBaitCheck();
             _damageLineOnFail();       // 낚싯줄 -10m
@@ -1619,7 +1622,10 @@ Widget _whisperUnreadBadge() {
                       Navigator.pop(context);
                       await Future.delayed(const Duration(milliseconds: 100));
                       if (!mounted) return;
-                      setState(() { isFighting = false; });
+                      // 🐛 사투 기록을 반드시 같이 지운다. _onFightOverBaitCheck 는
+                      //    미끼가 떨어졌을 때만 동작해서 대부분 그냥 지나간다.
+                      //    남기면 _scheduleNextBite 가 입질을 영영 건너뛴다(v494 함정).
+                      setState(() { isFighting = false; fightingRodIndex = null; });
                       if (isLureTackle(equippedBait)) _useBaitOne();
                       _onFightOverBaitCheck();
                       _damageLineOnFail();   // 🧵 랜딩 실패와 같은 대가 — 낚싯줄 -10m
