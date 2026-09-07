@@ -193,6 +193,9 @@
 </div><div id="sdetail" class="hide"></div>
 </footer>
 
+<!-- 구매하기가 어디로 갈지는 catalog.js 한 곳에서 정한다(buyHref).
+     여기에 주소를 또 박아 두면 상세페이지와 목록이 서로 다른 곳으로 간다. -->
+<script src="catalog.js"></script>
 <script>
   var GAME_URL='play.html';
   // ⚠️ 자체 결제(checkout.html)는 아직 '테스트 채널'이라 실유저에게 열면 안 된다.
@@ -232,7 +235,22 @@
     if (!v) return '';
     return (/^https?:/.test(v) || v.indexOf('assets/') === 0) ? v : 'assets/' + v;
   }
+  // 우리 주문서로 갈 상황인가(승인 후 전면 전환 또는 결제 허용 계정).
+  function ownPay(){ return (typeof USE_OWN_PAY !== 'undefined' && USE_OWN_PAY)
+                         || (typeof CAN_PAY !== 'undefined' && CAN_PAY); }
+
+  // 구매하기가 갈 곳. 상세페이지와 같은 규칙을 쓴다(catalog.js buyHref).
+  //   · 우리 주문서로 갈 때는 새 창을 쓰지 않는다 — 같은 사이트 안이다.
+  //   · 코드의 MALL_IDX 에 없는 새 상품은 관리 화면에 적어 둔 아임웹 번호로.
+  function buyUrl(i){
+    var h = (typeof buyHref === 'function') ? buyHref(i.key, 1) : (BUY + i.idx);
+    if (h === 'store.html' && i.idx) h = BUY + i.idx;
+    return h;
+  }
+
+  var curCat = 'all';          // 결제 허용 여부를 안 뒤 다시 그릴 때 쓴다
   function render(cat){
+    curCat = cat || curCat;
     var list = cat==='all' ? ITEMS : ITEMS.filter(function(i){return i.c===cat;});
     document.getElementById('sgrid').innerHTML = list.map(function(i,n){
       return '<div class="scard">'
@@ -244,7 +262,7 @@
         +'<a class="buy" href="product.html?item='+encodeURIComponent(i.key)+'" '
         +'style="display:block;text-align:center">자세히 보기</a>'
         +((i.idx && !i.soon)
-          ? '<a class="buy" href="'+BUY+i.idx+'" target="_blank" rel="noopener" '
+          ? '<a class="buy" href="'+buyUrl(i)+'"'+(ownPay()?'':' target="_blank" rel="noopener"')+' '
             +'style="background:#fff;color:var(--emerald);border:1px solid var(--emerald);margin-top:6px">구매하기</a>'
           : '<span class="buy" style="display:block;text-align:center;background:#f2f6f8;'
             +'color:#8b9aa3;border:1px solid #e3edf2;margin-top:6px">'
@@ -373,6 +391,9 @@
         //    결제 페이지에서 '상품 상세 보기'로 연결하고, PG 심사 때도 링크로 건넬 수 있다.
         var q = new URLSearchParams(location.search).get('item');
         if (q) { detailOnly(q); }
+        // 🎫 결제 허용 계정이면 구매하기가 우리 주문서로 바뀐다.
+        //    로그인 확인이 끝난 뒤에 알 수 있으므로 그때 한 번 더 그린다.
+        if (typeof loadCanPay === 'function') loadCanPay(function(){ render(curCat); });
       });
   })();
   document.getElementById('stabs').addEventListener('click',function(e){
