@@ -97,6 +97,35 @@ const itemDatabase = {
   }
 };
 
+// 📦 장착형 유료 아이템은 '상자'로 지급한다.
+//   약관이 "결제 후 7일 이내 상자를 열지 않으신 상태라면 전액 환불"이라,
+//   낱개로 주면 자동장착이 입혀버려 '미개봉' 상태를 만들 수 없다.
+//   우리 결제(payment.js)와 같은 모양이어야 두 경로의 결과가 같다.
+function makeCashBox(tpl, orderNo) {
+  const isSkin = (tpl.type || "") === "SKIN";
+  return {
+    name: tpl.name + " 상자",
+    category: "BOX", type: "BOX", quantity: 1, cash: true,
+    icon: "item_box_cash.png",
+    gid: String(orderNo || ""),
+    giftTitle: tpl.name,
+    giftMsg: (isSkin ? "눌러서 열면 스킨을 받습니다." :
+      "눌러서 열면 아이템을 받습니다.") + "\n열기 전에는 환불하실 수 있어요.",
+    gift: [{...tpl, price: 0, cash: true, quantity: 1}],
+    desc: tpl.name + "\n눌러서 열어보세요.",
+  };
+}
+
+// 🚫 이미 가지고 있는가 — '열지 않은 상자'와 '상자 속 내용물'까지 본다.
+function ownsAlready(inventory, name) {
+  return (inventory || []).some((i) => {
+    if (!i) return false;
+    if (i.name === name) return true;
+    if (i.name === name + " 상자") return true;
+    return Array.isArray(i.gift) && i.gift.some((g) => g && g.name === name);
+  });
+}
+
 // 🏅 승급 칭호 순서 (스킨 구매 자격 = 해당 승급 퀘스트 통과 여부 판정용)
 //    레벨만 채우면 안 되고, 아라 NPC 승급 퀘스트(레벨+6대장)로 rank가 올라야 스킨 구매 가능.
 const RANK_ORDER = ["초보", "하수", "중수", "고수", "프로", "마스터", "레전드", "낚시의 신"];
@@ -345,9 +374,11 @@ async function processOrder(order, source) {
         // 🎖️ [2026-08-24] 착용 레벨/승급 제한은 '지급'이 아니라 '게임 내 착용·능력치'에서 검사.
         //    → 홈페이지서 조건 미달로 사도 인벤엔 무조건 지급(계정당 1개라 exploit 없음, "안 들어왔다" 문의 방지).
         //    조건 충족 전엔 게임에서 착용·능력치 적용이 안 되고, 충족하면 자동 적용됨.
-        const alreadyOwns = inventory.some(i => i.name === itemTemplate.name);
+        // 📦 상자로 지급한다 — 안 열면 '미사용'이라 7일 내 전액 환불이 된다.
+        //    보유 판정도 상자·상자 속 내용물까지 본다(안 열었어도 이미 산 것).
+        const alreadyOwns = ownsAlready(inventory, itemTemplate.name);
         if (alreadyOwns) { needsRefund = true; refundReason = "이미 보유 중(계정당 1개) 중복 구매"; }
-        else { inventory.push({ ...itemTemplate }); isInventoryUpdated = true; }
+        else { inventory.push(makeCashBox(itemTemplate, orderNo)); isInventoryUpdated = true; }
       }
       else if (itemTemplate.limitType === "DAILY") {
         if ((userData.lastTicketDate || "") === today) { needsRefund = true; refundReason = "1시간 이용권 1일 1회 구매 제한 초과"; }
