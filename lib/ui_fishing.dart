@@ -2965,16 +2965,9 @@ void _maybeShowGaram() {
 void _recast() {  // 기존 코드
     audioManager.ensureRainPlaying(); // 🌧️ 낚시터에서도 조작 시 빗소리 열기(자동재생 우회)
     if (!mounted || remainingTimeNotifier.value <= 0) return;
-
-    // ⚓ 캐스팅을 못 하고 돌아가더라도 입질 흐름은 되살려 두고 나간다.
-    //   챔질할 때 _biteTimer 를 껐기 때문에, 여기서 그냥 return 하면 찌는 물에
-    //   있는데 입질이 영영 안 와 누를 때마다 헛챔질만 난다.
-    //   바닥걸림이 특히 잘 걸린다 — 빠져나오며 미끼 1개와 낚싯줄 10m 를 잃어,
-    //   그게 마지막이었으면 아래 관문에 제 손으로 걸린다(2026-09-07 제보).
-    void bail() { _resumeFishingIfStalled(); }
     // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후엔 캐스팅 불가 (일일타이머와 별개라 이전엔 통과됐음)
     if (widget.roomId != null && (arenaTimeLeft <= 0 || _arenaEndedNaturally)) return;
-    if (isSettingUp) { bail(); return; } // 🔒 셋팅 중엔 아예 실행 안 함!
+    if (isSettingUp) return; // 🔒 셋팅 중엔 아예 실행 안 함!
     // 🧵 낚싯줄 없으면 캐스팅 불가 (2026-09-07 필수품으로)
     //   ⚠️ 아레나는 제외 — 평준화를 위해 낚싯줄을 강제로 빼기 때문에(841행)
     //      막으면 대회에서 캐스팅 자체가 안 된다.
@@ -2983,13 +2976,11 @@ void _recast() {  // 기존 코드
           '낚시를 하려면 낚싯줄이 필요해요.\n\n'
           '상점에서 [일반 낚싯줄]을 구매하거나,\n'
           '가방에서 낚싯줄을 장착해 주세요.', Colors.orangeAccent);
-      bail();
       return;
     }
     // 🪱 미끼 없으면 캐스팅 불가
     if (equippedBait == null) {
       _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
-      bail();
       return;
     }
     // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
@@ -4405,13 +4396,11 @@ Positioned(
           '낚시를 하려면 낚싯줄이 필요해요.\n\n'
           '상점에서 [일반 낚싯줄]을 구매하거나,\n'
           '가방에서 낚싯줄을 장착해 주세요.', Colors.orangeAccent);
-      _resumeFishingIfStalled();   // 찌가 물에 있으면 입질은 계속돼야 한다
       return;
     }
     // 🪱 자동장착 후에도 미끼가 없으면 캐스팅 차단 (모든 미끼 소진 = 낚시 불가)
     if (equippedBait == null) {
       _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
-      _resumeFishingIfStalled();   // 찌가 물에 있으면 입질은 계속돼야 한다
       return;
     }
               // (미끼 소모는 _startFight에서 입질마다 처리 — #2)
