@@ -67,7 +67,16 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       let n = 0;
       snap.forEach((d) => {
         const v = d.data();
-        if (u.isGm) { n++; } else if (v.status === "answered") { n++; }
+        if (u.isGm) { n++; return; }
+        // 🔴 답변이 달렸고, 그 뒤로 아직 안 열어본 것만 센다.
+        //    예전엔 status 만 보고 세서 읽어도 배지가 안 꺼졌다(2026-09-07).
+        if (v.status !== "answered") return;
+        // 예전 문의에는 answeredAt 이 없다 — 마지막 활동 시각으로 대신한다.
+        // (답변완료 상태이므로 마지막 활동 = 운영자 답변)
+        const at = v.answeredAt || v.updatedAt || v.createdAt;
+        const ans = at ? at.toMillis() : 0;
+        const seen = v.seenAt ? v.seenAt.toMillis() : 0;
+        if (ans > seen) n++;
       });
       return res.json({ok: true, isGm: u.isGm, count: n});
     }
@@ -100,6 +109,13 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       // 🔒 본인 또는 운영자만
       if (v.uid !== u.uid && !u.isGm) {
         return res.status(403).json({ok: false, err: "본인 문의만 확인하실 수 있습니다"});
+      }
+      // 🔴 본인이 열어봤으면 '읽음'으로 기록한다(배지를 끄는 근거).
+      //    운영자가 남의 문의를 열어보는 것은 읽음이 아니다.
+      if (v.uid === u.uid) {
+        col.doc(doc.id).set(
+            {seenAt: admin.firestore.FieldValue.serverTimestamp()}, {merge: true})
+            .catch(() => {});
       }
       const rs = await col.doc(doc.id).collection("replies").orderBy("createdAt", "asc").get();
       const replies = [];
@@ -184,6 +200,8 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
       const upd = {
         replyCount: admin.firestore.FieldValue.increment(1),
         status: u.isGm ? "answered" : "open",     // 운영자가 답하면 답변완료, 유저가 쓰면 다시 대기
+        // 🔴 답변 시각 — 배지는 '이 시각이 읽은 시각보다 뒤인가'로 판단한다.
+        ...(u.isGm ? {answeredAt: admin.firestore.FieldValue.serverTimestamp()} : {}),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
       upd[u.isGm ? "gmReplies" : "userReplies"] = admin.firestore.FieldValue.increment(1);

@@ -316,6 +316,44 @@
   paint();
   paintDetail();
 
+  /* 📝 운영자가 관리 화면에 쓴 상세 설명·판매 상태를 얹는다.
+     못 불러오면 아무 일도 하지 않는다 — 코드에 있는 내용만으로도 페이지는 완성이다. */
+  fetch('https://us-central1-camnak-fishing.cloudfunctions.net/storeApi?list=1')
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      if(!j || !j.ok || !j.items) return;
+      var row = j.items.filter(function(x){ return CKEY(x.key) === key; })[0];
+      if(!row) return;
+
+      // 운영자 글은 표 '위'에 — 아래 표는 표시광고·청약철회 문안이라 건드리지 않는다.
+      // 코드에 손으로 쓴 상세페이지(LONG)가 있으면 얹지 않는다. 얹으면 같은 내용이
+      // 두 번 나온다(성장패키지에서 실제로 그랬다). 새로 만든 상품 — 아직 코드에
+      // 상세페이지가 없는 상품 — 만 이 글로 채운다.
+      var txt = LONG[key] ? '' : String(row.detail || '').trim();
+      if (txt) {
+        var html = '<h4>상품 안내</h4><p style="white-space:pre-line;line-height:1.85">'
+                 + esc(txt) + '</p>';
+        $('pDetail').innerHTML = html + $('pDetail').innerHTML;
+      }
+
+      // 판매 준비중이면 구매 버튼을 잠근다(목록에서만 잠그면 여기로 들어와 살 수 있다).
+      if (row.soon) {
+        [$('buyBtn'), $('sBuy')].forEach(function(a){
+          if(!a) return;
+          a.removeAttribute('href'); a.removeAttribute('target'); a.removeAttribute('rel');
+          a.textContent = row.soonText || '판매 준비중';
+          a.style.pointerEvents = 'none';
+          a.style.background = '#f2f6f8';
+          a.style.color = '#8b9aa3';
+          a.style.border = '1px solid #e3edf2';
+        });
+        $('buyHint').textContent = row.soonText
+          ? (row.soonText + ' — 아직 구매하실 수 없습니다.')
+          : '판매 준비중인 상품입니다.';
+      }
+    })
+    .catch(function(){});
+
   // 🎫 결제 허용 계정이면 우리 주문서로 — 안내 문구도 함께 바뀐다.
   loadCanPay(function(){ paintHint(); paint(); });
 })();

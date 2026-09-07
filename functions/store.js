@@ -5,6 +5,7 @@
 //
 //   GET  ?list=1            노출 상품 목록 (누구나 — 스토어 화면용)
 //   GET  ?all=1             전체 목록 (GM만 — 숨김 포함)
+//   GET  ?keys=1            지급 키 목록 (GM만 — 관리 화면 드롭다운용)
 //   POST {action:"save"}    추가·수정 (GM만)
 //   POST {action:"delete"}  삭제 (GM만)
 //   POST {action:"sort"}    순서 일괄 저장 (GM만)
@@ -14,6 +15,10 @@
 
 const {onRequest} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+
+// 지급표 — 결제가 끝나면 이 표를 보고 물건을 넣어준다.
+// 상품의 '지급 키'는 반드시 이 표에 있는 키여야 한다.
+const {PRODUCTS} = require("./payment");
 
 const COL = "store_products";
 const CATS = ["ticket", "skin", "badge", "package", "etc"];
@@ -69,6 +74,29 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
       return res.json({ok: true, items: rows});
     }
 
+    // ── 지급 키 목록(운영자) ──────────────────
+    //   관리 화면이 이 목록으로 드롭다운을 만든다. 손으로 치면 오타가 나고,
+    //   오타는 '결제는 됐는데 물건이 안 들어온' 문의가 되어 돌아온다.
+    if (req.method === "GET" && req.query.keys) {
+      await gm(req);
+      const used = {};
+      const s = await col.limit(200).get();
+      s.forEach((doc) => {
+        const k = doc.data().key;
+        if (k) used[k] = (used[k] || 0) + 1;
+      });
+      const keys = Object.keys(PRODUCTS).map((k) => ({
+        key: k,
+        name: PRODUCTS[k].name,
+        price: PRODUCTS[k].price,
+        limitType: PRODUCTS[k].limitType || "",
+        reqLevel: PRODUCTS[k].reqLevel || 0,
+        box: !!PRODUCTS[k].boxName,          // 상자로 지급되는 상품인가
+        used: used[k] || 0,                  // 이미 이 키를 쓰는 상품 수
+      }));
+      return res.json({ok: true, keys});
+    }
+
     // ── 목록(운영자 — 숨김 포함) ────────────────
     if (req.method === "GET" && req.query.all) {
       await gm(req);
@@ -87,16 +115,38 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
     if (action === "save") {
       const data = clean(b);
       if (!data.n) return res.status(400).json({ok: false, err: "상품명을 입력해 주세요"});
-      if (!data.key) return res.status(400).json({ok: false, err: "지급 키를 입력해 주세요"});
+      if (!data.key) return res.status(400).json({ok: false, err: "지급 키를 골라 주세요"});
+      // 지급표에 없는 키는 막는다 — 결제만 되고 물건은 안 들어가는 상품이 된다.
+      // 아직 지급 로직이 없는 상품은 '판매 준비중'으로 두고 진열만 할 수 있다.
+      if (!PRODUCTS[data.key] && !data.soon) {
+        return res.status(400).json({ok: false,
+          err: "지급표에 없는 지급 키입니다(" + data.key + "). " +
+               "결제만 되고 물건이 안 들어갑니다. 판매 준비중으로 두거나 지급 로직을 먼저 만들어 주세요."});
+      }
+      // 같은 지급 키를 쓰는 상품이 이미 있으면 알려준다(막지는 않는다 —
+      // 노출용·숨김용으로 일부러 둘 수 있다).
+      let dup = 0;
+      const ds = await col.where("key", "==", data.key).limit(5).get();
+      ds.forEach((doc) => { if (doc.id !== String(b.id || "")) dup++; });
       data.updatedAt = admin.firestore.FieldValue.serverTimestamp();
       data.updatedBy = u.nick;
+      // 화면에 띄울 주의사항 — 막을 정도는 아니지만 그냥 넘기면 나중에 문제가 된다.
+      const notes = [];
+      const gp = PRODUCTS[data.key];
+      if (gp && gp.price !== data.p) {
+        notes.push("표시 가격(" + data.p.toLocaleString() + "원)이 실제 결제 금액(" +
+          gp.price.toLocaleString() + "원)과 다릅니다. 결제는 서버 금액으로 됩니다.");
+      }
+      if (dup) notes.push("같은 지급 키를 쓰는 상품이 " + dup + "개 더 있습니다.");
+      if (!data.idx && !data.soon) notes.push("아임웹 상품번호가 없어 구매하기가 연결되지 않습니다.");
+
       if (b.id) {
         await col.doc(String(b.id)).set(data, {merge: true});
-        return res.json({ok: true, id: String(b.id)});
+        return res.json({ok: true, id: String(b.id), notes});
       }
       data.createdAt = admin.firestore.FieldValue.serverTimestamp();
       const doc = await col.add(data);
-      return res.json({ok: true, id: doc.id});
+      return res.json({ok: true, id: doc.id, notes});
     }
 
     if (action === "delete") {
