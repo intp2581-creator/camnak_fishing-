@@ -583,6 +583,7 @@ Widget _whisperUnreadBadge() {
   bool _arenaEndedNaturally = false; // ⚔️ 아레나 10분 정상 종료(true) vs 도중 이탈(false=실격)
   bool _arenaWalkoverWin = false;    // 🏳️ 상대 전원 기권 → 혼자 남아 나감(기권승) → dispose에서 실격 처리 안 함
   Timer? _arenaExitTimer;            // 🚪 종료 후 대기실 복귀 재시도(한 번 실패해도 계속 두드린다)
+  bool _appPaused = false;           // ⏸️ 앱이 뒤로 감(전화·홈·잠금) — 시간·입질 정지
   int _arenaCatch = 0;               // ⚔️📋 이번 대회에서 잡은 마릿수(접속 기록에 같이 남긴다)
   VoidCallback? _arenaEndClose;      // 🚪 종료 팝업 닫고 대기실로(버튼/자동타이머 공유)
 
@@ -676,7 +677,32 @@ Widget _whisperUnreadBadge() {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+
+    // ⏸️ [2026-09-07] 낚시 중 전화가 오면 낚싯대를 걷을 틈이 없다(사용자 지적).
+    //    화면이 뒤로 간 동안은 시간도 입질도 멈춘다. 돌아오면 이어서 진행.
+    //    ⚠️ paused 만 본다. inactive 까지 넣으면 PC에서 다른 창을 클릭만 해도
+    //       멈춰서 사실상 무제한이 된다.
+    //    악용 여지 없음 — 나가 있는 동안은 낚시도 못 하므로 이득이 없다.
+    if (state == AppLifecycleState.paused) {
+      if (!_appPaused) {
+        _appPaused = true;
+        _clearAllBiteTimers();   // 입질을 멈춰 둔다(돌아와서 '놓친 입질'이 쌓이지 않게)
+        if (mounted) setState(() {});
+      }
+      return;
+    }
+
     if (state != AppLifecycleState.resumed) return;
+
+    if (_appPaused) {
+      _appPaused = false;
+      // 찌가 물에 있으면 입질 흐름을 다시 잇는다.
+      if (isFloatInWater && !isFighting && fightingRodIndex == null) {
+        _scheduleNextBite();
+      }
+      if (mounted) setState(() {});
+    }
+
     if (widget.roomId == null || !_arenaEndedNaturally) return;
     _arenaEndClose?.call();
   }
@@ -1308,6 +1334,15 @@ Widget _whisperUnreadBadge() {
         ));
         return; // 이번 틱은 차감 없이 넘어감(리셋 직후 바로 -1 방지)
       }
+
+      // ⏸️ [2026-09-07] '진짜 낚시하는 동안'에만 시간이 흐른다.
+      //   · 찌가 물에 없다(셋팅·미끼교체·상점) → 정지
+      //   · 앱이 뒤로 갔다(전화·홈·잠금)       → 정지
+      //   시간은 1,100원에 파는 상품이라, 가방 열고 미끼 고르는 데 쓰이면 안 된다.
+      //   ⚠️ 찌를 던져둔 채 가방을 여는 동안은 흐른다 — 그때도 입질이 오기 때문에
+      //      멈추면 '가방 열어두고 무한 낚시'가 된다.
+      //   버프·엠블럼도 아래 블록 안에 있어 같이 멈춘다(의도한 동작).
+      if (_appPaused || (!isFloatInWater && !isCasting)) return;
 
       if (remainingTimeNotifier.value > 0) {
         remainingTimeNotifier.value--;
