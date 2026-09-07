@@ -4779,7 +4779,14 @@ Positioned(
             }).toList();
 
             // 🎒 정렬은 game_config 의 invSortRank 하나로 통일(광장 장비창과 동일 순서)
-            filteredItems.sort((a, b) => invSortRank(a).compareTo(invSortRank(b)));
+            // 🎒 등급이 같으면 이름순 — 같은 아이템이 나란히 오게 한다.
+            //    예전엔 가방에 담긴 순서 그대로라 엠블럼 사이에 입장권이 끼었다.
+            filteredItems.sort((a, b) {
+              final r = invSortRank(a).compareTo(invSortRank(b));
+              if (r != 0) return r;
+              return (a['name'] ?? '').toString()
+                  .compareTo((b['name'] ?? '').toString());
+            });
 
             int totalSlots = math.max(60, (filteredItems.length ~/ 4 + 1) * 4);
 
@@ -4862,6 +4869,28 @@ Positioned(
                                   ]
                                 ), 
                                 if (isCurrentlyEquipped) const Positioned(top: 4, right: 4, child: Icon(Icons.check_circle, color: Color(0xFFD4AF37), size: 18)),
+                                // 🛡️ 엠블럼은 개당 남은 시간이 다르다 — 시간을 보여주고,
+                                //    켜둔 것은 초록으로 구분한다(낚시터에 안 들어가도 알 수 있게).
+                                if ((itemToShow['type'] ?? '') == 'EVENT' &&
+                                    itemToShow!.containsKey('secLeft'))
+                                  Builder(builder: (_) {
+                                    final int sec =
+                                        ((itemToShow!['secLeft'] ?? 0) as num).toInt();
+                                    final bool on = itemToShow!['active'] == true;
+                                    final Color c = on
+                                        ? const Color(0xFF6BE58A)
+                                        : (sec <= 300 ? Colors.orangeAccent : Colors.white70);
+                                    return Positioned(bottom: 4, right: 4, child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(color: Colors.black87,
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(color: c.withOpacity(0.8), width: 0.9)),
+                                      child: Text((on ? '▶ ' : '') + boostLeftStr(sec),
+                                          style: TextStyle(color: c, fontSize: 10,
+                                              fontWeight: FontWeight.bold)),
+                                    ));
+                                  })
+                                else
                                 // 🧵 낚싯줄은 개수가 아니라 '남은 길이'를 보여준다.
                                 //    quantity 가 1 이라 예전엔 배지가 아예 안 떠서 잔량을 알 수 없었다.
                                 if ((itemToShow['type'] ?? '') == 'LINE')

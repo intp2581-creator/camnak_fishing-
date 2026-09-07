@@ -125,9 +125,12 @@ def item_card(n):
 
 
 def item_emblem():
-    return {"name": "능력치 엠블럼", "category": "COMMON", "type": "EVENT",
+    # 🎖️ price·cash·active 를 반드시 넣는다. cash 가 없으면 유료 아이템으로
+    #    분류되지 않아 관리자 회수 목록에서 일반 장비 사이로 밀려난다.
+    return {"name": "능력치 엠블럼", "price": 0, "cash": True,
+            "category": "COMMON", "type": "EVENT",
             "stats": {"P": 10, "C": 10, "S": 10}, "quantity": 1,
-            "icon": "item_emblem_boost.png", "secLeft": 3600,
+            "icon": "item_emblem_boost.png", "secLeft": 3600, "active": False,
             "desc": "눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요." + NL +
                     "낚시터에 있는 동안에만 시간이 줄어요." + NL +
                     "휘장과 함께 적용돼요. (아레나·보스레이드 제외)"}
