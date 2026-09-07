@@ -670,9 +670,17 @@ const Map<String, double> kLegendAppearRate = {
 //   어느 낚시나 밑걸림은 있으므로 미끼 종류를 가리지 않는다.
 //   걸리면 게이지가 가운데 멈추고, 줄을 끊어야 벗어난다(낚싯줄 -10m + 미끼 소모).
 //   ⚠️ 아레나는 제외 — 10분 단판에 운으로 갈리면 대회가 아니게 된다.
-//   입질 간격이 9~18초라 시간당 250번쯤 챔질한다 — 10%%면 시간당 26번이라 과했다.
-//   2%%면 시간당 5번 정도. 가끔 겪는 사고로 남는다.
-const double kSnagChance = 0.02;
+//   입질 간격이 9~18초라 시간당 250번쯤 챔질한다 — 10%면 시간당 26번이라 과했다.
+//
+//   낚시 종류별로 다르게 둔다(현실 반영):
+//     바다·루어 2% — 던지고 감는 낚시라 여·수초·바닥에 잘 걸린다(시간당 5번쯤)
+//     민물 대낚시 1% — 정해진 자리에 채비를 세워두는 낚시라 덜 걸린다
+const double kSnagChanceSea = 0.02;
+const double kSnagChanceFw = 0.01;
+
+/// ⚓ 이 낚시의 바닥걸림 확률. 루어는 민물이어도 던지고 감으므로 바다와 같다.
+double snagChance({required bool isSea, required bool lureMode}) =>
+    (isSea || lureMode) ? kSnagChanceSea : kSnagChanceFw;
 
 /// 🧵 루어류인가 — 먹는 미끼가 아니라 '채비'다.
 ///   물고기를 잡아도 안 닳고, 줄이 터지거나 바닥에 걸렸을 때만 잃는다.

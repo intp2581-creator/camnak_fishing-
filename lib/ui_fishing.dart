@@ -1493,7 +1493,8 @@ Widget _whisperUnreadBadge() {
         //    어느 낚시나 있는 일이라 미끼 종류를 가리지 않는다.
         //    아레나는 제외 — 10분 단판에 운으로 갈리면 대회가 아니게 된다.
         if (widget.roomId == null &&
-            math.Random().nextDouble() < kSnagChance) {
+            math.Random().nextDouble() <
+                snagChance(isSea: widget.isSea, lureMode: _lureMode)) {
           _startSnag();
           return;
         }
