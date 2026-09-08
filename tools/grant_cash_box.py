@@ -6,12 +6,14 @@
 functions/payment.js 의 PRODUCTS 와 같은 구성이라 실제 구매와 결과가 같다.
 
 사용법:
-    python tools/grant_cash_box.py --nick 아레투사 --item badge_1
+    python tools/grant_cash_box.py --nick 아레투사 --all           # 전부 하나씩(미리보기)
+    python tools/grant_cash_box.py --nick 아레투사 --all --apply   # 실제 지급
     python tools/grant_cash_box.py --nick 아레투사 --item badge_1 --apply
     python tools/grant_cash_box.py --list           # 지급 가능한 상품 목록
 
 옵션:
     --nick   대상 닉네임        --item  상품 키(아래 --list 참고)
+    --all    지급표에 있는 상품을 전부 하나씩
     --gid    주문번호(생략하면 test-날짜시각). 환불 회수 때 이 값으로 찾는다.
 """
 import datetime
@@ -27,34 +29,40 @@ BASE = ("https://firestore.googleapis.com/v1/projects/camnak-fishing"
 APPLY = "--apply" in sys.argv
 NL = "\n"
 
-# 📦 functions/payment.js 의 PRODUCTS 와 같은 구성 (스킨 5 · 뱃지 3)
-SKIN = [
-    ("skin_novice", "하수 조사",   20,  "skin_novice.jpg"),
-    ("skin_mid",    "중수 조사",   50,  "skin_intermediate.jpg"),
-    ("skin_expert", "고수 조사",   100, "skin_expert.jpg"),
-    ("skin_pro",    "프로 조사",   200, "skin_pro.jpg"),
-    ("skin_master", "마스터 조사", 300, "skin_master.jpg"),
-]
-BADGE = [
-    ("badge_1", "캠피싱 뱃지",      10, "item_badge_1.png"),
-    ("badge_2", "캠피싱 휘장",      30, "item_badge_2.png"),
-    ("badge_3", "KREFT 정예 휘장", 50, "item_badge_3.png"),
-]
+# 📦 지급표를 여기에 베껴 두지 않는다 — functions/payment.js 를 그대로 읽는다.
+#    예전엔 스킨·뱃지 8종을 손으로 적어 뒀는데, 이용권이 상자로 바뀌어도(2026-09-08)
+#    이 목록엔 반영되지 않아 '지급표엔 있는데 도구엔 없는' 상품이 생겼다.
+def load_products():
+    import subprocess
+    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = subprocess.run(
+        ["node", "-e",
+         "console.log(JSON.stringify(require('./functions/payment.js').PRODUCTS))"],
+        cwd=here, capture_output=True, text=True, encoding="utf-8", shell=True)
+    if out.returncode != 0:
+        print("지급표를 읽지 못했습니다:", (out.stderr or "").strip()[:200])
+        sys.exit(1)
+    raw = json.loads(out.stdout)
+    # 상자로 지급되는 것만 다룬다(구성품이 있는 것 = 상자).
+    return {k: v for k, v in raw.items() if isinstance(v.get("bundle"), list)}
 
-PRODUCTS = {}
-for k, n, st, ic in SKIN:
-    PRODUCTS[k] = {"name": n, "boxMsg": "눌러서 열면 스킨을 받습니다." + NL +
-                   "열기 전에는 환불하실 수 있어요.",
-                   "item": {"name": n, "quantity": 1, "cash": True,
-                            "category": "SKIN", "type": "SKIN",
-                            "stats": {"P": st, "C": st, "S": st},
-                            "icon": "../images/" + ic}}
-for k, n, st, ic in BADGE:
-    PRODUCTS[k] = {"name": n, "boxMsg": "눌러서 열면 아이템을 받습니다." + NL +
-                   "열기 전에는 환불하실 수 있어요.",
-                   "item": {"name": n, "quantity": 1, "cash": True,
-                            "category": "COMMON", "type": "ETC",
-                            "stats": {"P": st, "C": st, "S": st}, "icon": ic}}
+
+PRODUCTS = load_products()
+
+
+def make_box(key, p, gid):
+    """functions/payment.js cashBox() 와 같은 모양이어야 한다.
+       다르면 '산 것'과 '받은 것'이 가방에서 다르게 보인다."""
+    return {
+        "name": p.get("boxName") or p["name"],
+        "category": "BOX", "type": "BOX", "quantity": 1, "cash": True,
+        "icon": p.get("boxIcon") or "item_box_cash.png",
+        "gid": gid,
+        "giftTitle": p["name"],
+        "giftMsg": p.get("boxMsg", ""),
+        "gift": [dict(b, quantity=b.get("qty", 1)) for b in p["bundle"]],
+        "desc": p["name"] + NL + p.get("boxMsg", "") + NL + NL + "눌러서 열어보세요.",
+    }
 
 
 def arg(name, default=""):
@@ -117,28 +125,26 @@ if "--list" in sys.argv:
 
 nick = arg("--nick")
 key = arg("--item")
-if not nick or key not in PRODUCTS:
+ALL = "--all" in sys.argv
+if not nick or (not ALL and key not in PRODUCTS):
     print(__doc__)
     sys.exit(1)
 
-p = PRODUCTS[key]
-gid = arg("--gid") or ("test-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+gid0 = arg("--gid") or ("test-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+keys = list(PRODUCTS.keys()) if ALL else [key]
 
-box = {
-    "name": p["name"] + " 상자",
-    "category": "BOX", "type": "BOX", "quantity": 1, "cash": True,
-    "icon": "item_box_cash.png",
-    "gid": gid,
-    "giftTitle": p["name"],
-    "giftMsg": p["boxMsg"],
-    "gift": [p["item"]],
-    "desc": p["name"] + NL + p["boxMsg"] + NL + NL + "눌러서 열어보세요.",
-}
+boxes = []
+for i, k in enumerate(keys):
+    p = PRODUCTS[k]
+    boxes.append(make_box(k, p, gid0 + ("-" + str(i + 1) if len(keys) > 1 else "")))
 
-print("📦 " + box["name"])
-print("   담긴 것 : " + p["item"]["name"])
-print("   주문번호 : " + gid)
-print("   대상    : " + nick)
+for b in boxes:
+    print("📦 " + b["name"])
+    print("   담긴 것 : " + ", ".join(
+        "%s %d개" % (g["name"], g.get("quantity", 1)) for g in b["gift"]))
+print()
+print("대상 : " + nick + "  ·  상자 " + str(len(boxes)) + "개")
+print("주문번호 : " + gid0)
 print("모드 : " + ("실제 지급" if APPLY else "미리보기(아무것도 안 바꿈)"))
 print()
 
@@ -169,7 +175,7 @@ if not APPLY:
     print("실제로 넣으려면 --apply 를 붙여 다시 실행하세요.")
     sys.exit(0)
 
-inv2 = inv + [to_fs(box)]
+inv2 = inv + [to_fs(b) for b in boxes]
 body = {"fields": {"inventory": {"arrayValue": {"values": inv2}}}}
 url = (BASE + "/users/" + uid + "?updateMask.fieldPaths=inventory"
        "&currentDocument.updateTime=" + urllib.parse.quote(target["updateTime"]))

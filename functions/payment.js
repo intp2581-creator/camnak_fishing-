@@ -180,6 +180,23 @@ async function productOf(key) {
   return p;
 }
 
+/* 📦 유료 상품 하나를 '상자' 한 개로 만든다(가방에 그대로 들어갈 모양).
+   gid 에 주문번호를 넣어 두면 환불 문의 때 '이 주문의 상자가 아직 있나'를 바로 본다.
+   ⚠️ 결제 지급과 운영 지급(tools/grant_cash_box.py)이 같은 모양이어야 한다 —
+      다르면 '산 것'과 '받은 것'이 가방에서 다르게 보이고 환불 회수도 어긋난다. */
+function cashBox(p, gid) {
+  return {
+    name: p.boxName || p.name,
+    category: "BOX", type: "BOX", quantity: 1, cash: true,
+    icon: p.boxIcon || "item_box_gift.png",
+    gid: gid,
+    giftTitle: p.name,
+    giftMsg: p.boxMsg || "",
+    gift: (p.bundle || []).map((b) => Object.assign({}, b, {quantity: b.qty || 1})),
+    desc: p.name + "\n" + (p.boxMsg || "") + "\n\n눌러서 열어보세요.",
+  };
+}
+
 function alreadyOwned(inv, p, bought, key) {
   // 🧾 산 적이 있으면 팔았어도 다시 못 산다 — 계정당 1회이기 때문.
   //    (팔고 재구매가 되면 현금 → KREFT 환전 통로가 열린다)
@@ -448,16 +465,7 @@ async function grantItem(db, order, orderId) {
           alreadyOwned(inv, p, bought, order.itemKey)) return false;
       const n = Math.max(1, Number(order.qty || 1));
       for (let k = 0; k < n; k++) {
-        inv.push({
-          name: p.boxName || p.name,
-          category: "BOX", type: "BOX", quantity: 1, cash: true,
-          icon: p.boxIcon || "item_box_gift.png",
-          gid: orderId + (n > 1 ? "-" + (k + 1) : ""),
-          giftTitle: p.name,
-          giftMsg: p.boxMsg || "",
-          gift: p.bundle.map((b) => Object.assign({}, b, {quantity: b.qty || 1})),
-          desc: p.name + "\n" + (p.boxMsg || "") + "\n\n눌러서 열어보세요.",
-        });
+        inv.push(cashBox(p, orderId + (n > 1 ? "-" + (k + 1) : "")));
       }
       tx.update(uref, {inventory: inv});
       // 🧾 계정당 1회 상품은 '샀다'를 남긴다(팔아도 재구매 불가).
