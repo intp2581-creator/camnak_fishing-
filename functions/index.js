@@ -949,3 +949,7 @@ exports.storeApi = require("./store").storeApi;
 
 // 🎁 선물함(홈페이지에서 받기 → 게임 인벤 지급)
 exports.giftApi = require("./gift").giftApi;
+
+// 📊 접속 통계 — 10분마다 현재 접속자를 세어 쌓고, 관리 화면이 읽어 간다.
+exports.collectOnlineStats = require("./stats").collectOnlineStats;
+exports.statsApi = require("./stats").statsApi;

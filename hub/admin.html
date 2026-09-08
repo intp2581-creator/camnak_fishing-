@@ -659,9 +659,15 @@ function liveStart(){
   liveOff = onValue(dbRef(db, 'status_nick'), function(snap){
     const v = snap.val() || {};
     // online 이 켜진 사람만. 끊긴 사람도 기록은 남으므로 걸러야 한다.
+    // ⚠️ online:true 인 채로 멈춘 '유령'이 있다(34일 전 것이 접속 중으로 잡혔다).
+    //    끊길 때 onDisconnect 가 못 돌면 그대로 남는다. 게임은 어디서든 12초마다
+    //    다시 적으므로(ui_fishing·ui_plaza·ui_lobby 하트비트), 5분 넘게 소식이 없으면
+    //    접속이 아니다. 넉넉히 잡아도 5분이면 충분하다.
+    const STALE = 5 * 60 * 1000;
+    const now = Date.now();
     const on = Object.keys(v)
       .map(nick => Object.assign({nick}, v[nick]))
-      .filter(x => x && x.online === true)
+      .filter(x => x && x.online === true && x.t && (now - x.t) < STALE)
       .sort((a,b) => (b.t||0) - (a.t||0));
     const fish = on.filter(x => x.fishing === true);
     $('lvAll').textContent   = on.length;
