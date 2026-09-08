@@ -355,18 +355,25 @@
         <textarea id="st-detail" rows="7" placeholder="구성품, 사용법, 주의사항 등"></textarea>
       </div>
 
-      <!-- ⑤ 연결 (접어둠) ─────────────────────────── -->
+      <!-- 어디서 파는가 · 상품 코드 ───────────────────
+           ⚠️ 상품 코드는 없으면 저장이 안 되는 필수값인데 접힌 칸 안에 있었다.
+              '상품 코드가 필요합니다'만 뜨고 어디 있는지 안 보여 헤맸다. 밖으로 뺀다. -->
       <div class="sect">
-        <button type="button" class="foldBtn" id="st-advBtn">⑤ 연결 설정 <span id="st-advArrow">▾</span></button>
-        <div id="st-adv" class="hide">
-          <div class="g2">
-            <div><label>아임웹 상품번호 <span class="muted">(자체 결제 전까지 구매하기가 갈 곳)</span></label>
-              <input id="st-idx" type="number" placeholder="223"></div>
-            <div><label>상품 코드 <span class="muted">(결제 뒤 지급에 쓰는 값 · 나중에 못 바꿉니다)</span></label>
-              <input id="st-key" placeholder="예: pet_husky">
-              <p class="hint" id="st-keyHint"></p></div>
-          </div>
+        <label>어디서 파는가</label>
+        <select id="st-where">
+          <option value="own">우리 홈페이지에서 판다 — 캠피싱 주문서로 결제합니다</option>
+          <option value="mall">아임웹에서 판다 — 구매하기가 아임웹 상세페이지로 갑니다</option>
+        </select>
+
+        <div id="st-mallWrap" class="hide">
+          <label>아임웹 상품번호</label>
+          <input id="st-idx" type="number" placeholder="223">
+          <p class="hint">아임웹 상품 주소 <span class="muted">camnak.com/shop_view/?idx=<b>223</b></span> 의 숫자입니다.</p>
         </div>
+
+        <label>상품 코드 <span class="muted">(결제 뒤 무엇을 줄지 찾는 값 · 나중에 못 바꿉니다)</span></label>
+        <input id="st-key" placeholder="예: craft_scroll">
+        <p class="hint" id="st-keyHint"></p>
       </div>
 
       <!-- 저장 전 확인 -->
@@ -665,7 +672,8 @@ function stProblems(p){
     out.push('무엇을 줄지 안 정함');
   const g=GKEYS?GKEYS[p.key]:null;
   if(g&&g.code&&g.price!==(p.p||0)) out.push('가격이 실결제와 다름');
-  if(!p.idx && p.state!=='off') out.push('아임웹 번호 없음');
+  // 아임웹 번호가 없는 건 '우리 홈페이지에서 파는 상품'이라는 뜻이라 문제가 아니다.
+  // (예전엔 모든 상품이 아임웹으로 가서 없으면 구매하기가 끊겼다)
   if(!p.img) out.push('이미지 없음');
   return out;
 }
@@ -1049,6 +1057,13 @@ function fillKeyHint(){
     h.textContent='영문 소문자로 시작하고 소문자·숫자·밑줄만 쓸 수 있습니다 (3~40자).'; return; }
   h.className='hint'; h.textContent='새 상품 코드입니다. 저장 뒤에는 바꾸지 마세요.';
 }
+/* 어디서 파는가 — 아임웹을 고를 때만 상품번호 칸을 보여준다.
+   2차 업데이트 상품처럼 우리 홈페이지에서만 파는 것은 아임웹 번호가 없다. */
+function syncWhere(){
+  const mall = $('st-where').value === 'mall';
+  $('st-mallWrap').classList.toggle('hide', !mall);
+  if(!mall) $('st-idx').value = '';   // 우리 홈페이지면 아임웹 번호를 비운다
+}
 function syncGrantUI(){
   const key=$('st-key').value.trim(), code=isCodeKey(key);
   $('stCodeTag').classList.toggle('hide', !code);
@@ -1079,6 +1094,8 @@ async function openStEdit(p,dup){
   $('st-perOrd').value=p?(p.perOrder||g.maxQty||0):0;
   $('st-key').value=(p&&!dup)?p.key||'':'';
   $('st-idx').value=(p&&!dup)?p.idx||'':'';
+  // 아임웹 번호가 적혀 있던 상품은 '아임웹에서 판다'로 연다.
+  $('st-where').value=$('st-idx').value?'mall':'own';
   $('st-order').value=p?(p.order||0)+(dup?5:0):((ST_ITEMS.length+1)*10);
   $('st-state').value=dup?'off':(p?(p.hidden?'off':(p.soon?'soon':'on')):'on');
   $('st-soonText').value=p?p.soonText||'':'';
@@ -1094,7 +1111,7 @@ async function openStEdit(p,dup){
   (g.bundle||[]).forEach(it=>$('st-bundle').appendChild(bundleRow(it)));
   $('stDel').classList.toggle('hide',!stEditId);
   $('stDup').classList.toggle('hide',!stEditId);
-  $('st-adv').classList.toggle('hide', !!stEditId);   // 새 상품은 코드를 정해야 하므로 펼친다
+  syncWhere();
   $('stMsg').className='msg'; $('stMsg').textContent='';
   syncGrantUI(); stImgPreview();
   $('stEdit').classList.remove('hide');
@@ -1127,10 +1144,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('st-addItem')) $('st-addItem').onclick=function(){
     $('st-bundle').appendChild(bundleRow()); stConfirm();
   };
-  if($('st-advBtn'))  $('st-advBtn').onclick=function(){
-    const open = $('st-adv').classList.toggle('hide');
-    $('st-advArrow').textContent = open ? '\u25be' : '\u25b4';
-  };
+  if($('st-where'))   $('st-where').onchange=function(){ syncWhere(); stConfirm(); };
   // 복제 — 값을 그대로 물려받되 새 상품으로 저장한다(숨김으로 시작).
   if($('stDup'))     $('stDup').onclick    =function(){
     const p = ST_ITEMS.find(x=>x.id===stEditId);
@@ -1142,8 +1156,8 @@ document.addEventListener('DOMContentLoaded',function(){
     const key=$('st-key').value.trim();
     if(!$('st-n').value.trim()){ m.className='msg err'; m.textContent='상품명을 입력해 주세요.'; return; }
     if(!key){ m.className='msg err';
-      m.textContent='상품 코드가 필요합니다. [⑤ 연결 설정]을 열어 입력해 주세요.';
-      $('st-adv').classList.remove('hide'); return; }
+      m.textContent='상품 코드를 입력해 주세요. 결제 뒤 무엇을 줄지 이 값으로 찾습니다.';
+      $('st-key').focus(); $('st-key').scrollIntoView({block:'center'}); return; }
     const state=$('st-state').value;
     const body={action:'save', id:stEditId||undefined,
       n:$('st-n').value, c:$('st-c').value, d:$('st-d').value, img:$('st-img').value,
