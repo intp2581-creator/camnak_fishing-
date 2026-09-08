@@ -1590,6 +1590,15 @@ int coolerTier(String name) { // 아이스박스
   return 1;
 }
 
+/// 🧤 능력치 합(P+C+S). 이름에 등급이 안 드러나는 장비를 견줄 때 쓴다.
+///   장갑처럼 '대형/중형'이나 티어 표가 없는 것들은 이걸로 상급을 가린다.
+int statSum(Map<String, dynamic>? item) {
+  final s = item?['stats'];
+  if (s is! Map) return -1;
+  int v(String k) => (s[k] is num) ? (s[k] as num).toInt() : 0;
+  return v('P') + v('C') + v('S');
+}
+
 /// 🎒 민물·바다 탭에서 빼는 것 — 장착 슬롯이 없는 소모성·버프 아이템
 ///   (낚시 이용권 · 아레나 입장권 · 경험치 물약 · KREFT 카드 · 능력치 엠블럼).
 ///   뱃지·휘장은 장착 슬롯이 있는 장비라 민물·바다에 그대로 남긴다.
@@ -1770,9 +1779,14 @@ void autoEquipForMode(List<dynamic> inventory, String mode, int level) {
     } else if (n.contains('밑밥')) {
       gb ??= it;
     } else if (n.contains('장갑')) {
-      gloves ??= it;
+      // 🧤 장갑도 상급을 낀다 — 감각 장갑(힘10·감도20) > 장갑(힘10).
+      //    ⚠️ `??=`면 가방에서 먼저 나온 것이 잡혀, 좋은 걸 사고도 옛 장갑이 끼워진다.
+      if (statSum(it) > statSum(gloves)) gloves = it;
     } else if (n.contains('선글라스')) {
-      sun ??= it;
+      // 🕶️ 레인보우 편광(P/C/S 20) > 일반(P/C/S 10). 낚시터 계산(fishing_logic)은
+      //    2026-08-30에 고쳤는데 이 자동 장착만 `??=`로 남아 있었다 — 5만 KREFT를
+      //    주고도 일반이 끼워지고, 표시 능력치와 실제가 어긋났다.
+      if (statSum(it) > statSum(sun)) sun = it;
     }
   }
 
