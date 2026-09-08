@@ -25,7 +25,9 @@
   .top .who{margin-left:auto;color:var(--ink-soft);font-size:14px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 4px 16px rgba(15,80,110,.08);margin-bottom:18px}
   label{display:block;font-weight:700;font-size:14px;margin:14px 0 6px;color:var(--ink-soft)}
-  input[type=text],input[type=email],input[type=password],textarea,select{
+  /* ⚠️ 예전엔 input[type=text] 로만 잡았는데, 폼의 칸 대부분은 type 을 안 적어서
+     (<input id="st-n">) 이 규칙을 못 받아 좁게 나왔다. number 도 마찬가지였다. */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select{
     width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff}
   textarea{min-height:280px;line-height:1.75;resize:vertical}
   .rowf{display:flex;gap:12px;flex-wrap:wrap}
@@ -61,7 +63,19 @@
   .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .hint{margin:6px 0 0;font-size:12.5px;line-height:1.6;color:#8ba3ae}
   .hint.warn{color:#c0392b}
-  .imgRow{display:flex;gap:12px;align-items:flex-start}
+  .imgRow{display:flex;gap:16px;align-items:flex-start}
+  .imgSide{flex:1;min-width:0}
+  /* 아임웹처럼 큰 정사각형 하나를 눌러 그림을 넣는다. 올린 그림은 상자 안에 그대로 보인다. */
+  .imgBox{width:150px;height:150px;flex:none;padding:0;cursor:pointer;
+          border:1.5px dashed #c3d6de;border-radius:12px;background:#f7fafb;
+          display:flex;align-items:center;justify-content:center;overflow:hidden;
+          font-family:inherit;font-size:13.5px;font-weight:700;color:var(--ink-soft)}
+  .imgBox:hover{border-color:var(--blue-ink);background:#eef6f9}
+  /* :not(.hide) — 이게 없으면 이 규칙이 .hide{display:none} 을 이겨서
+     그림을 넣어도 '이미지 추가' 글씨가 옆에 그대로 남는다. */
+  .imgBox>span:not(.hide){display:flex;flex-direction:column;align-items:center;gap:6px}
+  .imgBox .ic{font-size:26px}
+  .imgBox img{width:100%;height:100%;object-fit:contain;background:#fff}
   .foldBtn{background:none;border:0;padding:0;font-family:inherit;cursor:pointer;
            font-weight:900;font-size:15px;color:var(--blue-ink)}
   /* 담을 아이템 한 줄 */
@@ -107,8 +121,7 @@
     .card{padding:16px;border-radius:12px}
     .g2{grid-template-columns:1fr}
     .imgRow{flex-direction:column}
-    .imgRow>div:last-child{width:100%!important;text-align:left!important}
-    #st-imgPrev{width:100%!important;height:150px!important}
+    .imgBox{width:100%;height:180px}
     .bRow1{grid-template-columns:1fr 62px 34px;gap:6px}
     .bRow2{grid-template-columns:1fr 44px;gap:6px}
     .bItem .upBtn{grid-column:1/3}
@@ -206,10 +219,31 @@
         <span id="stCodeTag" class="tag hide">코드 상품</span>
       </div>
 
-      <!-- ① 무엇을 파는가 ─────────────────────────── -->
+      <!-- ① 무엇을 파는가 ───────────────────────────
+           아임웹 상품 등록과 같은 순서로 둔다 — 이미지 → 상품명·분류 → 요약 설명.
+           눈에 익은 자리에 있어야 헤매지 않는다. -->
       <div class="sect">
         <div class="sectHead">① 무엇을 파는가</div>
-        <div class="g2">
+
+        <label>상품 이미지</label>
+        <div class="imgRow">
+          <div>
+            <button type="button" id="st-imgPick" class="imgBox">
+              <img id="st-imgPrev" alt="" class="hide">
+              <span id="st-imgEmpty"><span class="ic">🖼️</span>이미지 추가</span>
+            </button>
+            <input type="file" id="st-imgFile" accept="image/*" class="hide">
+          </div>
+          <div class="imgSide">
+            <p class="hint" style="margin:0 0 8px">
+              jpg · png · 2MB 이하 · <b>620×620</b> 권장<br>
+              누르시면 파일을 고를 수 있고, 고르는 즉시 올라갑니다.</p>
+            <div id="st-imgMsg" class="muted" style="font-size:12.5px;margin-bottom:8px"></div>
+            <input id="st-img" placeholder="또는 이미지 주소 · assets/ 안 파일명">
+          </div>
+        </div>
+
+        <div class="g2" style="margin-top:6px">
           <div><label>상품명</label><input id="st-n" placeholder="예: KREFT 성장 패키지"></div>
           <div><label>분류</label>
             <select id="st-c">
@@ -221,23 +255,8 @@
             </select></div>
         </div>
 
-        <label>한 줄 설명 <span class="muted">(게임스토어 카드에 표시)</span></label>
+        <label>요약 설명 <span class="muted">(게임스토어 카드에 한 줄로 표시)</span></label>
         <input id="st-d" placeholder="성장에 필요한 것을 한 번에 담았어요.">
-
-        <label>상품 이미지 <span class="muted">(파일을 고르시면 올라갑니다 · jpg · png · 2MB 이하)</span></label>
-        <div class="imgRow">
-          <div style="flex:1;min-width:0">
-            <button type="button" class="btn ghost" id="st-imgPick">🖼️ 이미지 고르기</button>
-            <input type="file" id="st-imgFile" accept="image/*" class="hide">
-            <input id="st-img" placeholder="올린 이미지 주소 또는 assets/ 안 파일명" style="margin-top:10px">
-          </div>
-          <div style="width:120px;flex:none;text-align:center">
-            <img id="st-imgPrev" alt="" class="hide"
-                 style="width:120px;height:90px;object-fit:cover;border:1px solid var(--line);
-                        border-radius:8px;background:#f2f6f8">
-            <div id="st-imgMsg" class="muted" style="font-size:12px;margin-top:4px"></div>
-          </div>
-        </div>
       </div>
 
       <!-- ② 얼마에 파는가 ─────────────────────────── -->
@@ -777,10 +796,14 @@ async function stMove(i,dir){
 /* 이미지 — 파일명 오타를 스토어가 아니라 여기서 알게 한다. */
 function stImgPreview(){
   const v=$('st-img').value.trim(), im=$('st-imgPrev'), ms=$('st-imgMsg');
-  if(!v){ im.classList.add('hide'); ms.textContent=''; return; }
-  im.classList.remove('hide'); ms.textContent='확인 중…'; ms.style.color='';
-  im.onload=()=>{ ms.textContent=/^https?:/.test(v)?'올린 이미지':'확인됨'; ms.style.color='#1c8b5f'; };
-  im.onerror=()=>{ im.classList.add('hide'); ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
+  const empty=$('st-imgEmpty');
+  // 그림이 있으면 상자 안을 그림으로 채우고, 없으면 '이미지 추가' 안내를 보인다.
+  const show=on=>{ im.classList.toggle('hide',!on); if(empty) empty.classList.toggle('hide',on); };
+  if(!v){ show(false); ms.textContent=''; return; }
+  ms.textContent='확인 중…'; ms.style.color='';
+  im.onload=()=>{ show(true); ms.textContent=/^https?:/.test(v)?'올린 이미지':'확인됨';
+    ms.style.color='#1c8b5f'; };
+  im.onerror=()=>{ show(false); ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
   im.src=stImgSrc(v);
 }
 /* 고른 파일을 브라우저에서 줄여서 올린다. 원본 사진은 몇 MB라 거부당한다.
@@ -1096,7 +1119,8 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('st-state'))   $('st-state').onchange= syncGrantUI;
   if($('st-giveWay')) $('st-giveWay').onchange = syncGrantUI;
   if($('st-badge'))   $('st-badge').onchange= stConfirm;
-  if($('st-img'))     $('st-img').onchange  = function(){ stImgPreview(); stConfirm(); };
+  // 치는 즉시 상자에 보이게(onchange 는 칸을 벗어나야 떠서 '안 나온다'로 느껴진다)
+  if($('st-img'))     $('st-img').oninput   = function(){ stImgPreview(); stConfirm(); };
   if($('st-imgPick')) $('st-imgPick').onclick=function(){ $('st-imgFile').click(); };
   if($('st-imgFile')) $('st-imgFile').onchange=function(){
     stUpload(this.files && this.files[0]); this.value='';
