@@ -21,17 +21,20 @@ const PAY_METHODS = [
 let payM = PAY_METHODS.find(m => m.on) || null;   // 지금 고른 결제수단
 
 // 🛒 상품 표시 정보(가격은 서버가 정한다 — 여기 값은 화면용일 뿐)
+//   box:true = 상자로 지급된다. 상세페이지의 청약철회 안내가 이 값으로 갈린다
+//   (product.html refundHtml). 지급표(functions/payment.js)와 반드시 같아야 한다 —
+//   어긋나면 실제 지급과 다른 환불 안내가 나가 분쟁이 된다. 2026-09-08 전 상품 통일.
 const CATALOG = {
-  ticket_1h:    {n:'낚시 1시간 이용권', p:1100,  img:'assets/st-ticket1h.jpg', d:'낚시 시간을 1시간 늘려줍니다', stack:true},
-  ticket_arena: {n:'아레나 입장권',     p:1100,  img:'assets/st-arena.jpg',    d:'아레나에 하루 1회 더 참가', stack:true},
-  skin_novice:  {n:'하수 조사',   p:2200,  img:'assets/st-skin1.jpg', d:'Lv.10 · 하수 이상'},
-  skin_mid:     {n:'중수 조사',   p:5500,  img:'assets/st-skin2.jpg',    d:'Lv.30 · 중수 이상'},
-  skin_expert:  {n:'고수 조사',   p:11000, img:'assets/st-skin3.jpg', d:'Lv.50 · 고수 이상'},
-  skin_pro:     {n:'프로 조사',   p:22000, img:'assets/st-skin4.jpg',    d:'Lv.70 · 프로 이상'},
-  skin_master:  {n:'마스터 조사', p:55000, img:'assets/st-skin5.jpg', d:'Lv.100 · 마스터 이상'},
-  badge_1:      {n:'캠피싱 뱃지',      p:2200,  img:'assets/st-badge1.jpg', d:'Lv.10 이상'},
-  badge_2:      {n:'캠피싱 휘장',      p:5500,  img:'assets/st-badge2.jpg', d:'Lv.30 이상'},
-  badge_3:      {n:'KREFT 정예 휘장', p:11000, img:'assets/st-badge3.jpg', d:'Lv.50 이상'},
+  ticket_1h:    {box:true, n:'낚시 1시간 이용권', p:1100,  img:'assets/st-ticket1h.jpg', d:'낚시 시간을 1시간 늘려줍니다', stack:true},
+  ticket_arena: {box:true, n:'아레나 입장권',     p:1100,  img:'assets/st-arena.jpg',    d:'아레나에 하루 1회 더 참가', stack:true},
+  skin_novice:  {box:true, n:'하수 조사',   p:2200,  img:'assets/st-skin1.jpg', d:'Lv.10 · 하수 이상'},
+  skin_mid:     {box:true, n:'중수 조사',   p:5500,  img:'assets/st-skin2.jpg',    d:'Lv.30 · 중수 이상'},
+  skin_expert:  {box:true, n:'고수 조사',   p:11000, img:'assets/st-skin3.jpg', d:'Lv.50 · 고수 이상'},
+  skin_pro:     {box:true, n:'프로 조사',   p:22000, img:'assets/st-skin4.jpg',    d:'Lv.70 · 프로 이상'},
+  skin_master:  {box:true, n:'마스터 조사', p:55000, img:'assets/st-skin5.jpg', d:'Lv.100 · 마스터 이상'},
+  badge_1:      {box:true, n:'캠피싱 뱃지',      p:2200,  img:'assets/st-badge1.jpg', d:'Lv.10 이상'},
+  badge_2:      {box:true, n:'캠피싱 휘장',      p:5500,  img:'assets/st-badge2.jpg', d:'Lv.30 이상'},
+  badge_3:      {box:true, n:'KREFT 정예 휘장', p:11000, img:'assets/st-badge3.jpg', d:'Lv.50 이상'},
   growth_pack:  {n:'KREFT 성장패키지', p:5500, img:'assets/st-package.jpg', stack:true, max:1, box:true,
                  d:'시작이 반! 성장에 필요한 것을 한 번에 담았습니다. 5종 구성품이 상자에 담겨 지급됩니다.'},
 };
@@ -40,9 +43,9 @@ const CATALOG = {
 //    stat: 장착 시 오르는 능력치 · use: 쓰는 법 · cond: 이용 조건
 const DETAIL = {
   ticket_1h:    {use:'가방에서 눌러 사용하면 그 자리에서 낚시 시간이 60분 늘어납니다.',
-                 cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'수량 누적(여러 장 보유 가능)'},
+                 cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'상자로 지급 — 열면 가방에 쌓입니다(여러 장 보유 가능)'},
   ticket_arena: {use:'무료 입장을 다 쓴 뒤 아레나에 하루 한 번 더 참가할 수 있습니다. 낚시 시간 20분도 함께 채워집니다.',
-                 cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'수량 누적(여러 장 보유 가능)'},
+                 cond:'레벨 제한 없음 · 계정당 하루 1회 사용',   give:'상자로 지급 — 열면 가방에 쌓입니다(여러 장 보유 가능)'},
   skin_novice:  {stat:20,  cond:'Lv.10 이상 · 「하수」 승급 완료',   give:'계정당 1개'},
   skin_mid:     {stat:50,  cond:'Lv.30 이상 · 「중수」 승급 완료',   give:'계정당 1개'},
   skin_expert:  {stat:100, cond:'Lv.50 이상 · 「고수」 승급 완료',   give:'계정당 1개'},

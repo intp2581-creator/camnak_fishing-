@@ -169,7 +169,12 @@ exports.storeApi = onRequest({region: "us-central1", cors: true}, async (req, re
         if (st === "off") return;
         // 수량을 여러 개 살 수 있는지, 상자로 지급되는지는 지급표가 정한다.
         // 화면이 제 나름대로 짐작하면 '주문서와 다른 안내'가 되어 분쟁이 된다.
-        const g = PRODUCTS[v.key];
+        // 코드 지급표가 먼저, 없으면 관리 화면에서 저장한 지급 구성을 본다.
+        // ⚠️ 예전엔 PRODUCTS 만 봐서, 관리 화면으로 만든 상품은 상자로 지급하도록
+        //    저장해도 box:false 로 나갔다. 상세페이지의 청약철회 안내가 box 로
+        //    갈리므로(product.html), 상자인데 '낱개' 문구가 나가 분쟁이 될 자리였다.
+        //    수량 제한(stack·max)도 마찬가지로 무시되고 있었다.
+        const g = PRODUCTS[v.key] || v.grant || null;
         rows.push({id: doc.id, ...v,
           soon: st === "soon",                 // 기간 전이면 코드가 잠근다
           stack: !!(g && g.limitType === "STACK"),

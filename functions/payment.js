@@ -23,8 +23,19 @@ const TEST_MODE_GM_ONLY = true;
 // 📦 판매 상품 — 가격의 '유일한 근거'. 홈페이지·게임 표시가 달라도 이 값이 기준이다.
 //   limitType: ONCE=계정당 1개 · STACK=수량 누적
 const PRODUCTS = {
-  "ticket_1h":   {name: "낚시 1시간 이용권", price: 1100,  limitType: "STACK"},
-  "ticket_arena":{name: "아레나 입장권",     price: 1100,  limitType: "STACK"},
+  // 📦 유료 아이템은 예외 없이 'KREFT 아이템 상자'로 지급한다(2026-09-08 이용권까지 통일).
+  //   상자는 quantity 가 쌓이지 않고 gid 로 하나씩 구분되므로(game_config kGiftBox 주석),
+  //   이용권을 여러 장 사면 상자도 그만큼 개별로 들어간다. 섞이거나 사라지지 않는다.
+  "ticket_1h":   {name: "낚시 1시간 이용권", price: 1100,  limitType: "STACK",
+    boxName: "낚시 1시간 이용권 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 이용권을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "낚시 1시간 이용권", qty: 1, cash: true, category: "TICKET",
+      type: "ETC", icon: "item_ticket_1h.png"}]},
+  "ticket_arena":{name: "아레나 입장권",     price: 1100,  limitType: "STACK",
+    boxName: "아레나 입장권 상자", boxIcon: "item_box_cash.png",
+    boxMsg: "눌러서 열면 입장권을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    bundle: [{name: "아레나 입장권", qty: 1, cash: true, category: "TICKET",
+      type: "ETC", icon: "arena_ticket.png"}]},
   // 📦 장착형(스킨·뱃지·휘장)은 '상자'로 지급한다 — 열어야 실제로 손에 들어온다.
   //   약관이 "7일 이내 장착하지 않으신 상태면 전액 환불"인데, 낱개로 주면
   //   자동장착이 알아서 입혀버려 유저가 '미장착'을 유지할 수 없었다(2026-09-07).
