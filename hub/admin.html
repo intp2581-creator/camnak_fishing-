@@ -65,11 +65,30 @@
   .foldBtn{background:none;border:0;padding:0;font-family:inherit;cursor:pointer;
            font-weight:900;font-size:15px;color:var(--blue-ink)}
   /* 담을 아이템 한 줄 */
-  .bItem{display:grid;grid-template-columns:1.6fr 74px 1fr 36px;gap:8px;align-items:center;
-         margin-top:8px}
+  /* 담을 아이템 한 칸 — 이름·개수 / 그림 / 능력치 세 줄짜리 카드.
+     예전엔 한 줄(이름·개수·파일명)뿐이라, 게임에 없는 새 아이템을 낼 방법이 없었다.
+     그림을 올릴 수도, 능력치를 정할 수도 없어 무조건 '능력치 0 · 종류 ETC'가 됐다. */
+  .bItem{border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px;
+         background:#fbfdfe}
   .bItem input,.bItem select{padding:9px 10px;font-size:14px}
+  .bRow1{display:grid;grid-template-columns:1fr 74px 36px;gap:8px;align-items:center}
+  .bRow2{display:grid;grid-template-columns:1fr auto 44px;gap:8px;align-items:center;
+         margin-top:8px}
+  .bRow3{display:grid;grid-template-columns:auto minmax(130px,1.2fr) auto 1fr 1fr 1fr;
+         gap:8px;align-items:center;margin-top:8px}
+  .bRow3 .cap{font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+  /* 힘·컨트롤·감도 — 숫자를 채워도 어느 칸인지 알 수 있게 이름표를 붙여 둔다.
+     안내 글씨(placeholder)로 두면 값을 넣는 순간 사라져 '10 · 20'만 남는다. */
+  .sIn{display:flex;align-items:center;gap:5px;min-width:0;
+       font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+  .sIn input{width:100%;min-width:0}
+  .bThumb{width:44px;height:44px;object-fit:contain;border:1px solid var(--line);
+          border-radius:8px;background:#fff}
   .bItem .del{background:none;border:1px solid var(--line);border-radius:8px;color:#c0392b;
               cursor:pointer;height:38px;font-size:16px}
+  .bItem .upBtn{white-space:nowrap;padding:9px 12px;font-size:13.5px}
+  .bItem input:disabled,.bItem select:disabled{background:#eef2f4;color:#7d8c93}
+  .bNote{font-size:12.5px;color:var(--ink-soft);margin:8px 0 0}
   /* 저장 전 확인 */
   .confirm{background:#f4f9fb;border:1px solid var(--line);border-radius:12px;padding:16px;
            font-size:14.5px;line-height:1.9}
@@ -90,8 +109,11 @@
     .imgRow{flex-direction:column}
     .imgRow>div:last-child{width:100%!important;text-align:left!important}
     #st-imgPrev{width:100%!important;height:150px!important}
-    .bItem{grid-template-columns:1fr 68px 36px;gap:6px}
-    .bItem .icon{grid-column:1/3}
+    .bRow1{grid-template-columns:1fr 62px 34px;gap:6px}
+    .bRow2{grid-template-columns:1fr 44px;gap:6px}
+    .bItem .upBtn{grid-column:1/3}
+    .bRow3{grid-template-columns:auto 1fr 1fr 1fr;gap:6px}
+    .bRow3 .tSel{grid-column:2/5}
     .stList table{display:none}          /* 표는 폰에서 못 읽는다 */
     .stCard{display:block}
     .btns .btn{flex:1;min-width:110px}
@@ -265,8 +287,10 @@
           <label style="margin-top:16px">담을 아이템</label>
           <div id="st-bundle"></div>
           <button type="button" class="btn ghost" id="st-addItem" style="margin-top:10px">+ 아이템 추가</button>
-          <p class="hint">게임에서 실제로 지급되고 있는 아이템들입니다. 목록에 없는 것은
-             「직접 입력」으로 넣되, 이름과 그림 파일명이 게임과 정확히 같아야 합니다.</p>
+          <p class="hint">목록에 있는 것은 게임에서 이미 지급되고 있는 아이템이라
+             능력치·종류가 코드값으로 잠깁니다. <b>게임에 없는 새 아이템</b>은
+             「직접 입력」을 고르고 이름·그림·능력치를 여기서 정하시면 됩니다 —
+             그림을 올리면 게임을 다시 배포하지 않아도 가방에 그대로 나옵니다.</p>
         </div>
       </div>
 
@@ -759,9 +783,12 @@ function stImgPreview(){
   im.onerror=()=>{ im.classList.add('hide'); ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
   im.src=stImgSrc(v);
 }
-/* 고른 파일을 브라우저에서 줄여서 올린다. 원본 사진은 몇 MB라 거부당한다. */
-function stUpload(file){
-  const ms=$('st-imgMsg'); if(!file) return;
+/* 고른 파일을 브라우저에서 줄여서 올린다. 원본 사진은 몇 MB라 거부당한다.
+   ⚠️ 상품 대표 이미지와 '담을 아이템' 그림이 함께 쓴다. 어디에 넣을지는
+      done(주소)로 정하고, 진행 상황은 msgEl 에 쓴다(안 주면 상품 이미지 자리). */
+function stUpload(file, done, msgEl){
+  const ms=msgEl||$('st-imgMsg'); if(!file) return;
+  const put=done||function(url){ $('st-img').value=url; stImgPreview(); stConfirm(); };
   ms.textContent='읽는 중…'; ms.style.color='';
   const fr=new FileReader();
   fr.onload=()=>{
@@ -776,7 +803,7 @@ function stUpload(file){
       ms.textContent='올리는 중…';
       sapi({action:'upload',data:cv.toDataURL(isPng?'image/png':'image/jpeg',0.88),name:file.name})
         .then(j=>{ if(!j.ok){ ms.textContent=j.err||'올리지 못했습니다'; ms.style.color='#c0392b'; return; }
-          $('st-img').value=j.url; stImgPreview(); stConfirm(); })
+          ms.textContent='올렸습니다'; ms.style.color='#1c8b5f'; put(j.url); })
         .catch(()=>{ ms.textContent='올리지 못했습니다'; ms.style.color='#c0392b'; });
     };
     img.onerror=()=>{ ms.textContent='이미지를 읽지 못했습니다'; ms.style.color='#c0392b'; };
@@ -786,35 +813,120 @@ function stUpload(file){
 }
 
 /* ── ③ 무엇을 주는가 ─────────────────────────────── */
+
+/* 아이템 종류 — 게임이 실제로 쓰는 값. 뒤에 붙은 설명은 고를 때 헷갈리지 않게.
+   ⚠️ 장갑·뜰채·벨트·선글라스는 게임이 '이름'으로 슬롯을 찾는다. 종류만 맞추고
+      이름에 그 낱말이 없으면 장착되지 않는다(아래 이름 경고에서 잡아 준다). */
+const BTYPES=[
+  ['ETC','기타 · 장착 소품(뱃지·휘장·선글라스)'],
+  ['GLOVES','장갑'],['NET','뜰채'],['BELT','벨트'],['COOLER','아이스박스'],
+  ['LINE','낚싯줄'],['ROD','낚싯대'],['FLOAT','찌'],['REEL','릴'],
+  ['BAIT','미끼'],['GROUNDBAIT','밑밥'],['TRAP','채집망'],['GEM','보석 · 제작 재료'],
+  ['SKIN','스킨'],['BOOST','기간제 버프'],['EVENT','이벤트'],['BOX','상자'],
+];
+/* 이름에 이 낱말이 있어야 그 슬롯에 장착된다 — 게임의 자동 장착 규칙과 같다. */
+const BSLOTWORD={GLOVES:'장갑',NET:'뜰채',BELT:'벨트',COOLER:'아이스박스'};
+
 function bundleRow(it){
   it=it||{};
-  const opts=['<option value="">— 직접 입력 —</option>']
+  const opts=['<option value="">— 직접 입력(새 아이템) —</option>']
     .concat((GITEMS||[]).map(g=>'<option value="'+esc(g.name)+'"'
       +(g.name===it.name?' selected':'')+'>'+esc(g.name)+'</option>')).join('');
   const known=(GITEMS||[]).some(g=>g.name===it.name);
+  const tOpts=BTYPES.map(t=>'<option value="'+t[0]+'"'
+    +(t[0]===(it.type||'ETC')?' selected':'')+'>'+esc(t[1])+'</option>').join('');
+  const st=it.stats||{};
   const d=document.createElement('div');
   d.className='bItem';
-  d.innerHTML='<select class="pick">'+opts+'</select>'
+  d.innerHTML=
+     '<div class="bRow1"><select class="pick">'+opts+'</select>'
     +'<input class="qty" type="number" min="1" value="'+(it.qty||1)+'" title="개수">'
-    +'<input class="icon" placeholder="그림 파일명" value="'+esc(it.icon||'')+'">'
-    +'<button type="button" class="del" title="빼기">×</button>';
+    +'<button type="button" class="del" title="빼기">×</button></div>'
+    +'<div class="bRow2">'
+    +'<input class="icon" placeholder="그림 파일명 또는 올린 주소" value="'+esc(it.icon||'')+'">'
+    +'<button type="button" class="btn ghost upBtn">🖼️ 그림 올리기</button>'
+    +'<img class="bThumb hide" alt="">'
+    +'</div>'
+    +'<div class="bRow3">'
+    +'<span class="cap tCap">종류</span><select class="ptype tSel">'+tOpts+'</select>'
+    +'<span class="cap">능력치</span>'
+    +'<label class="sIn">힘<input class="pP" type="number" value="'+(st.P||'')+'"></label>'
+    +'<label class="sIn">컨트롤<input class="pC" type="number" value="'+(st.C||'')+'"></label>'
+    +'<label class="sIn">감도<input class="pS" type="number" value="'+(st.S||'')+'"></label>'
+    +'</div>'
+    +'<p class="bNote"></p>';
+
   const pick=d.querySelector('.pick'), icon=d.querySelector('.icon');
+  const thumb=d.querySelector('.bThumb'), note=d.querySelector('.bNote');
+  const fields=['.pP','.pC','.pS','.ptype'].map(s=>d.querySelector(s));
+
+  /* 코드에 있는 아이템은 능력치·종류를 코드가 정한다 — 여기서 고쳐도 안 먹으니 잠근다.
+     ③ 전체가 잠기는 '코드 상품'과 같은 생각이다. */
+  function lock(on){ fields.forEach(f=>{ f.disabled=on; }); }
+
+  function refresh(){
+    const v=icon.value.trim();
+    if(v){ thumb.classList.remove('hide'); thumb.src=stImgSrc(v);
+           thumb.onerror=()=>thumb.classList.add('hide'); }
+    else thumb.classList.add('hide');
+    // 이름과 슬롯이 어긋나면 알려 준다 — 사놓고 장착이 안 되는 사고를 막는다.
+    // ⚠️ '직접 입력'으로 바뀌면 이름 칸(select)이 input 으로 교체된다. 만들 때
+    //    잡아둔 변수를 보면 사라진 칸을 읽게 되므로, 그때그때 다시 찾는다.
+    const cur=d.querySelector('.pick');
+    const nm=cur?cur.value.trim():'';
+    const w=BSLOTWORD[d.querySelector('.ptype').value];
+    note.innerHTML = (w && nm && !nm.includes(w))
+      ? '<span style="color:#c0392b">이름에 「'+w+'」이 없으면 그 자리에 장착되지 않습니다.</span>'
+      : (d.querySelector('.pP').disabled
+          ? '게임 코드에 있는 아이템입니다 — 능력치·종류는 코드가 정합니다.' : '');
+    stConfirm();
+  }
+
   // 직접 입력이면 이름 칸으로 바꿔 준다
   function toManual(name){
     const inp=document.createElement('input');
     inp.className='pick name'; inp.placeholder='아이템 이름'; inp.value=name||'';
-    pick.replaceWith(inp); inp.oninput=stConfirm;
+    d.querySelector('.pick').replaceWith(inp); inp.oninput=refresh;
   }
-  if(it.name && !known) toManual(it.name);
+  /* 코드에 있는 아이템은 능력치·종류를 코드값으로 채우고 잠근다.
+     ⚠️ 채우지 않으면 칸이 빈 채 잠겨, 저장할 때 능력치가 사라진다
+        (뱃지 10/10/10 이 0 이 되던 문제). 화면에 보이는 값이 곧 저장되는 값이다. */
+  function applyMeta(g){
+    const gs=(g&&g.stats)||{};
+    d.querySelector('.pP').value=gs.P||''; d.querySelector('.pC').value=gs.C||'';
+    d.querySelector('.pS').value=gs.S||''; d.querySelector('.ptype').value=(g&&g.type)||'ETC';
+  }
+
+  if(it.name && !known){ toManual(it.name); lock(false); }
+  else if(known){
+    const g=(GITEMS||[]).find(x=>x.name===it.name)||{};
+    d.dataset.meta=JSON.stringify(g);
+    applyMeta(g); if(!icon.value) icon.value=g.icon||'';
+    lock(true);
+  }
+
   pick.onchange=()=>{
-    if(!pick.value){ toManual(''); icon.value=''; stConfirm(); return; }
+    if(!pick.value){ toManual(''); icon.value=''; d.dataset.meta='';
+      lock(false); refresh(); return; }
     const g=(GITEMS||[]).find(x=>x.name===pick.value)||{};
-    icon.value=g.icon||''; d.dataset.meta=JSON.stringify(g); stConfirm();
+    icon.value=g.icon||''; d.dataset.meta=JSON.stringify(g);
+    applyMeta(g); lock(true); refresh();
   };
-  if(known) d.dataset.meta=JSON.stringify((GITEMS||[]).find(x=>x.name===it.name)||{});
+
   d.querySelector('.qty').oninput=stConfirm;
-  icon.oninput=stConfirm;
+  icon.oninput=refresh;
+  fields.forEach(f=>{ f.oninput=refresh; f.onchange=refresh; });
+  // 🖼️ 아이템 그림도 여기서 올린다. 게임에 없는 새 아이템을 낼 수 있어야 하고,
+  //    가방은 올린 주소를 그대로 그린다(game_config.dart itemImage).
+  const up=d.querySelector('.upBtn');
+  const fileIn=document.createElement('input');
+  fileIn.type='file'; fileIn.accept='image/*'; fileIn.className='hide';
+  d.appendChild(fileIn);
+  up.onclick=()=>fileIn.click();
+  fileIn.onchange=()=>{ if(fileIn.files[0])
+    stUpload(fileIn.files[0], url=>{ icon.value=url; refresh(); }, note); };
   d.querySelector('.del').onclick=()=>{ d.remove(); stConfirm(); };
+  refresh();
   return d;
 }
 function readBundle(){
@@ -823,10 +935,16 @@ function readBundle(){
     const name=(pick.tagName==='SELECT'?pick.value:pick.value).trim();
     if(!name) return null;
     let meta={}; try{ meta=JSON.parse(d.dataset.meta||'{}'); }catch(_){}
+    const num=s=>parseInt(d.querySelector(s).value,10)||0;
     const o={name, qty:parseInt(d.querySelector('.qty').value,10)||1,
       icon:d.querySelector('.icon').value.trim(),
-      category:meta.category||'COMMON', type:meta.type||'ETC'};
-    if(meta.stats) o.stats=meta.stats;
+      category:meta.category||'COMMON',
+      type:d.querySelector('.ptype').value||'ETC'};
+    // 능력치는 화면에 적힌 값을 보낸다. 코드에 있는 아이템은 칸이 잠겨 있어
+    // 코드값 그대로이고, 직접 입력한 새 아이템은 여기서 정한 값이 들어간다.
+    const stt={}; if(num('.pP')) stt.P=num('.pP');
+    if(num('.pC')) stt.C=num('.pC'); if(num('.pS')) stt.S=num('.pS');
+    if(Object.keys(stt).length) o.stats=stt;
     if(meta.desc) o.desc=meta.desc;
     if(meta.boost) o.boost=meta.boost;
     if(meta.secLeft) o.secLeft=meta.secLeft;
@@ -863,9 +981,20 @@ function stConfirm(){
         ? '가방에 <b>'+esc(bn||'(상자 이름 없음)')+'</b>'+josa(bn,'이','가')
           +' 들어가고, 열면 아래가 풀립니다'
         : '가방에 아래가 <b>바로</b> 들어갑니다');
-      L.push('<div style="margin-top:6px">'+bd.map(it=>
-        '· '+esc(it.name)+' <b>'+it.qty+'개</b>').join('<br>')+'</div>');
+      L.push('<div style="margin-top:6px">'+bd.map(it=>{
+        const s=it.stats||{}, ss=[];
+        if(s.P) ss.push('힘 +'+s.P); if(s.C) ss.push('컨트롤 +'+s.C);
+        if(s.S) ss.push('감도 +'+s.S);
+        const ty=(BTYPES.find(t=>t[0]===it.type)||[,it.type])[1];
+        return '· '+esc(it.name)+' <b>'+it.qty+'개</b>'
+          +'<span class="muted"> — '+esc(ty)+(ss.length?' · '+ss.join(' · '):' · 능력치 없음')
+          +(it.icon?'':' · <span class="bad">그림 없음</span>')+'</span>';
+      }).join('<br>')+'</div>');
       if(way==='box' && !bn) L.push('<span class="bad">상자 이름을 적어 주세요.</span>');
+      // 이름과 슬롯이 어긋나 '사도 장착이 안 되는' 아이템을 저장 전에 잡는다.
+      const mism=bd.filter(it=>BSLOTWORD[it.type] && !it.name.includes(BSLOTWORD[it.type]));
+      if(mism.length) L.push('<span class="bad">⚠️ '+esc(mism[0].name)
+        +' — 이름에 「'+BSLOTWORD[mism[0].type]+'」이 없어 장착되지 않습니다.</span>');
     }
     if(!price) L.push('<span class="bad">가격이 0원입니다. 이 금액으로 결제됩니다.</span>');
   }
