@@ -88,6 +88,7 @@
          background:#fbfdfe}
   .bItem input,.bItem select{padding:9px 10px;font-size:14px}
   .bRow1{display:grid;grid-template-columns:1fr 74px 36px;gap:8px;align-items:center}
+  .bName{margin-top:8px}
   .bRow2{display:grid;grid-template-columns:1fr auto 44px;gap:8px;align-items:center;
          margin-top:8px}
   .bRow3{display:grid;grid-template-columns:auto minmax(130px,1.2fr) auto 1fr 1fr 1fr;
@@ -868,6 +869,13 @@ function bundleRow(it){
      '<div class="bRow1"><select class="pick">'+opts+'</select>'
     +'<input class="qty" type="number" min="1" value="'+(it.qty||1)+'" title="개수">'
     +'<button type="button" class="del" title="빼기">×</button></div>'
+    // ✏️ 이름 칸 — '직접 입력'일 때만 보인다.
+    //    예전엔 고르는 칸(select)을 이 칸으로 '바꿔치웠는데', 새 줄은 처음부터
+    //    '직접 입력'이라 바꿀 일이 없어 이름 칸이 영영 안 나왔다. 그래서 그림·종류를
+    //    다 채우고도 '무엇을 줄지 안 정했다'로 막혔다. 목록으로 되돌아갈 수도 없었다.
+    +'<div class="bName'+(known?' hide':'')+'">'
+    +'<input class="nameIn" placeholder="아이템 이름 (예: 제작 주문서)" value="'+esc(it.name||'')+'">'
+    +'</div>'
     +'<div class="bRow2">'
     +'<input class="icon" placeholder="그림 파일명 또는 올린 주소" value="'+esc(it.icon||'')+'">'
     +'<button type="button" class="btn ghost upBtn">🖼️ 그림 올리기</button>'
@@ -884,6 +892,7 @@ function bundleRow(it){
 
   const pick=d.querySelector('.pick'), icon=d.querySelector('.icon');
   const thumb=d.querySelector('.bThumb'), note=d.querySelector('.bNote');
+  const nameIn=d.querySelector('.nameIn'), nameWrap=d.querySelector('.bName');
   const fields=['.pP','.pC','.pS','.ptype'].map(s=>d.querySelector(s));
 
   /* 코드에 있는 아이템은 능력치·종류를 코드가 정한다 — 여기서 고쳐도 안 먹으니 잠근다.
@@ -896,10 +905,7 @@ function bundleRow(it){
            thumb.onerror=()=>thumb.classList.add('hide'); }
     else thumb.classList.add('hide');
     // 이름과 슬롯이 어긋나면 알려 준다 — 사놓고 장착이 안 되는 사고를 막는다.
-    // ⚠️ '직접 입력'으로 바뀌면 이름 칸(select)이 input 으로 교체된다. 만들 때
-    //    잡아둔 변수를 보면 사라진 칸을 읽게 되므로, 그때그때 다시 찾는다.
-    const cur=d.querySelector('.pick');
-    const nm=cur?cur.value.trim():'';
+    const nm=curName();
     const w=BSLOTWORD[d.querySelector('.ptype').value];
     note.innerHTML = (w && nm && !nm.includes(w))
       ? '<span style="color:#c0392b">이름에 「'+w+'」이 없으면 그 자리에 장착되지 않습니다.</span>'
@@ -908,12 +914,10 @@ function bundleRow(it){
     stConfirm();
   }
 
-  // 직접 입력이면 이름 칸으로 바꿔 준다
-  function toManual(name){
-    const inp=document.createElement('input');
-    inp.className='pick name'; inp.placeholder='아이템 이름'; inp.value=name||'';
-    d.querySelector('.pick').replaceWith(inp); inp.oninput=refresh;
-  }
+  /* 이 줄의 아이템 이름 — 목록에서 고른 값이 있으면 그것, 없으면 직접 적은 이름. */
+  function curName(){ return pick.value.trim() || nameIn.value.trim(); }
+  /* '직접 입력'일 때만 이름 칸을 보인다. 목록으로 되돌아갈 수도 있어야 한다. */
+  function syncName(){ nameWrap.classList.toggle('hide', !!pick.value); }
   /* 코드에 있는 아이템은 능력치·종류를 코드값으로 채우고 잠근다.
      ⚠️ 채우지 않으면 칸이 빈 채 잠겨, 저장할 때 능력치가 사라진다
         (뱃지 10/10/10 이 0 이 되던 문제). 화면에 보이는 값이 곧 저장되는 값이다. */
@@ -923,21 +927,26 @@ function bundleRow(it){
     d.querySelector('.pS').value=gs.S||''; d.querySelector('.ptype').value=(g&&g.type)||'ETC';
   }
 
-  if(it.name && !known){ toManual(it.name); lock(false); }
-  else if(known){
+  if(known){
     const g=(GITEMS||[]).find(x=>x.name===it.name)||{};
     d.dataset.meta=JSON.stringify(g);
     applyMeta(g); if(!icon.value) icon.value=g.icon||'';
     lock(true);
+  } else {
+    lock(false);
   }
+  syncName();
 
   pick.onchange=()=>{
-    if(!pick.value){ toManual(''); icon.value=''; d.dataset.meta='';
-      lock(false); refresh(); return; }
+    // '직접 입력'으로 되돌아오면 앞서 고른 아이템의 값을 싹 지운다.
+    // ⚠️ 안 지우면 뱃지를 골랐다 되돌린 뒤 새 아이템에 뱃지 능력치가 그대로 붙는다.
+    if(!pick.value){ icon.value=''; d.dataset.meta=''; applyMeta(null);
+      lock(false); syncName(); refresh(); return; }
     const g=(GITEMS||[]).find(x=>x.name===pick.value)||{};
     icon.value=g.icon||''; d.dataset.meta=JSON.stringify(g);
-    applyMeta(g); lock(true); refresh();
+    applyMeta(g); lock(true); syncName(); refresh();
   };
+  nameIn.oninput=refresh;
 
   d.querySelector('.qty').oninput=stConfirm;
   icon.oninput=refresh;
@@ -957,8 +966,9 @@ function bundleRow(it){
 }
 function readBundle(){
   return Array.from($('st-bundle').children).map(d=>{
-    const pick=d.querySelector('.pick');
-    const name=(pick.tagName==='SELECT'?pick.value:pick.value).trim();
+    // 목록에서 고른 값이 있으면 그것, 없으면 직접 적은 이름.
+    const name=d.querySelector('.pick').value.trim()
+            || d.querySelector('.nameIn').value.trim();
     if(!name) return null;
     let meta={}; try{ meta=JSON.parse(d.dataset.meta||'{}'); }catch(_){}
     const num=s=>parseInt(d.querySelector(s).value,10)||0;
