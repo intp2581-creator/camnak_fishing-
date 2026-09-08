@@ -1408,6 +1408,89 @@ const bool kPaymentOpen = true; // 🟢 2026-08-23 전체 오픈 (토스 승인 
 // =========================================================================
 List<Map<String, dynamic>> gServerStoreItems = [];
 
+// ═══════════════════════════════════════════════════════════
+// 🧾 시스템 알림 — 결제·선물·운영 지급으로 무엇을 언제 받았는지.
+//
+//   돈을 낸 물건이 가방에 들어왔는지 유저가 눈으로 확인할 수 있어야 믿고 산다.
+//   광장과 낚시터 둘 다에서 쓴다(낚시터에서도 상점에 들어가 살 수 있다).
+//   ⚠️ 한쪽에만 두면 나중에 서로 어긋난다 — 여기 한 곳만 고치면 둘 다 바뀐다.
+//   ⚠️ 글은 게임이 쓰지 않는다. 물건을 넣어 준 쪽(payment.js·gift.js·운영 도구)이
+//      지급과 같은 트랜잭션에서 남긴다. 화면이 짐작해서 쓰면 실제와 어긋난다.
+// ═══════════════════════════════════════════════════════════
+
+/// 받은 시각 — 오늘이면 '오늘 17:39', 아니면 '9월 7일 14:20'.
+String systemLogWhen(DateTime utc) {
+  final t = utc.toLocal();
+  final now = DateTime.now();
+  final hm = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+  final sameDay = t.year == now.year && t.month == now.month && t.day == now.day;
+  return sameDay ? '오늘 $hm' : '${t.month}월 ${t.day}일 $hm';
+}
+
+/// 유저 문서의 systemLog 배열을 최근 것부터 보여준다.
+Widget systemLogView(String? uid) {
+  if (uid == null || uid.isEmpty) return const SizedBox.shrink();
+  return StreamBuilder<DocumentSnapshot>(
+    stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+    builder: (c, snap) {
+      if (!snap.hasData) return const SizedBox.shrink();
+      final data = snap.data!.data() as Map<String, dynamic>?;
+      final logs = systemLogOf(data).reversed.toList(); // 최근 것이 위로
+      if (logs.isEmpty) {
+        return const Center(
+          child: Text('아직 알림이 없습니다.\n결제·선물로 받은 내역이 여기에 남습니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+        );
+      }
+      return ListView.builder(
+        itemCount: logs.length,
+        itemBuilder: (c, i) {
+          final m = logs[i];
+          final ts = m['t'];
+          final when = (ts is Timestamp) ? systemLogWhen(ts.toDate()) : '';
+          final kind = (m['kind'] ?? '').toString();
+          final color = kind == 'pay' ? const Color(0xFFFFD54F)   // 결제 = 금색
+              : kind == 'gift' ? const Color(0xFF80DEEA)          // 선물 = 하늘
+              : Colors.white70;                                   // 운영 지급
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(kind == 'pay' ? '💳' : (kind == 'gift' ? '🎁' : 'ℹ️'),
+                  style: const TextStyle(fontSize: 12)),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text((m['msg'] ?? '').toString(),
+                      style: TextStyle(color: color, fontSize: 12.5, height: 1.35)),
+                  if (when.isNotEmpty)
+                    Text(when, style: const TextStyle(color: Colors.white38, fontSize: 10.5)),
+                ]),
+              ),
+            ]),
+          );
+        },
+      );
+    },
+  );
+}
+
+/// 유저 문서에서 알림 목록만 꺼낸다(오래된 것부터). 뱃지 세는 쪽도 이걸 쓴다.
+List<Map<String, dynamic>> systemLogOf(Map<String, dynamic>? data) =>
+    List<Map<String, dynamic>>.from((data?['systemLog'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e)));
+
+/// 🔴 안 읽은 알림 수 — 접속한 순간(since) 이후에 들어온 것만 센다.
+///   접속할 때마다 지난 알림이 다시 뜨면 피곤하다. 내용은 남아 있고,
+///   문의가 오면 서버 기록으로 확인한다.
+int systemLogUnread(Map<String, dynamic>? data, DateTime since) =>
+    systemLogOf(data).where((e) {
+      final ts = e['t'];
+      final t = ts is Timestamp ? ts.toDate() : null;
+      return t != null && t.isAfter(since);
+    }).length;
+
 /// 🖼️ 아이템 그림 한 장.
 ///   게임에 들어 있는 파일이면 assets 에서, 관리 화면에서 올린 것이면 주소에서.
 ///   새 상품을 낼 때마다 이미지를 게임에 넣고 다시 배포하지 않기 위한 것이다.

@@ -169,9 +169,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
   DateTime _readWhisperAt = DateTime.now(); // 🔴 귓속말 마지막 읽음(이후 도착=안읽음 뱃지)
-  // 🧾 시스템 알림 마지막 읽음. 접속 전에 받은 것도 보이도록 하루 전부터 안 읽음으로 친다
-  //    (결제하고 게임을 껐다 켜면 그 알림을 못 보고 지나치게 된다).
-  DateTime _readSystemAt = DateTime.now().subtract(const Duration(days: 1));
+  // 🧾 시스템 알림 마지막 읽음 — 귓속말·길드와 같이 '접속한 순간'부터 센다.
+  //    ⚠️ 예전엔 하루 전부터 셌는데, 그러면 접속할 때마다 빨간 1이 다시 떠서 피곤하다.
+  //       알림 내용 자체는 유저 문서에 남아 있고 문의가 오면 서버 기록으로 확인한다.
+  DateTime _readSystemAt = DateTime.now();
   DateTime _readGuildAt = DateTime.now();   // 🔴 길드챗 마지막 읽음
   final TextEditingController _chatCtrl = TextEditingController();
   final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분 + 엔터 전송 후 커서 유지)
@@ -2704,70 +2705,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   }
 
   // ===== 🧾 시스템 알림 =====
-  //   결제·선물·운영 지급처럼 '내 계정에 무슨 일이 있었는지'를 남기는 곳.
-  //   돈을 낸 물건이 언제 들어왔는지 유저가 직접 확인할 수 있어야 믿고 산다.
-  //   ⚠️ 여기 글은 게임이 쓰지 않는다 — 물건을 넣어 준 쪽(서버)이 함께 남긴다.
-  //      화면이 제 나름대로 짐작해서 쓰면 실제 지급과 어긋난 기록이 된다.
-  Widget _systemLogView() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const SizedBox.shrink();
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
-      builder: (c, snap) {
-        if (!snap.hasData) return const SizedBox.shrink();
-        final data = snap.data!.data() as Map<String, dynamic>?;
-        // 최근 것이 위로. 서버는 뒤에 붙이므로 뒤집어서 보여준다.
-        final docs = List<Map<String, dynamic>>.from(
-            (data?['systemLog'] as List? ?? const [])
-                .whereType<Map>()
-                .map((e) => Map<String, dynamic>.from(e))).reversed.toList();
-        if (docs.isEmpty) {
-          return const Center(
-            child: Text('아직 알림이 없습니다.\n결제·선물로 받은 내역이 여기에 남습니다.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
-          );
-        }
-        return ListView.builder(
-          itemCount: docs.length,
-          itemBuilder: (c, i) {
-            final m = docs[i];
-            final ts = m['t'];
-            final when = (ts is Timestamp) ? _sysWhen(ts.toDate()) : '';
-            final kind = (m['kind'] ?? '').toString();
-            final color = kind == 'pay' ? const Color(0xFFFFD54F)      // 결제 = 금색
-                : kind == 'gift' ? const Color(0xFF80DEEA)             // 선물 = 하늘
-                : Colors.white70;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(kind == 'pay' ? '💳' : (kind == 'gift' ? '🎁' : 'ℹ️'),
-                    style: const TextStyle(fontSize: 12)),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text((m['msg'] ?? '').toString(),
-                        style: TextStyle(color: color, fontSize: 12.5, height: 1.35)),
-                    if (when.isNotEmpty)
-                      Text(when, style: const TextStyle(color: Colors.white38, fontSize: 10.5)),
-                  ]),
-                ),
-              ]),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  /// 받은 시각 — 오늘이면 시:분, 아니면 날짜까지. 한국시간 기준으로 보여준다.
-  String _sysWhen(DateTime utc) {
-    final t = utc.toLocal();
-    final now = DateTime.now();
-    final hm = '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
-    final sameDay = t.year == now.year && t.month == now.month && t.day == now.day;
-    return sameDay ? '오늘 $hm' : '${t.month}월 ${t.day}일 $hm';
-  }
+  //   화면은 game_config.dart 에 있다 — 낚시터(ui_fishing)와 같은 것을 써야
+  //   한쪽만 고쳐서 서로 달라지는 일이 없다.
+  Widget _systemLogView() => systemLogView(FirebaseAuth.instance.currentUser?.uid);
 
   // ===== 💬 채팅 =====
   Widget _chatTabBtn(int index, String title) {
@@ -2814,13 +2754,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
         builder: (c, snap) {
           if (!snap.hasData) return const SizedBox.shrink();
-          final data = snap.data!.data() as Map<String, dynamic>?;
-          final n = (data?['systemLog'] as List? ?? const []).where((e) {
-            final ts = (e is Map) ? e['t'] : null;
-            final t = ts is Timestamp ? ts.toDate() : null;
-            return t != null && t.isAfter(_readSystemAt);
-          }).length;
-          return _badgeDot(n);
+          return _badgeDot(systemLogUnread(
+              snap.data!.data() as Map<String, dynamic>?, _readSystemAt));
         },
       );
     }

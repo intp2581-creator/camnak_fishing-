@@ -396,6 +396,11 @@ class _FishingScreenState extends State<FishingScreen>
     );
   }
 
+// 🧾 시스템 알림 — 화면은 game_config.dart 에 있다(광장과 같은 것을 쓴다).
+//    접속한 순간부터 들어온 것만 빨간 뱃지로 센다. 재접속하면 사라진다.
+DateTime _readSystemAt = DateTime.now();
+Widget _systemLogView() => systemLogView(FirebaseAuth.instance.currentUser?.uid);
+
 Widget _buildChatTab(int index, String title) {
   bool isActive = _currentChatTab == index;
   final Widget btn = GestureDetector(
@@ -406,6 +411,7 @@ Widget _buildChatTab(int index, String title) {
         if (index == 0) _whisperTargetNickname = null;
         if (index == 1) _readWhisperAt = DateTime.now(); // 귓속말 열면 읽음
         if (index == 4) _readGuildAt = DateTime.now();   // 길드챗 열면 읽음
+        if (index == 6) _readSystemAt = DateTime.now();  // 시스템 열면 읽음
       });
     },
     child: Container(
@@ -438,7 +444,37 @@ Widget _buildChatTab(int index, String title) {
       Positioned(top: -5, right: -1, child: _guildUnreadBadge()),
     ]);
   }
+  if (index == 6 && !isActive) {
+    return Stack(clipBehavior: Clip.none, children: [
+      btn,
+      Positioned(top: -5, right: -1, child: _systemUnreadBadge()),
+    ]);
+  }
   return btn;
+}
+
+// 🔴 안 읽은 시스템 알림 개수 뱃지 — 세는 방법은 광장과 같다(game_config).
+Widget _systemUnreadBadge() {
+  final uid = FirebaseAuth.instance.currentUser?.uid;
+  if (uid == null) return const SizedBox.shrink();
+  return StreamBuilder<DocumentSnapshot>(
+    stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+    builder: (c, snap) {
+      if (!snap.hasData) return const SizedBox.shrink();
+      final n = systemLogUnread(snap.data!.data() as Map<String, dynamic>?, _readSystemAt);
+      if (n <= 0) return const SizedBox.shrink();
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+        constraints: const BoxConstraints(minWidth: 16),
+        decoration: BoxDecoration(
+            color: Colors.red, borderRadius: BorderRadius.circular(9)),
+        child: Text('$n',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      );
+    },
+  );
 }
 
 // 🔴 안 읽은 길드챗 개수 뱃지
@@ -3675,6 +3711,9 @@ Positioned(
                             return _buildChatTab(5, '관전 $cnt');
                           },
                         ),
+                      // 🧾 낚시터에서도 상점에 들어가 살 수 있으므로 여기에도 둔다.
+                      //    산 물건이 들어온 걸 광장까지 나가야 확인되면 불안하다.
+                      _buildChatTab(6, '시스템'),
                     ],
                   ),
                   // ✨ 2. 메인 채팅창 컨테이너
@@ -3689,7 +3728,9 @@ Positioned(
                     child: Column(
                       children: [
                         Expanded(
-                          child: _currentChatTab == 2
+                          child: _currentChatTab == 6
+                              ? _systemLogView()   // 🧾 결제·선물로 받은 것(광장과 같은 화면)
+                              : _currentChatTab == 2
                               // ✨ [친구 탭 (2)] : 내 친구 목록 불러오기
                               ? StreamBuilder<QuerySnapshot>(
                                   stream: FirebaseFirestore.instance
@@ -3869,8 +3910,8 @@ Positioned(
                             ),
                         
                         const SizedBox(height: 8),
-                        // ✨ 3. 채팅 입력창
-                        SizedBox(
+                        // ✨ 3. 채팅 입력창 (🧾 시스템 탭은 읽기 전용이라 감춘다)
+                        if (_currentChatTab != 6) SizedBox(
                           height: 35,
                           child: TextField(
                             controller: _chatController,
