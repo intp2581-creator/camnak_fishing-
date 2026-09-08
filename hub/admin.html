@@ -558,6 +558,16 @@ onAuthStateChanged(auth,async u=>{
      · 저장 전에 "이 상품을 사면 무엇이 들어갑니다"를 그대로 보여준다
        — 잘못 등록하면 결제는 되고 물건은 안 들어가는 사고가 난다. */
 const SAPI='https://us-central1-camnak-fishing.cloudfunctions.net/storeApi';
+// 🧾 주문·환불 — ⚠️ 2026-09-07 상품 관리 JS 를 통째로 갈아끼울 때 이 선언 네 개가
+//    함께 지워졌다. 함수(odWhen·odLoad·odRefundGo)는 그때 되살렸는데 선언은 빠져서,
+//    주문·환불 탭이 'OAPI is not defined' 로 하루 동안 죽어 있었다(환불 실행 포함).
+//    ⚠️ 블록을 통째로 바꿀 땐 그 블록 위쪽의 선언까지 함께 옮겼는지 확인할 것.
+const OAPI='https://us-central1-camnak-fishing.cloudfunctions.net/adminOrders';
+const RAPI='https://us-central1-camnak-fishing.cloudfunctions.net/payRefund';
+let odPick=null;
+const OD_ST={paid:['결제완료','#1b8a5f'],ready:['결제대기','#8a6b00'],
+             failed:['결제실패','#b3212a'],canceled:['취소','#61707a'],
+             refunded:['환불완료','#61707a'],partial_canceled:['부분취소','#61707a']};
 const CATN={ticket:'이용권',skin:'스킨',badge:'뱃지·휘장',package:'패키지',etc:'기타'};
 const STATEN={on:'판매중',soon:'판매 준비중',off:'숨김'};
 let stEditId=null;
