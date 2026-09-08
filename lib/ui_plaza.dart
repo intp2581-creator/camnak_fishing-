@@ -1741,19 +1741,31 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                 child: StreamBuilder<DatabaseEvent>(
                   // 🔴 실시간 채널 인원. 채널 정원이 민물+바다 합산이라 'plaza' 전체를 본다
                   //    (한 방만 구독하면 반대편 광장 사람을 못 세어 정원이 넘는다).
-                  stream: _db.ref('plaza').onValue,
-                  builder: (ctx, snap) {
-                    final counts = _liveCountsFromSnap(snap.data?.snapshot.value);
-                    int maxN = _channelNum;
-                    counts.forEach((n, _) { if (n > maxN) maxN = n; });
-                    final int nextNew = maxN + 1; // '새 채널' 번호
-                    return ListView(
-                      shrinkWrap: true,
-                      children: [
-                        for (int n = 1; n <= maxN; n++)
-                          _channelRow(c, n, counts[n] ?? const [0, 0]),
-                        _channelRow(c, nextNew, const [0, 0], isNew: true),
-                      ],
+                  // ⚠️ 'plaza' 를 통째로 구독하면 안 된다. 규칙의 읽기 권한이
+                  //    plaza/$room 에 걸려 있어(database.rules.json) 부모는 거부되고,
+                  //    값이 null 로 와서 인원이 0/50 으로 보인다(2026-09-08 겪음).
+                  //    규칙은 위로 물려받지 않는다 — 방을 하나씩 구독해 합친다.
+                  stream: _db.ref('plaza/fresh').onValue,
+                  builder: (ctx, f) {
+                    return StreamBuilder<DatabaseEvent>(
+                      stream: _db.ref('plaza/sea').onValue,
+                      builder: (ctx2, s) {
+                        final counts = _liveCountsFromSnap({
+                          'fresh': f.data?.snapshot.value,
+                          'sea': s.data?.snapshot.value,
+                        });
+                        int maxN = _channelNum;
+                        counts.forEach((n, _) { if (n > maxN) maxN = n; });
+                        final int nextNew = maxN + 1; // '새 채널' 번호
+                        return ListView(
+                          shrinkWrap: true,
+                          children: [
+                            for (int n = 1; n <= maxN; n++)
+                              _channelRow(c, n, counts[n] ?? const [0, 0]),
+                            _channelRow(c, nextNew, const [0, 0], isNew: true),
+                          ],
+                        );
+                      },
                     );
                   },
                 ),
