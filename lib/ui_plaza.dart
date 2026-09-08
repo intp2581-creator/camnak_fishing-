@@ -169,10 +169,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   int _chatTab = 0; // 0 전체 / 1 귓속말 / 2 친구 / 3 길드
   String? _whisperTarget;
   DateTime _readWhisperAt = DateTime.now(); // 🔴 귓속말 마지막 읽음(이후 도착=안읽음 뱃지)
-  // 🧾 시스템 알림 마지막 읽음 — 귓속말·길드와 같이 '접속한 순간'부터 센다.
-  //    ⚠️ 예전엔 하루 전부터 셌는데, 그러면 접속할 때마다 빨간 1이 다시 떠서 피곤하다.
-  //       알림 내용 자체는 유저 문서에 남아 있고 문의가 오면 서버 기록으로 확인한다.
-  DateTime _readSystemAt = DateTime.now();
+  // 🧾 시스템 알림 마지막 읽음 — '이 접속' 기준(chatSessionStart)에서 시작한다.
+  //    DateTime.now() 로 두면 광장↔낚시터를 오갈 때마다 다시 잡혀서, 낚시 중에 받은
+  //    알림이 광장으로 돌아왔을 때 뱃지에 안 잡힌다.
+  DateTime _readSystemAt = chatSessionStart();
   DateTime _readGuildAt = DateTime.now();   // 🔴 길드챗 마지막 읽음
   final TextEditingController _chatCtrl = TextEditingController();
   final FocusNode _chatFocus = FocusNode(); // ⌨️ 채팅 입력 포커스(키보드 이동과 구분 + 엔터 전송 후 커서 유지)

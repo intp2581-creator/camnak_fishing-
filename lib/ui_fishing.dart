@@ -397,8 +397,8 @@ class _FishingScreenState extends State<FishingScreen>
   }
 
 // 🧾 시스템 알림 — 화면은 game_config.dart 에 있다(광장과 같은 것을 쓴다).
-//    접속한 순간부터 들어온 것만 빨간 뱃지로 센다. 재접속하면 사라진다.
-DateTime _readSystemAt = DateTime.now();
+//    '이 접속' 기준(chatSessionStart)부터 들어온 것만 뱃지로 센다. 재접속하면 사라진다.
+DateTime _readSystemAt = chatSessionStart();
 Widget _systemLogView() => systemLogView(FirebaseAuth.instance.currentUser?.uid);
 
 Widget _buildChatTab(int index, String title) {

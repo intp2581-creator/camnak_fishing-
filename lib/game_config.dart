@@ -1435,10 +1435,21 @@ Widget systemLogView(String? uid) {
     builder: (c, snap) {
       if (!snap.hasData) return const SizedBox.shrink();
       final data = snap.data!.data() as Map<String, dynamic>?;
-      final logs = systemLogOf(data).reversed.toList(); // 최근 것이 위로
+      // 🕒 이번 접속에 들어온 것만 보여준다(전체 채팅과 같은 규칙).
+      //    쌓인 구매 내역을 계속 보면 "내가 이렇게 많이 샀나" 싶어진다.
+      //    영구 기록은 홈페이지 '주문 내역'과 서버 로그에 있으므로 사라져도 확인은 된다.
+      final logs = systemLogOf(data)
+          .where((e) {
+            final ts = e['t'];
+            final t = ts is Timestamp ? ts.toDate() : null;
+            return t != null && t.isAfter(chatSessionStart());
+          })
+          .toList()
+          .reversed
+          .toList(); // 최근 것이 위로
       if (logs.isEmpty) {
         return const Center(
-          child: Text('아직 알림이 없습니다.\n결제·선물로 받은 내역이 여기에 남습니다.',
+          child: Text('받은 내역이 여기에 표시됩니다.\n지난 구매는 홈페이지 「주문 내역」에서 보실 수 있어요.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white54, fontSize: 12)),
         );
