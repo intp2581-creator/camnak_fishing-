@@ -179,8 +179,18 @@ exports.giftApi = onRequest({region: "us-central1", cors: true}, async (req, res
         const u = await tx.get(uref);
         if (!u.exists) throw new Error("게임 계정을 찾을 수 없습니다");
         const inv = Array.isArray(u.data().inventory) ? u.data().inventory.slice() : [];
-        inv.push(buildBox(id, g));
+        const box = buildBox(id, g);
+        inv.push(box);
         tx.update(uref, {inventory: inv});
+        // 🧾 채팅창 '시스템' 탭에 남긴다 — 받은 것을 나중에도 확인할 수 있어야 한다.
+        //    유저 문서의 배열에 넣는다(payment.js sysLog 와 같은 모양). 50건만 남긴다.
+        const log = Array.isArray(u.data().systemLog) ? u.data().systemLog.slice(-49) : [];
+        log.push({
+          kind: "gift",
+          msg: (box.name || "선물 상자") + "를 받았습니다.",
+          t: admin.firestore.Timestamp.now(),
+        });
+        tx.update(uref, {systemLog: log});
         tx.set(cref, {
           at: admin.firestore.FieldValue.serverTimestamp(),
           nick: u.data().nickname || "",

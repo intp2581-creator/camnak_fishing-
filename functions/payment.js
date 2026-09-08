@@ -180,6 +180,25 @@ async function productOf(key) {
   return p;
 }
 
+/* 🧾 시스템 알림 한 줄 — 게임 채팅창의 '시스템' 탭에 뜬다.
+   돈을 낸 물건이 언제 들어왔는지 유저가 직접 확인할 수 있어야 믿고 산다.
+   ⚠️ 물건을 넣는 트랜잭션 안에서 같이 쓴다. 지급은 됐는데 알림만 빠지거나
+      그 반대가 되면, 화면과 실제가 어긋나 오히려 문의가 늘어난다.
+   kind — pay(결제) · gift(선물) · admin(운영 지급). 화면에서 색과 아이콘이 갈린다. */
+//   ⚠️ 하위 컬렉션이 아니라 유저 문서의 배열(systemLog)에 넣는다. 게임은 이미 이
+//      문서를 실시간으로 보고 있어서 규칙·읽기가 확실하다. 하위 컬렉션은 보안 규칙이
+//      콘솔에만 있어(저장소에 firestore.rules 가 없다) 읽기가 막혀도 알 길이 없다.
+//   50건만 남긴다 — 문서 용량 한도(1MB)에 걸리면 그때는 지급 자체가 실패한다.
+function sysLog(tx, uref, prev, kind, msg) {
+  const cur = Array.isArray(prev) ? prev.slice(-49) : [];
+  cur.push({
+    kind: String(kind || "info"),
+    msg: String(msg || ""),
+    t: admin.firestore.Timestamp.now(),  // 배열 안에는 serverTimestamp 를 못 쓴다
+  });
+  tx.update(uref, {systemLog: cur});
+}
+
 /* 📦 유료 상품 하나를 '상자' 한 개로 만든다(가방에 그대로 들어갈 모양).
    gid 에 주문번호를 넣어 두면 환불 문의 때 '이 주문의 상자가 아직 있나'를 바로 본다.
    ⚠️ 결제 지급과 운영 지급(tools/grant_cash_box.py)이 같은 모양이어야 한다 —
@@ -468,6 +487,8 @@ async function grantItem(db, order, orderId) {
         inv.push(cashBox(p, orderId + (n > 1 ? "-" + (k + 1) : "")));
       }
       tx.update(uref, {inventory: inv});
+      sysLog(tx, uref, (u.data() || {}).systemLog, "pay",
+          (p.boxName || p.name) + (n > 1 ? " " + n + "개" : "") + "를 받았습니다.");
       // 🧾 계정당 1회 상품은 '샀다'를 남긴다(팔아도 재구매 불가).
       if (p.limitType === "ONCE") {
         tx.set(uref, {cashBought: {[order.itemKey]: true}}, {merge: true});
@@ -486,6 +507,8 @@ async function grantItem(db, order, orderId) {
       inv.push({name: p.name, quantity: order.qty, cash: true});
     }
     tx.update(uref, {inventory: inv});
+    sysLog(tx, uref, (u.data() || {}).systemLog, "pay",
+        p.name + (order.qty > 1 ? " " + order.qty + "개" : "") + "를 받았습니다.");
     return true;
   });
 }

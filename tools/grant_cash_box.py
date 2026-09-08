@@ -188,3 +188,19 @@ except urllib.error.HTTPError as e:
     raise
 
 print("✅ 넣었습니다. 가방 %d개 → %d개" % (len(inv), len(inv2)))
+
+# 🧾 채팅창 '시스템' 탭에도 남긴다 — 운영자가 넣어준 것도 유저가 알아야 한다.
+#    유저 문서의 systemLog 배열(payment.js sysLog 와 같은 모양). 50건만 남긴다.
+now = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+log = target["fields"].get("systemLog", {}).get("arrayValue", {}).get("values", [])
+for b in boxes:
+    log.append(to_fs({"kind": "admin", "msg": b["name"] + "를 받았습니다."}))
+    log[-1]["mapValue"]["fields"]["t"] = {"timestampValue": now}
+log = log[-50:]
+try:
+    call(BASE + "/users/" + uid + "?updateMask.fieldPaths=systemLog", tok,
+         json.dumps({"fields": {"systemLog": {"arrayValue": {"values": log}}}}).encode("utf-8"),
+         "PATCH")
+    print("🧾 시스템 알림 %d건을 남겼습니다." % len(boxes))
+except Exception as e:
+    print("   (알림 남기기 실패: %s)" % e)
