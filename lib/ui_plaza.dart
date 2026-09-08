@@ -1610,10 +1610,18 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }, onError: (Object e) => debugPrint('🌐 RTDB READ ERR: $e')));
   }
 
-  // 🧩 RTDB plaza/{room} 스냅샷 값 → {채널번호: 라이브 인원}
-  //    45초 이상 갱신 없는 고스트 제외(렌더링과 동일 기준). 낚시 중(away) 노드는 신선하게 유지돼 포함됨.
-  Map<int, int> _liveCountsFromSnap(Object? val) {
-    final counts = <int, int>{};
+  // 🧩 RTDB plaza/{room} 스냅샷 값 → {채널번호: [광장에 보이는 수, 채널 전체 수]}
+  //    45초 이상 갱신 없는 고스트는 양쪽 다 제외.
+  //
+  //    ⚠️ 두 숫자를 따로 센다. 예전엔 낚시·아레나 간 사람(away)을 빼고 하나만 셌는데,
+  //       그 숫자로 '가득 참'을 판정해서 정원이 넘을 수 있었다.
+  //       CH1 에 낚시 47명 + 광장 3명이면 실제로는 50명(가득)인데 화면엔 3/50 으로 보여,
+  //       다른 채널 유저가 '한산하네' 하고 옮겨 오면 60명이 됐다.
+  //       · 광장에 보이는 수 — 캐릭터가 실제로 서 있는 사람. away 는 화면에 없으니 뺀다.
+  //       · 채널 전체 수   — 그 채널에 자리를 차지한 모든 사람. 정원은 이걸로 본다
+  //                          (_pickChannel 의 배정 기준과 같아야 한다).
+  Map<int, List<int>> _liveCountsFromSnap(Object? val) {
+    final counts = <int, List<int>>{};
     if (val is Map) {
       final now = DateTime.now().millisecondsSinceEpoch;
       val.forEach((k, v) {
@@ -1621,15 +1629,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
         if (ks.startsWith('ch') && v is Map) {
           final n = int.tryParse(ks.substring(2));
           if (n != null) {
-            int live = 0;
+            int here = 0, all = 0;
             v.forEach((_, pv) {
               if (pv is Map) {
-                if (pv['away'] == true) return; // 🎣 낚시/아레나 간 유저(keepalive 슬롯)는 광장 인원에서 제외
                 final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
-                if (now - t < 45000) live++;
+                if (now - t >= 45000) return;          // 유령
+                all++;
+                if (pv['away'] != true) here++;        // 🎣 낚시·아레나 간 사람은 광장에 안 보임
               }
             });
-            counts[n] = live;
+            counts[n] = [here, all];
           }
         }
       });
@@ -1642,6 +1651,28 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (targetNum == _channelNum) return; // 같은 채널이면 무시
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
+    // 🧩 옮기는 순간 다시 센다 — 목록을 띄워 둔 사이에 그 채널이 찼을 수 있다.
+    //    예전엔 여기서 아예 안 봐서, 목록에 여유 있어 보이면 그냥 들어가 정원이 넘었다.
+    try {
+      final s = await _db.ref('plaza/$_roomKey/ch$targetNum').get();
+      final v = s.value;
+      if (v is Map) {
+        final now = DateTime.now().millisecondsSinceEpoch;
+        int all = 0;
+        v.forEach((_, pv) {
+          if (pv is Map) {
+            final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
+            if (now - t < 45000) all++;   // 낚시·아레나 간 사람도 자리를 차지한다
+          }
+        });
+        if (all >= _plazaChannelCap && !v.containsKey(uid)) {
+          if (mounted) _toast('CH$targetNum 채널이 방금 가득 찼어요 🧩');
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('🌐 채널 정원 확인 실패(그대로 진행): $e');
+    }
     // 1) 기존 채널에서 나가기(구독 해제 + 내 노드 제거 + onDisconnect 취소)
     for (final s in _presenceSubs) {
       s.cancel();
@@ -1698,8 +1729,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                     return ListView(
                       shrinkWrap: true,
                       children: [
-                        for (int n = 1; n <= maxN; n++) _channelRow(c, n, counts[n] ?? 0),
-                        _channelRow(c, nextNew, 0, isNew: true),
+                        for (int n = 1; n <= maxN; n++)
+                          _channelRow(c, n, counts[n] ?? const [0, 0]),
+                        _channelRow(c, nextNew, const [0, 0], isNew: true),
                       ],
                     );
                   },
@@ -1717,16 +1749,25 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _channelRow(BuildContext c, int n, int count, {bool isNew = false}) {
+  /// count = [광장에 보이는 수, 채널 전체 수]
+  Widget _channelRow(BuildContext c, int n, List<int> count, {bool isNew = false}) {
+    final int here = count.isNotEmpty ? count[0] : 0;
+    final int all = count.length > 1 ? count[1] : here;
     final bool isCurrent = n == _channelNum;
-    final bool isFull = !isNew && count >= _plazaChannelCap;
+    // 🧩 정원은 '채널 전체 수'로 본다 — 낚시·아레나 간 사람도 자리를 차지한다.
+    final bool isFull = !isNew && all >= _plazaChannelCap;
     final bool canTap = !isCurrent && !isFull;
     final String label = isNew ? '➕ 새 채널 (CH$n)' : 'CH$n';
+    // 광장에 보이는 수와 채널 전체 수가 다르면 둘 다 알려 준다.
+    // '광장엔 3명인데 왜 가득 참이지?' 를 화면에서 바로 알 수 있어야 한다.
+    final String cnt = (all > here)
+        ? '$all/$_plazaChannelCap명 (광장 $here명)'
+        : '$all/$_plazaChannelCap명';
     final String sub = isNew
         ? '새로 열기'
         : isCurrent
-            ? '$count/$_plazaChannelCap명 · 현재'  // 현재 채널도 인원 표시
-            : (isFull ? '가득 참' : '$count/$_plazaChannelCap명');
+            ? '$cnt · 현재'
+            : (isFull ? '가득 참 · 광장 $here명' : cnt);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Material(
