@@ -88,6 +88,19 @@
          background:#fbfdfe}
   .bItem input,.bItem select{padding:9px 10px;font-size:14px}
   .bRow1{display:grid;grid-template-columns:1fr 74px 36px;gap:8px;align-items:center}
+  /* 🟢 접속 현황 */
+  .liveNums{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
+  .liveNums>div{background:#f4f9fb;border:1px solid var(--line);border-radius:12px;padding:16px 8px}
+  .liveNums b{display:block;font-size:30px;line-height:1.2;color:var(--blue-ink)}
+  .liveNums span{font-size:13px;color:var(--ink-soft);font-weight:700}
+  .lvRow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;
+         padding:10px 2px;border-bottom:1px solid #eef4f7}
+  .lvRow:last-child{border-bottom:0}
+  .lvNick{font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lvWhere{font-size:13px;color:var(--ink-soft);white-space:nowrap}
+  .lvTag{font-size:12px;font-weight:800;border-radius:999px;padding:3px 10px;white-space:nowrap}
+  .lvTag.fish{background:#e6f7ef;color:#1b8a5f}
+  .lvTag.idle{background:#eef2f4;color:#61707a}
   .bNameCell{min-width:0}
   .bNameCell input,.bNameCell select{width:100%}
   .bRow2{display:grid;grid-template-columns:1fr auto 44px;gap:8px;align-items:center;
@@ -163,6 +176,7 @@
       <button class="btn ghost" id="tabNotice">📢 공지</button>
       <button class="btn ghost" id="tabStore">🛒 상품</button>
       <button class="btn ghost" id="tabOrder">🧾 주문·환불</button>
+      <button class="btn ghost" id="tabLive">🟢 접속 현황</button>
       <a class="btn ghost" id="viewLink" href="notice.html" target="_blank" style="text-decoration:none">페이지 보기 ↗</a>
       <span class="who" id="who"></span>
       <button class="btn ghost" id="logoutBtn">로그아웃</button>
@@ -200,6 +214,21 @@
     </div>
 
     <!-- 🛒 상품 관리 -->
+    <!-- 🟢 접속 현황 — 지금 누가 들어와 무엇을 하고 있는지.
+         게임이 이미 RTDB status_nick 에 쌓고 있어서(ui_guild guildGoOnline)
+         서버를 새로 만들 필요가 없다. 실시간으로 저절로 바뀐다. -->
+    <div id="liveBox" class="hide">
+      <div class="card" style="margin-bottom:16px">
+        <div class="liveNums">
+          <div><b id="lvAll">–</b><span>지금 접속</span></div>
+          <div><b id="lvFish">–</b><span>낚시 중</span></div>
+          <div><b id="lvPlaza">–</b><span>그 밖(광장·로비)</span></div>
+        </div>
+        <p class="hint" id="lvNote">불러오는 중…</p>
+      </div>
+      <div class="card" id="lvList">불러오는 중…</div>
+    </div>
+
     <div id="storeBox" class="hide">
       <div class="card" style="margin-bottom:16px">
         <h2 style="margin:0 0 4px;font-size:17px">상품 <span id="stCount" class="muted"></span></h2>
@@ -441,6 +470,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+// 🟢 접속 현황 — 게임이 실시간DB(status_nick)에 접속 상태를 쌓는다. 그걸 그대로 본다.
+import { getDatabase, ref as dbRef, onValue }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
 const API='https://us-central1-camnak-fishing.cloudfunctions.net/noticesApi';
 const app=initializeApp({
@@ -583,21 +615,73 @@ async function sapi(body,qs){
 }
 
 function showTab(which){
-  const isStore = which==='store', isOrder = which==='order';
-  $('noticeBox').classList.toggle('hide', isStore || isOrder);
+  const isStore = which==='store', isOrder = which==='order', isLive = which==='live';
+  $('noticeBox').classList.toggle('hide', isStore || isOrder || isLive);
   $('storeBox').classList.toggle('hide', !isStore);
   $('orderBox').classList.toggle('hide', !isOrder);
+  $('liveBox').classList.toggle('hide', !isLive);
   if(!isStore) $('stEdit').classList.add('hide');
   if(!isOrder) $('odRefund').classList.add('hide');
-  $('pageTitle').textContent = isOrder ? '🧾 주문 · 환불'
+  $('pageTitle').textContent = isLive ? '🟢 접속 현황'
+                             : isOrder ? '🧾 주문 · 환불'
                              : isStore ? '🛒 상품 관리' : '📢 공지 관리';
   $('viewLink').href = isOrder ? 'orders.html' : isStore ? 'store.html' : 'notice.html';
   $('tabNotice').className = 'btn '+(which==='notice'?'primary':'ghost');
   $('tabStore').className  = 'btn '+(isStore?'primary':'ghost');
   $('tabOrder').className  = 'btn '+(isOrder?'primary':'ghost');
+  $('tabLive').className   = 'btn '+(isLive?'primary':'ghost');
   if(isStore) loadStore();
   if(isOrder) odLoad();
+  // 🟢 실시간 구독은 그 탭을 볼 때만 — 켜 두면 다른 화면에서도 계속 받아 온다.
+  if(isLive) liveStart(); else liveStop();
 }
+
+/* ═══ 🟢 접속 현황 ═══════════════════════════════════════
+   게임이 화면을 옮길 때마다 실시간DB에 지금 어디에 있는지 적는다
+   (lib/ui_guild.dart guildGoOnline → status_nick/{닉네임}).
+   접속이 끊기면 onDisconnect 로 서버가 online:false 로 내린다.
+   ⚠️ 여기서는 읽기만 한다. 관리 화면이 값을 고치면 게임 화면과 어긋난다. */
+const LIVE_DB = 'https://camnak-fishing-default-rtdb.asia-southeast1.firebasedatabase.app';
+let liveOff = null;   // 구독 해제 함수 — 탭을 떠나면 끊는다
+
+function liveWhen(ms){
+  if(!ms) return '';
+  const m = Math.floor((Date.now() - ms) / 60000);
+  if(m < 1) return '방금';
+  if(m < 60) return m + '분 전';
+  const h = Math.floor(m / 60);
+  return h < 24 ? h + '시간 전' : Math.floor(h / 24) + '일 전';
+}
+
+function liveStart(){
+  if(liveOff) return;                       // 이미 보고 있으면 그대로
+  const db = getDatabase(app, LIVE_DB);
+  liveOff = onValue(dbRef(db, 'status_nick'), function(snap){
+    const v = snap.val() || {};
+    // online 이 켜진 사람만. 끊긴 사람도 기록은 남으므로 걸러야 한다.
+    const on = Object.keys(v)
+      .map(nick => Object.assign({nick}, v[nick]))
+      .filter(x => x && x.online === true)
+      .sort((a,b) => (b.t||0) - (a.t||0));
+    const fish = on.filter(x => x.fishing === true);
+    $('lvAll').textContent   = on.length;
+    $('lvFish').textContent  = fish.length;
+    $('lvPlaza').textContent = on.length - fish.length;
+    $('lvNote').textContent  = '실시간으로 바뀝니다 · ' + new Date().toLocaleTimeString('ko-KR');
+    $('lvList').innerHTML = on.length
+      ? on.map(x =>
+          '<div class="lvRow"><span class="lvNick">' + esc(x.nick) + '</span>'
+          + '<span class="lvWhere">' + esc(x.loc || '—') + '</span>'
+          + '<span class="lvTag ' + (x.fishing ? 'fish' : 'idle') + '">'
+          + (x.fishing ? (x.sea ? '🌊 바다 낚시' : '🎣 낚시 중') : '접속 중')
+          + ' · ' + liveWhen(x.t) + '</span></div>').join('')
+      : '<p class="muted">지금 접속 중인 분이 없습니다.</p>';
+  }, function(err){
+    $('lvNote').className = 'msg err';
+    $('lvNote').textContent = '접속 현황을 불러오지 못했습니다: ' + err.message;
+  });
+}
+function liveStop(){ if(liveOff){ liveOff(); liveOff = null; } }
 
 /* 코드 지급표(payment.js PRODUCTS)와 담을 수 있는 아이템 목록.
    손으로 적어 두면 아이콘 이름이 어긋나 '가방에서 그림이 깨지는' 아이템이 생긴다. */
@@ -1171,6 +1255,7 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('tabNotice')) $('tabNotice').onclick=function(){ showTab('notice'); };
   if($('tabStore'))  $('tabStore').onclick =function(){ showTab('store'); };
   if($('tabOrder'))  $('tabOrder').onclick =function(){ showTab('order'); };
+  if($('tabLive'))   $('tabLive').onclick  =function(){ showTab('live'); };
   if($('odFind'))    $('odFind').onclick   = odLoad;
   if($('odDo'))      $('odDo').onclick     = odRefundGo;
   if($('odCancel'))  $('odCancel').onclick = function(){ $('odRefund').classList.add('hide'); };
