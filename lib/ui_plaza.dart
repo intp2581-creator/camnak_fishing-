@@ -1457,40 +1457,60 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
 
   // 🧩 정원 안 찬 채널을 찾아 배정(없으면 새 채널). 평소엔 ch1.
   //    멤버는 onDisconnect로 자동 제거되므로 자식 수가 곧 실시간 인원 → 별도 카운터 불필요(드리프트 없음).
+  /// 🧩 채널 한 칸에 몇 명이 있나 — 민물·바다를 **합쳐서** 센다.
+  ///   채널은 '같이 노는 단위'라 광장을 나눠도 같은 채널이다(gPlazaChannel 주석).
+  ///   유령(45초 넘게 갱신 없음)은 뺀다. 낚시·아레나 간 사람(away)은 자리를 차지하므로 센다.
+  int _countChannel(Object? fresh, Object? sea, int n) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    int all = 0;
+    for (final val in [fresh, sea]) {
+      if (val is! Map) continue;
+      final ch = val['ch$n'];
+      if (ch is! Map) continue;
+      ch.forEach((k, v) {
+        if (v is Map) {
+          final t = (v['t'] is num) ? (v['t'] as num).toInt() : 0;
+          if (now - t < 45000) all++;
+        }
+      });
+    }
+    return all;
+  }
+
+  bool _iAmIn(Object? fresh, Object? sea, int n, String uid) {
+    for (final val in [fresh, sea]) {
+      if (val is Map && val['ch$n'] is Map && (val['ch$n'] as Map).containsKey(uid)) return true;
+    }
+    return false;
+  }
+
   Future<String> _pickChannel(String mode, String uid) async {
     try {
-      final snap = await _db.ref('plaza/$mode').get();
-      final val = snap.value;
-      if (val is Map) {
-        for (int n = 1; n <= 100000; n++) {
-          final ch = val['ch$n'];
-          if (ch is! Map) {
-            _channelNum = n;
-            return '$mode/ch$n';
-          }
-          if (ch.containsKey(uid)) {
-            _channelNum = n;
-            return '$mode/ch$n'; // 재접속이면 같은 채널 유지
-          }
-          // 🧩 정원: 유령(45초+) 제외한 라이브 인원으로 판정. 낚시 중(away) 노드는 신선하게 유지돼 슬롯 차지 → 초과 방지.
-          final now = DateTime.now().millisecondsSinceEpoch;
-          int live = 0;
-          ch.forEach((_, v) {
-            if (v is Map) {
-              final t = (v['t'] is num) ? (v['t'] as num).toInt() : 0;
-              if (now - t < 45000) live++;
-            }
-          });
-          if (live < _plazaChannelCap) {
-            _channelNum = n;
-            return '$mode/ch$n';
-          }
+      // 🧩 두 광장을 다 본다 — 정원이 채널 전체(민물+바다) 기준이기 때문.
+      final results = await Future.wait([
+        _db.ref('plaza/fresh').get(),
+        _db.ref('plaza/sea').get(),
+      ]);
+      final fresh = results[0].value, sea = results[1].value;
+
+      // ① 이미 들어가 있던 채널이 있으면 그대로(재접속·광장 이동).
+      // ② 없으면 직전에 쓰던 번호를 먼저 시도한다 — 광장을 옮겼다고 친구와 갈리면 안 된다.
+      // ③ 그래도 안 되면 앞에서부터 빈자리를 찾는다.
+      final tries = <int>[gPlazaChannel];
+      for (int n = 1; n <= 100000; n++) { if (n != gPlazaChannel) tries.add(n); }
+      for (final n in tries) {
+        if (_iAmIn(fresh, sea, n, uid) ||
+            _countChannel(fresh, sea, n) < _plazaChannelCap) {
+          _channelNum = n;
+          gPlazaChannel = n;
+          return '$mode/ch$n';
         }
       }
     } catch (e) {
       debugPrint('🌐 채널 선택 실패(ch1 기본): $e');
     }
     _channelNum = 1;
+    gPlazaChannel = 1;
     return '$mode/ch1';
   }
 
@@ -1620,27 +1640,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
   //       · 광장에 보이는 수 — 캐릭터가 실제로 서 있는 사람. away 는 화면에 없으니 뺀다.
   //       · 채널 전체 수   — 그 채널에 자리를 차지한 모든 사람. 정원은 이걸로 본다
   //                          (_pickChannel 의 배정 기준과 같아야 한다).
+  ///   val 은 'plaza' 노드 전체(fresh·sea·raidlobby).
+  ///   here = 지금 내가 있는 광장에 서 있는 사람 · all = 그 채널 전체(민물+바다, away 포함)
   Map<int, List<int>> _liveCountsFromSnap(Object? val) {
     final counts = <int, List<int>>{};
-    if (val is Map) {
-      final now = DateTime.now().millisecondsSinceEpoch;
-      val.forEach((k, v) {
+    if (val is! Map) return counts;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final room in ['fresh', 'sea']) {
+      final rv = val[room];
+      if (rv is! Map) continue;
+      final bool isMine = room == _roomKey;
+      rv.forEach((k, v) {
         final ks = k.toString();
-        if (ks.startsWith('ch') && v is Map) {
-          final n = int.tryParse(ks.substring(2));
-          if (n != null) {
-            int here = 0, all = 0;
-            v.forEach((_, pv) {
-              if (pv is Map) {
-                final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
-                if (now - t >= 45000) return;          // 유령
-                all++;
-                if (pv['away'] != true) here++;        // 🎣 낚시·아레나 간 사람은 광장에 안 보임
-              }
-            });
-            counts[n] = [here, all];
+        if (!ks.startsWith('ch') || v is! Map) return;
+        final n = int.tryParse(ks.substring(2));
+        if (n == null) return;
+        final cur = counts.putIfAbsent(n, () => [0, 0]);
+        v.forEach((_, pv) {
+          if (pv is Map) {
+            final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
+            if (now - t >= 45000) return;                 // 유령
+            cur[1]++;                                     // 채널 전체(정원 기준)
+            if (isMine && pv['away'] != true) cur[0]++;   // 🎣 이 광장에 실제로 서 있는 사람
           }
-        }
+        });
       });
     }
     return counts;
@@ -1653,22 +1676,17 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (uid == null) return;
     // 🧩 옮기는 순간 다시 센다 — 목록을 띄워 둔 사이에 그 채널이 찼을 수 있다.
     //    예전엔 여기서 아예 안 봐서, 목록에 여유 있어 보이면 그냥 들어가 정원이 넘었다.
+    //    민물+바다를 합쳐 센다(채널은 두 광장을 아우르는 하나다).
     try {
-      final s = await _db.ref('plaza/$_roomKey/ch$targetNum').get();
-      final v = s.value;
-      if (v is Map) {
-        final now = DateTime.now().millisecondsSinceEpoch;
-        int all = 0;
-        v.forEach((_, pv) {
-          if (pv is Map) {
-            final t = (pv['t'] is num) ? (pv['t'] as num).toInt() : 0;
-            if (now - t < 45000) all++;   // 낚시·아레나 간 사람도 자리를 차지한다
-          }
-        });
-        if (all >= _plazaChannelCap && !v.containsKey(uid)) {
-          if (mounted) _toast('CH$targetNum 채널이 방금 가득 찼어요 🧩');
-          return;
-        }
+      final r = await Future.wait([
+        _db.ref('plaza/fresh').get(),
+        _db.ref('plaza/sea').get(),
+      ]);
+      final fresh = r[0].value, sea = r[1].value;
+      if (!_iAmIn(fresh, sea, targetNum, uid) &&
+          _countChannel(fresh, sea, targetNum) >= _plazaChannelCap) {
+        if (mounted) _toast('CH$targetNum 채널이 방금 가득 찼어요 🧩');
+        return;
       }
     } catch (e) {
       debugPrint('🌐 채널 정원 확인 실패(그대로 진행): $e');
@@ -1690,6 +1708,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     }
     // 3) 새 채널로 재접속
     _channelNum = targetNum;
+    gPlazaChannel = targetNum; // 🧩 광장을 옮기거나 낚시터를 갔다 와도 이 채널을 유지
     _channelKey = '$_roomKey/ch$targetNum';
     _myRef = _db.ref('plaza/$_channelKey/$uid');
     _myRef!.onDisconnect().remove().catchError((Object e) => debugPrint('🌐 RTDB onDisconnect ERR: $e'));
@@ -1720,7 +1739,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
               const SizedBox(height: 10),
               Flexible(
                 child: StreamBuilder<DatabaseEvent>(
-                  stream: _db.ref('plaza/$_roomKey').onValue, // 🔴 실시간 채널 인원(열어둔 채로 갱신)
+                  // 🔴 실시간 채널 인원. 채널 정원이 민물+바다 합산이라 'plaza' 전체를 본다
+                  //    (한 방만 구독하면 반대편 광장 사람을 못 세어 정원이 넘는다).
+                  stream: _db.ref('plaza').onValue,
                   builder: (ctx, snap) {
                     final counts = _liveCountsFromSnap(snap.data?.snapshot.value);
                     int maxN = _channelNum;
@@ -2893,7 +2914,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'message': text,
       'type': type,
       'receiver': receiver,
-      'channel': _channelKey ?? '', // 🧩 전체 채팅은 같은 채널끼리만
+      // 🧩 전체 채팅은 같은 채널끼리만. 방(민물/바다)은 넣지 않는다 —
+      //    예전엔 'fresh/ch1'·'sea/ch1' 로 저장해 같은 CH1 인데도 말이 안 통했다.
+      'channel': plazaChatChannel(),
       'rank': _rank, // 🎨 등급색용
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -3273,8 +3296,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                                   // 같은 채널 글 + 공지 + 낚시터발 전체글(channel 비어있음)은 전 채널에 노출.
                                   if (type == 'whisper') return const SizedBox.shrink();
                                   final ch = (d['channel'] ?? '').toString();
+                                  // 🧩 채널만 견준다(방 무관). 옛 글은 'fresh/ch1' 꼴이라
+                                  //    뒤쪽 'ch1' 만 떼어 비교한다 — 안 그러면 배포 직후
+                                  //    한동안 옛 글이 전부 사라진 것처럼 보인다.
+                                  final chNum = ch.contains('/') ? ch.split('/').last : ch;
                                   if (type != 'notice' &&
-                                      ch.isNotEmpty && ch != (_channelKey ?? '')) {
+                                      chNum.isNotEmpty && chNum != plazaChatChannel()) {
                                     return const SizedBox.shrink();
                                   }
                                 }

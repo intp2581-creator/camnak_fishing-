@@ -383,6 +383,16 @@ String gBetaNotice = '';
 DateTime? _chatSessionStart;
 DateTime chatSessionStart() => _chatSessionStart ??= DateTime.now();
 
+/// 🧩 지금 내가 있는 채널 번호. 민물광장·바다광장·낚시터를 통틀어 하나다.
+///   ⚠️ 예전엔 채널이 방마다 따로였다(fresh/ch1 과 sea/ch1 이 남남). 그래서 민물에서
+///      CH1 이던 사람이 바다로 가면 CH2 가 되기도 하고, 같은 CH1 인데 전체채팅이
+///      서로 안 보였다. 채널은 '같이 노는 단위'라 하나여야 한다.
+///   광장을 옮기거나 낚시터를 갔다 와도 이 번호를 유지한다(화면이 새로 만들어지므로 전역).
+int gPlazaChannel = 1;
+
+/// 전체채팅에 붙는 채널 이름 — 방과 무관하게 'ch1' 꼴.
+String plazaChatChannel() => 'ch$gPlazaChannel';
+
 /// "yyyy-MM-dd HH:mm"(KST) 또는 "yyyy-MM-dd" 문자열 → DateTime(로컬=KST). 실패 시 null.
 DateTime? _parseKst(dynamic v) {
   if (v == null) return null;

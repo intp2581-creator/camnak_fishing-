@@ -1142,7 +1142,10 @@ Widget _whisperUnreadBadge() {
       'message': text,
       'type': type,
       'receiver': receiver,
-      'channel': '', // 🧩 낚시터 전체채팅은 채널 무관(모든 광장 채널·낚시터에 노출)
+      // 🧩 낚시터도 내 채널로 보낸다. 채널은 민물광장·바다광장·낚시터를 아우르는
+      //    '같이 노는 단위'다(game_config gPlazaChannel). 예전엔 빈 값으로 보내
+      //    모든 채널에 다 보였는데, 그러면 채널을 나눈 뜻이 없다.
+      'channel': plazaChatChannel(),
       'rank': _myRank, // 🎨 등급색용
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -3858,8 +3861,18 @@ Positioned(
                                         if (_currentChatTab == 1) {
                                           if (type != 'whisper') return const SizedBox.shrink();
                                           if (sender != myNickname && receiver != myNickname) return const SizedBox.shrink();
-                                         } else {
+                                         } else if (_currentChatTab == 0) {
                                           // 전체 탭: 귓속말은 아예 숨김(광장과 동일하게 남에게 안 보이도록)
+                                          if (type == 'whisper') return const SizedBox.shrink();
+                                          // 🧩 같은 채널 글만. 광장(ui_plaza)과 같은 규칙이다.
+                                          //    옛 글은 'fresh/ch1' 꼴이라 뒤쪽만 떼어 비교한다.
+                                          final ch = (data['channel'] ?? '').toString();
+                                          final chNum = ch.contains('/') ? ch.split('/').last : ch;
+                                          if (type != 'notice' &&
+                                              chNum.isNotEmpty && chNum != plazaChatChannel()) {
+                                            return const SizedBox.shrink();
+                                          }
+                                         } else {
                                           if (type == 'whisper') return const SizedBox.shrink();
                                          }
 
