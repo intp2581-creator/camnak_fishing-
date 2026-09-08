@@ -1020,7 +1020,7 @@ Map<String, dynamic> resolveRaidGearPower(Map<String, dynamic> userData, {bool i
     else if (name.contains('뜰채')) net ??= item;
     else if (name.contains('벨트')) belt ??= item;
     // 🧤 장갑도 상급을 낀다(감각 장갑 힘10·감도20 > 장갑 힘10) — 자동 장착과 같은 기준.
-    else if (name.contains('장갑')) { if (statSum(item) > statSum(gloves)) gloves = item; }
+    else if (name.contains('장갑')) { if (gloves == null || statSum(item) > statSum(gloves)) gloves = item; }
     else if (name.contains('낚시줄')) line ??= item;
   }
 

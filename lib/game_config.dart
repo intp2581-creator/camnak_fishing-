@@ -1869,18 +1869,27 @@ void autoEquipForMode(List<dynamic> inventory, String mode, int level) {
     } else if (n.contains('벨트')) {
       belt ??= it;
     } else if (n.contains('낚싯줄') || n.contains('낚시줄')) {
-      line ??= it;
+      // 🧵 광장 장비창은 '내 최고 장비'를 보여주는 곳이라 상급 줄을 낀다
+      //    (일반 낚싯줄은 능력치가 없어 statSum 이 −1 → 항상 진다).
+      //    ⚠️ 낚시터의 자동 장착은 반대로 '일반 먼저'다 — 고급줄이 자동으로 닳으면
+      //       유저가 손해라서(ui_fishing 의 LINE 분기). 규칙이 다른 것은 의도된 것이다.
+      //       광장에서 낀 줄은 낚시터로 그대로 넘어가므로, 고급줄을 끼고 들어가면
+      //       그 줄이 닳는다. 유저가 자동 장착을 눌러 고른 결과이므로 그대로 둔다.
+      //    ⚠️ `line == null ||` 이 꼭 있어야 한다. 일반 낚싯줄은 능력치가 없어
+      //       statSum 이 −1 인데, 빈 슬롯도 −1 이라 '−1 > −1' 이 거짓이 된다.
+      //       이게 없으면 일반 줄만 가진 사람은 줄이 안 끼워져 캐스팅을 못 한다.
+      if (line == null || statSum(it) > statSum(line)) line = it;
     } else if (n.contains('밑밥')) {
       gb ??= it;
     } else if (n.contains('장갑')) {
       // 🧤 장갑도 상급을 낀다 — 감각 장갑(힘10·감도20) > 장갑(힘10).
       //    ⚠️ `??=`면 가방에서 먼저 나온 것이 잡혀, 좋은 걸 사고도 옛 장갑이 끼워진다.
-      if (statSum(it) > statSum(gloves)) gloves = it;
+      if (gloves == null || statSum(it) > statSum(gloves)) gloves = it;
     } else if (n.contains('선글라스')) {
       // 🕶️ 레인보우 편광(P/C/S 20) > 일반(P/C/S 10). 낚시터 계산(fishing_logic)은
       //    2026-08-30에 고쳤는데 이 자동 장착만 `??=`로 남아 있었다 — 5만 KREFT를
       //    주고도 일반이 끼워지고, 표시 능력치와 실제가 어긋났다.
-      if (statSum(it) > statSum(sun)) sun = it;
+      if (sun == null || statSum(it) > statSum(sun)) sun = it;
     }
   }
 
