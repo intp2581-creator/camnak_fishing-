@@ -1754,13 +1754,22 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           'fresh': f.data?.snapshot.value,
                           'sea': s.data?.snapshot.value,
                         });
-                        int maxN = _channelNum;
-                        counts.forEach((n, _) { if (n > maxN) maxN = n; });
-                        final int nextNew = maxN + 1; // '새 채널' 번호
+                        // 🧩 사람이 있는 채널과 내가 있는 채널만 보여준다.
+                        //    빈 채널 자리는 한 번 열렸다가 모두 나가면 그대로 남는데,
+                        //    'CH2 0/50 · CH3 0/50' 처럼 늘어놓아 봐야 고를 이유가 없다.
+                        //    빈 채널로 가고 싶으면 아래 '새 채널'을 쓰면 된다.
+                        final shown = counts.keys
+                            .where((n) => (counts[n]![1] > 0) || n == _channelNum)
+                            .toList()..sort();
+                        if (!shown.contains(_channelNum)) shown.add(_channelNum);
+                        shown.sort();
+                        // '새 채널' 번호 — 비어 있는 가장 작은 번호를 다시 쓴다.
+                        int nextNew = 1;
+                        while (shown.contains(nextNew)) nextNew++;
                         return ListView(
                           shrinkWrap: true,
                           children: [
-                            for (int n = 1; n <= maxN; n++)
+                            for (final n in shown)
                               _channelRow(c, n, counts[n] ?? const [0, 0]),
                             _channelRow(c, nextNew, const [0, 0], isNew: true),
                           ],
