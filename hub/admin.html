@@ -50,6 +50,54 @@
   .linkbtn{background:none;border:none;color:var(--blue-ink);font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;padding:4px 6px}
   .hide{display:none}
   .login{max-width:420px;margin:60px auto}
+
+  /* ═══ 🛒 상품 등록 ═══ */
+  .stTop{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .tag{font-size:11.5px;font-weight:800;padding:3px 9px;border-radius:12px;
+       background:#eef4f7;color:var(--ink-soft);border:1px solid var(--line)}
+  .sect{border-top:1px solid var(--line);margin-top:22px;padding-top:18px}
+  .sect:first-of-type{border-top:0;margin-top:8px;padding-top:0}
+  .sectHead{font-weight:900;font-size:15px;color:var(--blue-ink);margin-bottom:4px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .hint{margin:6px 0 0;font-size:12.5px;line-height:1.6;color:#8ba3ae}
+  .hint.warn{color:#c0392b}
+  .imgRow{display:flex;gap:12px;align-items:flex-start}
+  .foldBtn{background:none;border:0;padding:0;font-family:inherit;cursor:pointer;
+           font-weight:900;font-size:15px;color:var(--blue-ink)}
+  /* 담을 아이템 한 줄 */
+  .bItem{display:grid;grid-template-columns:1.6fr 74px 1fr 36px;gap:8px;align-items:center;
+         margin-top:8px}
+  .bItem input,.bItem select{padding:9px 10px;font-size:14px}
+  .bItem .del{background:none;border:1px solid var(--line);border-radius:8px;color:#c0392b;
+              cursor:pointer;height:38px;font-size:16px}
+  /* 저장 전 확인 */
+  .confirm{background:#f4f9fb;border:1px solid var(--line);border-radius:12px;padding:16px;
+           font-size:14.5px;line-height:1.9}
+  .confirm b{color:var(--ink)}
+  .confirm .bad{color:#c0392b;font-weight:700}
+  /* 목록 — 폰에서는 표 대신 카드 */
+  .stCard{display:none}
+  .stTools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .stTools input{flex:1;min-width:150px}
+  .pillBtn{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 15px;
+           font-family:inherit;font-weight:700;font-size:13.5px;color:var(--ink-soft);cursor:pointer}
+  .pillBtn.on{background:var(--blue-ink);color:#fff;border-color:var(--blue-ink)}
+
+  @media (max-width:760px){
+    .wrap{padding:14px 0 60px}
+    .card{padding:16px;border-radius:12px}
+    .g2{grid-template-columns:1fr}
+    .imgRow{flex-direction:column}
+    .imgRow>div:last-child{width:100%!important;text-align:left!important}
+    #st-imgPrev{width:100%!important;height:150px!important}
+    .bItem{grid-template-columns:1fr 68px 36px;gap:6px}
+    .bItem .icon{grid-column:1/3}
+    .stList table{display:none}          /* 표는 폰에서 못 읽는다 */
+    .stCard{display:block}
+    .btns .btn{flex:1;min-width:110px}
+    h1{font-size:19px}
+    .top{gap:8px}
+  }
 </style>
 </head>
 <body>
@@ -126,71 +174,164 @@
       <div class="card" id="stList">불러오는 중…</div>
     </div>
 
-    <!-- 상품 편집 -->
+    <!-- 🛒 상품 등록 · 수정
+         칸 순서는 '상품 만드는 사람'의 순서를 따른다.
+         무엇을 파는가 → 얼마에 → 무엇을 주는가 → 어떻게 보일까 → 연결(접어둠).
+         지급 키가 맨 위에 있던 예전 순서는 개발자의 순서였다. -->
     <div id="stEdit" class="card hide" style="margin-top:16px">
-      <h2 style="margin:0 0 12px;font-size:17px" id="stEditTitle">상품 추가</h2>
-
-      <!-- 🛒 지급 키가 먼저다. 이걸 고르면 무엇을 파는지가 정해지고,
-           상품명·가격·레벨이 지급표와 맞는지 그때부터 비교할 수 있다. -->
-      <label>지급 키 <span class="muted">(결제 뒤 무엇을 지급할지 — 서버 지급표에서 고릅니다)</span></label>
-      <select id="st-key"><option value="">불러오는 중…</option></select>
-      <div id="st-keyInfo" class="muted" style="margin-top:7px;line-height:1.6"></div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
-        <div><label>상품명</label><input id="st-n" placeholder="예: KREFT 성장 패키지"></div>
-        <div><label>분류</label>
-          <select id="st-c">
-            <option value="ticket">이용권</option>
-            <option value="skin">스킨</option>
-            <option value="badge">뱃지 · 휘장</option>
-            <option value="package">패키지</option>
-            <option value="etc">기타</option>
-          </select></div>
-        <div><label>표시 가격(원) <span class="muted">(실제 결제는 서버 금액)</span></label><input id="st-p" type="number" placeholder="5500"></div>
-        <div><label>필요 레벨 <span class="muted">(0이면 제한 없음)</span></label><input id="st-lv" type="number" placeholder="0"></div>
-        <div><label>아임웹 상품번호 <span class="muted">(구매하기가 갈 곳)</span></label><input id="st-idx" type="number" placeholder="223"></div>
-        <div><label>진열 순서 <span class="muted">(작을수록 앞)</span></label><input id="st-order" type="number" placeholder="10"></div>
+      <div class="stTop">
+        <h2 style="margin:0;font-size:17px" id="stEditTitle">상품 추가</h2>
+        <span id="stCodeTag" class="tag hide">코드 상품</span>
       </div>
 
-      <label>상품 이미지 <span class="muted">(파일을 고르시면 올라갑니다 · jpg · png · 2MB 이하)</span></label>
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="flex:1">
-          <button type="button" class="btn ghost" id="st-imgPick">🖼️ 이미지 고르기</button>
-          <input type="file" id="st-imgFile" accept="image/*" class="hide">
-          <input id="st-img" placeholder="올린 이미지 주소 또는 assets/ 안 파일명" style="margin-top:10px">
-          <p class="muted" style="margin:6px 0 0;line-height:1.6">
-            올리면 홈페이지와 게임이 같은 그림을 봅니다. 배포는 필요 없습니다.<br>
-            기존 상품처럼 <b>파일명만</b>(st-package.jpg) 적혀 있으면 그대로 둬도 됩니다.
-          </p>
+      <!-- ① 무엇을 파는가 ─────────────────────────── -->
+      <div class="sect">
+        <div class="sectHead">① 무엇을 파는가</div>
+        <div class="g2">
+          <div><label>상품명</label><input id="st-n" placeholder="예: KREFT 성장 패키지"></div>
+          <div><label>분류</label>
+            <select id="st-c">
+              <option value="ticket">이용권</option>
+              <option value="skin">스킨</option>
+              <option value="badge">뱃지 · 휘장</option>
+              <option value="package">패키지</option>
+              <option value="etc">기타</option>
+            </select></div>
         </div>
-        <div style="width:130px;flex:none;text-align:center">
-          <img id="st-imgPrev" alt="" style="width:130px;height:97px;object-fit:cover;
-               border:1px solid var(--line);border-radius:8px;background:#f2f6f8;display:none">
-          <div id="st-imgMsg" class="muted" style="font-size:12px;margin-top:4px"></div>
+
+        <label>한 줄 설명 <span class="muted">(게임스토어 카드에 표시)</span></label>
+        <input id="st-d" placeholder="성장에 필요한 것을 한 번에 담았어요.">
+
+        <label>상품 이미지 <span class="muted">(파일을 고르시면 올라갑니다 · jpg · png · 2MB 이하)</span></label>
+        <div class="imgRow">
+          <div style="flex:1;min-width:0">
+            <button type="button" class="btn ghost" id="st-imgPick">🖼️ 이미지 고르기</button>
+            <input type="file" id="st-imgFile" accept="image/*" class="hide">
+            <input id="st-img" placeholder="올린 이미지 주소 또는 assets/ 안 파일명" style="margin-top:10px">
+          </div>
+          <div style="width:120px;flex:none;text-align:center">
+            <img id="st-imgPrev" alt="" class="hide"
+                 style="width:120px;height:90px;object-fit:cover;border:1px solid var(--line);
+                        border-radius:8px;background:#f2f6f8">
+            <div id="st-imgMsg" class="muted" style="font-size:12px;margin-top:4px"></div>
+          </div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:6px">
-        <div><label>노출</label>
-          <select id="st-hidden"><option value="0">노출함</option><option value="1">숨김</option></select></div>
-        <div><label>판매 <span class="muted">(준비중이면 구매 버튼이 잠깁니다)</span></label>
-          <select id="st-soon"><option value="0">판매함</option><option value="1">판매 준비중</option></select></div>
-      </div>
-      <div id="st-soonWrap" class="hide">
-        <label>준비중 문구 <span class="muted">(구매 버튼 자리에 표시)</span></label>
-        <input id="st-soonText" placeholder="예: 9월 15일 판매 시작">
+      <!-- ② 얼마에 파는가 ─────────────────────────── -->
+      <div class="sect">
+        <div class="sectHead">② 얼마에 파는가</div>
+        <div class="g2">
+          <div><label>가격(원)</label><input id="st-p" type="number" placeholder="5500">
+            <p class="hint" id="st-priceHint"></p></div>
+          <div><label>필요 레벨 <span class="muted">(0이면 제한 없음)</span></label>
+            <input id="st-lv" type="number" placeholder="0"></div>
+        </div>
+        <div class="g2">
+          <div><label>계정당 최대 <span class="muted">(1이면 한 번만 살 수 있음)</span></label>
+            <input id="st-perAcc" type="number" placeholder="0 = 제한 없음"></div>
+          <div><label>한 번에 최대 <span class="muted">(주문 1건당)</span></label>
+            <input id="st-perOrd" type="number" placeholder="0 = 제한 없음"></div>
+        </div>
       </div>
 
-      <label>한 줄 설명 <span class="muted">(목록 카드에 표시)</span></label>
-      <input id="st-d" placeholder="성장에 필요한 것을 한 번에 담았어요.">
-      <label>상세 설명
-        <span class="muted">(새 상품 전용 — 상세페이지에 「상품 안내」로 나갑니다)</span></label>
-      <p class="muted" style="margin:0 0 6px;line-height:1.65">
-        지금 파는 11개 상품은 상세페이지가 <b>코드(hub/catalog.js)에 따로</b> 있어
-        여기 글이 나가지 않습니다. 코드에 상세페이지가 없는 <b>새 상품</b>일 때만 쓰입니다.
-        기존 상품의 상세페이지를 고치시려면 말씀해 주세요.
-      </p>
-      <textarea id="st-detail" rows="8" placeholder="구성품, 사용법, 주의사항 등"></textarea>
+      <!-- ③ 무엇을 주는가 ─────────────────────────── -->
+      <div class="sect" id="st-grantSect">
+        <div class="sectHead">③ 무엇을 주는가</div>
+        <p class="hint" id="st-grantLock"></p>
+
+        <div id="st-grantBody">
+          <label>지급 방식</label>
+          <select id="st-giveWay">
+            <option value="box">상자로 준다 — 가방에 상자가 들어가고, 열면 내용물이 풀립니다</option>
+            <option value="direct">낱개로 준다 — 아이템이 바로 가방에 들어갑니다</option>
+          </select>
+
+          <div id="st-boxWrap">
+            <div class="g2">
+              <div><label>상자 이름</label><input id="st-boxName" placeholder="예: 성장패키지 상자"></div>
+              <div><label>상자 그림</label>
+                <select id="st-boxIcon">
+                  <option value="item_box_cash.png">유료 아이템 상자 (회색)</option>
+                  <option value="item_box_growth.png">성장패키지 상자</option>
+                  <option value="item_box_gift.png">선물 상자</option>
+                  <option value="item_box_raid.png">봉인된 상자 (레이드)</option>
+                </select></div>
+            </div>
+            <label>상자를 눌렀을 때 나오는 말</label>
+            <input id="st-boxMsg" placeholder="눌러서 열면 아이템을 받습니다.">
+          </div>
+
+          <label style="margin-top:16px">담을 아이템</label>
+          <div id="st-bundle"></div>
+          <button type="button" class="btn ghost" id="st-addItem" style="margin-top:10px">+ 아이템 추가</button>
+          <p class="hint">게임에서 실제로 지급되고 있는 아이템들입니다. 목록에 없는 것은
+             「직접 입력」으로 넣되, 이름과 그림 파일명이 게임과 정확히 같아야 합니다.</p>
+        </div>
+      </div>
+
+      <!-- ④ 어떻게 보일까 ─────────────────────────── -->
+      <div class="sect">
+        <div class="sectHead">④ 어떻게 보일까</div>
+        <div class="g2">
+          <div><label>판매 상태</label>
+            <select id="st-state">
+              <option value="on">판매중 — 게임스토어에 진열되고 살 수 있습니다</option>
+              <option value="soon">판매 준비중 — 진열은 되지만 구매 버튼이 잠깁니다</option>
+              <option value="off">숨김 — 게임스토어에 나오지 않습니다</option>
+            </select></div>
+          <div><label>진열 순서 <span class="muted">(작을수록 앞)</span></label>
+            <input id="st-order" type="number" placeholder="10"></div>
+        </div>
+        <div id="st-soonWrap" class="hide">
+          <label>준비중 문구 <span class="muted">(구매 버튼 자리에 표시)</span></label>
+          <input id="st-soonText" placeholder="예: 9월 15일 판매 시작">
+        </div>
+
+        <div class="g2">
+          <div><label>강조 배지</label>
+            <select id="st-badge">
+              <option value="">없음</option>
+              <option value="NEW">NEW — 신상품</option>
+              <option value="BEST">BEST — 인기 상품</option>
+              <option value="HOT">HOT — 지금 많이 삽니다</option>
+              <option value="EVENT">EVENT — 이벤트 상품</option>
+            </select></div>
+          <div></div>
+        </div>
+
+        <label>판매 기간 <span class="muted">(비워두면 제한 없음 · 한국시간)</span></label>
+        <div class="g2">
+          <div><input id="st-from" type="datetime-local"><p class="hint">이때부터 살 수 있습니다</p></div>
+          <div><input id="st-to" type="datetime-local"><p class="hint">이때가 지나면 목록에서 내려갑니다</p></div>
+        </div>
+
+        <label>상세 설명
+          <span class="muted">(새 상품 전용 — 상세페이지에 「상품 안내」로 나갑니다)</span></label>
+        <p class="hint">지금 파는 11개 상품은 상세페이지가 <b>코드(hub/catalog.js)에 따로</b> 있어
+          여기 글이 나가지 않습니다. 코드에 상세페이지가 없는 <b>새 상품</b>일 때만 쓰입니다.</p>
+        <textarea id="st-detail" rows="7" placeholder="구성품, 사용법, 주의사항 등"></textarea>
+      </div>
+
+      <!-- ⑤ 연결 (접어둠) ─────────────────────────── -->
+      <div class="sect">
+        <button type="button" class="foldBtn" id="st-advBtn">⑤ 연결 설정 <span id="st-advArrow">▾</span></button>
+        <div id="st-adv" class="hide">
+          <div class="g2">
+            <div><label>아임웹 상품번호 <span class="muted">(자체 결제 전까지 구매하기가 갈 곳)</span></label>
+              <input id="st-idx" type="number" placeholder="223"></div>
+            <div><label>상품 코드 <span class="muted">(결제 뒤 지급에 쓰는 값 · 나중에 못 바꿉니다)</span></label>
+              <input id="st-key" placeholder="예: pet_husky">
+              <p class="hint" id="st-keyHint"></p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 저장 전 확인 -->
+      <div class="sect" id="st-confirmSect">
+        <div class="sectHead">저장하면 이렇게 됩니다</div>
+        <div id="st-confirm" class="confirm"></div>
+      </div>
 
       <div class="msg" id="stMsg"></div>
       <div class="btns">
@@ -360,10 +501,15 @@ onAuthStateChanged(auth,async u=>{
 //    위쪽 const esc 가 작은따옴표까지 처리하므로 그것만 남긴다.
 
 /* ═══════════════ 🛒 상품 관리 ═══════════════
-   상품이 store.html 안에 배열로 박혀 있어 하나 추가할 때마다 배포해야 했다.
-   Firestore로 옮겨 운영자가 직접 추가·수정할 수 있게 한다. */
+   이 화면의 목적은 '나 없이도 상품을 낼 수 있게' 하는 것이다.
+   그래서 세 가지를 지킨다.
+     · 칸 순서는 상품 만드는 사람의 순서 (무엇을 파는가 → 얼마에 → 무엇을 주는가 → …)
+     · 폰에서도 쓸 수 있어야 한다 (밖에 있을 때·이 PC를 못 쓸 때)
+     · 저장 전에 "이 상품을 사면 무엇이 들어갑니다"를 그대로 보여준다
+       — 잘못 등록하면 결제는 되고 물건은 안 들어가는 사고가 난다. */
 const SAPI='https://us-central1-camnak-fishing.cloudfunctions.net/storeApi';
 const CATN={ticket:'이용권',skin:'스킨',badge:'뱃지·휘장',package:'패키지',etc:'기타'};
+const STATEN={on:'판매중',soon:'판매 준비중',off:'숨김'};
 let stEditId=null;
 
 async function sapi(body,qs){
@@ -386,22 +532,18 @@ function showTab(which){
   $('pageTitle').textContent = isOrder ? '🧾 주문 · 환불'
                              : isStore ? '🛒 상품 관리' : '📢 공지 관리';
   $('viewLink').href = isOrder ? 'orders.html' : isStore ? 'store.html' : 'notice.html';
+  $('tabNotice').className = 'btn '+(which==='notice'?'primary':'ghost');
+  $('tabStore').className  = 'btn '+(isStore?'primary':'ghost');
+  $('tabOrder').className  = 'btn '+(isOrder?'primary':'ghost');
   if(isStore) loadStore();
+  if(isOrder) odLoad();
 }
 
-// ═══════════════════════════════════════════════════════════
-// 🧾 주문 · 환불
-//   콘솔에서만 환불하면 우리 orders 는 'paid' 로 남아 구매내역과 말이 달라진다.
-//   여기서 하면 돈과 기록이 같이 움직인다.
-// ═══════════════════════════════════════════════════════════
-const OAPI='https://us-central1-camnak-fishing.cloudfunctions.net/adminOrders';
-const RAPI='https://us-central1-camnak-fishing.cloudfunctions.net/payRefund';
-let odPick=null;
+/* 코드 지급표(payment.js PRODUCTS)와 담을 수 있는 아이템 목록.
+   손으로 적어 두면 아이콘 이름이 어긋나 '가방에서 그림이 깨지는' 아이템이 생긴다. */
+let GKEYS=null, GITEMS=null, ST_ITEMS=[], ST_FILTER='all', ST_Q='';
 
-const OD_ST={paid:['결제완료','#1b8a5f'],ready:['결제대기','#8a6b00'],
-             failed:['결제실패','#b3212a'],canceled:['취소','#61707a'],
-             refunded:['환불완료','#61707a'],partial_canceled:['부분취소','#61707a']};
-
+/* ═══ 🧾 주문 · 환불 ═══ */
 function odWhen(ms){
   if(!ms) return '';
   const d=new Date(ms), p=n=>(n<10?'0':'')+n;
@@ -462,236 +604,348 @@ async function odRefundGo(){
   b.disabled=false; b.textContent='환불 실행';
 }
 
-/* 지급표(서버 payment.js PRODUCTS)를 받아 둔다.
-   지급 키를 드롭다운으로 고르게 하고, 상품 정보가 지급표와 어긋나면 알린다. */
-let GKEYS = null;          // {key: {name, price, limitType, reqLevel, box}}
-let ST_ITEMS = [];         // 지금 화면에 그린 상품들(순서 바꾸기에 쓴다)
 
 async function loadKeys(){
-  if (GKEYS) return GKEYS;
-  const j = await sapi(null, '?keys=1');
-  GKEYS = {};
-  if (j.ok) j.keys.forEach(function(k){ GKEYS[k.key] = k; });
-  return GKEYS;
+  if(GKEYS) return;
+  const j=await sapi(null,'?keys=1');
+  GKEYS={}; if(j.ok) j.keys.forEach(k=>{ GKEYS[k.key]=k; });
+  const j2=await sapi(null,'?bundleItems=1');
+  GITEMS=(j2.ok?j2.items:[])||[];
 }
+const isCodeKey = k => !!(GKEYS && GKEYS[k] && GKEYS[k].code);
 
-/* ⚠️ 이 상품에 문제가 있는가. 목록에서 한눈에 보이게 한다.
-   결제는 됐는데 물건이 안 들어가는 사고를 '저장할 때'가 아니라
-   '목록을 볼 때' 미리 잡기 위한 것이다. */
+/* ⚠️ 이 상품에 문제가 있는가 — 목록에서 한눈에 보이게.
+   결제는 됐는데 물건이 안 들어가는 사고를 '저장할 때'가 아니라 '목록을 볼 때' 잡는다. */
 function stProblems(p){
-  const out = [];
-  const g = GKEYS ? GKEYS[p.key] : null;
-  if (!p.key) out.push('지급 키 없음');
-  else if (!g && !p.soon) out.push('지급표에 없는 지급 키');
-  if (g && g.price !== (p.p||0)) out.push('가격이 지급표와 다름');
-  if (!p.idx && !p.soon) out.push('아임웹 번호 없음');
-  if (!p.img) out.push('이미지 없음');
+  const out=[];
+  if(!p.key) out.push('상품 코드 없음');
+  else if(!GKEYS[p.key] && !(p.grant&&p.grant.bundle&&p.grant.bundle.length) && !p.soon)
+    out.push('무엇을 줄지 안 정함');
+  const g=GKEYS?GKEYS[p.key]:null;
+  if(g&&g.code&&g.price!==(p.p||0)) out.push('가격이 실결제와 다름');
+  if(!p.idx && p.state!=='off') out.push('아임웹 번호 없음');
+  if(!p.img) out.push('이미지 없음');
   return out;
 }
+
+function stImgSrc(v){ v=String(v||'').trim();
+  return !v?'':(/^https?:/.test(v)?v:'assets/'+v); }
 
 async function loadStore(){
   const box=$('stList'); box.innerHTML='불러오는 중…';
   await loadKeys();
   const j=await sapi(null,'?all=1');
   if(!j.ok){ box.innerHTML='<p class="muted">'+(j.err||'불러오지 못했습니다')+'</p>'; return; }
-  ST_ITEMS = j.items;
+  ST_ITEMS=j.items;
   $('stCount').textContent='('+j.items.length+'개)';
-  if(!j.items.length){ box.innerHTML='<p class="muted">등록된 상품이 없습니다. [+ 상품 추가]로 시작하세요.</p>'; return; }
-
-  // 점검 요약 — 문제 있는 상품이 몇 개인지 위에 먼저 알린다.
-  const bad = j.items.filter(function(p){ return stProblems(p).length; });
-  const au = $('stAudit');
-  if (bad.length){
-    au.className = 'msg err';
-    au.innerHTML = '⚠️ 점검이 필요한 상품 ' + bad.length + '개 — 아래 목록에서 빨간 글씨를 확인하세요.';
-  } else {
-    au.className = 'msg ok';
-    au.textContent = '모든 상품이 지급표와 맞습니다.';
-  }
-
-  box.innerHTML='<table><tr><th style="width:74px">순서</th><th style="width:56px"></th>'
-    +'<th>상품</th><th>분류</th><th>표시가격</th><th>Lv</th><th>지급 키</th>'
-    +'<th>아임웹</th><th>상태</th><th></th></tr>'
-    + j.items.map(function(p,i){
-        const probs = stProblems(p);
-        const g = GKEYS[p.key];
-        const state = p.hidden ? '<span style="color:#c0392b">숨김</span>'
-                    : p.soon   ? '<span style="color:#c47f00">판매 준비중</span>'
-                    : '<span style="color:#1c8b5f">노출</span>';
-        return '<tr>'
-        // ▲▼ 로 진열 순서를 바꾼다(서버 sort 액션).
-        +'<td><span class="muted">'+(p.order||0)+'</span> '
-          +'<button class="linkbtn" data-mv="up" data-i="'+i+'" '+(i===0?'disabled style="opacity:.25"':'')+'>▲</button>'
-          +'<button class="linkbtn" data-mv="dn" data-i="'+i+'" '+(i===j.items.length-1?'disabled style="opacity:.25"':'')+'>▼</button></td>'
-        +'<td>'+(p.img
-            ? '<img src="'+esc(stImgSrc(p.img))+'" alt="" style="width:46px;height:34px;'
-              +'object-fit:cover;border-radius:5px;border:1px solid var(--line)" '
-              +'onerror="this.style.display=\'none\'">'
-            : '<span class="muted">-</span>')+'</td>'
-        +'<td><b>'+esc(p.n)+'</b>'
-          +(probs.length ? '<div style="color:#c0392b;font-size:12.5px;margin-top:3px">⚠️ '
-              +probs.join(' · ')+'</div>' : '')+'</td>'
-        +'<td>'+(CATN[p.c]||p.c)+'</td>'
-        +'<td>'+(p.p||0).toLocaleString()+'원'
-          +(g && g.price!==(p.p||0)
-            ? '<div style="color:#c0392b;font-size:12px">실결제 '+g.price.toLocaleString()+'원</div>' : '')+'</td>'
-        +'<td>'+(p.lv?('Lv.'+p.lv):'-')+'</td>'
-        +'<td style="font-family:ui-monospace,monospace;font-size:12.5px'
-          +((!g && !p.soon)?';color:#c0392b':'')+'">'+esc(p.key||'-')+'</td>'
-        +'<td>'+(p.idx || '<span style="color:#c0392b">-</span>')+'</td>'
-        +'<td>'+state+'</td>'
-        +'<td><button class="linkbtn" data-edit="'+p.id+'">수정</button></td></tr>';
-      }).join('')+'</table>';
-
-  box.querySelectorAll('button[data-edit]').forEach(function(b){
-    b.onclick=function(){ openStEdit(ST_ITEMS.find(x=>x.id===b.dataset.edit)); };
-  });
-  box.querySelectorAll('button[data-mv]').forEach(function(b){
-    b.onclick=function(){ stMove(parseInt(b.dataset.i,10), b.dataset.mv==='up'?-1:1); };
-  });
+  renderStore();
 }
 
-/* 진열 순서 바꾸기 — 자리를 맞바꾸고 전체 순서를 10, 20, 30… 으로 다시 매긴다.
+function renderStore(){
+  const box=$('stList');
+  const all=ST_ITEMS;
+  if(!all.length){ box.innerHTML='<p class="muted">등록된 상품이 없습니다. [+ 상품 추가]로 시작하세요.</p>'; return; }
+
+  const bad=all.filter(p=>stProblems(p).length);
+  const au=$('stAudit');
+  if(bad.length){ au.className='msg err';
+    au.innerHTML='⚠️ 점검이 필요한 상품 '+bad.length+'개 — 아래 목록에서 빨간 글씨를 확인하세요.'; }
+  else { au.className='msg ok'; au.textContent='모든 상품이 정상입니다.'; }
+
+  const q=ST_Q.trim().toLowerCase();
+  const list=all.filter(p=>{
+    if(ST_FILTER!=='all' && (p.state||'on')!==ST_FILTER) return false;
+    if(!q) return true;
+    return (p.n||'').toLowerCase().includes(q) || (p.key||'').toLowerCase().includes(q);
+  });
+
+  const cnt={all:all.length,on:0,soon:0,off:0};
+  all.forEach(p=>{ cnt[p.state||'on']=(cnt[p.state||'on']||0)+1; });
+  const tools='<div class="stTools">'
+    +['all','on','soon','off'].map(k=>'<button class="pillBtn'+(ST_FILTER===k?' on':'')
+        +'" data-f="'+k+'">'+(k==='all'?'전체':STATEN[k])+' '+(cnt[k]||0)+'</button>').join('')
+    +'<input id="stSearch" placeholder="상품명 · 상품 코드로 찾기" value="'+esc(ST_Q)+'"></div>';
+
+  if(!list.length){ box.innerHTML=tools+'<p class="muted">찾는 상품이 없습니다.</p>'; wireTools(); return; }
+
+  // 표(PC) — 폰에서는 CSS 가 숨긴다
+  const table='<table><tr><th style="width:78px">순서</th><th style="width:56px"></th>'
+    +'<th>상품</th><th>분류</th><th>가격</th><th>Lv</th><th>상품 코드</th>'
+    +'<th>아임웹</th><th>상태</th><th></th></tr>'
+    +list.map(p=>{
+      const i=all.indexOf(p), probs=stProblems(p);
+      return '<tr><td><span class="muted">'+(p.order||0)+'</span> '
+        +'<button class="linkbtn" data-mv="up" data-i="'+i+'"'+(i===0?' disabled style="opacity:.25"':'')+'>▲</button>'
+        +'<button class="linkbtn" data-mv="dn" data-i="'+i+'"'+(i===all.length-1?' disabled style="opacity:.25"':'')+'>▼</button></td>'
+        +'<td>'+thumb(p,46,34)+'</td>'
+        +'<td><b>'+esc(p.n)+'</b>'+badgeTag(p.badge)
+          +(probs.length?'<div style="color:#c0392b;font-size:12.5px;margin-top:3px">⚠️ '+probs.join(' · ')+'</div>':'')+'</td>'
+        +'<td>'+(CATN[p.c]||p.c)+'</td><td>'+(p.p||0).toLocaleString()+'원</td>'
+        +'<td>'+(p.lv?('Lv.'+p.lv):'-')+'</td>'
+        +'<td style="font-family:ui-monospace,monospace;font-size:12.5px">'+esc(p.key||'-')+'</td>'
+        +'<td>'+(p.idx||'<span style="color:#c0392b">-</span>')+'</td>'
+        +'<td>'+stateTag(p.state)+'</td>'
+        +'<td><button class="linkbtn" data-edit="'+p.id+'">수정</button></td></tr>';
+    }).join('')+'</table>';
+
+  // 카드(폰)
+  const cards='<div class="stCard">'+list.map(p=>{
+    const i=all.indexOf(p), probs=stProblems(p);
+    return '<div style="display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)">'
+      +'<div style="flex:none">'+thumb(p,64,64)+'</div>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-weight:800">'+esc(p.n)+badgeTag(p.badge)+'</div>'
+      +'<div class="muted" style="margin:3px 0">'+(CATN[p.c]||p.c)+' · '
+        +(p.p||0).toLocaleString()+'원'+(p.lv?(' · Lv.'+p.lv):'')+'</div>'
+      +'<div>'+stateTag(p.state)+' <span class="muted" style="font-size:12px">순서 '+(p.order||0)+'</span></div>'
+      +(probs.length?'<div style="color:#c0392b;font-size:12.5px;margin-top:4px">⚠️ '+probs.join(' · ')+'</div>':'')
+      +'<div style="margin-top:8px;display:flex;gap:6px">'
+      +'<button class="pillBtn" data-edit="'+p.id+'">수정</button>'
+      +'<button class="pillBtn" data-mv="up" data-i="'+i+'"'+(i===0?' disabled':'')+'>▲</button>'
+      +'<button class="pillBtn" data-mv="dn" data-i="'+i+'"'+(i===all.length-1?' disabled':'')+'>▼</button>'
+      +'</div></div></div>';
+  }).join('')+'</div>';
+
+  box.innerHTML=tools+table+cards;
+  wireTools();
+  box.querySelectorAll('button[data-edit]').forEach(b=>{
+    b.onclick=()=>openStEdit(ST_ITEMS.find(x=>x.id===b.dataset.edit)); });
+  box.querySelectorAll('button[data-mv]').forEach(b=>{
+    b.onclick=()=>stMove(parseInt(b.dataset.i,10), b.dataset.mv==='up'?-1:1); });
+}
+
+function thumb(p,w,h){
+  return p.img
+    ? '<img src="'+esc(stImgSrc(p.img))+'" alt="" style="width:'+w+'px;height:'+h+'px;'
+      +'object-fit:cover;border-radius:6px;border:1px solid var(--line)" onerror="this.style.display=\'none\'">'
+    : '<span class="muted">-</span>';
+}
+function badgeTag(b){
+  if(!b) return '';
+  const c={NEW:'#2fb8e6',BEST:'#f7b500',HOT:'#e8524a',EVENT:'#31c98d'}[b]||'#999';
+  return ' <span class="pill" style="background:'+c+'">'+b+'</span>';
+}
+function stateTag(st){
+  st=st||'on';
+  const c={on:'#1c8b5f',soon:'#c47f00',off:'#c0392b'}[st];
+  return '<span style="color:'+c+'">'+STATEN[st]+'</span>';
+}
+function wireTools(){
+  document.querySelectorAll('button[data-f]').forEach(b=>{
+    b.onclick=()=>{ ST_FILTER=b.dataset.f; renderStore(); }; });
+  const s=$('stSearch');
+  if(s) s.oninput=()=>{ ST_Q=s.value; renderStore();
+    const n=$('stSearch'); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } };
+}
+
+/* 진열 순서 — 자리를 맞바꾸고 전체를 10,20,30… 으로 다시 매긴다.
    손으로 숫자를 넣게 두면 5가 둘 겹치는 일이 생긴다(실제로 그랬다). */
-async function stMove(i, dir){
-  const to = i + dir;
-  if (to < 0 || to >= ST_ITEMS.length) return;
-  const a = ST_ITEMS.slice();
-  const t = a[i]; a[i] = a[to]; a[to] = t;
-  const rows = a.map(function(p, n){ return {id: p.id, order: (n+1)*10}; });
-  $('stList').style.opacity = '.5';
-  const j = await sapi({action:'sort', rows: rows});
-  $('stList').style.opacity = '';
-  if (!j.ok) { alert(j.err || '순서를 바꾸지 못했습니다'); return; }
+async function stMove(i,dir){
+  const to=i+dir; if(to<0||to>=ST_ITEMS.length) return;
+  const a=ST_ITEMS.slice(); const t=a[i]; a[i]=a[to]; a[to]=t;
+  $('stList').style.opacity='.5';
+  const j=await sapi({action:'sort',rows:a.map((p,n)=>({id:p.id,order:(n+1)*10}))});
+  $('stList').style.opacity='';
+  if(!j.ok){ alert(j.err||'순서를 바꾸지 못했습니다'); return; }
   loadStore();
 }
 
-/* 이미지 미리보기 — 파일명 오타를 스토어가 아니라 여기서 알게 한다.
-   올린 이미지는 주소(http…), 기존 상품은 파일명. 둘 다 알아듣는다. */
-function stImgSrc(v){
-  v = String(v||'').trim();
-  if (!v) return '';
-  return /^https?:/.test(v) ? v : 'assets/' + v;
-}
+/* 이미지 — 파일명 오타를 스토어가 아니라 여기서 알게 한다. */
 function stImgPreview(){
-  const v = $('st-img').value.trim();
-  const im = $('st-imgPrev'), ms = $('st-imgMsg');
-  if (!v) { im.style.display='none'; ms.textContent=''; return; }
-  im.style.display='';
-  ms.textContent='확인 중…'; ms.style.color='';
-  im.onload = function(){
-    ms.textContent = /^https?:/.test(v) ? '올린 이미지' : '확인됨';
-    ms.style.color='#1c8b5f';
-  };
-  im.onerror= function(){ im.style.display='none';
-                          ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
-  im.src = stImgSrc(v);
+  const v=$('st-img').value.trim(), im=$('st-imgPrev'), ms=$('st-imgMsg');
+  if(!v){ im.classList.add('hide'); ms.textContent=''; return; }
+  im.classList.remove('hide'); ms.textContent='확인 중…'; ms.style.color='';
+  im.onload=()=>{ ms.textContent=/^https?:/.test(v)?'올린 이미지':'확인됨'; ms.style.color='#1c8b5f'; };
+  im.onerror=()=>{ im.classList.add('hide'); ms.textContent='파일 없음'; ms.style.color='#c0392b'; };
+  im.src=stImgSrc(v);
 }
-
-/* 🖼️ 고른 파일을 브라우저에서 먼저 줄이고 올린다.
-   원본 사진을 그대로 보내면 몇 MB가 되어 거부당한다 — 스토어 카드에 쓰기엔
-   가로 900px 이면 충분하다. */
+/* 고른 파일을 브라우저에서 줄여서 올린다. 원본 사진은 몇 MB라 거부당한다. */
 function stUpload(file){
-  const ms = $('st-imgMsg');
-  if (!file) return;
+  const ms=$('st-imgMsg'); if(!file) return;
   ms.textContent='읽는 중…'; ms.style.color='';
-  const fr = new FileReader();
-  fr.onload = function(){
-    const img = new Image();
-    img.onload = function(){
-      const max = 900;
-      const sc = Math.min(1, max / Math.max(img.width, img.height));
-      const cv = document.createElement('canvas');
-      cv.width = Math.round(img.width * sc);
-      cv.height = Math.round(img.height * sc);
-      cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
-      // 투명한 그림(png)은 jpg 로 바꾸면 배경이 검게 나온다 — png 는 png 로 둔다.
-      const isPng = /image\/png/.test(file.type);
-      const data = cv.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.88);
+  const fr=new FileReader();
+  fr.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=900, sc=Math.min(1,max/Math.max(img.width,img.height));
+      const cv=document.createElement('canvas');
+      cv.width=Math.round(img.width*sc); cv.height=Math.round(img.height*sc);
+      cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      // 투명한 그림(png)을 jpg 로 바꾸면 배경이 검게 나온다 — png 는 png 로 둔다.
+      const isPng=/image\/png/.test(file.type);
       ms.textContent='올리는 중…';
-      sapi({action:'upload', data: data, name: file.name}).then(function(j){
-        if(!j.ok){ ms.textContent = j.err || '올리지 못했습니다'; ms.style.color='#c0392b'; return; }
-        $('st-img').value = j.url;
-        stImgPreview();
-      }).catch(function(){ ms.textContent='올리지 못했습니다'; ms.style.color='#c0392b'; });
+      sapi({action:'upload',data:cv.toDataURL(isPng?'image/png':'image/jpeg',0.88),name:file.name})
+        .then(j=>{ if(!j.ok){ ms.textContent=j.err||'올리지 못했습니다'; ms.style.color='#c0392b'; return; }
+          $('st-img').value=j.url; stImgPreview(); stConfirm(); })
+        .catch(()=>{ ms.textContent='올리지 못했습니다'; ms.style.color='#c0392b'; });
     };
-    img.onerror = function(){ ms.textContent='이미지를 읽지 못했습니다'; ms.style.color='#c0392b'; };
-    img.src = fr.result;
+    img.onerror=()=>{ ms.textContent='이미지를 읽지 못했습니다'; ms.style.color='#c0392b'; };
+    img.src=fr.result;
   };
   fr.readAsDataURL(file);
 }
 
-/* 고른 지급 키가 실제로 무엇을 주는지, 지금 입력값과 어긋나는지 보여준다. */
-function stKeyInfo(){
-  const k = $('st-key').value;
-  const g = GKEYS ? GKEYS[k] : null;
-  const box = $('st-keyInfo');
-  if (!k) { box.innerHTML='지급 키를 골라 주세요.'; box.style.color=''; return; }
-  if (!g) {
-    box.innerHTML = '⚠️ 지급표에 없는 키입니다. 결제만 되고 물건이 들어가지 않습니다. '
-      + '판매 준비중으로 두거나, 지급 로직(functions/payment.js)을 먼저 만들어 주세요.';
-    box.style.color = '#c0392b';
-    return;
+/* ── ③ 무엇을 주는가 ─────────────────────────────── */
+function bundleRow(it){
+  it=it||{};
+  const opts=['<option value="">— 직접 입력 —</option>']
+    .concat((GITEMS||[]).map(g=>'<option value="'+esc(g.name)+'"'
+      +(g.name===it.name?' selected':'')+'>'+esc(g.name)+'</option>')).join('');
+  const known=(GITEMS||[]).some(g=>g.name===it.name);
+  const d=document.createElement('div');
+  d.className='bItem';
+  d.innerHTML='<select class="pick">'+opts+'</select>'
+    +'<input class="qty" type="number" min="1" value="'+(it.qty||1)+'" title="개수">'
+    +'<input class="icon" placeholder="그림 파일명" value="'+esc(it.icon||'')+'">'
+    +'<button type="button" class="del" title="빼기">×</button>';
+  const pick=d.querySelector('.pick'), icon=d.querySelector('.icon');
+  // 직접 입력이면 이름 칸으로 바꿔 준다
+  function toManual(name){
+    const inp=document.createElement('input');
+    inp.className='pick name'; inp.placeholder='아이템 이름'; inp.value=name||'';
+    pick.replaceWith(inp); inp.oninput=stConfirm;
   }
-  const bits = ['지급: <b>' + esc(g.name) + '</b>',
-                '실제 결제 금액: <b>' + g.price.toLocaleString() + '원</b>',
-                g.box ? '상자로 지급(열어야 풀림)' : '바로 지급',
-                g.limitType === 'ONCE' ? '계정당 1개' : '수량 누적'];
-  if (g.reqLevel) bits.push('Lv.' + g.reqLevel + ' 이상');
-  let html = bits.join(' · ');
-  const p = parseInt($('st-p').value, 10) || 0;
-  if (p && p !== g.price) {
-    html += '<br><span style="color:#c0392b">⚠️ 표시 가격이 실제 결제 금액과 다릅니다.</span> '
-      + '<button type="button" class="linkbtn" id="st-fixP">지급표에 맞추기</button>';
-  }
-  box.innerHTML = html; box.style.color='';
-  if ($('st-fixP')) $('st-fixP').onclick = function(){
-    $('st-p').value = g.price;
-    if (g.reqLevel) $('st-lv').value = g.reqLevel;
-    stKeyInfo();
+  if(it.name && !known) toManual(it.name);
+  pick.onchange=()=>{
+    if(!pick.value){ toManual(''); icon.value=''; stConfirm(); return; }
+    const g=(GITEMS||[]).find(x=>x.name===pick.value)||{};
+    icon.value=g.icon||''; d.dataset.meta=JSON.stringify(g); stConfirm();
   };
+  if(known) d.dataset.meta=JSON.stringify((GITEMS||[]).find(x=>x.name===it.name)||{});
+  d.querySelector('.qty').oninput=stConfirm;
+  icon.oninput=stConfirm;
+  d.querySelector('.del').onclick=()=>{ d.remove(); stConfirm(); };
+  return d;
+}
+function readBundle(){
+  return Array.from($('st-bundle').children).map(d=>{
+    const pick=d.querySelector('.pick');
+    const name=(pick.tagName==='SELECT'?pick.value:pick.value).trim();
+    if(!name) return null;
+    let meta={}; try{ meta=JSON.parse(d.dataset.meta||'{}'); }catch(_){}
+    const o={name, qty:parseInt(d.querySelector('.qty').value,10)||1,
+      icon:d.querySelector('.icon').value.trim(),
+      category:meta.category||'COMMON', type:meta.type||'ETC'};
+    if(meta.stats) o.stats=meta.stats;
+    if(meta.desc) o.desc=meta.desc;
+    if(meta.boost) o.boost=meta.boost;
+    if(meta.secLeft) o.secLeft=meta.secLeft;
+    if(meta.cash) o.cash=true;
+    return o;
+  }).filter(Boolean);
 }
 
-/* 지급 키 드롭다운을 채운다.
-   지급표에 없는 값(예전 상품)도 지우지 않고 빨갛게 남겨 둔다 — 지워 버리면
-   무엇이 잘못돼 있었는지 모른 채 다른 키로 덮어쓰게 된다. */
-function fillKeySelect(cur){
-  const sel = $('st-key');
-  const opts = ['<option value="">— 고르세요 —</option>'];
-  Object.keys(GKEYS||{}).forEach(function(k){
-    const g = GKEYS[k];
-    opts.push('<option value="'+k+'">'+k+' — '+esc(g.name)
-      +' ('+g.price.toLocaleString()+'원)'+(g.used?' · 사용중':'')+'</option>');
-  });
-  if (cur && !(GKEYS||{})[cur]) {
-    opts.push('<option value="'+esc(cur)+'">⚠️ '+esc(cur)+' (지급표에 없음)</option>');
+/* 저장 전 확인 — "이 상품을 사면 무엇이 들어갑니다"를 그대로 보여준다. */
+function stConfirm(){
+  const box=$('st-confirm'); if(!box) return;
+  const key=$('st-key').value.trim();
+  const name=$('st-n').value.trim()||'(이름 없음)';
+  const price=parseInt($('st-p').value,10)||0;
+  const state=$('st-state').value;
+  const code=isCodeKey(key);
+  const L=[];
+  L.push('<b>'+esc(name)+'</b> · '+price.toLocaleString()+'원 · '+STATEN[state]);
+  if(code){
+    const g=GKEYS[key];
+    L.push('지급 내용은 <b>코드</b>에 있습니다 — 실제 결제 <b>'+g.price.toLocaleString()+'원</b>'
+      +(g.box?' · 상자로 지급':'')+(g.limitType==='ONCE'?' · 계정당 1개':''));
+    if(g.price!==price) L.push('<span class="bad">⚠️ 표시 가격과 실제 결제 금액이 다릅니다.</span>');
+  } else {
+    const bd=readBundle();
+    if(!bd.length){
+      L.push(state==='soon'
+        ? '<span class="bad">무엇을 줄지 아직 안 정했습니다.</span> 판매 준비중이라 저장은 됩니다.'
+        : '<span class="bad">⚠️ 무엇을 줄지 정하지 않았습니다. 이대로면 결제는 되고 물건이 안 들어갑니다.</span>');
+    } else {
+      const way=$('st-giveWay').value;
+      const bn=$('st-boxName').value.trim();
+      L.push(way==='box'
+        ? '가방에 <b>'+esc(bn||'(상자 이름 없음)')+'</b>'+josa(bn,'이','가')
+          +' 들어가고, 열면 아래가 풀립니다'
+        : '가방에 아래가 <b>바로</b> 들어갑니다');
+      L.push('<div style="margin-top:6px">'+bd.map(it=>
+        '· '+esc(it.name)+' <b>'+it.qty+'개</b>').join('<br>')+'</div>');
+      if(way==='box' && !bn) L.push('<span class="bad">상자 이름을 적어 주세요.</span>');
+    }
+    if(!price) L.push('<span class="bad">가격이 0원입니다. 이 금액으로 결제됩니다.</span>');
   }
-  sel.innerHTML = opts.join('');
-  sel.value = cur || '';
+  const pa=parseInt($('st-perAcc').value,10)||0, po=parseInt($('st-perOrd').value,10)||0;
+  const lv=parseInt($('st-lv').value,10)||0;
+  const cond=[]; if(lv) cond.push('Lv.'+lv+' 이상');
+  if(pa===1) cond.push('계정당 1개'); else if(pa) cond.push('계정당 '+pa+'개까지');
+  if(po) cond.push('한 번에 '+po+'개까지');
+  if(cond.length) L.push('조건 — '+cond.join(' · '));
+  const f=$('st-from').value, t=$('st-to').value;
+  if(f||t) L.push('판매 기간 — '+(f?f.replace('T',' '):'지금부터')+' ~ '+(t?t.replace('T',' '):'제한 없음'));
+  box.innerHTML=L.join('<br>');
 }
 
-async function openStEdit(p, dup){
+/* 받침이 있으면 앞엣것, 없으면 뒤엣것. '상자 이 들어가고' 같은 어색함을 없앤다. */
+function josa(w, withJong, without){
+  w = String(w||'').trim();
+  if(!w) return withJong;
+  const c = w.charCodeAt(w.length-1);
+  if(c < 0xAC00 || c > 0xD7A3) return withJong;   // 한글이 아니면 그냥 앞엣것
+  return ((c - 0xAC00) % 28) ? withJong : without;  // 나머지가 있으면 받침 있음
+}
+
+function fillKeyHint(){
+  const k=$('st-key').value.trim(), h=$('st-keyHint');
+  if(!k){ h.className='hint warn'; h.textContent='상품 코드가 필요합니다. 예: pet_husky'; return; }
+  if(isCodeKey(k)){ h.className='hint'; h.textContent='코드 지급표에 있는 상품입니다. 지급 내용은 코드가 정합니다.'; return; }
+  if(!/^[a-z][a-z0-9_]{2,39}$/.test(k)){
+    h.className='hint warn';
+    h.textContent='영문 소문자로 시작하고 소문자·숫자·밑줄만 쓸 수 있습니다 (3~40자).'; return; }
+  h.className='hint'; h.textContent='새 상품 코드입니다. 저장 뒤에는 바꾸지 마세요.';
+}
+function syncGrantUI(){
+  const key=$('st-key').value.trim(), code=isCodeKey(key);
+  $('stCodeTag').classList.toggle('hide', !code);
+  $('st-grantBody').classList.toggle('hide', code);
+  $('st-grantLock').textContent = code
+    ? '이 상품의 지급 내용은 코드(functions/payment.js)에 있습니다. 여기서는 바꿀 수 없습니다.'
+    : '';
+  $('st-boxWrap').classList.toggle('hide', $('st-giveWay').value!=='box');
+  $('st-soonWrap').classList.toggle('hide', $('st-state').value!=='soon');
+  $('st-priceHint').textContent = code
+    ? '실제 결제 금액은 코드가 정합니다. 여기 값은 화면에 보이는 가격입니다.'
+    : '이 금액으로 실제 결제됩니다.';
+  fillKeyHint(); stConfirm();
+}
+
+async function openStEdit(p,dup){
   await loadKeys();
-  stEditId = (p && !dup) ? p.id : null;
-  $('stEditTitle').textContent = !p ? '상품 추가' : dup ? '상품 복제' : '상품 수정';
-  fillKeySelect(p ? p.key||'' : '');
-  $('st-n').value = p ? (p.n||'') + (dup?' (사본)':'') : '';
-  $('st-c').value = p ? p.c||'etc' : 'ticket';
-  $('st-p').value = p ? p.p||0 : '';
-  $('st-lv').value = p ? p.lv||0 : 0;
-  $('st-idx').value = (p && !dup) ? p.idx||'' : '';
-  $('st-order').value = p ? (p.order||0) + (dup?5:0) : ((ST_ITEMS.length+1)*10);
-  $('st-img').value = p ? p.img||'' : '';
-  $('st-hidden').value = (p && p.hidden) ? '1' : (dup ? '1' : '0');   // 복제본은 숨김으로 시작
-  $('st-soon').value = (p && p.soon) ? '1' : '0';
-  $('st-soonText').value = p ? p.soonText||'' : '';
-  $('st-d').value = p ? p.d||'' : '';
-  $('st-detail').value = p ? p.detail||'' : '';
-  $('st-soonWrap').classList.toggle('hide', $('st-soon').value !== '1');
-  $('stDel').classList.toggle('hide', !stEditId);
-  $('stDup').classList.toggle('hide', !stEditId);
+  stEditId=(p&&!dup)?p.id:null;
+  $('stEditTitle').textContent = !p?'상품 추가':dup?'상품 복제':'상품 수정';
+  const g=(p&&p.grant)||{};
+  $('st-n').value=p?(p.n||'')+(dup?' (사본)':''):'';
+  $('st-c').value=p?p.c||'etc':'ticket';
+  $('st-d').value=p?p.d||'':'';
+  $('st-img').value=p?p.img||'':'';
+  $('st-p').value=p?p.p||0:'';
+  $('st-lv').value=p?p.lv||0:0;
+  $('st-perAcc').value=p?(p.perAccount||(g.limitType==='ONCE'?1:0)):0;
+  $('st-perOrd').value=p?(p.perOrder||g.maxQty||0):0;
+  $('st-key').value=(p&&!dup)?p.key||'':'';
+  $('st-idx').value=(p&&!dup)?p.idx||'':'';
+  $('st-order').value=p?(p.order||0)+(dup?5:0):((ST_ITEMS.length+1)*10);
+  $('st-state').value=dup?'off':(p?(p.hidden?'off':(p.soon?'soon':'on')):'on');
+  $('st-soonText').value=p?p.soonText||'':'';
+  $('st-badge').value=p?p.badge||'':'';
+  $('st-from').value=p?p.soldFrom||'':'';
+  $('st-to').value=p?p.soldTo||'':'';
+  $('st-detail').value=p?p.detail||'':'';
+  $('st-giveWay').value=g.boxName?'box':(p&&p.grant?'direct':'box');
+  $('st-boxName').value=g.boxName||'';
+  $('st-boxIcon').value=g.boxIcon||'item_box_cash.png';
+  $('st-boxMsg').value=g.boxMsg||'';
+  $('st-bundle').innerHTML='';
+  (g.bundle||[]).forEach(it=>$('st-bundle').appendChild(bundleRow(it)));
+  $('stDel').classList.toggle('hide',!stEditId);
+  $('stDup').classList.toggle('hide',!stEditId);
+  $('st-adv').classList.toggle('hide', !!stEditId);   // 새 상품은 코드를 정해야 하므로 펼친다
   $('stMsg').className='msg'; $('stMsg').textContent='';
-  stKeyInfo(); stImgPreview();
+  syncGrantUI(); stImgPreview();
   $('stEdit').classList.remove('hide');
   $('stEdit').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -705,41 +959,67 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('odCancel'))  $('odCancel').onclick = function(){ $('odRefund').classList.add('hide'); };
   if($('stNew'))     $('stNew').onclick    =function(){ openStEdit(null); };
   if($('stCancel'))  $('stCancel').onclick =function(){ $('stEdit').classList.add('hide'); };
-  // 고른 지급 키에 맞춰 안내를 갱신한다.
-  if($('st-key'))    $('st-key').onchange  = stKeyInfo;
-  if($('st-p'))      $('st-p').oninput     = stKeyInfo;
-  if($('st-img'))    $('st-img').onchange  = stImgPreview;
+
+  // 입력이 바뀔 때마다 '저장하면 이렇게 됩니다'를 다시 그린다.
+  ['st-n','st-p','st-lv','st-perAcc','st-perOrd','st-from','st-to','st-boxName']
+    .forEach(function(id){ if($(id)) $(id).oninput = stConfirm; });
+  if($('st-key'))     $('st-key').oninput   = syncGrantUI;
+  if($('st-state'))   $('st-state').onchange= syncGrantUI;
+  if($('st-giveWay')) $('st-giveWay').onchange = syncGrantUI;
+  if($('st-badge'))   $('st-badge').onchange= stConfirm;
+  if($('st-img'))     $('st-img').onchange  = function(){ stImgPreview(); stConfirm(); };
   if($('st-imgPick')) $('st-imgPick').onclick=function(){ $('st-imgFile').click(); };
   if($('st-imgFile')) $('st-imgFile').onchange=function(){
     stUpload(this.files && this.files[0]); this.value='';
   };
-  if($('st-soon'))   $('st-soon').onchange =function(){
-    $('st-soonWrap').classList.toggle('hide', $('st-soon').value!=='1');
+  if($('st-addItem')) $('st-addItem').onclick=function(){
+    $('st-bundle').appendChild(bundleRow()); stConfirm();
+  };
+  if($('st-advBtn'))  $('st-advBtn').onclick=function(){
+    const open = $('st-adv').classList.toggle('hide');
+    $('st-advArrow').textContent = open ? '\u25be' : '\u25b4';
   };
   // 복제 — 값을 그대로 물려받되 새 상품으로 저장한다(숨김으로 시작).
   if($('stDup'))     $('stDup').onclick    =function(){
     const p = ST_ITEMS.find(x=>x.id===stEditId);
     if(p) openStEdit(p, true);
   };
+
   if($('stSave'))    $('stSave').onclick   =async function(){
     const m=$('stMsg');
-    if(!$('st-key').value){
-      m.className='msg err'; m.textContent='지급 키를 골라 주세요.'; return;
-    }
+    const key=$('st-key').value.trim();
+    if(!$('st-n').value.trim()){ m.className='msg err'; m.textContent='상품명을 입력해 주세요.'; return; }
+    if(!key){ m.className='msg err';
+      m.textContent='상품 코드가 필요합니다. [⑤ 연결 설정]을 열어 입력해 주세요.';
+      $('st-adv').classList.remove('hide'); return; }
+    const state=$('st-state').value;
     const body={action:'save', id:stEditId||undefined,
-      n:$('st-n').value, c:$('st-c').value, p:$('st-p').value, lv:$('st-lv').value,
-      key:$('st-key').value, idx:$('st-idx').value, img:$('st-img').value,
-      hidden:$('st-hidden').value==='1', soon:$('st-soon').value==='1',
-      soonText:$('st-soonText').value,
-      d:$('st-d').value, detail:$('st-detail').value,
-      order:$('st-order').value};
+      n:$('st-n').value, c:$('st-c').value, d:$('st-d').value, img:$('st-img').value,
+      p:$('st-p').value, lv:$('st-lv').value,
+      perAccount:$('st-perAcc').value, perOrder:$('st-perOrd').value,
+      key:key, idx:$('st-idx').value, order:$('st-order').value,
+      hidden:state==='off', soon:state==='soon', soonText:$('st-soonText').value,
+      badge:$('st-badge').value, soldFrom:$('st-from').value, soldTo:$('st-to').value,
+      detail:$('st-detail').value};
+    // 코드 지급표에 있는 상품은 지급 내용을 보내지 않는다(코드가 이긴다).
+    if(!isCodeKey(key)){
+      const bd=readBundle();
+      body.grant={price:$('st-p').value, bundle:bd,
+        limitType:(parseInt($('st-perAcc').value,10)===1)?'ONCE':'STACK',
+        maxQty:$('st-perOrd').value, reqLevel:$('st-lv').value};
+      if($('st-giveWay').value==='box'){
+        body.grant.boxName=$('st-boxName').value;
+        body.grant.boxIcon=$('st-boxIcon').value;
+        body.grant.boxMsg=$('st-boxMsg').value;
+      }
+    }
     $('stSave').disabled=true; $('stSave').textContent='저장 중…';
     const j=await sapi(body);
     $('stSave').disabled=false; $('stSave').textContent='저장';
     if(!j.ok){ m.className='msg err'; m.textContent=j.err||'저장 실패'; return; }
     // 저장하고 그냥 닫아 버리면 됐는지 안 됐는지 알 수 없었다.
     // 주의사항(가격 불일치 등)이 있으면 창을 닫지 않고 보여 준다.
-    stEditId = j.id;
+    stEditId=j.id;
     $('stDel').classList.remove('hide'); $('stDup').classList.remove('hide');
     if(j.notes && j.notes.length){
       m.className='msg err';
@@ -750,12 +1030,13 @@ document.addEventListener('DOMContentLoaded',function(){
     setTimeout(function(){ $('stEdit').classList.add('hide'); }, 900);
     loadStore();
   };
+
   if($('stDel')) $('stDel').onclick=async function(){
     if(!stEditId) return;
     const p = ST_ITEMS.find(x=>x.id===stEditId);
-    if(!confirm('「'+((p&&p.n)||'이 상품')+'」을 삭제합니다. 되돌릴 수 없습니다.\n\n'
-      +'※ 지난 주문 내역은 남지만 상품 정보는 사라집니다.\n'
-      +'  당분간 안 팔 것이면 삭제 대신 [노출: 숨김]을 쓰세요.')) return;
+    if(!confirm('\u300c'+((p&&p.n)||'\uc774 \uc0c1\ud488')+'\u300d\uc744 \uc0ad\uc81c\ud569\ub2c8\ub2e4. \ub418\ub3cc\ub9b4 \uc218 \uc5c6\uc2b5\ub2c8\ub2e4.\n\n'
+      +'\u203b \uc9c0\ub09c \uc8fc\ubb38 \ub0b4\uc5ed\uc740 \ub0a8\uc9c0\ub9cc \uc0c1\ud488 \uc815\ubcf4\ub294 \uc0ac\ub77c\uc9d1\ub2c8\ub2e4.\n'
+      +'  \ub2f9\ubd84\uac04 \uc548 \ud314 \uac83\uc774\uba74 \uc0ad\uc81c \ub300\uc2e0 [\ud310\ub9e4 \uc0c1\ud0dc: \uc228\uae40]\uc744 \uc4f0\uc138\uc694.')) return;
     const j=await sapi({action:'delete',id:stEditId});
     if(!j.ok){ $('stMsg').className='msg err'; $('stMsg').textContent=j.err||'삭제 실패'; return; }
     $('stEdit').classList.add('hide'); loadStore();
