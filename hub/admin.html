@@ -920,17 +920,16 @@ function bundleRow(it){
     stConfirm();
   }
 
-  /* 이 줄의 아이템 이름 — 목록을 쓰는 중이면 고른 값, 아니면 직접 적은 이름. */
-  function curName(){
-    return usingList() ? pick.value.trim() : nameIn.value.trim();
-  }
+  /* 이 줄의 아이템 이름 — 목록에서 고른 게 있으면 그것, 없으면 직접 적은 이름.
+     ⚠️ '보이는 칸'만 읽으면 안 된다. 목록을 열어놓고 아무것도 안 고른 채로 두면
+        이름을 쳐 뒀는데도 빈 값이 되어 '무엇을 줄지 안 정했다'로 막혔다. */
+  function curName(){ return pick.value.trim() || nameIn.value.trim(); }
   function usingList(){ return !pick.classList.contains('hide'); }
-  /* 이름 칸과 목록 중 하나만 보인다. 버튼 글자도 지금 상태에 맞춰 바꾼다. */
+  /* 목록에서 고른 게 없으면 이름 칸을 함께 보여 준다 — 적을 데가 있어야 한다. */
   function syncName(){
-    const list=usingList();
-    nameIn.classList.toggle('hide', list);
-    toggle.textContent = list
-      ? '✏️ 이름 직접 적기'
+    nameIn.classList.toggle('hide', !!pick.value);
+    toggle.textContent = usingList()
+      ? '✏️ 목록 닫기'
       : '📋 게임에 있는 아이템에서 고르기';
   }
   toggle.onclick=()=>{
@@ -989,10 +988,9 @@ function bundleRow(it){
 }
 function readBundle(){
   return Array.from($('st-bundle').children).map(d=>{
-    // 목록을 쓰는 중이면 고른 값, 아니면 직접 적은 이름(둘 중 보이는 쪽).
-    const sel=d.querySelector('.pick');
-    const name=(sel.classList.contains('hide')
-        ? d.querySelector('.nameIn').value : sel.value).trim();
+    // 목록에서 고른 게 있으면 그것, 없으면 직접 적은 이름(bundleRow curName 과 같은 규칙).
+    const name=d.querySelector('.pick').value.trim()
+            || d.querySelector('.nameIn').value.trim();
     if(!name) return null;
     let meta={}; try{ meta=JSON.parse(d.dataset.meta||'{}'); }catch(_){}
     const num=s=>parseInt(d.querySelector(s).value,10)||0;
