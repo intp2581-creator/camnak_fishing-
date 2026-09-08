@@ -30,6 +30,8 @@
   input:not([type=checkbox]):not([type=radio]):not([type=file]),textarea,select{
     width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font-family:inherit;font-size:15px;color:var(--ink);background:#fff}
   textarea{min-height:280px;line-height:1.75;resize:vertical}
+  /* 요약 설명 — 긴 상세 설명(280px)만큼 클 필요는 없고, 다섯 줄이 한눈에 보이면 된다. */
+  textarea.short{min-height:150px}
   .rowf{display:flex;gap:12px;flex-wrap:wrap}
   .rowf>div{flex:1;min-width:150px}
   .chk{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;color:var(--ink-soft);margin-top:12px}
@@ -223,7 +225,6 @@
            아임웹 상품 등록과 같은 순서로 둔다 — 이미지 → 상품명·분류 → 요약 설명.
            눈에 익은 자리에 있어야 헤매지 않는다. -->
       <div class="sect">
-        <div class="sectHead">① 무엇을 파는가</div>
 
         <label>상품 이미지</label>
         <div class="imgRow">
@@ -255,13 +256,13 @@
             </select></div>
         </div>
 
-        <label>요약 설명 <span class="muted">(게임스토어 카드에 한 줄로 표시)</span></label>
-        <input id="st-d" placeholder="성장에 필요한 것을 한 번에 담았어요.">
+        <label>요약 설명 <span class="muted">(게임스토어 카드와 게임 안 상점에 표시)</span></label>
+        <textarea id="st-d" class="short" rows="5"
+          placeholder="성장에 필요한 것을 한 번에 담았어요."></textarea>
       </div>
 
       <!-- ② 얼마에 파는가 ─────────────────────────── -->
       <div class="sect">
-        <div class="sectHead">② 얼마에 파는가</div>
         <div class="g2">
           <div><label>가격(원)</label><input id="st-p" type="number" placeholder="5500">
             <p class="hint" id="st-priceHint"></p></div>
@@ -278,7 +279,6 @@
 
       <!-- ③ 무엇을 주는가 ─────────────────────────── -->
       <div class="sect" id="st-grantSect">
-        <div class="sectHead">③ 무엇을 주는가</div>
         <p class="hint" id="st-grantLock"></p>
 
         <div id="st-grantBody">
@@ -315,7 +315,6 @@
 
       <!-- ④ 어떻게 보일까 ─────────────────────────── -->
       <div class="sect">
-        <div class="sectHead">④ 어떻게 보일까</div>
         <div class="g2">
           <div><label>판매 상태</label>
             <select id="st-state">
