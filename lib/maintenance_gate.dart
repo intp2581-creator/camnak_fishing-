@@ -13,6 +13,7 @@
 //
 //   운영 절차(다음 점검부터): 줄광고·공지 예고 → config/maintenance on:true →
 //   배포 → on:false (유저 화면이 자동 새로고침되며 새 버전으로 들어옴)
+import 'dart:async';
 import 'dart:html' as html;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +29,42 @@ class MaintenanceGate extends StatefulWidget {
 
 class _MaintenanceGateState extends State<MaintenanceGate> {
   bool _sawOn = false; // 점검 화면을 본 적 있으면, 풀릴 때 새로고침
+  bool _blocking = false; // 지금 점검 화면을 띄우고 있나(복귀 재확인용)
+  StreamSubscription<html.Event>? _visSub;
+
+  @override
+  void initState() {
+    super.initState();
+    // 📱 모바일은 탭이 뒤로 가거나 화면이 꺼지면 실시간 연결을 재운다.
+    //   그 사이 점검이 풀리면 해제 신호를 못 받아 점검 화면에 갇힌다
+    //   (2026-09-09 첫 점검에서 폰이 그대로 멈춰 있었다).
+    //   화면으로 돌아왔을 때 한 번 직접 읽어 확인한다.
+    _visSub = html.document.onVisibilityChange.listen((_) async {
+      if (!_blocking) return;
+      if (html.document.visibilityState != 'visible') return;
+      try {
+        final d = await FirebaseFirestore.instance
+            .collection('config').doc('maintenance').get();
+        if ((d.data()?['on'] == true)) return; // 아직 점검 중
+        _reloadLatest();
+      } catch (_) {}
+    });
+  }
+
+  @override
+  void dispose() {
+    _visSub?.cancel();
+    super.dispose();
+  }
+
+  /// 🔄 새 버전을 받도록 새로고침(캐시버스터 부착)
+  void _reloadLatest() {
+    final uri = Uri.parse(html.window.location.href);
+    final qp = Map<String, String>.from(uri.queryParameters)
+      ..remove('_v')
+      ..['_v'] = DateTime.now().millisecondsSinceEpoch.toString();
+    html.window.location.replace(uri.replace(queryParameters: qp).toString());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +96,8 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
 
         if (!on) {
           if (_sawOn) {
-            // 🔄 점검이 끝났다 → 새 버전을 받도록 새로고침(캐시버스터 부착)
-            final uri = Uri.parse(html.window.location.href);
-            final qp = Map<String, String>.from(uri.queryParameters)
-              ..remove('_v')
-              ..['_v'] = DateTime.now().millisecondsSinceEpoch.toString();
-            html.window.location.replace(uri.replace(queryParameters: qp).toString());
+            _blocking = false;
+            _reloadLatest();   // 🔄 점검 끝 → 새 버전으로 다시 들어간다
             return const SizedBox.shrink();
           }
           return widget.child;
@@ -94,6 +127,7 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
               ]);
             }
             _sawOn = true;
+            _blocking = true;
             return _blockScreen(msg, until);
           },
         );
@@ -122,8 +156,21 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
               style: const TextStyle(color: Colors.white54, fontSize: 14)),
         ],
         const SizedBox(height: 26),
-        const Text('점검이 끝나면 이 화면이 자동으로 새로고침됩니다.',
-            style: TextStyle(color: Colors.white38, fontSize: 12)),
+        // 🔄 자동 새로고침이 안 걸렸을 때를 위한 손잡이.
+        //   폰이 잠기거나 탭이 뒤로 가 있으면 해제 신호를 놓쳐 갇힌다.
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD4AF37),
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12)),
+          onPressed: _reloadLatest,
+          child: const Text('다시 접속',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(height: 14),
+        const Text('점검이 끝나면 자동으로 새로고침됩니다.\n바뀌지 않으면 [다시 접속]을 눌러주세요.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.5)),
       ]),
     );
   }
