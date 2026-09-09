@@ -1137,6 +1137,11 @@ const bool kWelcomeSetOn = true;
 //   그래서 가방에서 눌러 '조각'으로 나눈 뒤, 조각을 미끼로 쓴다(2026-09-05).
 //   ⚠️ 조각은 fishing_logic 의 baitAffinity 에 어종 20종을 다 적어야 한다.
 //      안 적은 어종은 '보통(1.0)'이 되어 작은 고기까지 물어버린다.
+/// 🧵 낚싯줄 고유 id — 같은 이름의 줄을 여러 개 가질 수 있어서 필요하다.
+///   ⚠️ 엠블럼(eid)과 같은 이유다. 이름으로 찾으면 엉뚱한 줄이 닳는다.
+///   묶어서 수량으로 세면 150m 남은 줄에 새 줄을 사는 순간 새 줄도 150m가 된다.
+String newLineId() => 'ln${DateTime.now().microsecondsSinceEpoch}';
+
 /// 🧵 낚싯줄 기본 길이(m). 상점의 세 가지 줄이 모두 이 값이다.
 ///   랜딩에 실패하면 10m씩 줄고, 0이 되면 끊어진다.
 const int kLineDurDefault = 200;

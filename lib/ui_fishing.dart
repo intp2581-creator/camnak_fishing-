@@ -2077,34 +2077,68 @@ Widget _whisperUnreadBadge() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final lineName = equippedLine!['name'].toString();
+    final String lid = (equippedLine!['lid'] ?? '').toString();
     try {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final snap = await userDoc.get();
       if (!snap.exists) return;
       List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      final idx = inv.indexWhere((it) => (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE');
+      // 🧵 같은 이름의 줄을 여러 개 가질 수 있다 → 반드시 고유 id 로 찾는다.
+      //    id 가 없는 예전 줄은 이름으로 찾되, 그중 남은 길이가 같은 것을 고른다.
+      int idx = lid.isNotEmpty
+          ? inv.indexWhere((it) => it is Map && (it['lid'] ?? '') == lid)
+          : -1;
+      if (idx < 0) {
+        final int want = (equippedLine!['dur'] is num)
+            ? (equippedLine!['dur'] as num).toInt() : -1;
+        idx = inv.indexWhere((it) => it is Map &&
+            (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE' &&
+            (want < 0 || ((it['dur'] ?? kLineDurDefault) as num).toInt() == want));
+      }
+      if (idx < 0) {
+        idx = inv.indexWhere((it) => it is Map &&
+            (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE');
+      }
       if (idx < 0) return;
       int dur = (inv[idx]['dur'] is num) ? (inv[idx]['dur'] as num).toInt() : 200;
       dur -= 10;
       if (dur <= 0) {
-        // 🧵 여분이 있으면 그 자리에서 새 줄로 갈아 끼운다 — 대기실로 나갈 필요가 없다.
-        //    ⚠️ 예전엔 묶음을 통째로 지웠다. 여분을 살 수 있게 되면(2026-09-09) 두 개를
-        //       갖고 있다가 한 번 끊어질 때 둘 다 잃는 셈이 된다.
+        // 🧵 끊어진 그 줄 하나만 없앤다(줄마다 개별 칸이라 묶음 삭제가 아니다).
+        //    예전 줄은 수량으로 묶여 있을 수 있으니 그때만 수량을 하나 줄인다.
         final int q = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 1;
         if (q > 1) {
           inv[idx]['quantity'] = q - 1;
           inv[idx]['dur'] = kLineDurDefault;
-          final Map<String, dynamic> next = Map<String, dynamic>.from(inv[idx] as Map);
+        } else {
+          inv.removeAt(idx);
+        }
+        // 🧵 가방에 남은 줄이 있으면 그 자리에서 이어서 끼운다 — 대기실로
+        //    나갔다 올 필요가 없다(2026-09-09 달빛둠벙님 요청).
+        //    소모품이라 '싼 것부터' — 일반 낚싯줄을 먼저 쓰고 고급줄은 아껴 둔다.
+        final String wantCat = widget.isSea ? 'SEA' : 'FW';
+        int nextIdx = -1;
+        for (int i = 0; i < inv.length; i++) {
+          final x = inv[i];
+          if (x is! Map || (x['type'] ?? '') != 'LINE') continue;
+          final c = (x['category'] ?? '').toString().toUpperCase();
+          if (c != wantCat && c != 'COMMON') continue;   // 민물/바다 안 맞는 줄 제외
+          if (nextIdx < 0) { nextIdx = i; continue; }
+          final bool curBasic = (inv[nextIdx] as Map)['name'].toString().contains('일반');
+          final bool newBasic = x['name'].toString().contains('일반');
+          if (newBasic && !curBasic) nextIdx = i;        // 일반 낚싯줄 우선
+        }
+        if (nextIdx >= 0) {
+          final Map<String, dynamic> next =
+              Map<String, dynamic>.from(inv[nextIdx] as Map);
           if (mounted) setState(() => equippedLine = next);
           globalEquippedLine = next;
           await userDoc.update({'inventory': inv});
           if (mounted) {
-            _baitToast('🧵 줄이 끊어져 새 줄로 갈아 끼웠어요 (여분 ${q - 1}개)',
+            _baitToast('🧵 줄이 끊어져 [${next['name']}] (으)로 갈아 끼웠어요',
                 Colors.orangeAccent);
           }
           return;
         }
-        inv.removeAt(idx); // 여분 없음 → 인벤에서 제거
         if (mounted) setState(() => equippedLine = null);
         globalEquippedLine = null;
         await userDoc.update({'inventory': inv});

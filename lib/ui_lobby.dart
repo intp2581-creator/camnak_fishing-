@@ -2094,7 +2094,14 @@ class _StoreScreenState extends State<StoreScreen> {
     try {
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      int existingIndex = inventory.indexWhere((i) => i['name'] == item['name']);
+      // 🧵 낚싯줄은 묶지 않는다 — 줄마다 남은 길이가 다르기 때문이다.
+      //    묶으면 150m 남은 줄에 새 줄을 산 순간 새 줄도 150m가 된다(2026-09-09).
+      //    엠블럼과 같은 이유로 고유 id(lid)를 달아 개별 칸으로 넣는다.
+      final bool isLineItem =
+          (item['type'] ?? '').toString().toUpperCase() == 'LINE';
+      int existingIndex = isLineItem
+          ? -1
+          : inventory.indexWhere((i) => i['name'] == item['name']);
       
       if (existingIndex >= 0) {
         int currentQty = inventory[existingIndex]['quantity'] ?? 0;
@@ -2111,6 +2118,11 @@ class _StoreScreenState extends State<StoreScreen> {
           ..remove('price')
           ..remove('reqLevel');
         newItem['quantity'] = item['quantity'] ?? 1;
+        if (isLineItem) {
+          newItem['quantity'] = 1;
+          newItem['lid'] = newLineId();
+          newItem['dur'] = (item['dur'] is num) ? item['dur'] : kLineDurDefault;
+        }
         inventory.add(newItem);
       }
       
