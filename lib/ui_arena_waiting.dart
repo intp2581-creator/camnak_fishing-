@@ -74,17 +74,15 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       };
       // ⏱️ 낚시시간 차감은 '선불'이 아니라 아레나에서 '실제 있던 시간'만큼 나갈 때 차감(ui_fishing dispose).
       //    → 5분만 하고 나오면 5분만 깎임. 여기선 시간 차감 안 함.
-      // 🎟️ 입장권 1장 사용 → 낚시시간 20분(+1200초)을 채워준다.
-      //    (아레나 10분 플레이가 그 시간을 소모하므로 실질 +10분이 남음)
-      //    쓰는 경우가 둘이다:
-      //      ① 무료 1회를 이미 다 썼을 때
-      //      ② 낚시 시간이 10분 미만일 때 — 입장권이 시간을 채워줘야 대회를 끝까지 치른다.
-      //         ⚠️ ②가 빠져 있어서, 9분 12초로 10분짜리 대회에 들어가 도중에 시간이
-      //            바닥나는 일이 있었다(2026-09-09 비상님 제보).
+      // ⚔️🎟️ 어느 칸으로 들어가는지는 입장 화면과 '같은 규칙'으로 다시 고른다
+      //    (game_config.pickArenaSlot). 무료 칸과 입장권 칸은 서로 다른 칸이라,
+      //    입장권으로 들어가도 무료 1회는 그대로 남는다 — 입장권이 채워준 시간으로
+      //    한 판 더 하라고 만든 구조다(2026-09-09 사장님 확인).
       final int myTime = (data['lastPlayedDate'] == today)
           ? ((data['remainingTime'] ?? 3600) as num).toInt()
           : 3600;
-      if (arenaCount >= 1 || myTime < 600) {
+      final String slot = pickArenaSlot(data, today, myTime) ?? 'free';
+      if (slot == 'ticket') {
         final inv = List<dynamic>.from(data['inventory'] ?? []);
         final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
         final int qty = ti >= 0 ? ((inv[ti]['quantity'] ?? 0) as num).toInt() : 0;
@@ -94,6 +92,8 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
           update['arenaTicketDate'] = today;
           update['remainingTime'] = FieldValue.increment(1200); // 🎟️ 입장권 = 낚시시간 20분 충전(아레나 10분이 소모)
         }
+      } else {
+        update['arenaFreeDate'] = today; // 🆓 무료 칸을 썼다고 기록
       }
       await ref.update(update);
     } catch (e) {

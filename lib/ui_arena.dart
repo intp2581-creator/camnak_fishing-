@@ -128,96 +128,44 @@ class _ArenaScreenState extends State<ArenaScreen> {
     );
   }
 
-  // 🎟️ 가방에 든 아레나 입장권 수
-  int _arenaTicketQty(Map<String, dynamic> userData) {
-    final inv = List<dynamic>.from(userData['inventory'] ?? []);
-    final i = inv.indexWhere((x) => (x['name'] ?? '') == '아레나 입장권');
-    return i >= 0 ? ((inv[i]['quantity'] ?? 0) as num).toInt() : 0;
-  }
+  /// ⚔️ 입장 자격 확인 — 무료 칸과 입장권 칸을 따로 본다(game_config.pickArenaSlot).
+  ///   차감은 여기서 하지 않고 '대회 시작' 때(대기실) 같은 규칙으로 한다.
+  Future<bool> _canEnterArena(BuildContext ctx, Map<String, dynamic> userData,
+      String today, int myTime) async {
+    final String? slot = pickArenaSlot(userData, today, myTime);
 
-  /// ⏳🎟️ 낚시 시간이 10분 미만일 때 — 입장권을 써야 들어갈 수 있다.
-  ///   입장권이 낚시시간 20분을 채워주므로, 그래야 10분짜리 대회를 끝까지 치른다.
-  ///   ⚠️ 예전엔 시간이 모자라도 그냥 통과시키고 무료 입장을 써버려서,
-  ///      9분 12초로 10분짜리 대회에 들어가 도중에 시간이 바닥났다
-  ///      (2026-09-09 비상님 제보 → 사장님 확인).
-  ///   true = 진행 / false = 중단(팝업 표시됨)
-  Future<bool> _confirmTicketForTime(
-      BuildContext ctx, Map<String, dynamic> userData, bool isCreate) async {
-    final int qty = _arenaTicketQty(userData);
-    final String word = isCreate ? '개설' : '참가';
-    if (qty <= 0) {
-      if (!ctx.mounted) return false;
-      await showDialog(
-        context: ctx,
-        builder: (c) => AlertDialog(
-          backgroundColor: const Color(0xFF2A2A2A),
-          title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)),
-          content: Text(
-              '대회를 $word하려면 최소 10분의 낚시 시간이 필요합니다.\n\n'
-              '"아레나 입장권"이 있으면 시간이 없어도 $word할 수 있어요 🎟️',
-              style: const TextStyle(color: Colors.white)),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(c),
-                child: const Text('확인', style: TextStyle(color: Colors.amber))),
-          ],
-        ),
-      );
+    if (slot == null) {
+      // 왜 못 들어가는지 갈라서 알려준다 — 이유가 셋이라 뭉뚱그리면 답답하다.
+      final bool freeLeft = !arenaFreeUsedToday(userData, today);
+      final bool ticketUsed = arenaTicketUsedToday(userData, today);
+      if (myTime < 600 && freeLeft) {
+        _arenaInfo(ctx, '시간 부족 ⏳',
+            '대회는 10분 동안 진행돼요.\n지금 낚시 시간이 10분보다 적습니다.\n\n'
+            '🎟️ "아레나 입장권"이 있으면\n낚시시간 20분을 채우고 참가하실 수 있어요.');
+      } else if (!freeLeft && !ticketUsed) {
+        _arenaInfo(ctx, '무료 입장 소진',
+            '오늘 무료 입장 1회를 다 쓰셨어요.\n\n쇼핑몰에서 "아레나 입장권"을 구매하면\n하루 1회 더 참가할 수 있어요! 🎟️');
+      } else {
+        _arenaInfo(ctx, '입장 제한',
+            '오늘 대회 참가(무료 1회 + 입장권 1회)를\n모두 사용하셨어요.\n내일 다시 도전해주세요! 🎣');
+      }
       return false;
     }
-    if (!ctx.mounted) return false;
-    final ok = await showDialog<bool>(
-      context: ctx,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        title: const Text('🎟️ 아레나 입장권 사용',
-            style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
-        content: Text(
-            '낚시 시간이 10분 미만이라\n입장권 1장을 사용해 $word합니다.\n\n'
-            '🎟️ 입장권은 낚시시간 20분을 채워줘요.\n'
-            '(보유 $qty장 · 대회를 시작할 때 사용됩니다)',
-            style: const TextStyle(color: Colors.white, height: 1.6)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('취소', style: TextStyle(color: Colors.grey))),
-          TextButton(
-              onPressed: () => Navigator.pop(c, true),
-              child: const Text('사용하기',
-                  style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold))),
-        ],
-      ),
-    );
-    return ok == true;
-  }
 
-  // 🎟️ 아레나 입장 '자격' 확인 (차감은 대회 시작 시 대기실에서!). 무료 1회 + 입장권 하루 1회
-  //   true=입장 가능(방 만들기/입장 OK) / false=불가(팝업 표시됨)
+    if (slot == 'free') return true; // 무료 칸 — 확인창 없이 바로
 
-  Future<bool> _canEnterArena(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
-    if (arenaCount < 1) return true; // 무료 입장 가능(하루 1회)
-    final String ticketDate = (userData['arenaTicketDate'] ?? '').toString();
-    final bool usedTicketToday = ticketDate == today;
-    final inv = List<dynamic>.from(userData['inventory'] ?? []);
-    final ti = inv.indexWhere((i) => (i['name'] ?? '') == '아레나 입장권');
-    final int qty = ti >= 0 ? ((inv[ti]['quantity'] ?? 0) as num).toInt() : 0;
-
-    if (arenaCount >= 2 || usedTicketToday) {
-      _arenaInfo(ctx, '입장 제한', '오늘 대회 참가(무료 1회 + 입장권 1회)를\n모두 사용하셨어요.\n내일 다시 도전해주세요! 🎣');
-      return false;
-    }
-    if (qty <= 0) {
-      _arenaInfo(ctx, '무료 입장 소진', '오늘 무료 입장 1회를 다 쓰셨어요.\n\n쇼핑몰에서 "아레나 입장권"을 구매하면\n하루 1회 더 참가할 수 있어요! 🎟️\n(결제 오픈 후 이용 가능)');
-      return false;
-    }
-    // 입장권 보유 → 이 대회를 '시작'하면 입장권 1장이 사용됨 안내(시작 전엔 차감 X)
+    // 🎟️ 입장권 칸을 쓰는 경우에만 확인을 받는다(시작 전엔 차감 안 됨)
+    final int qty = arenaTicketQty(userData);
+    final String why = myTime < 600
+        ? '낚시 시간이 10분보다 적어\n입장권 1장을 사용해 참가합니다.'
+        : '오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.';
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (c) => AlertDialog(
         backgroundColor: const Color(0xFF2A2A2A),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
-        title: const Text('아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
-        content: Text('오늘 무료 1회를 다 쓰셨어요.\n이 대회를 "시작"하면 입장권 1장이 사용돼요.\n🎟️ 입장권은 낚시시간 20분을 채워줘서, 시간이 없어도 참가할 수 있어요!\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)\n\n📶 신호가 약한 곳(지하 · 이동 중 등)에서는 참가를 피해 주세요.\n접속이 끊기면 그 시점까지의 성적으로 정산되고,\n사용한 입장권은 돌려드리지 않습니다.', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
+        title: const Text('🎟️ 아레나 입장권 사용', style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 22)),
+        content: Text('$why\n🎟️ 입장권은 낚시시간 20분을 채워줘요.\n(하루 1장 · 보유 $qty장 · 시작 전엔 차감 안 됨)\n\n📶 신호가 약한 곳(지하 · 이동 중 등)에서는 참가를 피해 주세요.\n접속이 끊기면 그 시점까지의 성적으로 정산되고,\n사용한 입장권은 돌려드리지 않습니다.', style: const TextStyle(color: Colors.white, fontSize: 18, height: 1.6)),
         actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         actions: [
           TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('취소', style: TextStyle(color: Colors.white60, fontSize: 17, fontWeight: FontWeight.bold))),
@@ -415,22 +363,13 @@ class _ArenaScreenState extends State<ArenaScreen> {
                     int myTime = (userData['lastPlayedDate'] == DateTime.now().toString().substring(0, 10))
                         ? (userData['remainingTime'] ?? 3600)
                         : 3600;
-                            String lastArenaDate = userData['lastArenaDate'] ?? '';
-                            int arenaCount = userData['arenaCount'] ?? 0;
-
-                            if (lastArenaDate != today) arenaCount = 0;
-
-                            if (!await _canEnterArena(context, userData, today, arenaCount)) return; // 자격 확인만(차감은 시작 시)
                             if (myGold < requiredFee) {
                               if (!context.mounted) return;
                               showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('잔액 부족 😅', style: TextStyle(color: Colors.redAccent)), content: Text('참가비가 부족합니다.\n(보유: $myGold P)', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                               return;
                             }
-                            // ⏳🎟️ 10분 미만이면 입장권을 써야 참가할 수 있다(입장권이 시간을 채워준다)
-                            if (myTime < 600) {
-                              if (!context.mounted) return;
-                              if (!await _confirmTicketForTime(context, userData, false)) return;
-                            }
+                            // ⚔️ 무료 칸·입장권 칸·시간을 한 번에 판정한다(차감은 대회 시작 시)
+                            if (!await _canEnterArena(context, userData, today, myTime)) return;
 
                             // ⚠️ 시간·포인트·입장횟수 차감은 '대회 시작' 시(대기실)로 미룸 — 방만 만들고 나가면 손해 없음
                             if (!context.mounted) return;
@@ -766,28 +705,15 @@ class _ArenaScreenState extends State<ArenaScreen> {
                     String myName = userData['nickname'] ?? '이름없음'; 
                     
                     String today = DateTime.now().toString().substring(0, 10);
-                    String lastArenaDate = userData['lastArenaDate'] ?? '';
-                    int arenaCount = userData['arenaCount'] ?? 0;
-
-                    if (lastArenaDate != today) arenaCount = 0;
-
-                    if (!await _canEnterArena(context, userData, today, arenaCount)) return; // 자격 확인만(차감은 시작 시)
-
                     if (myGold < entryFee) {
                       if (!context.mounted) return;
                       showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('잔액 부족 😅', style: TextStyle(color: Colors.redAccent)), content: Text('참가비가 부족합니다.\n(보유 KREFT: $myGold P)', style: const TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                       return;
                     }
 
-                    // ⏳🎟️ 10분 이상이면 그냥 개설, 10분 미만이면 입장권을 써서 개설한다.
-                    //    입장권이 낚시시간 20분을 채워주므로 그래야 10분짜리 대회를 끝까지 치른다.
-                    //    예전엔 무료를 안 썼으면(arenaCount<1) 무조건 10분을 요구해 막다른 골목이었고,
-                    //    v545에서 그냥 통과시켰더니 이번엔 입장권을 안 쓰고 들어가 시간이 모자랐다
-                    //    (2026-09-09 비상님 제보 → 사장님 확인).
-                    if (myTime < 600) {
-                      if (!context.mounted) return;
-                      if (!await _confirmTicketForTime(context, userData, true)) return;
-                    }
+                    // ⚔️ 무료 칸·입장권 칸·시간을 한 번에 판정한다(차감은 대회 시작 시).
+                    //    10분 이상이면 무료로, 10분 미만이면 입장권으로 개설한다.
+                    if (!await _canEnterArena(context, userData, today, myTime)) return;
 
                     // ⚠️ 시간·포인트·입장횟수 차감은 '대회 시작' 시(대기실)로 미룸 — 방만 만들고 나가면 손해 없음
 

@@ -529,6 +529,52 @@ const int dailyMissionPrize = 500; // 각 미션 보상 KREFT
 //    별점 제한 없음). 배율 자체는 1.5가 맞고, 잘못된 건 홈페이지 문구였으므로 그쪽을 고쳤다.
 const double arenaRewardMult = 1.5;
 
+// =========================================================================
+// ⚔️🎟️ [아레나 입장 슬롯] 무료 1회 · 입장권 1회 — 둘은 서로 다른 칸이다.
+//
+//   왜 나누는가(2026-09-09 사장님 확인) — 입장권이 낚시시간 20분을 채워주는 이유가
+//   「시간이 모자라 입장권으로 들어가고, 그렇게 번 시간으로 무료 한 판 더」이기 때문이다.
+//   예전엔 arenaCount 하나로 총 횟수만 세서, 입장권을 먼저 쓰면 안 쓴 무료까지
+//   같이 막혔다. 그래서 날짜를 칸마다 따로 적는다.
+//
+//   ⚠️ 입장 화면(ui_arena)과 대기실 차감(ui_arena_waiting)이 반드시 같은 규칙을
+//      써야 한다. 어긋나면 "확인은 통과했는데 엉뚱한 게 깎이는" 일이 생긴다.
+// =========================================================================
+
+/// 🎟️ 가방에 든 아레나 입장권 수
+int arenaTicketQty(Map<String, dynamic> d) {
+  final inv = List<dynamic>.from(d['inventory'] ?? []);
+  final i = inv.indexWhere((x) => (x['name'] ?? '') == '아레나 입장권');
+  return i >= 0 ? ((inv[i]['quantity'] ?? 0) as num).toInt() : 0;
+}
+
+/// 🎟️ 오늘 입장권 칸을 썼나
+bool arenaTicketUsedToday(Map<String, dynamic> d, String today) =>
+    (d['arenaTicketDate'] ?? '').toString() == today;
+
+/// 🆓 오늘 무료 칸을 썼나
+///   arenaFreeDate 는 새로 만든 필드라 옛 계정엔 없다. 그때는 기존 값으로 역산한다 —
+///   오늘 참가 횟수에서 입장권으로 들어간 몫을 빼면 무료를 썼는지 나온다.
+bool arenaFreeUsedToday(Map<String, dynamic> d, String today) {
+  final fd = (d['arenaFreeDate'] ?? '').toString();
+  if (fd.isNotEmpty) return fd == today;
+  if ((d['lastArenaDate'] ?? '').toString() != today) return false;
+  final int cnt = ((d['arenaCount'] ?? 0) as num).toInt();
+  return (cnt - (arenaTicketUsedToday(d, today) ? 1 : 0)) >= 1;
+}
+
+/// ⚔️ 이번 입장에 어느 칸을 쓸지 고른다. null 이면 들어갈 수 없다.
+///   · 낚시 시간 10분 이상 → 무료가 남았으면 무료, 없으면 입장권
+///   · 낚시 시간 10분 미만 → 입장권만 (입장권이 시간을 채워줘야 대회를 끝까지 치른다)
+String? pickArenaSlot(Map<String, dynamic> d, String today, int myTime) {
+  final bool freeLeft = !arenaFreeUsedToday(d, today);
+  final bool ticketLeft =
+      !arenaTicketUsedToday(d, today) && arenaTicketQty(d) > 0;
+  if (myTime < 600) return ticketLeft ? 'ticket' : null;
+  if (freeLeft) return 'free';
+  return ticketLeft ? 'ticket' : null;
+}
+
 // 오늘의 민물 일일 미션 (날짜 시드 → 전 유저 동일)
 Map<String, dynamic> getTodayFwMission() {
   final n = DateTime.now();
