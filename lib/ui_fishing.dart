@@ -580,6 +580,7 @@ Widget _whisperUnreadBadge() {
   
   bool _emblemSynced = false;  // 🛡️ 엠블럼 전역 동기화 1회만
   Future<void> _recordQueue = Future.value(); // 🚀 잡은 기록 저장 큐(순서 보장)
+  String _guildWeekSynced = '';  // 🛡️ 길드 문서가 이 주차로 맞춰진 걸 확인한 주차(빈값=확인 전)
   Map<String, dynamic>? equippedRod;  
   Map<String, dynamic>? equippedFloat; 
   Map<String, dynamic>? equippedBait;  
@@ -2638,40 +2639,64 @@ Widget _whisperUnreadBadge() {
           }
         }
         // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
+        //
+        // ⚠️ 예전엔 한 마리마다 길드 문서에 트랜잭션을 걸었다. 길드 문서는 길드당
+        //    하나뿐이라, 같은 길드원이 동시에 낚시하면 그 한 곳에 쓰기가 몰려
+        //    충돌 → 재시도가 반복됐다. ★찌올림★(21명) 소속만 렉을 제보하고
+        //    소규모 길드·무소속은 못 느낀 이유가 이것이었다(2026-09-09).
+        //
+        //    weeklyScore 를 '읽어서 +1' 하느라 트랜잭션이 필요했는데,
+        //    주가 안 바뀐 평상시엔 증가 연산(increment)으로 충분하다.
+        //    increment 는 서버에서 더해져 서로 막지 않는다 — 21명이 동시에
+        //    잡아도 대기가 없다. 트랜잭션은 '주가 바뀌는 순간'에만 쓴다
+        //    (사람당 접속 1회 수준).
         if (_guildId.isNotEmpty) {
           final guildRef = FirebaseFirestore.instance.collection('guilds').doc(_guildId);
           final curWeek = FishingLogic.weekKey(DateTime.now());
+          final myUid = FirebaseAuth.instance.currentUser?.uid;
           try {
-            await FirebaseFirestore.instance.runTransaction((tx) async {
-              final gs = await tx.get(guildRef);
-              if (!gs.exists) return;
-              final wk = (gs.data()?['weekKey'] ?? '').toString();
-              final prevWs = (gs.data()?['weeklyScore'] is num)
-                  ? (gs.data()!['weeklyScore'] as num).toInt()
-                  : 0;
-              final bool newWeek = wk != curWeek;
-              final ws = newWeek ? 1 : prevWs + 1; // 새 주면 1부터
-              final Map<String, dynamic> gUpdate = {
+            if (_guildWeekSynced == curWeek) {
+              // ✅ 이 주차로 맞춰진 걸 이미 확인했다 → 증가만. 충돌 없음.
+              await guildRef.update({
                 'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
-                'weeklyScore': ws,
-                'weekKey': curWeek,
-              };
-              // 🏆 새 주 첫 낚시 → 지난주 최종 점수 보존(리그 정산이 롤오버 뒤에도 정확하게 읽도록)
-              if (newWeek && wk.isNotEmpty && prevWs > 0) {
-                gUpdate['lastWeekScore'] = prevWs;
-                gUpdate['lastWeekKey'] = wk;
-              }
-              tx.update(guildRef, gUpdate);
-              // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화
-              final myUid = FirebaseAuth.instance.currentUser?.uid;
-              if (myUid != null) {
-                tx.set(
-                    guildRef.collection('members').doc(myUid),
-                    {'contribution': FieldValue.increment(FishingLogic.guildExpPerCatch), 'level': _currentLevel},
-                    SetOptions(merge: true));
-              }
-            });
+                'weeklyScore': FieldValue.increment(1),
+              });
+            } else {
+              // 🔄 주차 확인·롤오버가 필요한 첫 한 번만 트랜잭션.
+              await FirebaseFirestore.instance.runTransaction((tx) async {
+                final gs = await tx.get(guildRef);
+                if (!gs.exists) return;
+                final wk = (gs.data()?['weekKey'] ?? '').toString();
+                final prevWs = (gs.data()?['weeklyScore'] is num)
+                    ? (gs.data()!['weeklyScore'] as num).toInt()
+                    : 0;
+                final bool newWeek = wk != curWeek;
+                final ws = newWeek ? 1 : prevWs + 1; // 새 주면 1부터
+                final Map<String, dynamic> gUpdate = {
+                  'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
+                  'weeklyScore': ws,
+                  'weekKey': curWeek,
+                };
+                // 🏆 새 주 첫 낚시 → 지난주 최종 점수 보존(리그 정산이 롤오버 뒤에도 정확하게 읽도록)
+                if (newWeek && wk.isNotEmpty && prevWs > 0) {
+                  gUpdate['lastWeekScore'] = prevWs;
+                  gUpdate['lastWeekKey'] = wk;
+                }
+                tx.update(guildRef, gUpdate);
+              });
+              _guildWeekSynced = curWeek;   // 이후로는 증가 연산만
+            }
+            // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화.
+            //    멤버 문서는 사람마다 달라 서로 부딪히지 않는다 → 트랜잭션 밖으로.
+            if (myUid != null) {
+              await guildRef.collection('members').doc(myUid).set(
+                  {'contribution': FieldValue.increment(FishingLogic.guildExpPerCatch),
+                   'level': _currentLevel},
+                  SetOptions(merge: true));
+            }
           } catch (e) {
+            // 실패하면 다음 마리에서 트랜잭션으로 다시 맞춘다(주차 확인부터).
+            _guildWeekSynced = '';
             debugPrint('🛡️ 길드 점수 누적 실패: $e');
           }
         }

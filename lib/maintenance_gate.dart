@@ -57,6 +57,18 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
     super.dispose();
   }
 
+  /// 📢 점검 공지로 나간다 — 점검은 늘 공지를 먼저 올리므로, 게임 중이 아니던
+  ///   사람이 "왜 점검이지?" 할 때 이유를 바로 볼 수 있는 곳으로 보낸다.
+  ///   게임은 허브 안의 iframe 으로 도니 top 을 옮긴다(광장 '나가기'와 같은 방식).
+  void _goHome() {
+    const url = 'https://kreft.co.kr/notice.html';
+    try {
+      html.window.top?.location.href = url;
+    } catch (_) {
+      html.window.location.href = url;
+    }
+  }
+
   /// 🔄 새 버전을 받도록 새로고침(캐시버스터 부착)
   void _reloadLatest() {
     final uri = Uri.parse(html.window.location.href);
@@ -156,19 +168,20 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
               style: const TextStyle(color: Colors.white54, fontSize: 14)),
         ],
         const SizedBox(height: 26),
-        // 🔄 자동 새로고침이 안 걸렸을 때를 위한 손잡이.
-        //   폰이 잠기거나 탭이 뒤로 가 있으면 해제 신호를 놓쳐 갇힌다.
-        ElevatedButton(
+        // 🏠 점검 화면에 갇히지 않도록 나갈 길을 준다. 게임은 허브(kreft.co.kr)
+        //   안의 iframe 으로 도니 top 을 옮겨야 한다(광장 '나가기'와 같은 방식).
+        ElevatedButton.icon(
           style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD4AF37),
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 12)),
-          onPressed: _reloadLatest,
-          child: const Text('다시 접속',
+          onPressed: _goHome,
+          icon: const Icon(Icons.campaign, size: 18),
+          label: const Text('점검 공지 보기',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         ),
         const SizedBox(height: 14),
-        const Text('점검이 끝나면 자동으로 새로고침됩니다.\n바뀌지 않으면 [다시 접속]을 눌러주세요.',
+        const Text('점검이 끝나면 이 화면이 자동으로 새로고침됩니다.\n자세한 내용은 [점검 공지 보기]에서 확인하실 수 있어요.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white38, fontSize: 12, height: 1.5)),
       ]),
