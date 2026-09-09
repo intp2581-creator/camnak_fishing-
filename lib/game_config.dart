@@ -141,6 +141,7 @@ List<Map<String, dynamic>> eventStoreItems() {
 Map<String, int> eventItemBonus(List<dynamic> inventory) {
   int p = 0, c = 0, s = 0;
   final now = DateTime.now();
+  bool emblemCounted = false;   // 🛡️ 엠블럼은 많이 갖고 있어도 한 번만 더한다
   for (final it in inventory) {
     if (it is! Map) continue;
     if ((it['type'] ?? '') != 'EVENT') continue;
@@ -149,6 +150,17 @@ Map<String, int> eventItemBonus(List<dynamic> inventory) {
     if (it.containsKey('secLeft')) {
       // 활성화 + 남은 시간은 전역 카운터를 기준으로 본다(화면·계산이 어긋나지 않게)
       if (!gEmblemOn || gEmblemSec <= 0) continue;
+      // ⚠️ 켜짐 여부는 전역 하나로 보면서 능력치는 가방에 든 개수만큼 더하고
+      //    있었다 — 3개 갖고 있으면 +10이 세 번 붙어 +30씩 됐다(2026-09-09 제보).
+      //    효과가 나는 건 '지금 켜둔 그 한 개'만이다.
+      if (emblemCounted) continue;
+      final String eid = (it['eid'] ?? '').toString();
+      if (gEmblemId.isNotEmpty) {
+        if (eid != gEmblemId) continue;
+      } else {
+        if (it['active'] != true) continue;   // eid 없던 예전 엠블럼
+      }
+      emblemCounted = true;
     } else {
       final exp = it['expiresAt'];
       if (exp != null) {

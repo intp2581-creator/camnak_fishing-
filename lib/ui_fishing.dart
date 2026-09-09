@@ -1205,7 +1205,7 @@ Widget _whisperUnreadBadge() {
   Future<void> _saveEmblem() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    if (!gEmblemOn && gEmblemSec <= 0) return;
+    if (!gEmblemOn) return;   // 켜져 있을 때만 줄어드니 저장할 것도 그때뿐
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final inv = List<dynamic>.from(_latestInventory);
@@ -1225,10 +1225,15 @@ Widget _whisperUnreadBadge() {
       if (i < 0) return;   // 못 찾으면 아무것도 지우지 않는다(안전)
       if (gEmblemSec <= 0) {
         inv.removeAt(i);
-        gEmblemOn = false; gEmblemName = ''; gEmblemId = '';
-      } else {
-        inv[i] = {...inv[i] as Map, 'secLeft': gEmblemSec, 'active': gEmblemOn};
+        // 🛡️ 다 쓴 엠블럼은 흔적을 남기지 않는다. 0초가 전역에 남아 있으면
+        //    다음 엠블럼을 켤 때 그 0초를 물려받아 같이 없어졌다.
+        gEmblemSec = 0; gEmblemOn = false; gEmblemName = ''; gEmblemId = '';
+        await ref.update({'inventory': inv});
+        syncEmblemFromInventory(inv);   // 가방에 남은 엠블럼이 있으면 그것으로
+        if (mounted) setState(() {});
+        return;
       }
+      inv[i] = {...inv[i] as Map, 'secLeft': gEmblemSec, 'active': gEmblemOn};
       await ref.update({'inventory': inv});
     } catch (_) {}
   }
@@ -4019,11 +4024,22 @@ Positioned(
               (x['secLeft'] ?? -1) == (item['secLeft'] ?? -2));
       if (i < 0) return;
       final String useId = eid.isNotEmpty ? eid : newEmblemId();
-      inv[i] = {...inv[i] as Map,
-        'eid': useId, 'active': turnOn, 'secLeft': gEmblemSec};
+      // ⚠️ 예전엔 전역 gEmblemSec 을 그대로 써 넣었다. 그러면 다 쓴 엠블럼
+      //    다음에 새 엠블럼을 켤 때 0초가 저장돼, 손도 안 댄 것이 켜자마자
+      //    사라졌다(2026-09-09 제보). 그 아이템이 갖고 있는 시간을 쓴다.
+      //    단, 지금 세고 있던 바로 그 엠블럼이면 전역 쪽이 최대 3초 더 정확하다.
+      final Map cur = inv[i] as Map;
+      final int ownSec = (cur['secLeft'] is num) ? (cur['secLeft'] as num).toInt() : 0;
+      final bool same = gEmblemId.isNotEmpty
+          ? (useId == gEmblemId)
+          : (cur['active'] == true);
+      final int useSec = same ? gEmblemSec : ownSec;
+      inv[i] = {...cur, 'eid': useId, 'active': turnOn, 'secLeft': useSec};
       await ref.update({'inventory': inv});
       gEmblemId = useId;
       gEmblemOn = turnOn;
+      gEmblemSec = useSec;
+      gEmblemName = (cur['name'] ?? '').toString();
       if (!mounted) return;
       setState(() {});
       final int left = gEmblemSec;
@@ -4933,10 +4949,22 @@ Positioned(
                                 //    켜둔 것은 초록으로 구분한다(낚시터에 안 들어가도 알 수 있게).
                                 if ((itemToShow['type'] ?? '') == 'EVENT' &&
                                     itemToShow!.containsKey('secLeft'))
-                                  Builder(builder: (_) {
-                                    final int sec =
-                                        ((itemToShow!['secLeft'] ?? 0) as num).toInt();
-                                    final bool on = itemToShow!['active'] == true;
+                                  // ⏱️ 켜둔 그 엠블럼은 전역 1초 카운터를 보여준다.
+                                  //    가방 값은 3초마다 저장되는 것이라 그대로 읽으면
+                                  //    3초씩 뛰었다(2026-09-09). 1초마다 이 뱃지만 다시 그린다.
+                                  StreamBuilder<int>(
+                                    stream: Stream.periodic(const Duration(seconds: 1), (i) => i),
+                                    builder: (_, __) {
+                                    final String eid = (itemToShow!['eid'] ?? '').toString();
+                                    final bool mine = gEmblemId.isNotEmpty
+                                        ? (eid == gEmblemId)
+                                        : (itemToShow!['active'] == true);
+                                    final int sec = (mine && gEmblemOn)
+                                        ? gEmblemSec
+                                        : ((itemToShow!['secLeft'] ?? 0) as num).toInt();
+                                    final bool on = mine
+                                        ? gEmblemOn
+                                        : itemToShow!['active'] == true;
                                     final Color c = on
                                         ? const Color(0xFF6BE58A)
                                         : (sec <= 300 ? Colors.orangeAccent : Colors.white70);
