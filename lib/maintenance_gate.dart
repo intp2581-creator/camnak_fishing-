@@ -31,7 +31,26 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
 
   @override
   Widget build(BuildContext context) {
+    // ⚠️ 로그인이 끝난 뒤에 구독해야 한다.
+    //   config/maintenance 는 '인증된 회원만' 읽을 수 있는데, 앱이 뜨자마자
+    //   구독하면 아직 로그인 전이라 PERMISSION_DENIED 가 난다. Firestore 스트림은
+    //   한 번 오류가 나면 스스로 되살아나지 않아서, 로그인 후에도 계속 죽어 있고
+    //   문서를 못 읽으니 '점검 아님'으로 보여 전원 통과시켰다(2026-09-09 첫 점검에서
+    //   아레투사가 그냥 들어와져 발견). 계정이 바뀌면 key 로 새로 구독한다.
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (c0, auth) {
+        final String? uid = auth.data?.uid;
+        // 로그인 전에는 어차피 게임을 못 한다(회원 전용 화면) — 그대로 통과.
+        if (uid == null) return widget.child;
+        return _gate(uid);
+      },
+    );
+  }
+
+  Widget _gate(String uid) {
     return StreamBuilder<DocumentSnapshot>(
+      key: ValueKey('maint_$uid'),
       stream: FirebaseFirestore.instance
           .collection('config').doc('maintenance').snapshots(),
       builder: (c, snap) {
@@ -55,11 +74,9 @@ class _MaintenanceGateState extends State<MaintenanceGate> {
         final String until = (d?['until'] ?? '').toString();
 
         // 운영자는 통과(점검 중 확인용) — 상단에 띠만 붙인다
-        final uid = FirebaseAuth.instance.currentUser?.uid;
         return StreamBuilder<DocumentSnapshot>(
-          stream: uid == null
-              ? const Stream.empty()
-              : FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+          key: ValueKey('maintgm_$uid'),
+          stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
           builder: (c2, us) {
             final bool isGm =
                 (us.data?.data() as Map<String, dynamic>?)?['isGm'] == true;
