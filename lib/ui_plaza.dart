@@ -5145,7 +5145,9 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
                           color: Colors.black87, borderRadius: BorderRadius.circular(6)),
                       // 🧵 낚싯줄은 남은 길이, 🛡️ 엠블럼은 남은 시간을 보여준다.
                       child: Text((item['type'] ?? '') == 'LINE'
-                          ? '${((item['dur'] ?? 200) as num).toInt()}m'
+                          ? (qty > 1
+                              ? '${((item['dur'] ?? 200) as num).toInt()}m ×$qty'
+                              : '${((item['dur'] ?? 200) as num).toInt()}m')
                           : ((item['type'] ?? '') == 'EVENT' && item.containsKey('secLeft')
                               ? ((item['active'] == true ? '▶ ' : '') +
                                   boostLeftStr(((item['secLeft'] ?? 0) as num).toInt()))

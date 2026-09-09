@@ -5074,11 +5074,13 @@ Positioned(
                                     ));
                                   })
                                 else
-                                // 🧵 낚싯줄은 개수가 아니라 '남은 길이'를 보여준다.
-                                //    quantity 가 1 이라 예전엔 배지가 아예 안 떠서 잔량을 알 수 없었다.
+                                // 🧵 낚싯줄은 '남은 길이'를 보여준다. 여분을 여러 개 살 수
+                                //    있게 되면서(2026-09-09) 개수도 같이 보여준다 — 길이만 뜨면
+                                //    두 개인지 한 개인지 알 수가 없다(사장님 확인).
                                 if ((itemToShow['type'] ?? '') == 'LINE')
                                   Builder(builder: (_) {
                                     final int d = ((itemToShow!['dur'] ?? 200) as num).toInt();
+                                    final int q = ((itemToShow!['quantity'] ?? 1) as num).toInt();
                                     final Color c = d <= 30
                                         ? Colors.redAccent
                                         : (d <= 80 ? Colors.orangeAccent : Colors.lightGreenAccent);
@@ -5087,7 +5089,8 @@ Positioned(
                                       decoration: BoxDecoration(color: Colors.black87,
                                           borderRadius: BorderRadius.circular(4),
                                           border: Border.all(color: c.withOpacity(0.7), width: 0.8)),
-                                      child: Text('${d}m', style: TextStyle(color: c,
+                                      child: Text(q > 1 ? '${d}m ×$q' : '${d}m',
+                                          style: TextStyle(color: c,
                                           fontSize: 10, fontWeight: FontWeight.bold)),
                                     ));
                                   })
