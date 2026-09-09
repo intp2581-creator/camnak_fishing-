@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'fishing_logic.dart';
 import 'app_version.dart'; // 🔖 지금 쓰고 있는 버전 표시(문의 대응용)
+import 'game_config.dart'; // 🕵️ 숨어서 보기(운영자 전용)
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -129,6 +130,31 @@ Future<void> showSoundSettingsDialog(BuildContext context) {
             ]),
           ),
           actions: [
+            // 🕵️ 운영자 전용 — 광장에서 남들 눈에 안 띄게. 조용히 지켜볼 때 쓴다.
+            //    (GM 계정이 아니면 아예 안 보인다)
+            if (gIsGm)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Text('🕵️ 숨어서 보기',
+                      style: TextStyle(color: Colors.white, fontSize: 15,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 10),
+                  Switch(
+                    value: gGhostMode,
+                    activeColor: _kGold,
+                    onChanged: (v) {
+                      setGhostMode(v);
+                      setLocal(() {});
+                      ScaffoldMessenger.of(dctx).showSnackBar(SnackBar(
+                        content: Text(v
+                            ? '🕵️ 숨어서 보기 켜짐 — 광장을 나갔다 들어오면 적용돼요'
+                            : '👀 숨어서 보기 꺼짐 — 광장을 나갔다 들어오면 보입니다'),
+                      ));
+                    },
+                  ),
+                ]),
+              ),
             // 🔖 지금 이 화면이 어느 버전인지 — 문의가 들어왔을 때
             //    "고쳤는데 왜 그대로냐"를 가리는 데 이것만한 게 없다(2026-09-09).
             Center(

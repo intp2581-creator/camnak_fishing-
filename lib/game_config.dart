@@ -1,5 +1,6 @@
 // ignore_for_file: non_constant_identifier_names
 import 'dart:math' as math;
+import 'dart:html' as html; // 🕵️ 숨어서 보기 설정 저장
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -245,6 +246,27 @@ Map<String, dynamic> makeEmblemBoost() {
     'quantity': 1,
     'desc': '눌러서 활성화하면 1시간 동안 힘·컨트롤·감도가 각각 +10 올라가요.\n낚시터에 있는 동안에만 시간이 줄어요.\n휘장과 함께 적용돼요. (아레나·보스레이드 제외)',
   };
+}
+
+// =========================================================================
+// 🕵️ [숨어서 보기] 운영자가 광장에 있어도 남들 눈에 안 띄게 한다.
+//   왜 필요한가 — 운영자가 나타나면 대화가 끊기고 분위기가 달라진다.
+//   조용히 지켜보거나 확인만 하고 싶을 때 쓴다(2026-09-09 사용자 요청).
+//
+//   원리: 광장 캐릭터는 실시간DB에 자기 정보를 적고 남들이 그걸 읽어 그리는데,
+//   'away'(낚시·아레나 중) 표시가 붙은 사람은 원래부터 안 그린다. 그걸 그대로 쓴다.
+//   → 유저 쪽이 옛 버전이어도 즉시 안 보인다. 친구 목록은 접속표시를 끄는 것으로 감춘다.
+// =========================================================================
+bool gGhostMode = false;   // 운영자 전용. GM 아닌 계정에서는 켜지지 않는다.
+bool gIsGm = false;        // 내 계정이 운영자인가(설정 화면에서 토글을 보일지 판단)
+
+void loadGhostMode() {
+  try { gGhostMode = html.window.localStorage['ghostMode'] == '1'; } catch (_) {}
+}
+
+void setGhostMode(bool on) {
+  gGhostMode = on;
+  try { html.window.localStorage['ghostMode'] = on ? '1' : '0'; } catch (_) {}
 }
 
 /// 🧾 시스템 알림 한 줄 붙이기(게임에서 직접 남길 때).

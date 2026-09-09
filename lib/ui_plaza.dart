@@ -1063,6 +1063,7 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       // 🕵️ 배지 숨김: isGm이어도 users/{uid}.hideGmBadge==true 면 광장에 GM 배지 안 뜸
       //    (부계정으로 조용히 플레이할 때. 권한 자체는 유지)
       _showGmBadge = _isGm && data['hideGmBadge'] != true;
+      gIsGm = _isGm;   // 🕵️ 설정 화면에 '숨어서 보기' 토글을 보일지 판단용
       // 🎓 닉네임 설정을 거친 신규 계정 → 튜토리얼 표식 보장(생성 시 누락 대비)
       if (widget.startTutorial && !data.containsKey('tutStep')) {
         await doc.reference.set({'tutStep': 0, 'tutCleared': false}, SetOptions(merge: true));
@@ -1888,7 +1889,8 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       'y': _charPos.dy,
       'face': _facingRight,
       'dir': _moveDir, // 🚶 이동방향(remote 스프라이트용)
-      'away': _awayFromPlaza, // 🎣 낚시/아레나 중이면 true(자리는 잡되 광장엔 안 그림)
+      // 🕵️ '숨어서 보기'를 켜면 낚시 중일 때와 같은 취급 → 남들 화면에 안 그려진다
+      'away': _awayFromPlaza || gGhostMode,
       't': ServerValue.timestamp,
     }).catchError((Object e) {
       debugPrint('🌐 RTDB WRITE ERR: $e');

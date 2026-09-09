@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'fishing_logic.dart';
+import 'game_config.dart'; // 🕵️ gGhostMode
 
 const Color _kGold = Color(0xFFD4AF37);
 const String _dbUrl =
@@ -45,11 +46,14 @@ StreamSubscription<DatabaseEvent> watchLoginSession(void Function() onKicked) {
 void guildGoOnline({String? nick, String? loc, bool fishing = false, bool sea = false}) {
   final uid = FirebaseAuth.instance.currentUser?.uid;
   if (uid == null) return;
-  final data = <String, Object>{'online': true, 't': ServerValue.timestamp};
+  // 🕵️ '숨어서 보기'를 켜 두면 친구·길드 목록에도 접속으로 안 잡힌다.
+  //   지우지 않고 online:false 로 덮어써야, 켜기 직전에 남아 있던 초록불도 꺼진다.
+  final bool ghost = gGhostMode;
+  final data = <String, Object>{'online': !ghost, 't': ServerValue.timestamp};
   if (loc != null && loc.isNotEmpty) data['loc'] = loc;
   // 🎣👀 관전 진입용: 낚시 중일 때만 true+uid. 낚시가 아니면 명시적으로 false로 덮어 끔.
-  data['fishing'] = fishing;
-  if (fishing) {
+  data['fishing'] = fishing && !ghost;
+  if (fishing && !ghost) {
     data['uid'] = uid;
     data['sea'] = sea;
   }
