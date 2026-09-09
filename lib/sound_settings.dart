@@ -2,6 +2,7 @@
 //    audioManager(fishing_logic.dart)의 설정을 즉시 반영 + localStorage 저장.
 import 'package:flutter/material.dart';
 import 'fishing_logic.dart';
+import 'app_version.dart'; // 🔖 지금 쓰고 있는 버전 표시(문의 대응용)
 
 const Color _kGold = Color(0xFFD4AF37);
 
@@ -128,6 +129,15 @@ Future<void> showSoundSettingsDialog(BuildContext context) {
             ]),
           ),
           actions: [
+            // 🔖 지금 이 화면이 어느 버전인지 — 문의가 들어왔을 때
+            //    "고쳤는데 왜 그대로냐"를 가리는 데 이것만한 게 없다(2026-09-09).
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('버전 $kBuildId',
+                    style: const TextStyle(color: Colors.white24, fontSize: 11)),
+              ),
+            ),
             Center(
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: _kGold, foregroundColor: Colors.black),

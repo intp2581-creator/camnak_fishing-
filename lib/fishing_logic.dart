@@ -385,7 +385,9 @@ class FishingLogic {
       final item = Map<String, dynamic>.from(raw);
       final int addQ = ((item['quantity'] ?? 1) as num).toInt();
       // ⏳ 엠블럼처럼 각자 남은 시간을 따로 세는 것은 합치면 안 된다 — 개별 항목으로.
-      final bool separate = (item['type'] ?? '') == 'EVENT';
+      //    🧵 낚싯줄도 같다. 줄마다 남은 길이가 달라 합치면 하나로 뭉개진다.
+      final String _t = (item['type'] ?? '').toString();
+      final bool separate = _t == 'EVENT' || _t == 'LINE';
       final idx = separate
           ? -1
           : inv.indexWhere((i) => (i is Map) && (i['name'] ?? '') == item['name']);
