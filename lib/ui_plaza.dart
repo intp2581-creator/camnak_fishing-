@@ -1083,7 +1083,10 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       final today = DateTime.now().toIso8601String().substring(0, 10);
       if ((data['lastLoginDate'] ?? '').toString() != today) {
         await doc.reference.set(
-            {'gold': FieldValue.increment(500), 'lastLoginDate': today},
+            {'gold': FieldValue.increment(500), 'lastLoginDate': today,
+             // 🧾 받은 사실을 시스템 탭에도 남긴다(아라 팝업을 그냥 넘겨도 알 수 있게)
+             'systemLog': systemLogAppend(
+                 data['systemLog'], 'gift', '출석 보상 500 KREFT를 받았습니다.')},
             SetOptions(merge: true));
         _gold += 500;
         currentPoints = _gold;

@@ -23,6 +23,10 @@ void main() async {
   } catch (e) {
     debugPrint("파이어베이스 초기화 에러: $e");
   }
+  // 🧾 '이번 접속' 기준 시각을 여기서 못 박는다.
+  //   시스템 탭은 이 시각 이후 알림만 보여준다. 예전엔 채팅창을 처음 그릴 때
+  //   정해져서, 그보다 먼저 들어온 출석 보상 알림이 걸러져 안 보였다.
+  chatSessionStart();
   await loadGameEvent(); // 🎉 이벤트 설정 로드(실패해도 게임엔 지장 없음 — 이벤트만 미적용)
   await loadServerStoreItems(); // 🛒 관리자에서 추가한 상품 로드(실패해도 기존 상점은 정상)
   runApp(const MyApp());

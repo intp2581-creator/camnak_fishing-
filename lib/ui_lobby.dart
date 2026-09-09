@@ -157,6 +157,10 @@ else { greeting = "밤낚시 오셨군요! 🌙"; }
         await docRef.set({
           'gold': FieldValue.increment(500),
           'lastLoginDate': today,
+          // 🧾 아라 팝업은 읽지 않고 넘기는 분이 많아, 받은 사실이 남도록
+          //    시스템 탭에도 적어 둔다(2026-09-09 카피바라님 문의).
+          'systemLog': systemLogAppend(
+              userData['systemLog'], 'gift', '출석 보상 500 KREFT를 받았습니다.'),
         }, SetOptions(merge: true));
       }
 

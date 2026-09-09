@@ -247,6 +247,21 @@ Map<String, dynamic> makeEmblemBoost() {
   };
 }
 
+/// 🧾 시스템 알림 한 줄 붙이기(게임에서 직접 남길 때).
+///   서버 payment.js sysLog 와 같은 모양이어야 화면에서 똑같이 읽힌다.
+///   ⚠️ 배열 안에는 serverTimestamp 를 못 넣는다 → Timestamp.now().
+///   50건만 남긴다(서버 쪽과 같은 규칙).
+List<Map<String, dynamic>> systemLogAppend(dynamic cur, String kind, String msg) {
+  final out = <Map<String, dynamic>>[];
+  if (cur is List) {
+    for (final e in cur) {
+      if (e is Map) out.add(Map<String, dynamic>.from(e));
+    }
+  }
+  out.add({'kind': kind, 'msg': msg, 't': Timestamp.now()});
+  return out.length > 50 ? out.sublist(out.length - 50) : out;
+}
+
 /// 🛡️ 가방 속 기간제 이벤트 아이템의 남은 시간(초). 없으면 0.
 ///    여러 개면 가장 늦게 끝나는 것을 기준으로 한다.
 int eventItemLeftSec(List<dynamic> inventory) {
