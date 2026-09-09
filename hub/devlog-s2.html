@@ -102,6 +102,13 @@
              padding:0 24px;line-height:1.5}
   .scene .on.bottom{top:auto;bottom:6%}
 
+  /* ── 파노라마(초광각 한 장) — 글자를 얹지 않고 아래로 뺀다 ── */
+  .pano{position:relative;line-height:0}
+  .pano>img{width:100%;display:block}
+  .pano .fade{position:absolute;left:0;right:0;bottom:-1px;height:18%;
+       background:linear-gradient(180deg,rgba(0,0,0,0) 0%,var(--bg) 100%);
+       pointer-events:none}
+
   .en{font-family:'Cinzel',serif;font-weight:600;
       font-size:clamp(11px,2.2vw,14px);letter-spacing:.46em;color:#d3c5a0;
       margin:12px 0 0;text-indent:.46em;text-shadow:0 2px 8px #000}
@@ -279,7 +286,24 @@
     </div>
   </div>
 
-  <!-- 🚪 차원의 문 — 광장과 판타지 광장을 오간다 -->
+  <!-- 🏛️ 루미나 회랑 — 네 세계로 통하는 회랑 -->
+  <div class="sechead">
+    <div class="au t-sec" data-t="루미나 회랑">루미나 회랑</div>
+    <p class="en">LUMINA CORRIDOR</p>
+  </div>
+  <div class="pano">
+    <img src="https://kreft.co.kr/assets/devlog/plaza_lumina.webp?v=6" alt="루미나 회랑">
+    <div class="fade"></div>
+  </div>
+  <div class="blk" style="padding:24px 26px 0;word-break:keep-all">
+    <p>차원과 차원이 맞닿는 자리.<br>
+       바닥에 새겨진 마법진은 저마다 다른 세계로 이어집니다.</p>
+    <p>벚꽃이 흩날리는 무릉도원, 구름 위에 뜬 천공의 섬,
+       별이 흐르는 은하수 바다, 빛이 닿지 않는 심연의 동굴.
+       모두 이곳에서 시작됩니다.</p>
+  </div>
+
+  <!-- 🚪 차원의 문 — 민물광장과 루미나 회랑을 오간다 -->
   <div class="sechead" style="padding:34px 26px 26px">
     <div class="au t-name" data-t="차원의 문">차원의 문</div>
     <p class="en">THE GATE</p>
@@ -289,14 +313,14 @@
       <img src="https://kreft.co.kr/assets/devlog/tp_kael.webp?v=6" alt="카엘">
       <div class="cap">
         <div class="au t-name" data-t="카엘">카엘</div>
-        <p class="role">민물광장 → 판타지 광장</p>
+        <p class="role">민물광장 → 루미나 회랑</p>
       </div>
     </div>
     <div class="fig">
       <img src="https://kreft.co.kr/assets/devlog/tp_isild.webp?v=6" alt="이실드">
       <div class="cap">
         <div class="au t-name" data-t="이실드">이실드</div>
-        <p class="role">판타지 광장 → 민물광장</p>
+        <p class="role">루미나 회랑 → 민물광장</p>
       </div>
     </div>
   </div>
