@@ -301,7 +301,7 @@ class _FishingScreenState extends State<FishingScreen>
   }
 
 // 🎒 미끼 교체용 인벤토리 팝업
-  void _showFishingInventoryPopup() {
+  void _showFishingInventoryPopup({bool fromCatch = false}) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
@@ -362,6 +362,15 @@ class _FishingScreenState extends State<FishingScreen>
                     subtitle: Text('잔량: ${bait['quantity']}개', style: const TextStyle(color: Colors.grey)),
                     trailing: isEquipped ? const Icon(Icons.check_circle, color: Color(0xFFD4AF37)) : null,
                     onTap: () {
+                      // 🎣 물고기 결과창에서 온 교체(2026-09-09 백두무궁 제보) —
+                      //    잡힌 낚싯대의 미끼는 물고기가 먹어서 바늘이 비어 있다.
+                      //    줄 감기·미끼 버림 없이, 새 미끼를 끼워 그 자리에서 바로 던진다.
+                      if (fromCatch) {
+                        setState(() { equippedBait = bait; });
+                        Navigator.pop(ctx);
+                        _recastAfterCatch();
+                        return;
+                      }
                       // 🪱 [2026-09-05] 이미 던져둔 미끼는 물속에 있다. 그걸 다른 미끼로
                       //    바꿔치기할 수는 없다(사용자 지적). 줄을 감아 들이고 —
                       //    물속에 있던 미끼는 버려지며 — 새 미끼로 다시 던진다.
@@ -393,7 +402,11 @@ class _FishingScreenState extends State<FishingScreen>
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('닫기', style: TextStyle(color: Colors.grey))),
         ],
       ),
-    );
+      // 🐛 미끼창이 닫히면(선택했든 그냥 닫았든) 멈춘 입질 흐름을 되살린다.
+      //    물고기 결과창에서 캐스팅을 안 누르고 이 창으로 넘어오는 길이 생겨서
+      //    (2026-09-09 미끼교체 버튼), 낚시터 리스트와 같은 안전장치를 단다.
+      //    낚시 도중에 열었을 땐 stalled 판정이 안 걸려 아무 일도 안 한다.
+    ).then((_) => _resumeFishingIfStalled());
   }
 
 // 🧾 시스템 알림 — 화면은 game_config.dart 에 있다(광장과 같은 것을 쓴다).
@@ -4186,25 +4199,33 @@ Positioned(
   Future<void> _consumeBoost(Map<String, dynamic> item, bool isExp, int minutes) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    // ⚡ 시간을 '먼저' 올린다 — 3초 저장 타이머와의 경합 차단(2026-09-09 카피바라 제보).
+    //    예전엔 서버 쓰기가 끝난 뒤에야 전역을 올려서, 그 사이(왕복 ~1초) 3초 저장이
+    //    옛 값(0)을 뒤늦게 서버에 쓰면 '개수만 줄고 효과는 없는' 물약이 됐다.
+    //    전역을 먼저 올리면 어떤 순서로 겹쳐도 저장 타이머는 항상 새 값을 쓴다.
+    final int cur = isExp ? gBoostExpSec : gBoostPtsSec;   // 이미 걸려 있으면 이어서
+    final int sec = (cur > 0 ? cur : 0) + minutes * 60;
+    if (isExp) { gBoostExpSec = sec; } else { gBoostPtsSec = sec; }
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final doc = await ref.get();
       final List<dynamic> inv = List.from(doc.data()?['inventory'] ?? []);
       final int idx = inv.indexWhere((i) => (i['name'] ?? '') == item['name']);
-      if (idx < 0) return;
+      if (idx < 0) {
+        // 가방에 없다 → 방금 올린 시간을 되돌린다(개수도 안 줄었으니 없던 일로)
+        if (isExp) { gBoostExpSec = (gBoostExpSec - minutes * 60).clamp(0, 1 << 31); }
+        else { gBoostPtsSec = (gBoostPtsSec - minutes * 60).clamp(0, 1 << 31); }
+        return;
+      }
 
-      final int qty = (inv[idx]['quantity'] ?? 1) as int;
+      final int qty = ((inv[idx]['quantity'] ?? 1) as num).toInt();
       if (qty > 1) { inv[idx]['quantity'] = qty - 1; } else { inv.removeAt(idx); }
-
-      // 이미 걸려 있으면 남은 시간에 더한다
-      final int cur = isExp ? gBoostExpSec : gBoostPtsSec;
-      final int sec = (cur > 0 ? cur : 0) + minutes * 60;
 
       await ref.update({
         'inventory': inv,
-        if (isExp) 'boostExpSec': sec else 'boostPtsSec': sec,
+        // 전역은 그 사이 1초씩 줄었을 수 있다 — 지금 값을 그대로 쓴다
+        if (isExp) 'boostExpSec': gBoostExpSec else 'boostPtsSec': gBoostPtsSec,
       });
-      if (isExp) { gBoostExpSec = sec; } else { gBoostPtsSec = sec; }
       if (!mounted) return;
       setState(() {});
       // 💬 스낵바는 채팅창에 가려 잘 안 보인다 → 팝업으로(2026-09-02 사용자 요청)
@@ -4213,6 +4234,9 @@ Positioned(
           '${isExp ? '경험치' : 'KREFT'}가 2배로 들어와요.\n\n남은 시간  ${boostLeftStr(isExp ? boostExpLeftSec() : boostPtsLeftSec())}\n\n낚시터에 있는 동안에만 줄어들어요.\n광장이나 상점에 나가면 멈춰요.',
           isExp ? const Color(0xFFB388FF) : const Color(0xFFD4AF37));
     } catch (e) {
+      // 서버 쓰기 실패 → 개수도 안 줄었으니 방금 올린 시간을 되돌린다
+      if (isExp) { gBoostExpSec = (gBoostExpSec - minutes * 60).clamp(0, 1 << 31); }
+      else { gBoostPtsSec = (gBoostPtsSec - minutes * 60).clamp(0, 1 << 31); }
       debugPrint('버프 사용 실패: $e');
     }
   }
@@ -5971,6 +5995,24 @@ void _showTodayMissionInfo() {
                   icon: const Icon(Icons.map, size: 18),
                   label: const Text('낚시터 이동'),
                 ),
+          // 🪱 잡은 김에 바로 미끼를 갈 수 있게 — 실전 낚시 동선(2026-09-09 백두무궁 제보).
+          //    결과창을 닫고 기존 미끼창을 그대로 연다(새 상태 전환 없음).
+          //    같은 미끼를 고르거나 그냥 닫아도, 미끼창의 닫힘 훅이 입질 체인을 되살린다.
+          //    ⚔️ 아레나는 별도 흐름이라 뺀다.
+          if (widget.roomId == null)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal.shade800,
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () {
+                audioManager.playSfx("sfx_click.mp3");
+                Navigator.pop(context); // 결과 팝업 닫고
+                _showFishingInventoryPopup(fromCatch: true); // 🎒 미끼 고르면 바로 캐스팅
+              },
+              icon: const Icon(Icons.autorenew, size: 18),
+              label: const Text('미끼교체'),
+            ),
           // 👆 딱 여기까지입니다! 
           // 🚨 주의: 바로 밑에 있는 1895번 줄 `ElevatedButton(` (캐스팅 버튼)은 1mm도 건드리지 마세요!
           ElevatedButton(
@@ -5983,46 +6025,52 @@ void _showTodayMissionInfo() {
                 _showNotificationPopup('🪱 미끼가 없어요!', '다른 미끼를 장착하거나 상점에서 구매하세요!', Colors.orangeAccent);
                 return;
               }
-
-              setState(() {
-                isFighting = false;
-
-                // 🚨 [핵심 수정] 기존에 있던 isFloatInWater = false; 를 아예 지웠습니다!
-                // 다른 낚싯대들의 찌는 물에 계속 떠 있어야 하니까요!
-                isCasting = true; // 캐스팅 폼만 잡습니다.
-              });
-
-              // 🎣 낚싯대 휘두르는 소리와 애니메이션 실행
-              audioManager.playSfx("sfx_casting.mp3");
-              audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); // 🔊 BGM 재개!
-               _castController.forward(from: 0.0);
-              FishingLive.setPhase('casting'); // 🎣👀 관전: 재캐스팅
-
-              // ⏳ 1.5초 후 찌 안착 및 타이머 재시작
-              Future.delayed(const Duration(milliseconds: 1500), () {
-                if (mounted) {
-                  setState(() {
-                    isCasting = false;
-                    isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; // 안전장치 유지
-                  });
-                  FishingLive.setPhase('waiting', extra: {'rod': -1}); // 🎣👀 관전: 찌 안착 → 대기
-                  // 🎣 대편성·찌·케미를 도중에 바꿨을 수 있으니 캐스팅마다 관전용 meta도 맞춰준다
-                  _syncLiveGear();
-                  
-                  // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
-                  //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)
-                  if (fightingRodIndex != null && !_arenaOver) {
-                    fightingRodIndex = null;
-                    _scheduleNextBite();
-                  }
-                }
-              });
+              _recastAfterCatch();
             },
             child: const Text('캐스팅', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       )
     );
+  }
+
+  /// 🎣 물고기 결과창의 '캐스팅' — 잡힌 그 낚싯대만 다시 던진다.
+  ///   결과창의 미끼교체(즉시 캐스팅)와 같이 쓰려고 버튼에서 꺼냈다(2026-09-09).
+  ///   ⚠️ 내용은 원래 캐스팅 버튼 몸통 그대로 — 상태 전환을 바꾸지 않았다.
+  void _recastAfterCatch() {
+    setState(() {
+      isFighting = false;
+
+      // 🚨 [핵심 수정] 기존에 있던 isFloatInWater = false; 를 아예 지웠습니다!
+      // 다른 낚싯대들의 찌는 물에 계속 떠 있어야 하니까요!
+      isCasting = true; // 캐스팅 폼만 잡습니다.
+    });
+
+    // 🎣 낚싯대 휘두르는 소리와 애니메이션 실행
+    audioManager.playSfx("sfx_casting.mp3");
+    audioManager.playBgm(widget.isSea ? "bgm_sea_fishing.mp3" : "bgm_fresh_fishing.mp3"); // 🔊 BGM 재개!
+    _castController.forward(from: 0.0);
+    FishingLive.setPhase('casting'); // 🎣👀 관전: 재캐스팅
+
+    // ⏳ 1.5초 후 찌 안착 및 타이머 재시작
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) {
+        setState(() {
+          isCasting = false;
+          isFloatInWater = true; if (widget.isFirstTime && !_isTutorialDone) _fishingStep = 4; // 안전장치 유지
+        });
+        FishingLive.setPhase('waiting', extra: {'rod': -1}); // 🎣👀 관전: 찌 안착 → 대기
+        // 🎣 대편성·찌·케미를 도중에 바꿨을 수 있으니 캐스팅마다 관전용 meta도 맞춰준다
+        _syncLiveGear();
+
+        // 🎯 전투 종료 → 바다와 같은 간격으로 다음 입질(랜덤 찌) 재개
+        //    ⚔️ 단, 아레나 종료 후엔 재개 안 함(_scheduleNextBite 안에서도 막지만 이중 안전)
+        if (fightingRodIndex != null && !_arenaOver) {
+          fightingRodIndex = null;
+          _scheduleNextBite();
+        }
+      }
+    });
   }
 }
 
