@@ -64,6 +64,9 @@ function clean(b) {
       ...(i.stats ? {stats: i.stats} : {}),
       ...(i.boost ? {boost: String(i.boost).slice(0, 10)} : {}),
       ...(i.secLeft ? {secLeft: parseInt(i.secLeft, 10) || 0, active: false} : {}),
+      // 🧵 낚싯줄의 남은 길이. 이걸 안 실어 보내면 줄이 '길이 없는' 채로
+      //    가방에 들어간다(2026-09-09 — 상점 구매 경로에도 같은 누락이 있었다).
+      ...(i.dur ? {dur: parseInt(i.dur, 10) || 200} : {}),
     })),
     exp: Math.max(0, parseInt(b.exp, 10) || 0),
     gold: Math.max(0, parseInt(b.gold, 10) || 0),
