@@ -9,6 +9,7 @@ import 'game_config.dart'; // 🎉 이벤트 설정 로더(loadGameEvent)
 // (나머지는 지들끼리 꼬리에 꼬리를 물고 알아서 연결됩니다 ㅋㅋ)
 import 'ui_login.dart';
 import 'magnifier.dart'; // 🔍 폰에서 글씨가 작을 때 쓰는 돋보기
+import 'maintenance_gate.dart'; // 🔧 서버 점검 게이트(config/maintenance)
 
 // 🏢 앱 초기화 및 심장부 (Global Entry Point)
 // 🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩
@@ -67,7 +68,10 @@ class MyApp extends StatelessWidget {
                 child: MagnifierShell(
                   child: FittedBox(
                     fit: BoxFit.contain,
-                    child: SizedBox(width: 1280, height: 720, child: child!),
+                    // 🔧 점검 게이트 — config/maintenance.on 이면 게임 전체를 덮는다.
+                    //    운영자(isGm)는 통과, 점검 해제 시 자동 새로고침(새 버전 수신).
+                    child: SizedBox(width: 1280, height: 720,
+                        child: MaintenanceGate(child: child!)),
                   ),
                 ),
               ),

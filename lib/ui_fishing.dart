@@ -579,6 +579,7 @@ Widget _whisperUnreadBadge() {
 
   
   bool _emblemSynced = false;  // 🛡️ 엠블럼 전역 동기화 1회만
+  Future<void> _recordQueue = Future.value(); // 🚀 잡은 기록 저장 큐(순서 보장)
   Map<String, dynamic>? equippedRod;  
   Map<String, dynamic>? equippedFloat; 
   Map<String, dynamic>? equippedBait;  
@@ -1714,145 +1715,9 @@ Widget _whisperUnreadBadge() {
       if (isSuccess) {
         final user = FirebaseAuth.instance.currentUser;
         if (user != null) {
-          // 1. [아레나 모드] 기록 로직
-          if (widget.roomId != null) {
-            // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후 잡힌 건 미집계 — 점수·보상·메시지 전부 X
-            if (!(arenaTimeLeft <= 0 || _arenaEndedNaturally)) {
-            await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('messages').add({
-              'text': '📢 ${widget.nickname}님이 ${fish['name']} (${fish['size']}${fish['unit']})를 낚았습니다!',
-              'sender': '캠피싱', 
-              'createdAt': FieldValue.serverTimestamp()
-            });
-            
-            // ⚔️ 최대어 모드: 대상 어종만 카운트 (마릿수 모드는 모든 어종 카운트)
-            final bool countsForArena = widget.winCondition != '최대어'
-                || widget.targetFish == null
-                || widget.targetFish == '모든 어종'
-                || fish['name'].toString() == widget.targetFish;
-            if (countsForArena) {
-              double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
-              var pRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(user.uid);
-              var pDoc = await pRef.get();
-
-              double currentMaxSize = pDoc.exists && pDoc.data()!.containsKey('maxSize') ? (pDoc.data()!['maxSize'] ?? 0.0).toDouble() : 0.0;
-              double bestSize = caughtSize > currentMaxSize ? caughtSize : currentMaxSize;
-
-              _arenaCatch++;   // ⚔️📋 접속 기록에 남길 마릿수
-              await pRef.set({
-                'nickname': widget.nickname,
-                'score': FieldValue.increment(1),
-                'maxSize': bestSize,
-                'updatedAt': FieldValue.serverTimestamp()
-              }, SetOptions(merge: true));
-            }
-            // 🎁 아레나 = 경험치 던전: 잡은 물고기 exp·포인트를 일반 낚시터의 arenaRewardMult(1.5)배로 지급.
-            //    모든 catch에 적용(최대어 모드에서 대상어 아니어도 잡았으면 보상). maxCatch 개인기록은 제외(평준화 장비).
-            final int aExp = ((fish['exp'] as int) * arenaRewardMult).round();
-            final int aPts = ((fish['pts'] as int) * arenaRewardMult).round();
-            await FirebaseFirestore.instance.collection('users').doc(user.uid)
-                .set({'exp': FieldValue.increment(aExp), 'gold': FieldValue.increment(aPts)}, SetOptions(merge: true));
-            } // 🐛 아레나 종료 후 미집계 가드 닫기
-          }
-          // 2. [일반 낚시터 모드] 기록 로직
-          else {
-            final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-            final doc = await docRef.get();
-            if (doc.exists) {
-              var data = doc.data() as Map<String, dynamic>;
-              double currentMaxSize = 0.0;
-              if (data.containsKey('maxCatch') && data['maxCatch'].containsKey(fish['name'])) {
-                currentMaxSize = (data['maxCatch'][fish['name']]['size'] ?? 0.0).toDouble();
-              }
-              double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
-              if (caughtSize > currentMaxSize) {
-                // 🏆 내 새 기록을 쓰기 '전'에 전체 1위와 비교 → 역대 최대어 갱신이면 실시간 자막 방송
-                //    (운영/테스트 계정은 data['hideFromRank']로 즉시 제외 — 추가 읽기 없음)
-                await _maybeBroadcastRecord(fish['name'].toString(), caughtSize,
-                    (fish['unit'] ?? 'Cm').toString(), data['hideFromRank'] == true);
-                // ⚡ 개인 버프(물약·카드) 반영 — 아레나는 위 분기에서 따로 처리(평준화)
-                final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
-                final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
-                await docRef.set({
-                  'exp': FieldValue.increment(gExp),
-                  'gold': FieldValue.increment(gPts),
-                  'maxCatch': {fish['name']: {'size': caughtSize, 'date': DateTime.now().toIso8601String().substring(0, 10)}}
-                }, SetOptions(merge: true));
-              } else {
-                final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
-                final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
-                await docRef.update({'exp': FieldValue.increment(gExp), 'gold': FieldValue.increment(gPts)});
-              }
-              // 🎓 튜토리얼 '첫 출조'(나루, tutStep 3) — 첫 고기 잡으면 미션 완료 기록
-              //    안내 팝업은 광장 복귀 시 표시(_refreshTutFromDb) — 전투 오버레이 위 모달 충돌 방지
-              if (_myTutStep == 3 && !_tutFishDone) {
-                _tutFishDone = true;
-                await docRef.set({'tutCleared': true}, SetOptions(merge: true));
-              }
-              // 🎖️ #13 6대장 누적 카운트 (승급 퀘스트용)
-              //    ⛔ 다음 승급 자격 레벨에 도달한 뒤부터만 카운트 (저렙에서 미리 쌓이는 것 방지)
-              if (daejangFish.contains(fish['name'])) {
-                final nextTier = nextPromotion(_myRank);
-                final reqLv = (nextTier?['level'] as int?) ?? 99999; // 최고 칭호면 카운트 안 함
-                if (_currentLevel >= reqLv) {
-                  await docRef.set({
-                    'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
-                  }, SetOptions(merge: true));
-                  // 🎉 방금 이 한 마리로 승급 조건(6대장 각 need마리)을 모두 채웠으면 안내 팝업
-                  final need = (nextTier?['need'] as int?) ?? 99999;
-                  final dcMap = (data['daejangCatch'] is Map)
-                      ? Map<String, dynamic>.from(data['daejangCatch'])
-                      : <String, dynamic>{};
-                  int cnt(String n) => (dcMap[n] is num) ? (dcMap[n] as num).toInt() : 0;
-                  final doneBefore = daejangFish.every((n) => cnt(n) >= need); // 잡기 전 이미 완료였나
-                  final doneAfter = daejangFish
-                      .every((n) => (cnt(n) + (n == fish['name'] ? 1 : 0)) >= need); // 이번 마리 포함
-                  if (!doneBefore && doneAfter) {
-                    _showNotificationPopup('🎖️ 승급 퀘스트 달성!',
-                        '6대장을 모두 잡았어요! 🎉\n광장의 아라에게 가서\n[${nextTier?['rank']}] 승급을 받으세요!',
-                        const Color(0xFFD4AF37));
-                  }
-                }
-              }
-              // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
-              if (_guildId.isNotEmpty) {
-                final guildRef = FirebaseFirestore.instance.collection('guilds').doc(_guildId);
-                final curWeek = FishingLogic.weekKey(DateTime.now());
-                try {
-                  await FirebaseFirestore.instance.runTransaction((tx) async {
-                    final gs = await tx.get(guildRef);
-                    if (!gs.exists) return;
-                    final wk = (gs.data()?['weekKey'] ?? '').toString();
-                    final prevWs = (gs.data()?['weeklyScore'] is num)
-                        ? (gs.data()!['weeklyScore'] as num).toInt()
-                        : 0;
-                    final bool newWeek = wk != curWeek;
-                    final ws = newWeek ? 1 : prevWs + 1; // 새 주면 1부터
-                    final Map<String, dynamic> gUpdate = {
-                      'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
-                      'weeklyScore': ws,
-                      'weekKey': curWeek,
-                    };
-                    // 🏆 새 주 첫 낚시 → 지난주 최종 점수 보존(리그 정산이 롤오버 뒤에도 정확하게 읽도록)
-                    if (newWeek && wk.isNotEmpty && prevWs > 0) {
-                      gUpdate['lastWeekScore'] = prevWs;
-                      gUpdate['lastWeekKey'] = wk;
-                    }
-                    tx.update(guildRef, gUpdate);
-                    // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화
-                    final myUid = FirebaseAuth.instance.currentUser?.uid;
-                    if (myUid != null) {
-                      tx.set(
-                          guildRef.collection('members').doc(myUid),
-                          {'contribution': FieldValue.increment(FishingLogic.guildExpPerCatch), 'level': _currentLevel},
-                          SetOptions(merge: true));
-                    }
-                  });
-                } catch (e) {
-                  debugPrint('🛡️ 길드 점수 누적 실패: $e');
-                }
-              }
-            }
-          }
+          // 🚀 서버 기록은 뒤에서 순서대로(큐) — 결과창 먼저.
+          //   연달아 잡을 때 최대어 읽기/쓰기가 서로 엉키지 않도록 직렬화한다.
+          _recordQueue = _recordQueue.then((_) => _recordCatchToServer(fish));
           // 성공 후 후속 처리
           HapticFeedback.heavyImpact(); 
           audioManager.playSfx("sfx_landing_success.mp3"); 
@@ -2662,6 +2527,159 @@ Widget _whisperUnreadBadge() {
         ),
       ),
     ).then((_) => _resumeFishingIfStalled()); // 🐛 이동 없이 닫혔으면 멈춘 낚시 되살리기
+  }
+
+
+  // 🚀 잡은 뒤 서버 기록(경험치·최대어·길드·아레나) — HIT 결과창과 분리했다.
+  //   예전엔 이 기록(왕복 5~8번 + 길드 트랜잭션 재시도)이 끝나야 결과창이 떠서
+  //   릴 소리만 나고 10~30초 뒤에 HIT가 떴다(2026-09-09 따다기 제보).
+  //   표시 값은 전부 로컬 계산이라 기다릴 이유가 없다. 내용은 그대로 옮겼다.
+  Future<void> _recordCatchToServer(Map<String, dynamic> fish) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+    // 1. [아레나 모드] 기록 로직
+    if (widget.roomId != null) {
+      // ⚔️ [버그픽스] 아레나 시간 종료(0:00) 후 잡힌 건 미집계 — 점수·보상·메시지 전부 X
+      if (!(arenaTimeLeft <= 0 || _arenaEndedNaturally)) {
+      await FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('messages').add({
+        'text': '📢 ${widget.nickname}님이 ${fish['name']} (${fish['size']}${fish['unit']})를 낚았습니다!',
+        'sender': '캠피싱', 
+        'createdAt': FieldValue.serverTimestamp()
+      });
+      
+      // ⚔️ 최대어 모드: 대상 어종만 카운트 (마릿수 모드는 모든 어종 카운트)
+      final bool countsForArena = widget.winCondition != '최대어'
+          || widget.targetFish == null
+          || widget.targetFish == '모든 어종'
+          || fish['name'].toString() == widget.targetFish;
+      if (countsForArena) {
+        double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
+        var pRef = FirebaseFirestore.instance.collection('arenas').doc(widget.roomId).collection('participants').doc(user.uid);
+        var pDoc = await pRef.get();
+
+        double currentMaxSize = pDoc.exists && pDoc.data()!.containsKey('maxSize') ? (pDoc.data()!['maxSize'] ?? 0.0).toDouble() : 0.0;
+        double bestSize = caughtSize > currentMaxSize ? caughtSize : currentMaxSize;
+
+        _arenaCatch++;   // ⚔️📋 접속 기록에 남길 마릿수
+        await pRef.set({
+          'nickname': widget.nickname,
+          'score': FieldValue.increment(1),
+          'maxSize': bestSize,
+          'updatedAt': FieldValue.serverTimestamp()
+        }, SetOptions(merge: true));
+      }
+      // 🎁 아레나 = 경험치 던전: 잡은 물고기 exp·포인트를 일반 낚시터의 arenaRewardMult(1.5)배로 지급.
+      //    모든 catch에 적용(최대어 모드에서 대상어 아니어도 잡았으면 보상). maxCatch 개인기록은 제외(평준화 장비).
+      final int aExp = ((fish['exp'] as int) * arenaRewardMult).round();
+      final int aPts = ((fish['pts'] as int) * arenaRewardMult).round();
+      await FirebaseFirestore.instance.collection('users').doc(user.uid)
+          .set({'exp': FieldValue.increment(aExp), 'gold': FieldValue.increment(aPts)}, SetOptions(merge: true));
+      } // 🐛 아레나 종료 후 미집계 가드 닫기
+    }
+    // 2. [일반 낚시터 모드] 기록 로직
+    else {
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await docRef.get();
+      if (doc.exists) {
+        var data = doc.data() as Map<String, dynamic>;
+        double currentMaxSize = 0.0;
+        if (data.containsKey('maxCatch') && data['maxCatch'].containsKey(fish['name'])) {
+          currentMaxSize = (data['maxCatch'][fish['name']]['size'] ?? 0.0).toDouble();
+        }
+        double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
+        if (caughtSize > currentMaxSize) {
+          // 🏆 내 새 기록을 쓰기 '전'에 전체 1위와 비교 → 역대 최대어 갱신이면 실시간 자막 방송
+          //    (운영/테스트 계정은 data['hideFromRank']로 즉시 제외 — 추가 읽기 없음)
+          await _maybeBroadcastRecord(fish['name'].toString(), caughtSize,
+              (fish['unit'] ?? 'Cm').toString(), data['hideFromRank'] == true);
+          // ⚡ 개인 버프(물약·카드) 반영 — 아레나는 위 분기에서 따로 처리(평준화)
+          final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
+          final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
+          await docRef.set({
+            'exp': FieldValue.increment(gExp),
+            'gold': FieldValue.increment(gPts),
+            'maxCatch': {fish['name']: {'size': caughtSize, 'date': DateTime.now().toIso8601String().substring(0, 10)}}
+          }, SetOptions(merge: true));
+        } else {
+          final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
+          final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
+          await docRef.update({'exp': FieldValue.increment(gExp), 'gold': FieldValue.increment(gPts)});
+        }
+        // 🎓 튜토리얼 '첫 출조'(나루, tutStep 3) — 첫 고기 잡으면 미션 완료 기록
+        //    안내 팝업은 광장 복귀 시 표시(_refreshTutFromDb) — 전투 오버레이 위 모달 충돌 방지
+        if (_myTutStep == 3 && !_tutFishDone) {
+          _tutFishDone = true;
+          await docRef.set({'tutCleared': true}, SetOptions(merge: true));
+        }
+        // 🎖️ #13 6대장 누적 카운트 (승급 퀘스트용)
+        //    ⛔ 다음 승급 자격 레벨에 도달한 뒤부터만 카운트 (저렙에서 미리 쌓이는 것 방지)
+        if (daejangFish.contains(fish['name'])) {
+          final nextTier = nextPromotion(_myRank);
+          final reqLv = (nextTier?['level'] as int?) ?? 99999; // 최고 칭호면 카운트 안 함
+          if (_currentLevel >= reqLv) {
+            await docRef.set({
+              'daejangCatch': {fish['name'].toString(): FieldValue.increment(1)}
+            }, SetOptions(merge: true));
+            // 🎉 방금 이 한 마리로 승급 조건(6대장 각 need마리)을 모두 채웠으면 안내 팝업
+            final need = (nextTier?['need'] as int?) ?? 99999;
+            final dcMap = (data['daejangCatch'] is Map)
+                ? Map<String, dynamic>.from(data['daejangCatch'])
+                : <String, dynamic>{};
+            int cnt(String n) => (dcMap[n] is num) ? (dcMap[n] as num).toInt() : 0;
+            final doneBefore = daejangFish.every((n) => cnt(n) >= need); // 잡기 전 이미 완료였나
+            final doneAfter = daejangFish
+                .every((n) => (cnt(n) + (n == fish['name'] ? 1 : 0)) >= need); // 이번 마리 포함
+            if (!doneBefore && doneAfter) {
+              _showNotificationPopup('🎖️ 승급 퀘스트 달성!',
+                  '6대장을 모두 잡았어요! 🎉\n광장의 아라에게 가서\n[${nextTier?['rank']}] 승급을 받으세요!',
+                  const Color(0xFFD4AF37));
+            }
+          }
+        }
+        // 🛡️ 길드원이면 길드 경험치 + 주간 리그 점수 누적 (마릿수)
+        if (_guildId.isNotEmpty) {
+          final guildRef = FirebaseFirestore.instance.collection('guilds').doc(_guildId);
+          final curWeek = FishingLogic.weekKey(DateTime.now());
+          try {
+            await FirebaseFirestore.instance.runTransaction((tx) async {
+              final gs = await tx.get(guildRef);
+              if (!gs.exists) return;
+              final wk = (gs.data()?['weekKey'] ?? '').toString();
+              final prevWs = (gs.data()?['weeklyScore'] is num)
+                  ? (gs.data()!['weeklyScore'] as num).toInt()
+                  : 0;
+              final bool newWeek = wk != curWeek;
+              final ws = newWeek ? 1 : prevWs + 1; // 새 주면 1부터
+              final Map<String, dynamic> gUpdate = {
+                'guildExp': FieldValue.increment(FishingLogic.guildExpPerCatch),
+                'weeklyScore': ws,
+                'weekKey': curWeek,
+              };
+              // 🏆 새 주 첫 낚시 → 지난주 최종 점수 보존(리그 정산이 롤오버 뒤에도 정확하게 읽도록)
+              if (newWeek && wk.isNotEmpty && prevWs > 0) {
+                gUpdate['lastWeekScore'] = prevWs;
+                gUpdate['lastWeekKey'] = wk;
+              }
+              tx.update(guildRef, gUpdate);
+              // 🏅 멤버 기여도(=길드에 쌓은 경험치) 누적 + 레벨 최신화
+              final myUid = FirebaseAuth.instance.currentUser?.uid;
+              if (myUid != null) {
+                tx.set(
+                    guildRef.collection('members').doc(myUid),
+                    {'contribution': FieldValue.increment(FishingLogic.guildExpPerCatch), 'level': _currentLevel},
+                    SetOptions(merge: true));
+              }
+            });
+          } catch (e) {
+            debugPrint('🛡️ 길드 점수 누적 실패: $e');
+          }
+        }
+      }
+    }
+    } catch (e) {
+      debugPrint('🎣 잡은 기록 저장 실패: $e');
+    }
   }
 
   // 🎣 낚시가 멈춘 채 방치된 상태면 입질 흐름을 되살린다.
@@ -7320,6 +7338,7 @@ class _RankingTickerState extends State<RankingTicker> with SingleTickerProvider
   double _textW = 0;
   double _lastW = 0;
   Timer? _eventCycle;
+  StreamSubscription? _cfgSub;       // 📢 줄광고 문구 실시간 구독
   static const double _pxPerSec = 85; // 자막 속도(px/초)
   static const Duration _eventEvery = Duration(minutes: 5); // 이벤트 안내 주기
 
@@ -7337,11 +7356,26 @@ class _RankingTickerState extends State<RankingTicker> with SingleTickerProvider
     // 이벤트 안내: 진입 시 1회 + 5분마다 큐에 넣음
     WidgetsBinding.instance.addPostFrameCallback((_) => _enqueueEvent());
     _eventCycle = Timer.periodic(_eventEvery, (_) => _enqueueEvent());
+    // 📢 줄광고(betaNotice) 실시간 구독 — 문구가 바뀌면 캐시를 갱신해
+    //    다음 5분 회전부터 새 문구가 나간다. 단 「점검」이 들어간 문구만은
+    //    기다리지 않고 즉시 한 번 태운다(2026-09-09 — 점검 예고가 화면 이동
+    //    없이는 안 보이던 문제. 일반 안내는 5분 주기 그대로, 사장님 결정).
+    _cfgSub = FirebaseFirestore.instance
+        .collection('config').doc('event').snapshots().listen((d) {
+      final v = ((d.data()?['betaNotice']) ?? '').toString();
+      if (v == gBetaNotice) return;
+      gBetaNotice = v;
+      if (v.contains('점검') && v.trim().isNotEmpty && mounted) {
+        _queue.add('📢 ${v.trim()}');
+        _tryNext();
+      }
+    });
   }
 
   @override
   void dispose() {
     _eventCycle?.cancel();
+    _cfgSub?.cancel();
     _ctrl.dispose();
     super.dispose();
   }
