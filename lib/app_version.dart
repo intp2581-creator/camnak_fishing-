@@ -14,7 +14,7 @@ import 'dart:js_util' as js_util;
 import 'package:flutter/material.dart';
 
 /// ⚠️ 배포마다 올리는 빌드 식별자 (web/appver.json 과 같은 값으로 유지)
-const String kBuildId = '20260701-536';
+const String kBuildId = '20260701-537';
 
 bool _updateChecked = false;
 
@@ -39,30 +39,37 @@ Future<void> checkAppUpdate(BuildContext context) async {
       if (html.window.localStorage['reloadedFor'] == serverBuild) return;
     } catch (_) {}
     if (!context.mounted) return;
+    // 🔒 넘길 수 없게 한다 — 예전엔 [나중에]와 바깥 터치로 빠져나갈 수 있어서,
+    //    고쳐서 배포해도 옛 버전으로 계속 플레이하다 "또 안 되는데요"가 나왔다
+    //    (2026-09-09 카피바라님 물약 건 · 하루에 일곱 번 배포한 날).
     await showDialog(
       context: context,
-      barrierDismissible: true,
-      builder: (c) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
-        title: const Text('🎉 새 버전이 나왔어요!',
-            style: TextStyle(color: Color(0xFFD4AF37), fontSize: 17, fontWeight: FontWeight.bold)),
-        content: const Text('업데이트가 있어요.\n새로고침하면 최신 버전으로 즐길 수 있어요!',
-            style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(c),
-            child: const Text('나중에', style: TextStyle(color: Colors.white54)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black),
-            onPressed: () => forceReloadLatest(serverBuild),
-            child: const Text('새로고침', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
+      barrierDismissible: false,
+      builder: (c) => PopScope(
+        canPop: false, // 뒤로가기로도 못 닫는다
+        child: AlertDialog(
+          backgroundColor: const Color(0xFF1A1A1A),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+          title: const Text('🎉 새 버전이 나왔어요!',
+              style: TextStyle(color: Color(0xFFD4AF37), fontSize: 17, fontWeight: FontWeight.bold)),
+          content: const Text(
+              '업데이트가 있어요.\n새로고침하면 최신 버전으로 즐길 수 있어요!\n\n'
+              '이전 버전으로는 이미 고쳐진 문제가 그대로 보일 수 있어요.',
+              style: TextStyle(color: Colors.white70, fontSize: 15, height: 1.5)),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 13)),
+              onPressed: () => forceReloadLatest(serverBuild),
+              child: const Text('새로고침',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
       ),
     );
   } catch (_) {
