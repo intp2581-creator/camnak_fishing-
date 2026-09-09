@@ -2087,7 +2087,24 @@ Widget _whisperUnreadBadge() {
       int dur = (inv[idx]['dur'] is num) ? (inv[idx]['dur'] as num).toInt() : 200;
       dur -= 10;
       if (dur <= 0) {
-        inv.removeAt(idx); // 줄 끊어짐 → 인벤에서 제거
+        // 🧵 여분이 있으면 그 자리에서 새 줄로 갈아 끼운다 — 대기실로 나갈 필요가 없다.
+        //    ⚠️ 예전엔 묶음을 통째로 지웠다. 여분을 살 수 있게 되면(2026-09-09) 두 개를
+        //       갖고 있다가 한 번 끊어질 때 둘 다 잃는 셈이 된다.
+        final int q = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 1;
+        if (q > 1) {
+          inv[idx]['quantity'] = q - 1;
+          inv[idx]['dur'] = kLineDurDefault;
+          final Map<String, dynamic> next = Map<String, dynamic>.from(inv[idx] as Map);
+          if (mounted) setState(() => equippedLine = next);
+          globalEquippedLine = next;
+          await userDoc.update({'inventory': inv});
+          if (mounted) {
+            _baitToast('🧵 줄이 끊어져 새 줄로 갈아 끼웠어요 (여분 ${q - 1}개)',
+                Colors.orangeAccent);
+          }
+          return;
+        }
+        inv.removeAt(idx); // 여분 없음 → 인벤에서 제거
         if (mounted) setState(() => equippedLine = null);
         globalEquippedLine = null;
         await userDoc.update({'inventory': inv});
