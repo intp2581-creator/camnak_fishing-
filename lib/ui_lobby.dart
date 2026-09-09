@@ -1853,6 +1853,14 @@ class _StoreScreenState extends State<StoreScreen> {
         if (globalEquippedSkin?['name'] == name) globalEquippedSkin = null;
         if (globalEquippedSunglasses?['name'] == name) globalEquippedSunglasses = null;
         if (globalEquippedBadge?['name'] == name) globalEquippedBadge = null;
+        // 🧵 판 물건이 계속 '장착 중'으로 남던 슬롯들 — 가방엔 없는데 끼고 있는 셈이라
+        //    낚싯줄은 소모 처리가 엉키고, 뜰채·벨트 등은 없는 효과가 붙어 있었다.
+        if (globalEquippedLine?['name'] == name) globalEquippedLine = null;
+        if (globalEquippedNet?['name'] == name) globalEquippedNet = null;
+        if (globalEquippedBelt?['name'] == name) globalEquippedBelt = null;
+        if (globalEquippedGloves?['name'] == name) globalEquippedGloves = null;
+        if (globalEquippedCooler?['name'] == name) globalEquippedCooler = null;
+        if (globalEquippedGroundbait?['name'] == name) globalEquippedGroundbait = null;
       }
 
       if (!mounted) return;
@@ -2089,14 +2097,17 @@ class _StoreScreenState extends State<StoreScreen> {
         int addQty = item['quantity'] ?? 1;
         inventory[existingIndex]['quantity'] = currentQty + addQty;
       } else {
-        inventory.add({
-          'name': item['name'], 
-          'category': item['category'], 
-          'type': item['type'], 
-          'stats': item['stats'], 
-          'icon': item['icon'], 
-          'quantity': item['quantity'] ?? 1
-        });
+        // 🛒 정의를 통째로 복사한다.
+        //   ⚠️ 예전엔 name/category/type/stats/icon/quantity 여섯 개만 옮겨 적어서,
+        //      그 목록에 없는 필드가 조용히 사라졌다. 낚싯줄의 dur(줄 길이 200m),
+        //      물약·카드의 boost 같은 것들이다. 새 아이템을 넣을 때마다 같은 사고가
+        //      되풀이되므로, 목록을 늘리는 대신 정의를 그대로 옮긴다(2026-09-09 제보).
+        //      price·reqLevel 은 상점에서만 쓰는 값이라 가방엔 넣지 않는다.
+        final Map<String, dynamic> newItem = Map<String, dynamic>.from(item)
+          ..remove('price')
+          ..remove('reqLevel');
+        newItem['quantity'] = item['quantity'] ?? 1;
+        inventory.add(newItem);
       }
       
       await FirebaseFirestore.instance.collection('users').doc(user.uid).update({

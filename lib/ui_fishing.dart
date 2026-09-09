@@ -1223,33 +1223,46 @@ Widget _whisperUnreadBadge() {
     if (!gEmblemOn) return;   // 켜져 있을 때만 줄어드니 저장할 것도 그때뿐
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final inv = List<dynamic>.from(_latestInventory);
-      // 🛡️ '지금 켠 그 엠블럼' 하나만 건드린다.
-      //    예전엔 EVENT+secLeft 인 항목을 전부 돌며 같은 값으로 덮어쓰고,
-      //    남은 시간이 0이면 전부 지웠다 → 손도 안 댄 엠블럼까지 사라졌다.
-      int i = -1;
-      if (gEmblemId.isNotEmpty) {
-        i = inv.indexWhere((x) => x is Map && (x['eid'] ?? '') == gEmblemId);
-      }
-      if (i < 0) {
-        // eid 가 아직 없는 예전 엠블럼 — 켜져 있는 것 하나만 찾는다.
-        i = inv.indexWhere((x) => x is Map &&
-            (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft') &&
-            x['active'] == true);
-      }
-      if (i < 0) return;   // 못 찾으면 아무것도 지우지 않는다(안전)
-      if (gEmblemSec <= 0) {
-        inv.removeAt(i);
+      // ⚠️ 3초마다 '가방 전체'를 덮어쓰는 자리다. 예전엔 화면이 들고 있던 사본
+      //    (_latestInventory)을 그대로 썼는데, 그 사본이 조금이라도 낡아 있으면
+      //    그 사이 다른 데서 늘어난 물건(상점에서 산 것 등)이 통째로 사라진다.
+      //    반드시 트랜잭션 안에서 '방금 읽은' 가방을 고쳐 쓴다 — 도중에 누가
+      //    가방을 바꾸면 트랜잭션이 다시 읽고 재시도하므로 남의 변경을 지우지 않는다.
+      bool used = false;   // 이번에 다 써서 없앴나(뒷정리는 트랜잭션 밖에서)
+      List<dynamic> after = const [];
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+        // 🛡️ '지금 켠 그 엠블럼' 하나만 건드린다.
+        //    예전엔 EVENT+secLeft 인 항목을 전부 돌며 같은 값으로 덮어쓰고,
+        //    남은 시간이 0이면 전부 지웠다 → 손도 안 댄 엠블럼까지 사라졌다.
+        int i = -1;
+        if (gEmblemId.isNotEmpty) {
+          i = inv.indexWhere((x) => x is Map && (x['eid'] ?? '') == gEmblemId);
+        }
+        if (i < 0) {
+          // eid 가 아직 없는 예전 엠블럼 — 켜져 있는 것 하나만 찾는다.
+          i = inv.indexWhere((x) => x is Map &&
+              (x['type'] ?? '') == 'EVENT' && x.containsKey('secLeft') &&
+              x['active'] == true);
+        }
+        if (i < 0) return;   // 못 찾으면 아무것도 지우지 않는다(안전)
+        if (gEmblemSec <= 0) {
+          inv.removeAt(i);
+          used = true;
+        } else {
+          inv[i] = {...inv[i] as Map, 'secLeft': gEmblemSec, 'active': gEmblemOn};
+        }
+        tx.update(ref, {'inventory': inv});
+        after = inv;
+      });
+      if (used) {
         // 🛡️ 다 쓴 엠블럼은 흔적을 남기지 않는다. 0초가 전역에 남아 있으면
         //    다음 엠블럼을 켤 때 그 0초를 물려받아 같이 없어졌다.
         gEmblemSec = 0; gEmblemOn = false; gEmblemName = ''; gEmblemId = '';
-        await ref.update({'inventory': inv});
-        syncEmblemFromInventory(inv);   // 가방에 남은 엠블럼이 있으면 그것으로
+        syncEmblemFromInventory(after);   // 가방에 남은 엠블럼이 있으면 그것으로
         if (mounted) setState(() {});
-        return;
       }
-      inv[i] = {...inv[i] as Map, 'secLeft': gEmblemSec, 'active': gEmblemOn};
-      await ref.update({'inventory': inv});
     } catch (_) {}
   }
 
