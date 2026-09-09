@@ -2653,6 +2653,34 @@ Widget _whisperUnreadBadge() {
           currentMaxSize = (data['maxCatch'][fish['name']]['size'] ?? 0.0).toDouble();
         }
         double caughtSize = double.tryParse(fish['size'].toString()) ?? 0.0;
+        final String today = DateTime.now().toIso8601String().substring(0, 10);
+        // 🏅 어종별 내 기록 TOP 3 — 크기 내림차순.
+        //   왜 두는가: maxCatch 는 값 하나만 들고 있어서, 덮어쓰면 이전 기록이
+        //   서버 어디에도 안 남는다. 그래서 잘못 세워진 기록을 되돌릴 방법이
+        //   없었다(2026-09-09 엠블럼 중복 사건에서 드러남).
+        //   3위까지만 두면 자기 기록을 하루에 세 번 넘게 깨는 일이 드물어 충분하고,
+        //   문서가 커지면 실시간으로 계속 흐르므로 필드 이름을 s/d 로 짧게 쓴다.
+        final Map<String, dynamic> topAll =
+            (data['maxCatchTop'] is Map) ? Map<String, dynamic>.from(data['maxCatchTop']) : {};
+        final List<Map<String, dynamic>> mine = [];
+        final raw = topAll[fish['name']];
+        if (raw is List) {
+          for (final e in raw) {
+            if (e is Map && e['s'] is num) {
+              mine.add({'s': (e['s'] as num).toDouble(), 'd': (e['d'] ?? '').toString()});
+            }
+          }
+        }
+        // 옛 계정은 목록이 비어 있다 — 지금 1위를 씨앗으로 넣어 준다.
+        if (mine.isEmpty && currentMaxSize > 0) {
+          final String d0 =
+              (data['maxCatch']?[fish['name']]?['date'] ?? '').toString();
+          mine.add({'s': currentMaxSize, 'd': d0});
+        }
+        mine.add({'s': caughtSize, 'd': today});
+        mine.sort((a, b) => (b['s'] as double).compareTo(a['s'] as double));
+        final List<Map<String, dynamic>> top3 = mine.take(3).toList();
+
         if (caughtSize > currentMaxSize) {
           // 🏆 내 새 기록을 쓰기 '전'에 전체 1위와 비교 → 역대 최대어 갱신이면 실시간 자막 방송
           //    (운영/테스트 계정은 data['hideFromRank']로 즉시 제외 — 추가 읽기 없음)
@@ -2664,12 +2692,20 @@ Widget _whisperUnreadBadge() {
           await docRef.set({
             'exp': FieldValue.increment(gExp),
             'gold': FieldValue.increment(gPts),
-            'maxCatch': {fish['name']: {'size': caughtSize, 'date': DateTime.now().toIso8601String().substring(0, 10)}}
+            'maxCatch': {fish['name']: {'size': caughtSize, 'date': today}},
+            'maxCatchTop': {fish['name']: top3},
           }, SetOptions(merge: true));
         } else {
           final int gExp = boostExpOn ? (fish['exp'] as int) * kBoostExpMult ~/ 1 : fish['exp'] as int;
           final int gPts = boostPtsOn ? (fish['pts'] as int) * kBoostPtsMult ~/ 1 : fish['pts'] as int;
-          await docRef.update({'exp': FieldValue.increment(gExp), 'gold': FieldValue.increment(gPts)});
+          // 🏅 1위는 아니어도 2·3위에 들 수 있다. 목록이 바뀔 때만 같이 쓴다
+          //    (쓰기 횟수는 그대로 — 어차피 경험치·KREFT 때문에 한 번 쓴다).
+          final bool changed = top3.any((e) => e['d'] == today && e['s'] == caughtSize);
+          await docRef.set({
+            'exp': FieldValue.increment(gExp),
+            'gold': FieldValue.increment(gPts),
+            if (changed) 'maxCatchTop': {fish['name']: top3},
+          }, SetOptions(merge: true));
         }
         // 🎓 튜토리얼 '첫 출조'(나루, tutStep 3) — 첫 고기 잡으면 미션 완료 기록
         //    안내 팝업은 광장 복귀 시 표시(_refreshTutFromDb) — 전투 오버레이 위 모달 충돌 방지
