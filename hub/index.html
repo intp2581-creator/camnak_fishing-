@@ -29,6 +29,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
 <style>
   :root{
     --blue:#2fb8e6; --blue-deep:#1a9fd4; --blue-ink:#0f6f96;
@@ -117,6 +118,53 @@
   .hslide.art .scrim{background:linear-gradient(0deg,rgba(6,18,25,.5) 0%,rgba(6,18,25,0) 20%)}
   .hslide.art .inner{justify-content:flex-end;padding-bottom:84px}
   .hslide.art h2,.hslide.art .sub,.hslide.art .tag{display:none}
+
+  /* ✨ 판타지 크래프트 슬라이드 — 그림 가운데가 비어 있어 금박 제목을 얹는다.
+        (개발일지 devlog-s2.html 의 표지와 같은 글씨. 이미지에 굽지 않아 어느 화면에서도 선명하다) */
+  .hslide.fk .scrim{background:
+    radial-gradient(56% 76% at 50% 44%,rgba(6,12,25,.60) 0%,rgba(6,12,25,.26) 56%,rgba(6,12,25,0) 100%),
+    linear-gradient(0deg,rgba(6,18,25,.52) 0%,rgba(6,18,25,0) 24%)}
+  .hslide.fk .inner{align-items:center;text-align:center;justify-content:center;
+    padding-top:66px;padding-bottom:58px}
+  .au{position:relative;display:inline-block;color:transparent;
+      font-family:'Noto Serif KR','Noto Sans KR',serif;font-weight:900;
+      letter-spacing:.03em;line-height:1.34;text-align:left;padding-right:.03em;
+      filter:drop-shadow(0 .05em .10em rgba(0,0,0,.95))
+             drop-shadow(0 0 .55em rgba(214,164,72,.34))}
+  .au.lat{font-family:'Cinzel',serif;font-weight:900;letter-spacing:.10em}
+  .au::before,.au::after{content:attr(data-t);position:absolute;left:0;top:0;
+      width:100%;white-space:pre;text-align:left;padding-right:.03em}
+  .au::before{z-index:1;color:#20120a;
+      -webkit-text-stroke:.155em #20120a;paint-order:stroke fill}
+  .au::after{z-index:2;color:transparent;
+      background:linear-gradient(180deg,
+          #fffdf2 0%, #f9ecc0 20%, #e6c069 40%,
+          #a97a1e 56%, #d9ae52 70%, #fbf0c8 86%, #b8861f 100%);
+      -webkit-background-clip:text;background-clip:text}
+  .t-hero{font-size:clamp(30px,6.6vw,74px)}
+  .kick{font-family:'Cinzel',serif;font-size:clamp(10px,1.5vw,13.5px);
+        letter-spacing:.34em;color:#bcac86;font-weight:700;
+        margin:0 0 12px;text-indent:.34em;text-shadow:0 2px 8px #000}
+  .plaque{display:inline-block;position:relative;margin-top:16px;
+     padding:7px 40px;font-size:clamp(12px,1.5vw,15px);font-weight:700;
+     color:#f4e3b4;letter-spacing:.20em;text-indent:.20em;line-height:1.7;
+     background:linear-gradient(180deg,rgba(74,40,20,.92),rgba(26,13,8,.94));
+     border-top:1px solid rgba(226,186,108,.55);
+     border-bottom:1px solid rgba(226,186,108,.55);
+     text-shadow:0 1px 3px rgba(0,0,0,.9);
+     clip-path:polygon(15px 0,calc(100% - 15px) 0,100% 50%,
+                       calc(100% - 15px) 100%,15px 100%,0 50%)}
+  .plaque::before,.plaque::after{content:'';position:absolute;top:50%;
+     width:7px;height:7px;transform:translateY(-50%) rotate(45deg);
+     background:linear-gradient(135deg,#fbf0c8,#a97a1e)}
+  .plaque::before{left:8px} .plaque::after{right:8px}
+  /* 폰에서는 로고·플레이 버튼이 윗줄을 차지한다 → 머리글은 감추고 제목만 남긴다 */
+  @media (max-width:768px){
+    .hslide.fk .kick{display:none}
+    .hslide.fk .inner{padding-top:56px;padding-bottom:58px}
+    .hslide.fk .t-hero{font-size:clamp(26px,7.8vw,42px)}
+    .hslide.fk .plaque{margin-top:10px;padding:5px 28px;letter-spacing:.14em;text-indent:.14em}
+  }
 
   /* hero bottom navigator (Lineage M style) */
   .hnav{position:absolute;left:0;right:0;bottom:0;z-index:5;background:none;border-top:none}
@@ -492,6 +540,15 @@
     <div class="scrim"></div>
     <div class="inner wrap"></div>
   </a>
+  <a class="hslide fk" href="devlog-s2.html">
+    <img class="bg" src="assets/slide5-fantasy.jpg" alt="판타지 크래프트">
+    <div class="scrim"></div>
+    <div class="inner wrap">
+      <p class="kick">KREFT 2ND UPDATE</p>
+      <div class="au lat t-hero" data-t="FANTASY KREFT">FANTASY KREFT</div>
+      <div><span class="plaque">판타지 크래프트</span></div>
+    </div>
+  </a>
   <!-- bottom navigator -->
   <div class="hnav">
     <div class="wrap">
@@ -667,7 +724,7 @@
   wire('[data-yt]',YOUTUBE_URL);wire('[data-login]',LOGIN_URL);wire('[data-join]',JOIN_URL);wire('[data-support]',SUPPORT_URL);
 
   /* ====== 슬라이드 라벨 ====== */
-  var LABELS = ['캠피싱 낚시터','길드 보스레이드','아레나','이벤트'];
+  var LABELS = ['캠피싱 낚시터','길드 보스레이드','아레나','이벤트','판타지 크래프트'];
 
   var pillTxt={update:'업데이트',event:'이벤트',notice:'공지',devlog:'개발 일지'};
   function escH(s){return String(s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
