@@ -4035,6 +4035,18 @@ Positioned(
           : (cur['active'] == true);
       final int useSec = same ? gEmblemSec : ownSec;
       inv[i] = {...cur, 'eid': useId, 'active': turnOn, 'secLeft': useSec};
+      // 🛡️ 켜는 건 한 번에 하나 — 다른 엠블럼이 켜져 있었다면 끈다.
+      //    (안 끄면 active:true 로 남아 시간도 안 흐르면서 켜진 척만 한다)
+      if (turnOn) {
+        for (int k = 0; k < inv.length; k++) {
+          if (k == i) continue;
+          final x = inv[k];
+          if (x is Map && (x['type'] ?? '') == 'EVENT' &&
+              x.containsKey('secLeft') && x['active'] == true) {
+            inv[k] = {...x, 'active': false};
+          }
+        }
+      }
       await ref.update({'inventory': inv});
       gEmblemId = useId;
       gEmblemOn = turnOn;
@@ -4099,24 +4111,10 @@ Positioned(
   }
 
   Future<void> _activateEmblem(Map<String, dynamic> item) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-    try {
-      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
-      final i = inv.indexWhere((x) =>
-          x is Map && (x['name'] ?? '') == item['name'] && x['active'] != true);
-      if (i < 0) return;
-      inv[i] = {...inv[i] as Map, 'active': true};
-      await ref.update({'inventory': inv});
-      if (!mounted) return;
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('🛡️ ${item['name']} 사용! 낚시터에서 시간이 줄어들어요'),
-      ));
-    } catch (e) {
-      debugPrint('엠블럼 활성화 실패: $e');
-    }
+    // ⚠️ 예전엔 여기서 이름으로 찾아 active 만 켰다. 엠블럼은 이름이 다 같아
+    //    누른 것이 아니라 딴 것이 켜지고, 전역 카운터를 안 건드려 화면 버튼도
+    //    시간도 그대로 죽어 있었다(2026-09-09). 켜고 끄는 길은 하나로 합친다.
+    await _toggleEmblem(item);
   }
 
 // ⚡ 버프 표시 칩
