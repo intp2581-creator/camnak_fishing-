@@ -130,6 +130,13 @@ class _ArenaScreenState extends State<ArenaScreen> {
 
   // 🎟️ 아레나 입장 '자격' 확인 (차감은 대회 시작 시 대기실에서!). 무료 1회 + 입장권 하루 1회
   //   true=입장 가능(방 만들기/입장 OK) / false=불가(팝업 표시됨)
+  // 🎟️ 가방에 든 아레나 입장권 수
+  int _arenaTicketQty(Map<String, dynamic> userData) {
+    final inv = List<dynamic>.from(userData['inventory'] ?? []);
+    final i = inv.indexWhere((x) => (x['name'] ?? '') == '아레나 입장권');
+    return i >= 0 ? ((inv[i]['quantity'] ?? 0) as num).toInt() : 0;
+  }
+
   Future<bool> _canEnterArena(BuildContext ctx, Map<String, dynamic> userData, String today, int arenaCount) async {
     if (arenaCount < 1) return true; // 무료 입장 가능(하루 1회)
     final String ticketDate = (userData['arenaTicketDate'] ?? '').toString();
@@ -363,9 +370,9 @@ class _ArenaScreenState extends State<ArenaScreen> {
                               return;
                             }
                             // 🎟️ 입장권을 쓰는 입장(무료 1회 초과)은 입장권이 낚시시간 10분을 채워주므로 시간 부족 무시
-                            if (arenaCount < 1 && myTime < 600) {
+                            if (myTime < 600 && _arenaTicketQty(userData) <= 0) {   // 🎟️ 입장권이 있으면 시간 없어도 통과
                               if (!context.mounted) return;
-                              showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회에 참가하려면 최소 10분의 낚시 시간이 필요합니다.\n(무료 2회를 다 쓰면 "아레나 입장권"으로 시간 없이도 참가할 수 있어요 🎟️)', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
+                              showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회에 참가하려면 최소 10분의 낚시 시간이 필요합니다.\n\n"아레나 입장권"이 있으면 시간이 없어도 참가할 수 있어요 🎟️', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                               return;
                             }
 
@@ -716,10 +723,13 @@ class _ArenaScreenState extends State<ArenaScreen> {
                       return;
                     }
 
-                    // 🎟️ 입장권을 쓰는 입장(무료 2회 초과)은 입장권이 낚시시간 10분을 채워주므로 시간 부족 무시
-                    if (arenaCount < 1 && myTime < 600) {
+                    // 🎟️ 입장권이 있으면 시간이 모자라도 개설할 수 있다.
+                    //    예전엔 무료를 안 썼으면(arenaCount<1) 무조건 10분을 요구해서,
+                    //    시간이 없어 무료를 못 쓰고 무료를 안 썼으니 입장권도 못 쓰는
+                    //    막다른 골목이 됐다(2026-09-09 비상님 제보 — 5분 남은 상태).
+                    if (myTime < 600 && _arenaTicketQty(userData) <= 0) {   // 🎟️ 입장권이 있으면 시간 없어도 통과
                       if (!context.mounted) return;
-                      showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회를 개설하려면 최소 10분의 낚시 시간이 필요합니다.\n(무료 2회를 다 쓰면 "아레나 입장권"으로 시간 없이도 개설할 수 있어요 🎟️)', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
+                      showDialog(context: context, builder: (ctx) => AlertDialog(backgroundColor: const Color(0xFF2A2A2A), title: const Text('시간 부족 ⏳', style: TextStyle(color: Colors.redAccent)), content: const Text('대회를 개설하려면 최소 10분의 낚시 시간이 필요합니다.\n\n"아레나 입장권"이 있으면 시간이 없어도 개설할 수 있어요 🎟️', style: TextStyle(color: Colors.white)), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('확인', style: TextStyle(color: Colors.amber)))]));
                       return;
                     }
 

@@ -135,6 +135,18 @@
   /* 세이라 그림은 지팡이가 왼쪽으로 뻗어, 그림 가운데보다 사람이 오른쪽에 있다.
      이름을 그만큼 오른쪽으로 민다. */
   .trio .nudge{position:relative;left:16%}
+  /* 👥 둘씩 나란히 — 바르탄·제나스 / 카엘·이실드 / 스킨 두 색 (2026-09-09) */
+  .duo{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+       padding:0 18px 54px;background:var(--bg)}
+  .duo .fig{padding:0}
+  .duo .fig img{max-width:100%}
+  .duo .cap{margin-top:8px}
+  /* 🌍 텔레포터 넷 — 2×2. 넷을 한 줄에 세우면 너무 작아진다(사장님 확인) */
+  .quad{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+        padding:0 18px 54px;background:var(--bg)}
+  .quad .fig{padding:0}
+  .quad .fig img{max-width:100%}
+  .quad .cap{margin-top:8px}
 
   /* ── 아이템 — 상자 없이 나열, 판이 정사각이라 크기가 같다 ── */
   .items{display:grid;gap:40px 16px;padding:0 18px 30px;background:var(--bg);
@@ -250,44 +262,78 @@
     <p class="en">CHARACTERS</p>
   </div>
 
-  <div class="fig">
-    <img src="https://kreft.co.kr/assets/devlog/npc_zenas.jpg?v=3" alt="">
-    <div class="cap">
-      <div class="au t-name" data-t="제나스">제나스</div>
-      <p class="role">합성에 필요한 보석 공급</p>
+  <div class="duo">
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/npc_bartan_new.webp?v=6" alt="바르탄">
+      <div class="cap">
+        <div class="au t-name" data-t="바르탄">바르탄</div>
+        <p class="role">KREFT 낚싯대 제작</p>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/npc_zenas_new.webp?v=6" alt="제나스">
+      <div class="cap">
+        <div class="au t-name" data-t="제나스">제나스</div>
+        <p class="role">합성에 필요한 보석 공급</p>
+      </div>
     </div>
   </div>
 
-  <div class="fig">
-    <img src="https://kreft.co.kr/assets/devlog/npc_bartan.jpg?v=3" alt="">
-    <div class="cap">
-      <div class="au t-name" data-t="바르탄">바르탄</div>
-      <p class="role">KREFT 낚싯대 제작</p>
-    </div>
-  </div>
-
-  <!-- 텔레포터 셋을 한 줄에 — 크기를 같게 -->
+  <!-- 🚪 차원의 문 — 광장과 판타지 광장을 오간다 -->
   <div class="sechead" style="padding:34px 26px 26px">
+    <div class="au t-name" data-t="차원의 문">차원의 문</div>
+    <p class="en">THE GATE</p>
+  </div>
+  <div class="duo">
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/tp_kael.webp?v=6" alt="카엘">
+      <div class="cap">
+        <div class="au t-name" data-t="카엘">카엘</div>
+        <p class="role">민물광장 → 판타지 광장</p>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/tp_isild.webp?v=6" alt="이실드">
+      <div class="cap">
+        <div class="au t-name" data-t="이실드">이실드</div>
+        <p class="role">판타지 광장 → 민물광장</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🌍 네 세계로 보내는 텔레포터 -->
+  <div class="sechead" style="padding:10px 26px 26px">
     <div class="au t-name" data-t="텔레포터">텔레포터</div>
     <p class="en">TELEPORTERS</p>
+    <p class="lead" style="margin-top:16px">각자 하나의 세계로 안내합니다.</p>
   </div>
-  <div class="trio">
+  <div class="quad">
     <div class="fig">
-      <img src="https://kreft.co.kr/assets/devlog/npc_kael.jpg?v=3" alt="">
+      <img src="https://kreft.co.kr/assets/devlog/tp_sylphia.webp?v=6" alt="실피아">
       <div class="cap">
-        <div class="au t-min" data-t="카엘">카엘</div>
+        <div class="au t-min" data-t="실피아">실피아</div>
+        <p class="role dim">천공의 부유 군도</p>
       </div>
     </div>
     <div class="fig">
-      <img src="https://kreft.co.kr/assets/devlog/npc_mureung.jpg?v=3" alt="">
+      <img src="https://kreft.co.kr/assets/devlog/tp_nerpa.webp?v=6" alt="네르파">
+      <div class="cap">
+        <div class="au t-min" data-t="네르파">네르파</div>
+        <p class="role dim">심연의 고대 동굴</p>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/tp_astel.webp?v=6" alt="아스텔">
+      <div class="cap">
+        <div class="au t-min" data-t="아스텔">아스텔</div>
+        <p class="role dim">성운의 은하수 바다</p>
+      </div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/tp_unhak.webp?v=6" alt="운학">
       <div class="cap">
         <div class="au t-min" data-t="운학">운학</div>
-      </div>
-    </div>
-    <div class="fig">
-      <img src="https://kreft.co.kr/assets/devlog/npc_galaxy.jpg?v=3" alt="">
-      <div class="cap">
-        <div class="au t-min nudge" data-t="세이라">세이라</div>
+        <p class="role dim">무릉도원</p>
       </div>
     </div>
   </div>
@@ -343,14 +389,32 @@
     <p class="en">NEW SKINS</p>
   </div>
 
-  <div class="fig">
-    <img src="https://kreft.co.kr/assets/devlog/npc_valteria.jpg?v=3" alt="">
-    <div class="cap"><div class="au t-name" data-t="발테리아">발테리아</div></div>
+  <div class="sechead" style="padding:6px 26px 20px">
+    <div class="au t-name" data-t="화이트">화이트</div>
+  </div>
+  <div class="duo">
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/skin_valteria.webp?v=6" alt="발테리아">
+      <div class="cap"><div class="au t-min" data-t="발테리아">발테리아</div></div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/skin_arken.webp?v=6" alt="아르켄">
+      <div class="cap"><div class="au t-min" data-t="아르켄">아르켄</div></div>
+    </div>
   </div>
 
-  <div class="fig" style="padding-bottom:70px">
-    <img src="https://kreft.co.kr/assets/devlog/npc_tairas.jpg?v=3" alt="">
-    <div class="cap"><div class="au t-name" data-t="타이라스 아르켄">타이라스 아르켄</div></div>
+  <div class="sechead" style="padding:6px 26px 20px">
+    <div class="au t-name" data-t="블랙">블랙</div>
+  </div>
+  <div class="duo" style="padding-bottom:70px">
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/skin_valteria_black.webp?v=6" alt="발테리아 블랙">
+      <div class="cap"><div class="au t-min" data-t="발테리아">발테리아</div></div>
+    </div>
+    <div class="fig">
+      <img src="https://kreft.co.kr/assets/devlog/skin_arken_black.webp?v=6" alt="아르켄 블랙">
+      <div class="cap"><div class="au t-min" data-t="아르켄">아르켄</div></div>
+    </div>
   </div>
 
   <!-- ⑧ 이미 시작되었습니다 ──────────────────────────── -->
