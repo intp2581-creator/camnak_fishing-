@@ -174,7 +174,9 @@ exports.supportApi = onRequest({region: "us-central1", cors: true}, async (req, 
     // ── 답변 / 추가 문의 ────────────────────────
     if (action === "reply") {
       const id = String(b.id || "");
-      const body = String(b.body || "").trim().slice(0, 3000);
+      // 📝 답변은 5000자 — 환불·정산 안내처럼 근거를 늘어놓아야 하는 답변이 3000자에서 잘렸다
+      //    (2026-09-10). 문의 작성(위 create)은 3000자 그대로.
+      const body = String(b.body || "").trim().slice(0, 5000);
       if (!id || !body) return res.status(400).json({ok: false, err: "내용을 입력해 주세요"});
       const ref = col.doc(id);
       const doc = await ref.get();
