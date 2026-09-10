@@ -850,14 +850,17 @@ List<int> _buildExpTable() {
       final int band = (L - 1) ~/ 10; // L=2~10→0, 11~20→1, 21~30→2
       final int step = 200 + 50 * band;
       delta = (L == 2) ? 1400 : prevDelta + step;
-    } else if (L <= 50) {
-      // Lv 31~50: 사용자 요청 리니어 — 30→31 10k, 40→41 15k, 50→51 20k EXP
+    } else if (L <= 44) {
+      // Lv 31~44: 리니어 — 30→31 이 10,000
       delta = 9500 + 500 * (L - 30);
+    } else if (L <= 69) {
+      // Lv 45~69: 증가폭 600 → 3,000 (상위권 속도 제동, 2026-09-10)
+      delta = prevDelta + 600 + 100 * (L - 45);
     } else if (L <= 100) {
-      // Lv 51~100: step 800/lv (아이템 대비 마진)
-      delta = prevDelta + 800;
+      // Lv 70~100: 증가폭 3,500 → 6,500
+      delta = prevDelta + 3500 + 100 * (L - 70);
     } else {
-      // Lv 101~150: step 1200/lv (만렙 방어)
+      // Lv 101~150: 2차 업데이트 낚시터 어종 경험치를 정한 뒤 재조정
       delta = prevDelta + 1200;
     }
     table[L] = table[L - 1] + delta;
@@ -1254,7 +1257,7 @@ Map<String, dynamic> makeBaitSlice(String sliceName) {
     'category': 'SEA',
     'type': 'BAIT',
     'quantity': kSliceCount,
-    'stats': {'S': squid ? 15 : 10},
+    // 🆓 공짜 미끼라 감도 보너스 없음 (fishing_logic kFreeBaits)
     'icon': squid ? 'bait_sea_squid.png' : 'bait_sea_mackerel.png',
     'desc': squid
         ? '잡은 무늬오징어를 잘라 만든 생미끼예요.\n문어 · 갈치 · 참돔이 반응해요.'

@@ -3118,7 +3118,7 @@ Widget _whisperUnreadBadge() {
         inv[idx]['quantity'] = next;
         if (next >= 50 && mounted) _baitToast('🦐 민물새우가 가득 찼어요! (50/50)\n채집망을 건지거나 미끼로 써주세요', const Color(0xFFD4AF37));
       } else {
-        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼 (집어력 25, 베스·메기·가물치 등 육식·대물에 강함)'});
+        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼예요.\n동자개 · 붕어 · 메기 · 민물장어가 잘 반응해요.'});
       }
       await ref.update({'inventory': inv});
     } catch (e) { debugPrint('🦐 새우 적립 실패: $e'); }
@@ -5565,7 +5565,7 @@ Positioned(
         // 장착 중이면 테두리 빨간색, 아니면 금색
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37))),
         title: Text(isEquipped ? '🔓 장착 해제' : '🎧 아이템 장착', style: TextStyle(color: isEquipped ? Colors.redAccent : const Color(0xFFD4AF37), fontWeight: FontWeight.bold)),
-        content: Text('${item['name']}\n\n${item['desc'] ?? ''}\n${item['stats'] ?? ''}\n\n이 아이템을 ${isEquipped ? '해제' : '장착'}하시겠습니까?', style: const TextStyle(color: Colors.white)),
+        content: Text('${item['name']}\n\n${item['desc'] ?? ''}\n${_statsText(item)}\n\n이 아이템을 ${isEquipped ? '해제' : '장착'}하시겠습니까?', style: const TextStyle(color: Colors.white)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('취소', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
@@ -5696,6 +5696,15 @@ Positioned(
   }
 
   /// 🪱 미끼 아이템인가 (type=BAIT 또는 category=BAIT)
+  // 🆓 공짜 미끼(채집망 새우·생미끼 조각)는 감도 보너스가 없다.
+  //    예전에 저장된 stats 가 가방에 남아 있어도 장착창에 보여주지 않는다
+  //    — 화면엔 +15 인데 실제로는 0 이면 그게 더 나쁘다(2026-09-10).
+  String _statsText(Map item) {
+    final n = (item['name'] ?? '').toString();
+    if (FishingLogic.kFreeBaits.contains(n)) return '';
+    return (item['stats'] ?? '').toString();
+  }
+
   bool _isBaitItem(Map<String, dynamic> item) =>
       (item['type'] ?? '').toString().toUpperCase() == 'BAIT' ||
       (item['category'] ?? '').toString().toUpperCase() == 'BAIT';
