@@ -459,7 +459,14 @@
   //    무엇을 적어야 할지 알 수 없어 되묻는 일이 늘어난다.
   const NL = String.fromCharCode(10);
 
-  // 📎 첨부 — 올리기 전에 화면에서 줄여 보낸다(업로드 실패·요금 절감).
+  /* 📎 첨부 — 올리기 전에 화면에서 줄여 보낸다(업로드 실패·요금 절감).
+     ⚠️ 서버(support.js saveShot)는 1.5MB 넘는 이미지를 조용히 버린다 — 답변은 올라가고
+        사진만 사라져서 "올렸는데 안 붙었다"가 된다. 그래서 '줄였다'로 끝내지 말고
+        '목표 용량에 들어갈 때까지' 줄인다.
+        예전엔 폭 1000px 고정이라, 폭이 1000보다 작고 세로로 아주 긴 캡처
+        (인벤토리 목록 같은)는 줄이는 코드를 아예 안 타고 원본 크기로 나갔다. */
+  const SHOT_MAX   = 3;
+  const SHOT_BYTES = 1200 * 1024;   // 서버 문턱(1.5MB) 아래로 여유를 둔다
   let shots = [];
   function shrink(img, max, q){
     let w=img.width, h=img.height;
@@ -467,6 +474,19 @@
     const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
     cv.getContext('2d').drawImage(img,0,0,w,h);
     return cv.toDataURL('image/jpeg', q);
+  }
+  function bytesOf(u){ const b=u.slice(u.indexOf(',')+1); return (b.length*3)>>2; }
+  // 품질을 먼저 낮추고, 그래도 크면 폭을 줄인다 — 글자가 뭉개지는 건 마지막에.
+  function fitUnder(img, maxBytes){
+    let w=Math.min(img.width,1400), q=0.82;
+    let d=shrink(img,w,q);
+    while (bytesOf(d)>maxBytes){
+      if (q>0.50) q-=0.08;
+      else { w=Math.round(w*0.8); q=0.82; }
+      if (w<400) break;             // 더는 못 줄인다(그래도 서버가 막아준다)
+      d=shrink(img,w,q);
+    }
+    return d;
   }
   function renderShots(){
     /* 🖼️ 새 문의(fPrev)와 답변(rPrev) 중 '있는 칸을 모두' 그린다.
@@ -488,19 +508,32 @@
       b.onclick=()=>{ shots.splice(+b.getAttribute('data-rm'),1); renderShots(); };
     });
   }
+  /* 🖼️ 사진 고르기 — 넘치거나 못 읽는 파일을 말없이 버리지 않는다.
+        예전엔 4장째부터 그냥 사라지고, 읽기 실패하면 카운터가 0이 안 돼
+        미리보기가 영영 안 그려졌다(아이폰 HEIC 등). */
   function pickShots(input, done){
-    const list=[...(input.files||[])].slice(0,3);
-    let left=list.length;
+    const picked=[...(input.files||[])];
+    input.value='';
+    const room=SHOT_MAX-shots.length;
+    if (room<=0){ alert('사진은 '+SHOT_MAX+'장까지 첨부할 수 있어요.'); done && done(); return; }
+    const list=picked.slice(0,room), dropped=picked.length-list.length;
+    let left=list.length; const bad=[];
     if(!left){ done && done(); return; }
+    const finish=()=>{
+      if (--left>0) return;
+      renderShots();
+      if (dropped>0) alert('사진은 '+SHOT_MAX+'장까지 첨부할 수 있어요.'+NL+dropped+'장은 담지 않았습니다.');
+      if (bad.length) alert('아래 파일은 읽을 수 없어 빠졌습니다.'+NL+bad.join(NL)+NL+NL+'JPG 나 PNG 로 저장해서 올려주세요.');
+      done && done();
+    };
     list.forEach(f=>{
       const img=new Image(), rd=new FileReader();
-      rd.onload=()=>{ img.onload=()=>{
-        if (shots.length<3) shots.push(shrink(img,1000,0.78));
-        if(--left===0){ renderShots(); done && done(); }
-      }; img.src=rd.result; };
+      img.onload =()=>{ shots.push(fitUnder(img, SHOT_BYTES)); finish(); };
+      img.onerror=()=>{ bad.push(f.name); finish(); };
+      rd.onload  =()=>{ img.src=rd.result; };
+      rd.onerror =()=>{ bad.push(f.name); finish(); };
       rd.readAsDataURL(f);
     });
-    input.value='';
   }
   if ($('fFile')) $('fFile').onchange = (e)=> pickShots(e.target);
 
