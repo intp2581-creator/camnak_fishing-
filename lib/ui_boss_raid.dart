@@ -624,27 +624,18 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
         if (claims.length > 40) claims.removeRange(0, claims.length - 40);
         final exp = (r['exp'] as num?)?.toInt() ?? 0;
         final pt = (r['point'] as num?)?.toInt() ?? 0;
-        final mystery = (r['mystery'] as num?)?.toInt() ?? 0;
-        final treasure = (r['treasure'] as num?)?.toInt() ?? 0;
         final Map<String, dynamic> upd = {
           'exp': FieldValue.increment(exp),
           'gold': FieldValue.increment(pt),
           'raidClaims': claims,
         };
-        // 📦 상자 지급(수상한상자/보물상자) — 기존 랜덤상자 스키마와 동일
-        if (mystery > 0 || treasure > 0) {
+        // 🗝️ 전리품 상자 하나 — 존마다 내용이 다르다(game_config kRaidBoxDef).
+        //    예전엔 '수상한 상자'를 2~10개 줬는데, 낚시하다 그냥 주워지는 상자라
+        //    보스를 잡은 보람이 없었다. 개수 대신 내용으로 차등을 둔다(2026-09-10).
+        final box = makeRaidBox(widget.bossId, claimKey, math.Random());
+        if (box.isNotEmpty) {
           final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
-          void addBox(String name, String icon, int qty) {
-            if (qty <= 0) return;
-            final idx = inv.indexWhere((i) => i is Map && i['name'] == name);
-            if (idx >= 0) {
-              inv[idx]['quantity'] = ((inv[idx]['quantity'] as num?)?.toInt() ?? 0) + qty;
-            } else {
-              inv.add({'name': name, 'category': 'BOX', 'type': 'BOX', 'icon': icon, 'quantity': qty});
-            }
-          }
-          addBox('수상한 상자', '수상한 상자.png', mystery);
-          addBox('보물상자', '보물상자.png', treasure);
+          inv.add(box);            // 상자는 gid 로 구분하므로 수량을 합치지 않는다
           upd['inventory'] = inv;
         }
         tx.update(ref, upd);
@@ -673,14 +664,15 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
     return 'assets/images/hand_rod_${widget.isSea ? 'sea' : 'fw'}_$_rodSfx.png';
   }
 
+  // 🗝️ 이 존에서 나오는 전리품 상자 정의(이름·그림) — game_config kRaidBoxDef
+  Map<String, dynamic>? get _boxDef => kRaidBoxDef[widget.bossId];
+
   void _showResult(bool win, {bool cleared = false, Map<String, dynamic>? next}) {
     final bossName = widget.bossName;
     final r = raidRewards[widget.bossId];
     final int rExp = (r?['exp'] as num?)?.toInt() ?? 0;
     final int rPt = (r?['point'] as num?)?.toInt() ?? 0;
-    final int rMys = (r?['mystery'] as num?)?.toInt() ?? 0;
-    final int rTre = (r?['treasure'] as num?)?.toInt() ?? 0;
-    final String boxTxt = '${rMys > 0 ? ' · 📦수상한상자 $rMys' : ''}${rTre > 0 ? ' · 💎보물상자 $rTre' : ''}';
+    final String boxTxt = _boxDef != null ? ' · 🗝️${_boxDef!['name']}' : '';
     showDialog(
       context: context, barrierDismissible: false,
       builder: (c) => AlertDialog(
@@ -1018,8 +1010,6 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
     final r = raidRewards[widget.bossId];
     final int rExp = (r?['exp'] as num?)?.toInt() ?? 0;
     final int rPt = (r?['point'] as num?)?.toInt() ?? 0;
-    final int rMys = (r?['mystery'] as num?)?.toInt() ?? 0;
-    final int rTre = (r?['treasure'] as num?)?.toInt() ?? 0;
 
     return Container(
       color: Colors.black.withOpacity(0.72),
@@ -1054,17 +1044,14 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
             Text('+$rExp EXP', style: const TextStyle(color: Color(0xFF7FFFB0), fontSize: 24, fontWeight: FontWeight.w900)),
             const Text('  ·  ', style: TextStyle(color: Colors.white38, fontSize: 22)),
             Text('+$rPt KREFT', style: const TextStyle(color: Colors.yellowAccent, fontSize: 21, fontWeight: FontWeight.w900)),
-            if (rMys > 0) ...[
-              const SizedBox(width: 16),
-              Image.asset('assets/items/수상한 상자.png', width: 46, height: 46, fit: BoxFit.contain,
-                  errorBuilder: (a, b, c) => const Text('📦', style: TextStyle(fontSize: 32))),
-              Text(' ×$rMys', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)),
-            ],
-            if (rTre > 0) ...[
-              const SizedBox(width: 16),
-              Image.asset('assets/items/보물상자.png', width: 46, height: 46, fit: BoxFit.contain,
-                  errorBuilder: (a, b, c) => const Text('💎', style: TextStyle(fontSize: 32))),
-              Text(' ×$rTre', style: const TextStyle(color: Color(0xFFFFD86B), fontSize: 24, fontWeight: FontWeight.w900)),
+            // 🗝️ 전리품 상자 — 존마다 그림도 이름도 다르다
+            if (_boxDef != null) ...[
+              const SizedBox(width: 14),
+              Image.asset('assets/items/${_boxDef!['icon']}', width: 46, height: 46, fit: BoxFit.contain,
+                  errorBuilder: (a, b, c) => const Text('🗝️', style: TextStyle(fontSize: 32))),
+              const SizedBox(width: 6),
+              Text('${_boxDef!['name']}',
+                  style: const TextStyle(color: Color(0xFFFFD86B), fontSize: 18, fontWeight: FontWeight.w900)),
             ],
           ]),
         ),

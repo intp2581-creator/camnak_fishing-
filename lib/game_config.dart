@@ -661,6 +661,30 @@ const Map<String, Map<String, int>> kGemRecipe = {
   '크리스탈': {'블루길': 5, '살치': 5, '학꽁치': 5, '광어': 5, '성대': 5},
 };
 
+// ═══════════════════════════════════════════════════════════════════
+// 🔯 [룬] 낚싯대 공방(바르탄)에서 쓰는 또 하나의 재료.
+//    보석이 '물고기를 모아 만드는' 재료라면, 룬은 '보스를 잡아야 나오는' 재료다.
+//    → 낚싯대 하나를 만들려면 낚시와 레이드를 둘 다 해야 한다(2026-09-10 설계).
+// ═══════════════════════════════════════════════════════════════════
+const List<String> kRuneOrder = ['힘의 룬', '컨트롤의 룬', '감도의 룬'];
+
+const Map<String, String> kRuneIcon = {
+  '힘의 룬': 'rune_power.png',
+  '컨트롤의 룬': 'rune_control.png',
+  '감도의 룬': 'rune_sense.png',
+};
+
+/// 인벤토리에 넣을 룬 한 개
+Map<String, dynamic> makeRune(String runeName, {int qty = 1}) => {
+      'name': runeName,
+      'price': 0,
+      'category': 'COMMON',
+      'type': 'RUNE',
+      'quantity': qty,
+      'icon': kRuneIcon[runeName] ?? 'rune_power.png',
+      'desc': '낚싯대 공방에서 KREFT 낚싯대를 만들 때 쓰는 재료예요.\n보스레이드 전리품 상자에서만 나와요.',
+    };
+
 /// 이 어종이 어느 보석 조합에 쓰이나 (안 쓰이면 null)
 String? gemUsing(String fishName) {
   for (final e in kGemRecipe.entries) {
@@ -1063,6 +1087,110 @@ const Map<String, Map<String, dynamic>> raidRewards = {
   'kargon':   {'exp': 8000,  'point': 40000, 'mystery': 8,  'treasure': 2},
   'volkar':   {'exp': 10000, 'point': 50000, 'mystery': 10, 'treasure': 3},
 };
+
+// ═══════════════════════════════════════════════════════════════════
+// 🗝️ [레이드 전리품 상자] 존마다 다른 것이 들어간다(2026-09-10).
+//    예전엔 '수상한 상자' 2~10개를 줬는데, 그건 낚시 중에도 그냥 주워지는 상자라
+//    보스를 잡은 보람이 없었다. 존마다 전용 상자 하나로 바꾸고 내용으로 차등을 둔다.
+//
+//    확정 3종 : 보석 1개 · 룬 3종 중 1개 · 미끼 10종 중 1통
+//    추가     : 경험치 물약 또는 KREFT 2배 카드(존마다 개수) · 상위 존은 이용권
+//
+//    ⚠️ 상자는 '열기 전에 내용이 정해진' 선물상자 방식이다(gift 배열).
+//       지급할 때 랜덤을 굴려 담아두므로, 여는 코드는 선물상자와 똑같이 쓴다.
+// ═══════════════════════════════════════════════════════════════════
+/// 받침이 있으면 '을', 없으면 '를'. (무르가돈을 / 아비쿠라를)
+String objParticle(String word) {
+  if (word.isEmpty) return '을';
+  final int c = word.codeUnitAt(word.length - 1);
+  if (c < 0xAC00 || c > 0xD7A3) return '을';   // 한글이 아니면 기본값
+  return ((c - 0xAC00) % 28 == 0) ? '를' : '을';
+}
+
+const Map<String, Map<String, dynamic>> kRaidBoxDef = {
+  //                 상자 이름            그림                          보석        물약/카드  이용권
+  'murgadon': {'name': '무르가돈의 전리품', 'boss': '태고의 무르가돈', 'icon': 'box_raid_1_murgadon.png', 'gem': '크리스탈',   'boost': 1, 'extra': 'none'},
+  'abykura':  {'name': '아비쿠라의 전리품', 'boss': '심연의 아비쿠라', 'icon': 'box_raid_2_abykura.png',  'gem': '자수정',     'boost': 1, 'extra': 'emblem'},
+  'basragon': {'name': '바스라곤의 전리품', 'boss': '천년 바스라곤',   'icon': 'box_raid_3_basragon.png', 'gem': '사파이어',   'boost': 2, 'extra': 'emblem'},
+  'kargon':   {'name': '카르곤의 전리품',   'boss': '폭풍 카르곤',     'icon': 'box_raid_4_kargon.png',   'gem': '루비',       'boost': 2, 'extra': 'pick1'},
+  'volkar':   {'name': '볼카르의 전리품',   'boss': '화염 볼카르',     'icon': 'box_raid_5_volkar.png',   'gem': '다이아몬드', 'boost': 3, 'extra': 'all'},
+};
+// extra : none  = 없음
+//         emblem= 능력치 엠블럼 1개 확정
+//         pick1 = 1시간 이용권 · 아레나 입장권 · 능력치 엠블럼 중 랜덤 1개
+//         all   = 세 가지 모두 1개씩 확정
+
+/// 상자에서 나오는 미끼 10종(통에 50개). 상점에서 파는 것과 같은 물건이다.
+const List<Map<String, dynamic>> kRaidBoxBaits = [
+  {'name': '글루텐', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_gluten.png'},
+  {'name': '옥수수', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_corn.png'},
+  {'name': '지렁이', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_worm.png'},
+  {'name': '플라이', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_fw_lure_fly.png'},
+  {'name': '웜', 'category': 'COMMON', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_fw_lure_worm.png'},
+  {'name': '스푼', 'category': 'FW', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_fw_lure_spoon.png'},
+  {'name': '루어', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 10}, 'icon': 'bait_sea_lure.png'},
+  {'name': '크릴', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 15}, 'icon': 'bait_sea_krill.png'},
+  {'name': '에기', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_egi.png'},
+  {'name': '갯지렁이', 'category': 'SEA', 'type': 'BAIT', 'quantity': 50, 'stats': {'S': 20}, 'icon': 'bait_sea_worm.png'},
+];
+
+const Map<String, dynamic> kRaidBoxHourTicket = {
+  'name': '낚시 1시간 이용권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC',
+  'quantity': 1, 'icon': 'item_ticket_1h.png'};
+const Map<String, dynamic> kRaidBoxArenaTicket = {
+  'name': '아레나 입장권', 'price': 1100, 'category': 'TICKET', 'type': 'ETC',
+  'quantity': 1, 'icon': 'arena_ticket.png'};
+
+/// 🗝️ 전리품 상자 한 개를 만든다. 지급 시점에 랜덤을 굴려 내용을 확정한다.
+///   gid 는 상자를 구분하는 열쇠 — 같은 판에서 두 번 받지 않도록 클레임 키를 그대로 쓴다.
+Map<String, dynamic> makeRaidBox(String bossId, String gid, math.Random rng) {
+  final d = kRaidBoxDef[bossId];
+  if (d == null) return {};
+  final List<Map<String, dynamic>> gift = [];
+  // ① 보석 — 존마다 정해진 것 하나
+  gift.add(makeGem(d['gem'] as String));
+  // ② 룬 — 3종 중 하나
+  gift.add(makeRune(kRuneOrder[rng.nextInt(kRuneOrder.length)]));
+  // ③ 미끼 — 10종 중 한 통
+  gift.add(Map<String, dynamic>.from(kRaidBoxBaits[rng.nextInt(kRaidBoxBaits.length)]));
+  // ④ 경험치 물약 또는 KREFT 2배 카드 — 존마다 개수가 다르다
+  final int n = (d['boost'] as int);
+  final bool potion = rng.nextBool();
+  gift.add({...(potion ? kItemPotionExp : kItemCardKreft), 'quantity': n});
+  // ⑤ 이용권·엠블럼 — 존이 올라갈수록 늘어난다
+  //    🛡️ 엠블럼은 eid 없이 넣는다 — 켤 때 붙는 구조라(ui_fishing _toggleEmblem)
+  //       유료 패키지 지급과 같은 모양이어야 한다.
+  switch ((d['extra'] ?? 'none') as String) {
+    case 'emblem':
+      gift.add(makeEmblemBoost());
+      break;
+    case 'pick1':
+      final int k = rng.nextInt(3);
+      gift.add(k == 0
+          ? Map<String, dynamic>.from(kRaidBoxHourTicket)
+          : k == 1
+              ? Map<String, dynamic>.from(kRaidBoxArenaTicket)
+              : makeEmblemBoost());
+      break;
+    case 'all':
+      gift.add(Map<String, dynamic>.from(kRaidBoxHourTicket));
+      gift.add(Map<String, dynamic>.from(kRaidBoxArenaTicket));
+      gift.add(makeEmblemBoost());
+      break;
+  }
+  final String nm = d['name'] as String;
+  final String boss = (d['boss'] ?? '보스') as String;
+  return {
+    'name': nm,
+    'category': 'BOX', 'type': 'BOX', 'quantity': 1,
+    'icon': d['icon'],
+    'gid': gid,
+    'giftTitle': nm,
+    'giftMsg': '$boss${objParticle(boss)} 쓰러뜨리고 얻은 전리품이에요.\n눌러서 열어보세요.',
+    'gift': gift,
+    'desc': '$nm\n$boss${objParticle(boss)} 쓰러뜨리고 얻은 전리품 상자예요.\n\n눌러서 열어보세요.',
+  };
+}
 
 // 🌊 그 보스 존이 바다인지. 레이드 장비 판정(민물/바다)에 쓴다.
 bool raidBossIsSea(String id) => (raidBossById(id)['sea'] ?? false) == true;
@@ -1826,7 +1954,7 @@ int statSum(Map<String, dynamic>? item) {
 ///   재료는 장비가 아니라 '쌓아두는 것'이라 민물·바다 탭에 섞이면 가방이 지저분해진다.
 bool isMaterialItem(Map<String, dynamic> it) {
   final t = (it['type'] ?? '').toString().toUpperCase();
-  return t == 'GEM' || t == 'MATERIAL';
+  return t == 'GEM' || t == 'RUNE' || t == 'MATERIAL';
 }
 
 bool isStoreOnlyItem(Map<String, dynamic> it) {
