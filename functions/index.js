@@ -170,10 +170,21 @@ const expTable = (() => {
   const t = new Array(GLOBAL_MAX_LEVEL + 1).fill(0); // index 0·1 = 0
   let prevDelta = 0;
   for (let L = 2; L <= GLOBAL_MAX_LEVEL; L++) {
-    const band = Math.floor((L - 1) / 10);              // L=2~10→0, 11~20→1 ...
-    const step = 200 + 50 * band;                       // 구간별 레벨당 증가폭
-    const delta = (L === 2) ? 1400 : prevDelta + step;  // 이번 레벨업 필요 경험치
-    t[L] = t[L - 1] + delta;                            // 누적
+    let delta;
+    if (L <= 30) {
+      const band = Math.floor((L - 1) / 10);
+      const step = 200 + 50 * band;
+      delta = (L === 2) ? 1400 : prevDelta + step;
+    } else if (L <= 44) {
+      delta = 9500 + 500 * (L - 30);
+    } else if (L <= 69) {
+      delta = prevDelta + 600 + 100 * (L - 45);
+    } else if (L <= 100) {
+      delta = prevDelta + 3500 + 100 * (L - 70);
+    } else {
+      delta = prevDelta + 1200;
+    }
+    t[L] = t[L - 1] + delta;
     prevDelta = delta;
   }
   return t;
@@ -354,7 +365,6 @@ async function processOrder(order, source) {
   const userRef = userDoc.ref;
   const userData = userDoc.data();
   let inventory = userData.inventory || [];
-  let realLevel = calcLevel(userData.exp || 0);
   const today = getTodayKST();
   let purchaseDates = userData.purchaseDates || {}; // 아이템별 마지막 구매일(1일 1회 구매 제한용)
   let isInventoryUpdated = false, needsRefund = false, refundReason = "", matchedKnownItem = false, newTicketDate = null, purchaseDatesChanged = false;
