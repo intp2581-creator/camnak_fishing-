@@ -101,6 +101,9 @@ const itemDatabase = {
 //   약관이 "결제 후 7일 이내 상자를 열지 않으신 상태라면 전액 환불"이라,
 //   낱개로 주면 자동장착이 입혀버려 '미개봉' 상태를 만들 수 없다.
 //   우리 결제(payment.js)와 같은 모양이어야 두 경로의 결과가 같다.
+const BOX_REFUND_NOTE =
+  "열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.";
+
 function makeCashBox(tpl, orderNo) {
   const isSkin = (tpl.type || "") === "SKIN";
   return {
@@ -110,9 +113,30 @@ function makeCashBox(tpl, orderNo) {
     gid: String(orderNo || ""),
     giftTitle: tpl.name,
     giftMsg: (isSkin ? "눌러서 열면 스킨을 받습니다." :
-      "눌러서 열면 아이템을 받습니다.") + "\n열기 전에는 환불하실 수 있어요.",
+      "눌러서 열면 아이템을 받습니다.") + "\n" + BOX_REFUND_NOTE,
     gift: [{...tpl, price: 0, cash: true, quantity: 1}],
     desc: tpl.name + "\n눌러서 열어보세요.",
+  };
+}
+
+// 📦 패키지는 전용 상자에 구성품을 통째로 담는다(성장패키지 상자).
+//   payment.js 의 cashBox() 와 모양이 같아야 두 경로의 상자가 가방에서 같게 보이고
+//   환불 회수(gid)도 어긋나지 않는다.
+function makePackageBox(pkgName, list, gid) {
+  const flat = String(pkgName).replace(/ /g, "");   // "성장 패키지" → "성장패키지"
+  return {
+    name: flat + " 상자",
+    category: "BOX", type: "BOX", quantity: 1, cash: true,
+    icon: "item_box_growth.png",
+    gid: String(gid || ""),
+    giftTitle: "KREFT " + flat,
+    giftMsg: "성장에 필요한 것을 한 번에 담았습니다.\n" + BOX_REFUND_NOTE,
+    gift: list.map((it) => {
+      const {qty, ...tpl} = it;
+      return {...tpl, price: 0, cash: true,
+        quantity: Math.max(1, parseInt(qty, 10) || 1)};
+    }),
+    desc: "KREFT " + flat + "\n눌러서 열어보세요.",
   };
 }
 
@@ -336,6 +360,11 @@ async function processOrder(order, source) {
   let isInventoryUpdated = false, needsRefund = false, refundReason = "", matchedKnownItem = false, newTicketDate = null, purchaseDatesChanged = false;
 
   const norm = (s) => String(s).replace(/\s+/g, ""); // 공백 무시 매칭('아레나입장권'='아레나 입장권')
+  // 📦 한 주문에 상자가 여러 개 들어갈 수 있다(3장 사면 상자 3개).
+  //    환불 회수는 gid 로 찾으므로 두 번째부터 -2, -3 을 붙여 겹치지 않게 한다.
+  let boxCount = 0;
+  const boxGid = () => (++boxCount === 1 ? orderNo : orderNo + "-" + boxCount);
+
   for (const prodName of prodNames) {
     const np = norm(prodName);
 
@@ -345,23 +374,11 @@ async function processOrder(order, source) {
     for (const [pkgName, list] of Object.entries(packageDatabase)) {
       if (!np.includes(norm(pkgName))) continue;
       pkgHit = true; matchedKnownItem = true;
-      for (const it of list) {
-        const {qty, ...tpl} = it;
-        const n = Math.max(1, parseInt(qty, 10) || 1);
-        if (tpl.type === "EVENT") {
-          // 기간제(엠블럼)는 개별 항목으로 넣는다 — 각자 남은 시간을 따로 센다
-          for (let k = 0; k < n; k++) inventory.push({...tpl, price: 0, cash: true, quantity: 1});
-        } else {
-          const idx = inventory.findIndex((x) => x && x.name === tpl.name);
-          if (idx >= 0) {
-            inventory[idx].quantity = (Number(inventory[idx].quantity) || 0) + n;
-          } else {
-            inventory.push({...tpl, price: 0, cash: true, quantity: n});
-          }
-        }
-      }
+      // 📦 낱개가 아니라 '상자' 하나로 넣는다 — 열어야 내용물이 풀린다.
+      //    낱개로 주면 '상자를 열지 않으셨다면 전액 환불' 고지를 지킬 수가 없다.
+      inventory.push(makePackageBox(pkgName, list, boxGid()));
       isInventoryUpdated = true;
-      console.log(`[패키지 지급] ${buyerEmail}: ${pkgName} (${list.length}종)`);
+      console.log(`[패키지 지급] ${buyerEmail}: ${pkgName} 상자 (${list.length}종)`);
       break;
     }
     if (pkgHit) continue;
@@ -382,12 +399,12 @@ async function processOrder(order, source) {
       }
       else if (itemTemplate.limitType === "DAILY") {
         if ((userData.lastTicketDate || "") === today) { needsRefund = true; refundReason = "1시간 이용권 1일 1회 구매 제한 초과"; }
-        else { const ni = { ...itemTemplate, quantity: 1 }; inventory.push(ni); newTicketDate = today; isInventoryUpdated = true; }
+        // 📦 상자로 지급 — 안 열면 '미개봉'이라 7일 내 전액 환불이 된다.
+        else { inventory.push(makeCashBox(itemTemplate, boxGid())); newTicketDate = today; isInventoryUpdated = true; }
       }
       else if (itemTemplate.limitType === "STACK") {
-        const idx = inventory.findIndex(i => i.name === itemTemplate.name);
-        if (idx >= 0) inventory[idx].quantity = (Number(inventory[idx].quantity) || 0) + 1;
-        else inventory.push({ ...itemTemplate, quantity: 1 });
+        // 📦 상자는 수량이 쌓이지 않는다 — 여러 장 사면 gid 가 다른 상자가 그 수만큼 들어간다.
+        inventory.push(makeCashBox(itemTemplate, boxGid()));
         isInventoryUpdated = true;
       }
       // 🎟️ 1일 1회 구매 + 수량 누적 (이용권·입장권). 아이템별로 하루 1번만 구매 가능.
@@ -396,9 +413,7 @@ async function processOrder(order, source) {
           needsRefund = true;
           refundReason = `${itemTemplate.name} 1일 1회 구매 제한 초과`;
         } else {
-          const idx = inventory.findIndex(i => i.name === itemTemplate.name);
-          if (idx >= 0) inventory[idx].quantity = (Number(inventory[idx].quantity) || 0) + 1;
-          else inventory.push({ ...itemTemplate, quantity: 1 });
+          inventory.push(makeCashBox(itemTemplate, boxGid()));   // 📦 상자로 지급
           purchaseDates[itemTemplate.name] = today;
           purchaseDatesChanged = true;
           isInventoryUpdated = true;

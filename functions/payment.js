@@ -22,18 +22,23 @@ const TEST_MODE_GM_ONLY = true;
 
 // 📦 판매 상품 — 가격의 '유일한 근거'. 홈페이지·게임 표시가 달라도 이 값이 기준이다.
 //   limitType: ONCE=계정당 1개 · STACK=수량 누적
+// 📦 유료 상자는 어느 경로로 지급되든 같은 환불 안내를 달고 나간다
+//    (functions/index.js 의 BOX_REFUND_NOTE 와 같은 문구여야 한다).
+const BOX_REFUND_NOTE =
+  "\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.";
+
 const PRODUCTS = {
   // 📦 유료 아이템은 예외 없이 'KREFT 아이템 상자'로 지급한다(2026-09-08 이용권까지 통일).
   //   상자는 quantity 가 쌓이지 않고 gid 로 하나씩 구분되므로(game_config kGiftBox 주석),
   //   이용권을 여러 장 사면 상자도 그만큼 개별로 들어간다. 섞이거나 사라지지 않는다.
   "ticket_1h":   {name: "낚시 1시간 이용권", price: 1100,  limitType: "STACK",
     boxName: "낚시 1시간 이용권 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 이용권을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 이용권을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "낚시 1시간 이용권", qty: 1, cash: true, category: "TICKET",
       type: "ETC", icon: "item_ticket_1h.png"}]},
   "ticket_arena":{name: "아레나 입장권",     price: 1100,  limitType: "STACK",
     boxName: "아레나 입장권 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 입장권을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 입장권을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "아레나 입장권", qty: 1, cash: true, category: "TICKET",
       type: "ETC", icon: "arena_ticket.png"}]},
   // 📦 장착형(스킨·뱃지·휘장)은 '상자'로 지급한다 — 열어야 실제로 손에 들어온다.
@@ -42,42 +47,42 @@ const PRODUCTS = {
   //   상자는 열었냐 아니냐로 딱 갈린다. ⛔ 약관 문구는 승인 문안이라 못 고친다.
   "skin_novice": {name: "하수 조사",        price: 2200, limitType: "ONCE", reqLevel: 10,  reqRank: "하수",
     boxName: "하수 조사 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "하수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
       stats: {P: 20, C: 20, S: 20}, icon: "../images/skin_novice.jpg"}]},
   "skin_mid": {name: "중수 조사",        price: 5500, limitType: "ONCE", reqLevel: 30,  reqRank: "중수",
     boxName: "중수 조사 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "중수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
       stats: {P: 50, C: 50, S: 50}, icon: "../images/skin_intermediate.jpg"}]},
   "skin_expert": {name: "고수 조사",        price: 11000, limitType: "ONCE", reqLevel: 50,  reqRank: "고수",
     boxName: "고수 조사 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "고수 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
       stats: {P: 100, C: 100, S: 100}, icon: "../images/skin_expert.jpg"}]},
   "skin_pro": {name: "프로 조사",        price: 22000, limitType: "ONCE", reqLevel: 70,  reqRank: "프로",
     boxName: "프로 조사 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "프로 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
       stats: {P: 200, C: 200, S: 200}, icon: "../images/skin_pro.jpg"}]},
   "skin_master": {name: "마스터 조사",       price: 55000, limitType: "ONCE", reqLevel: 100, reqRank: "마스터",
     boxName: "마스터 조사 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 스킨을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "마스터 조사", qty: 1, cash: true, category: "SKIN", type: "SKIN",
       stats: {P: 300, C: 300, S: 300}, icon: "../images/skin_master.jpg"}]},
   "badge_1": {name: "캠피싱 뱃지",       price: 2200, limitType: "ONCE", reqLevel: 10,
     boxName: "캠피싱 뱃지 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "캠피싱 뱃지", qty: 1, cash: true, category: "COMMON", type: "ETC",
       stats: {P: 10, C: 10, S: 10}, icon: "item_badge_1.png"}]},
   "badge_2": {name: "캠피싱 휘장",       price: 5500, limitType: "ONCE", reqLevel: 30,
     boxName: "캠피싱 휘장 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "캠피싱 휘장", qty: 1, cash: true, category: "COMMON", type: "ETC",
       stats: {P: 30, C: 30, S: 30}, icon: "item_badge_2.png"}]},
   "badge_3": {name: "KREFT 정예 휘장",  price: 11000, limitType: "ONCE", reqLevel: 50,
     boxName: "KREFT 정예 휘장 상자", boxIcon: "item_box_cash.png",
-    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 환불하실 수 있어요.",
+    boxMsg: "눌러서 열면 아이템을 받습니다.\n열기 전에는 전액 환불하실 수 있어요.\n⚠️ 상자를 열면 환불이 제한됩니다.",
     bundle: [{name: "KREFT 정예 휘장", qty: 1, cash: true, category: "COMMON", type: "ETC",
       stats: {P: 50, C: 50, S: 50}, icon: "item_badge_3.png"}]},
   // 🎁 묶음 상품 — bundle 이 있으면 그 목록을 통째로 지급한다(단품 name 은 안 쓴다).
@@ -87,7 +92,7 @@ const PRODUCTS = {
     // 📦 상자로 지급한다 — 열어야 내용물이 풀린다.
     //    낱개로 주면 "물약 하나 썼는데 환불되나요?"가 생긴다. 상자는 열었냐 아니냐로 딱 갈린다.
     boxName: "성장패키지 상자", boxIcon: "item_box_growth.png",
-    boxMsg: "성장에 필요한 것을 한 번에 담았습니다.\n눌러서 열어보세요.",
+    boxMsg: "성장에 필요한 것을 한 번에 담았습니다." + BOX_REFUND_NOTE,
     bundle: [
       {name: "경험치 물약", qty: 10, category: "BOOST", type: "BOOST", boost: "exp",
         icon: "item_potion_exp.png",
@@ -175,7 +180,7 @@ async function productOf(key) {
   if (g.boxName) {
     p.boxName = String(g.boxName);
     p.boxIcon = String(g.boxIcon || "item_box_cash.png");
-    p.boxMsg = String(g.boxMsg || "눌러서 열면 아이템을 받습니다.");
+    p.boxMsg = String(g.boxMsg || "눌러서 열면 아이템을 받습니다.") + BOX_REFUND_NOTE;
   }
   return p;
 }
