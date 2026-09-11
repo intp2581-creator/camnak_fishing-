@@ -5016,6 +5016,7 @@ Positioned(
 
   // 👇 1. 인벤토리 상태가 매초 초기화되지 않도록 기억하는 변수들 (함수 바로 위에 빼두기!)
   Stream<DocumentSnapshot>? _inventoryStream;
+  DocumentSnapshot? _lastInvSnap;   // 🎒 마지막으로 받은 가방 스냅샷 — 패널이 새로 붙을 때 첫 그림용
   List<dynamic> _latestInventory = []; // ⚡ 자동 장착이 참조할 최신 인벤토리 캐시
   final ScrollController _invScrollCtrl = ScrollController();
   String _currentFilter = 'ALL';
@@ -5035,7 +5036,13 @@ Positioned(
 
     return StreamBuilder<DocumentSnapshot>(
       stream: _inventoryStream,
+      // 🎒 [2026-09-11] 팝업 패널과 셋팅 화면 인라인 패널이 같은 스트림을 나눠 쓴다.
+      //    Firestore 스트림은 새로 붙는 쪽에 지난 값을 다시 주지 않아서, 팝업이 아직
+      //    떠 있는 채로 인라인 패널이 붙으면 다음 변경이 올 때까지 빙글빙글만 돌았다(555).
+      //    마지막 스냅샷을 첫 그림으로 준다.
+      initialData: _lastInvSnap,
       builder: (context, snapshot) {
+        if (snapshot.hasData) _lastInvSnap = snapshot.data;
         // 💡 4. 데이터가 처음 들어올 때 딱 한 번만 로딩 표시 (깜빡임 완벽 차단!)
         if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) { 
           return Container(width: 530, height: 500, padding: const EdgeInsets.all(12), decoration: BoxDecoration(gradient: const RadialGradient(center: Alignment(-0.5, -0.5), radius: 1.5, colors: [Color(0xFF3A3A3A), Color(0xFF0F0F0F)]), border: Border.all(color: const Color(0xFFD4AF37), width: 4), borderRadius: BorderRadius.circular(15)), child: const Center(child: CircularProgressIndicator(color: Color(0xFFD4AF37)))); 
@@ -5251,16 +5258,70 @@ Positioned(
                         ),
                         onPressed: () {
                           audioManager.playSfx("sfx_click.mp3");
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => StoreScreen(
-                                currentGold: myGold,
-                                currentLevel: myLevel,
-                                currentInventory: inventory,
-                                currentRank: _myRank
+                          void openStore() {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => StoreScreen(
+                                  currentGold: myGold,
+                                  currentLevel: myLevel,
+                                  currentInventory: inventory,
+                                  currentRank: _myRank
+                                )
                               )
-                            )
+                            );
+                          }
+                          // 🎣 [2026-09-11] 찌를 담가둔 채 상점에 들어가면 낚시 시간이 계속 깎였다
+                          //    (시간 규칙이 '찌가 물에 있으면 흐른다'라서). 대기 상태에서 열면
+                          //    안 깎이는 것과 달라 사용자 지적. 먼저 팝업으로 알리고, 동의하면
+                          //    줄을 감아 대기 상태로 보낸 뒤 연다(사용자 결정: 팝업을 미리 띄운다).
+                          //    미끼는 안 버린다 — 챔질 때만 줄어서 감았다 다시 던져도 이득이 없다.
+                          //    ⚠️ 555 교훈 — 팝업을 닫기 '전에' setState 하면 셋팅 화면의 인라인
+                          //       가방 패널이, 아직 살아 있는 팝업 패널과 같은 스트림에 붙어 첫 값을
+                          //       못 받고 빙글빙글 돌았다. 팝업부터 닫고, 패널은 initialData 로 막는다.
+                          if (!(isFloatInWater || isCasting)) { openStore(); return; }
+                          showDialog(
+                            context: context,
+                            builder: (dctx) => AlertDialog(
+                              backgroundColor: Colors.black87,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: const BorderSide(color: Color(0xFFD4AF37), width: 1.2)),
+                              title: const Text('🛒 상점으로 갈까요?',
+                                  style: TextStyle(color: Color(0xFFD4AF37), fontWeight: FontWeight.bold, fontSize: 18)),
+                              content: const Text(
+                                  '상점에 들어가면 낚싯대를 회수하고\n대기 상태로 돌아갑니다.\n\n상점에 있는 동안 낚시 시간은 흐르지 않아요.',
+                                  style: TextStyle(color: Colors.white, fontSize: 15, height: 1.5)),
+                              actionsAlignment: MainAxisAlignment.center,
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dctx),
+                                  child: const Text('취소', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold, fontSize: 15)),
+                                ),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFD4AF37), foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10)),
+                                  onPressed: () {
+                                    Navigator.pop(dctx);      // 확인 팝업
+                                    Navigator.pop(context);   // 인벤토리 팝업 — 돌아오면 '캐스팅 시작!' 화면
+                                    _biteTimer?.cancel();
+                                    _escapeTimer?.cancel();
+                                    setState(() {
+                                      isFloatInWater = false;
+                                      isCasting = false;
+                                      isSettingUp = true;
+                                      bitingRods.clear();
+                                      isFighting = false;
+                                      fightingRodIndex = null;
+                                    });
+                                    FishingLive.setPhase('idle');
+                                    openStore();
+                                  },
+                                  child: const Text('확인', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                ),
+                              ],
+                            ),
                           );
                         },
                         child: const Text('🛒 KREFT 상점', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
