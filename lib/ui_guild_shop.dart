@@ -64,19 +64,29 @@ class _GuildShopScreenState extends State<GuildShopScreen> {
     setState(() => _buying = true);
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      final int curGold = (snap.data()?['gold'] is num) ? (snap.data()!['gold'] as num).toInt() : 0;
-      if (curGold < price) { setState(() => _buying = false); _popup('🚫 KREFT 부족', 'KREFT가 부족해요!', Colors.redAccent); return; }
-      if (inv.any((i) => (i['name'] ?? '') == item['name'])) {
-        setState(() { _buying = false; _inventory = inv; }); _popup('🛑 구매 불가', '이미 보유 중이에요!', Colors.orangeAccent); return;
-      }
-      inv.add({
-        'name': item['name'], 'category': item['category'], 'type': item['type'],
-        'stats': item['stats'], 'icon': item['icon'], 'quantity': 1,
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로(로비 _buyItem 과 같은 방식).
+      //    잔액·보유 확인과 차감·추가를 한 번에 — 안에서는 계산과 쓰기만, 팝업은 끝난 뒤에.
+      List<dynamic> inv = const [];
+      int curGold = 0;
+      String outcome = 'none';   // ok · poor(잔액 부족) · owned(이미 보유)
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        outcome = 'none';
+        final snap = await tx.get(ref);
+        inv = List.from(snap.data()?['inventory'] ?? []);
+        curGold = (snap.data()?['gold'] is num) ? (snap.data()!['gold'] as num).toInt() : 0;
+        if (curGold < price) { outcome = 'poor'; return; }
+        if (inv.any((i) => (i['name'] ?? '') == item['name'])) { outcome = 'owned'; return; }
+        inv.add({
+          'name': item['name'], 'category': item['category'], 'type': item['type'],
+          'stats': item['stats'], 'icon': item['icon'], 'quantity': 1,
+        });
+        tx.update(ref, {'gold': FieldValue.increment(-price), 'inventory': inv});
+        outcome = 'ok';
       });
-      await ref.update({'gold': FieldValue.increment(-price), 'inventory': inv});
       if (!mounted) return;
+      if (outcome == 'poor') { setState(() => _buying = false); _popup('🚫 KREFT 부족', 'KREFT가 부족해요!', Colors.redAccent); return; }
+      if (outcome == 'owned') { setState(() { _buying = false; _inventory = inv; }); _popup('🛑 구매 불가', '이미 보유 중이에요!', Colors.orangeAccent); return; }
+      if (outcome != 'ok') { setState(() => _buying = false); return; }
       setState(() { _gold = curGold - price; _inventory = inv; _buying = false; });
       _popup('🎉 구매 완료', '${item['name']}\n보스레이드에서 이 낚싯대로 도전하세요!\n인벤토리에서 장착할 수 있어요.', _kGold);
     } catch (e) {

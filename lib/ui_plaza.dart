@@ -442,40 +442,50 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (recipe.isEmpty) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      if (!snap.exists) return;
-      final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
-      // 1) 전부 있는지 다시 확인(창을 열어둔 사이 팔았을 수도 있다)
-      for (final e in recipe.entries) {
-        final idx = inv.indexWhere((x) =>
-            x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
-        final int q = idx < 0 ? 0 : ((inv[idx]['quantity'] ?? 0) as num).toInt();
-        if (q < e.value) {
-          _infoPopup('💎 아직이에요', '${e.key}이(가) ${e.value}마리 있어야 해요.\n(지금 $q마리)');
-          return;
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로(상자 열기와 같은 방식).
+      //    안에서는 확인·계산·쓰기만, 팝업·소리는 끝난 뒤에(재시도돼도 한 번만).
+      String shortName = ''; int shortNeed = 0, shortHave = 0;   // 모자란 물고기(있으면 교환 안 함)
+      bool done = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        shortName = ''; done = false;
+        final snap = await tx.get(ref);
+        if (!snap.exists) return;
+        final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+        // 1) 전부 있는지 다시 확인(창을 열어둔 사이 팔았을 수도 있다)
+        for (final e in recipe.entries) {
+          final idx = inv.indexWhere((x) =>
+              x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
+          final int q = idx < 0 ? 0 : ((inv[idx]['quantity'] ?? 0) as num).toInt();
+          if (q < e.value) { shortName = e.key; shortNeed = e.value; shortHave = q; return; }
         }
-      }
-      // 2) 거둬가기 (뒤에서부터 지워야 인덱스가 안 밀린다)
-      for (final e in recipe.entries) {
-        final idx = inv.indexWhere((x) =>
-            x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
-        if (idx < 0) continue;
-        final int q = ((inv[idx]['quantity'] ?? 0) as num).toInt();
-        if (q - e.value <= 0) {
-          inv.removeAt(idx);
+        // 2) 거둬가기 (뒤에서부터 지워야 인덱스가 안 밀린다)
+        for (final e in recipe.entries) {
+          final idx = inv.indexWhere((x) =>
+              x is Map && (x['name'] ?? '') == e.key && (x['type'] ?? '') == 'FISH');
+          if (idx < 0) continue;
+          final int q = ((inv[idx]['quantity'] ?? 0) as num).toInt();
+          if (q - e.value <= 0) {
+            inv.removeAt(idx);
+          } else {
+            inv[idx]['quantity'] = q - e.value;
+          }
+        }
+        // 3) 보석 넣기
+        final gi = inv.indexWhere((x) =>
+            x is Map && (x['name'] ?? '') == gemName && (x['type'] ?? '') == 'GEM');
+        if (gi >= 0) {
+          inv[gi]['quantity'] = ((inv[gi]['quantity'] ?? 0) as num).toInt() + 1;
         } else {
-          inv[idx]['quantity'] = q - e.value;
+          inv.add(makeGem(gemName));
         }
+        tx.update(ref, {'inventory': inv});
+        done = true;
+      });
+      if (shortName.isNotEmpty) {
+        _infoPopup('💎 아직이에요', '$shortName이(가) $shortNeed마리 있어야 해요.\n(지금 $shortHave마리)');
+        return;
       }
-      // 3) 보석 넣기
-      final gi = inv.indexWhere((x) =>
-          x is Map && (x['name'] ?? '') == gemName && (x['type'] ?? '') == 'GEM');
-      if (gi >= 0) {
-        inv[gi]['quantity'] = ((inv[gi]['quantity'] ?? 0) as num).toInt() + 1;
-      } else {
-        inv.add(makeGem(gemName));
-      }
-      await ref.update({'inventory': inv});
+      if (!done) return;
       audioManager.playSfx('sfx_landing_success.mp3');
       if (!mounted) return;
       final total = recipe.values.fold<int>(0, (a, b) => a + b);

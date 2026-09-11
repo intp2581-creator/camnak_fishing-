@@ -61,7 +61,10 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
     if (uid == null) return;
     final ref = FirebaseFirestore.instance.collection('users').doc(uid);
     try {
-      final data = (await ref.get()).data() ?? {};
+      // 🔒 [2026-09-11] 가방(입장권) 쓰기는 트랜잭션으로 — 결제 상자가 들어오는 순간
+      //    대회가 시작되면 옛 가방으로 덮어 상자가 사라졌다. 판정·차감을 한 번에.
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+      final data = (await tx.get(ref)).data() ?? {};
       final today = DateTime.now().toString().substring(0, 10);
       final feeRaw = widget.roomData['entryFee'];
       final int fee = (feeRaw is num) ? feeRaw.toInt() : 0;
@@ -95,7 +98,8 @@ class _ArenaWaitingRoomScreenState extends State<ArenaWaitingRoomScreen> {
       } else {
         update['arenaFreeDate'] = today; // 🆓 무료 칸을 썼다고 기록
       }
-      await ref.update(update);
+      tx.update(ref, update);
+      });
     } catch (e) {
       debugPrint('아레나 시작 차감 에러: $e');
     }
