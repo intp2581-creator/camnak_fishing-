@@ -2096,50 +2096,64 @@ class _StoreScreenState extends State<StoreScreen> {
     }
 
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      // 🧵 낚싯줄은 묶지 않는다 — 줄마다 남은 길이가 다르기 때문이다.
-      //    묶으면 150m 남은 줄에 새 줄을 산 순간 새 줄도 150m가 된다(2026-09-09).
-      //    엠블럼과 같은 이유로 고유 id(lid)를 달아 개별 칸으로 넣는다.
-      final bool isLineItem =
-          (item['type'] ?? '').toString().toUpperCase() == 'LINE';
-      int existingIndex = isLineItem
-          ? -1
-          : inventory.indexWhere((i) => i['name'] == item['name']);
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로 — 결제 상자가 들어오는 순간에 사면 옛
+      //    가방으로 덮어 상자가 사라졌다. KREFT 차감·튜토리얼 표시도 같은 트랜잭션에 넣는다.
+      //    잔액은 화면 값(myDisplayGold)이 아니라 서버 값으로 한 번 더 본다 —
+      //    같은 순간 두 번 눌러도 한 번만 사진다. 안에서는 계산과 쓰기만, 팝업은 끝난 뒤에.
+      List<dynamic> inventory = const [];
+      bool isTutShopDone = false;
+      bool poor = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final userDoc = await tx.get(ref);
+        poor = false;
+        final int serverGold = (userDoc.data()?['gold'] is num) ? (userDoc.data()!['gold'] as num).toInt() : 0;
+        if (item['price'] > 0 && serverGold < item['price']) { poor = true; return; }
+        inventory = List.from(userDoc.data()?['inventory'] ?? []);
+        // 🧵 낚싯줄은 묶지 않는다 — 줄마다 남은 길이가 다르기 때문이다.
+        //    묶으면 150m 남은 줄에 새 줄을 산 순간 새 줄도 150m가 된다(2026-09-09).
+        //    엠블럼과 같은 이유로 고유 id(lid)를 달아 개별 칸으로 넣는다.
+        final bool isLineItem =
+            (item['type'] ?? '').toString().toUpperCase() == 'LINE';
+        int existingIndex = isLineItem
+            ? -1
+            : inventory.indexWhere((i) => i['name'] == item['name']);
       
-      if (existingIndex >= 0) {
-        int currentQty = inventory[existingIndex]['quantity'] ?? 0;
-        int addQty = item['quantity'] ?? 1;
-        inventory[existingIndex]['quantity'] = currentQty + addQty;
-      } else {
-        // 🛒 정의를 통째로 복사한다.
-        //   ⚠️ 예전엔 name/category/type/stats/icon/quantity 여섯 개만 옮겨 적어서,
-        //      그 목록에 없는 필드가 조용히 사라졌다. 낚싯줄의 dur(줄 길이 200m),
-        //      물약·카드의 boost 같은 것들이다. 새 아이템을 넣을 때마다 같은 사고가
-        //      되풀이되므로, 목록을 늘리는 대신 정의를 그대로 옮긴다(2026-09-09 제보).
-        //      price·reqLevel 은 상점에서만 쓰는 값이라 가방엔 넣지 않는다.
-        final Map<String, dynamic> newItem = Map<String, dynamic>.from(item)
-          ..remove('price')
-          ..remove('reqLevel');
-        newItem['quantity'] = item['quantity'] ?? 1;
-        if (isLineItem) {
-          newItem['quantity'] = 1;
-          newItem['lid'] = newLineId();
-          newItem['dur'] = (item['dur'] is num) ? item['dur'] : kLineDurDefault;
+        if (existingIndex >= 0) {
+          int currentQty = inventory[existingIndex]['quantity'] ?? 0;
+          int addQty = item['quantity'] ?? 1;
+          inventory[existingIndex]['quantity'] = currentQty + addQty;
+        } else {
+          // 🛒 정의를 통째로 복사한다.
+          //   ⚠️ 예전엔 name/category/type/stats/icon/quantity 여섯 개만 옮겨 적어서,
+          //      그 목록에 없는 필드가 조용히 사라졌다. 낚싯줄의 dur(줄 길이 200m),
+          //      물약·카드의 boost 같은 것들이다. 새 아이템을 넣을 때마다 같은 사고가
+          //      되풀이되므로, 목록을 늘리는 대신 정의를 그대로 옮긴다(2026-09-09 제보).
+          //      price·reqLevel 은 상점에서만 쓰는 값이라 가방엔 넣지 않는다.
+          final Map<String, dynamic> newItem = Map<String, dynamic>.from(item)
+            ..remove('price')
+            ..remove('reqLevel');
+          newItem['quantity'] = item['quantity'] ?? 1;
+          if (isLineItem) {
+            newItem['quantity'] = 1;
+            newItem['lid'] = newLineId();
+            newItem['dur'] = (item['dur'] is num) ? item['dur'] : kLineDurDefault;
+          }
+          inventory.add(newItem);
         }
-        inventory.add(newItem);
-      }
       
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'gold': FieldValue.increment(-item['price']),
-        'inventory': inventory
-      });
 
-      // 🎓 튜토리얼 '장비 장만'(보배, tutStep 5) — 아이템 구매하면 미션 완료 기록
-      final bool isTutShopDone = ((userDoc.data()?['tutStep']) as num?)?.toInt() == 5;
-      if (isTutShopDone) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid)
-            .set({'tutCleared': true}, SetOptions(merge: true));
+        // 🎓 튜토리얼 '장비 장만'(보배, tutStep 5) — 아이템 구매하면 미션 완료 기록
+        isTutShopDone = ((userDoc.data()?['tutStep']) as num?)?.toInt() == 5;
+        tx.update(ref, {
+          'gold': FieldValue.increment(-item['price']),
+          'inventory': inventory,
+          if (isTutShopDone) 'tutCleared': true,
+        });
+      });
+      if (poor) {
+        _showNotificationPopup('🚫 구매 불가', 'KREFT가 부족합니다!\n열심히 고기를 잡으세요!', Colors.redAccent);
+        return;
       }
 
       setState(() {
