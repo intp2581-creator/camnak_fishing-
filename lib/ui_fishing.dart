@@ -3042,23 +3042,31 @@ Widget _whisperUnreadBadge() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || gid.isEmpty) return;
     final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    List<dynamic> inv;
-    try { final snap = await ref.get(); inv = List.from(snap.data()?['inventory'] ?? []); }
-    catch (_) { return; }
-    final res = FishingLogic.openGiftBox(inv, gid);
-    if (res['ok'] != true) return;
-    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int;
+    // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로 — 결제 직후 제일 먼저 누르는 게 상자 열기라
+    //    폴링이 상자를 넣는 순간과 잘 겹친다([_useBaitOne] 참고). 안에서는 계산과 쓰기만,
+    //    소리·결과창은 끝난 뒤에(재시도되면 두 번 뜨지 않게).
+    Map<String, dynamic>? res;
     try {
-      await ref.update({
-        'inventory': res['inv'],
-        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
-        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        final r = FishingLogic.openGiftBox(inv, gid);
+        res = r;
+        if (r['ok'] != true) return;
+        final int e = r['exp'] as int, g = r['gold'] as int;
+        tx.update(ref, {
+          'inventory': r['inv'],
+          if (e > 0) 'exp': FieldValue.increment(e),
+          if (g > 0) 'gold': FieldValue.increment(g),
+        });
       });
     } catch (_) { return; }
+    if (res == null || res!['ok'] != true) return;
+    final int expDelta = res!['exp'] as int, goldDelta = res!['gold'] as int;
     if (!mounted) return;
     audioManager.playTada(); // 🎉 짜잔~ (상자 낚았을 때와 같은 소리)
-    _showGiftResult(res['title'].toString(), expDelta, goldDelta,
-        Map<String, int>.from(res['items'] as Map));
+    _showGiftResult(res!['title'].toString(), expDelta, goldDelta,
+        Map<String, int>.from(res!['items'] as Map));
   }
 
   void _showGiftResult(String title, int exp, int gold, Map<String, int> items) {
@@ -3092,25 +3100,29 @@ Widget _whisperUnreadBadge() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-    List<dynamic> inv;
+    // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로([_openGift] 참고). 확률 굴림(openBoxes)도
+    //    안에서 한다 — 재시도되면 다시 굴리지만 결과창은 '저장된 마지막 결과'만 보여준다.
+    Map<String, dynamic>? res;
     try {
-      final snap = await ref.get();
-      inv = List.from(snap.data()?['inventory'] ?? []);
-    } catch (_) { return; }
-
-    final res = FishingLogic.openBoxes(inv, boxName, count);
-    final int opened = res['opened'] as int;
-    if (opened <= 0) return;
-    final int expDelta = res['exp'] as int, goldDelta = res['gold'] as int, sellback = res['sellback'] as int;
-    final items = Map<String, int>.from(res['items'] as Map);
-
-    try {
-      await ref.update({
-        'inventory': res['inv'],
-        if (expDelta > 0) 'exp': FieldValue.increment(expDelta),
-        if (goldDelta > 0) 'gold': FieldValue.increment(goldDelta),
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        final r = FishingLogic.openBoxes(inv, boxName, count);
+        res = r;
+        if ((r['opened'] as int) <= 0) return;
+        final int e = r['exp'] as int, g = r['gold'] as int;
+        tx.update(ref, {
+          'inventory': r['inv'],
+          if (e > 0) 'exp': FieldValue.increment(e),
+          if (g > 0) 'gold': FieldValue.increment(g),
+        });
       });
-    } catch (_) {}
+    } catch (_) { return; }
+    if (res == null) return;
+    final int opened = res!['opened'] as int;
+    if (opened <= 0) return;
+    final int expDelta = res!['exp'] as int, goldDelta = res!['gold'] as int, sellback = res!['sellback'] as int;
+    final items = Map<String, int>.from(res!['items'] as Map);
 
     if (!mounted) return;
     audioManager.playTada(); // 🎉 짜잔~ (상자 낚았을 때와 같은 소리)

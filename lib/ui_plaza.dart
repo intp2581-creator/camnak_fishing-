@@ -780,12 +780,16 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (u == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(u.uid);
-      final data = (await ref.get()).data() ?? {};
-      gBoostExpSec = (data['boostExpSec'] is num) ? (data['boostExpSec'] as num).toInt() : 0;
-      gBoostPtsSec = (data['boostPtsSec'] is num) ? (data['boostPtsSec'] as num).toInt() : 0;
-      final inv = List<dynamic>.from(data['inventory'] ?? []);
-      final cleaned = removeExpiredEventItems(inv);
-      if (cleaned != null) await ref.update({'inventory': cleaned});
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로 — 광장 들어오는 순간 결제 상자가 들어오면
+      //    옛 가방으로 덮어 상자가 사라졌다. 안에서는 계산과 쓰기만 한다(재시도돼도 같게).
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final data = (await tx.get(ref)).data() ?? {};
+        gBoostExpSec = (data['boostExpSec'] is num) ? (data['boostExpSec'] as num).toInt() : 0;
+        gBoostPtsSec = (data['boostPtsSec'] is num) ? (data['boostPtsSec'] as num).toInt() : 0;
+        final inv = List<dynamic>.from(data['inventory'] ?? []);
+        final cleaned = removeExpiredEventItems(inv);
+        if (cleaned != null) tx.update(ref, {'inventory': cleaned});
+      });
     } catch (_) {}
   }
 
