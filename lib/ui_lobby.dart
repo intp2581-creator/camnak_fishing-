@@ -1678,19 +1678,32 @@ class _StoreScreenState extends State<StoreScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      inventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString())); // 선택 어종만 제거
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'gold': FieldValue.increment(total),
-        'inventory': inventory,
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로. 금액도 화면 값이 아니라
+      //    트랜잭션 안에서 실제로 빠진 물고기로 다시 센다(창 열어둔 사이 팔렸을 수 있다).
+      int paid = 0;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        paid = 0;
+        final userDoc = await tx.get(ref);
+        List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
+        for (final i in inventory) {
+          if (i is Map && (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString())) {
+            final int q = (i['quantity'] is num) ? (i['quantity'] as num).toInt() : 1;
+            paid += fishSellPrice((i['name'] ?? '').toString()) * q;
+          }
+        }
+        inventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString())); // 선택 어종만 제거
+        tx.update(ref, {
+          'gold': FieldValue.increment(paid),
+          'inventory': inventory,
+        });
       });
       if (!mounted) return;
       setState(() {
         myInventory.removeWhere((i) => (i['type'] ?? '') == 'FISH' && names.contains((i['name'] ?? '').toString()));
-        myDisplayGold += total;
+        myDisplayGold += paid;
       });
-      _showNotificationPopup('🎉 판매 완료', '선택한 물고기를 팔고\n$total K를 받았습니다!', const Color(0xFF7FFFB0));
+      _showNotificationPopup('🎉 판매 완료', '선택한 물고기를 팔고\n$paid K를 받았습니다!', const Color(0xFF7FFFB0));
     } catch (e) {
       debugPrint('선택판매 에러: $e');
     }
@@ -1834,19 +1847,33 @@ class _StoreScreenState extends State<StoreScreen> {
     final int curQty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bool sellOne = isGear && curQty > 1;
     try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
-      if (sellOne) {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로. 서버 가방에 그 물건이 없으면(이미 팔렸으면)
+      //    돈도 안 준다 — 옛 코드는 없어도 KREFT를 얹어 줬다.
+      bool sold = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        sold = false;
+        final userDoc = await tx.get(ref);
+        List<dynamic> inventory = List.from(userDoc.data()?['inventory'] ?? []);
         final idx = inventory.indexWhere((i) => i['name'] == name);
-        if (idx >= 0) inventory[idx]['quantity'] = curQty - 1; // 중복분 1개만 차감(장착분 보존)
-      } else {
-        inventory.removeWhere((i) => i['name'] == name); // 묶음 전체(미끼) 또는 단일 장비
-      }
-
-      await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-        'gold': FieldValue.increment(price),
-        'inventory': inventory,
+        if (idx < 0) return;
+        if (sellOne) {
+          final int sq = (inventory[idx]['quantity'] is num) ? (inventory[idx]['quantity'] as num).toInt() : 1;
+          if (sq > 1) { inventory[idx]['quantity'] = sq - 1; }   // 중복분 1개만 차감(장착분 보존) — 서버 수량 기준
+          else { inventory.removeAt(idx); }
+        } else {
+          inventory.removeWhere((i) => i['name'] == name); // 묶음 전체(미끼) 또는 단일 장비
+        }
+        tx.update(ref, {
+          'gold': FieldValue.increment(price),
+          'inventory': inventory,
+        });
+        sold = true;
       });
+      if (!sold) {
+        if (mounted) _showNotificationPopup('판매 불가', '가방에 없는 물건이에요.\n(이미 팔렸거나 사용됐어요)', Colors.orangeAccent);
+        return;
+      }
 
       // 장착 해제는 '완전히 처분(마지막 1개)'했을 때만 — 중복 1개 판매는 장착 유지
       if (!sellOne) {
