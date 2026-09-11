@@ -5251,26 +5251,6 @@ Positioned(
                         ),
                         onPressed: () {
                           audioManager.playSfx("sfx_click.mp3");
-                          // 🎣 [2026-09-11] 찌를 담가둔 채 상점에 들어가면 낚시 시간이 계속 깎였다
-                          //    (시간 규칙이 '찌가 물에 있으면 흐른다'라서). 대기 상태에서 열면
-                          //    안 깎이는 것과 달라 사용자 지적. 줄을 감고 대기 상태로 보낸 뒤 연다.
-                          //    미끼는 안 버린다 — 챔질 때만 줄어서 감았다 다시 던져도 이득이 없다.
-                          //    사투 중엔 게이지가 상단 아이콘을 덮어 여기까지 못 온다.
-                          if (isFloatInWater || isCasting) {
-                            _biteTimer?.cancel();
-                            _escapeTimer?.cancel();
-                            setState(() {
-                              isFloatInWater = false;
-                              isCasting = false;
-                              isSettingUp = true;      // 돌아오면 '캐스팅 시작!' 화면
-                              bitingRods.clear();
-                              isFighting = false;
-                              fightingRodIndex = null;
-                            });
-                            FishingLive.setPhase('idle');
-                            Navigator.pop(context);   // 인벤토리 팝업 닫기
-                            _baitToast('🎣 줄을 감았어요 — 상점에 있는 동안 낚시 시간은 흐르지 않아요', const Color(0xFFD4AF37));
-                          }
                           Navigator.push(
                             context,
                             MaterialPageRoute(
