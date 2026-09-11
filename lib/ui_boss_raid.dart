@@ -141,7 +141,6 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   int _playerGear = 1;        // 내 제압단계(1~3)
   int _fishGear = 0;          // 보스 상태 0잔잔 / 1저항 / 2발악
   double _shake = 0;
-  DateTime? _lastSplash;      // 🔊 물 첨벙 소리 스로틀
   Timer? _flingTimer;         // 🎣 발악 3단용 — 목표 단계 못 채우면 한 번 더 챔
   String _prevBgm = '';       // 🎵 보스전 진입 전 BGM(나갈 때 복귀)
   // 🎉 레이드 성공 세러모니(전체화면 · 스샷 타임 — 버튼 누를 때까지 유지)
@@ -150,6 +149,9 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   Map<String, dynamic>? _cerNext;
   // 🧾 좌측 정보창(일반 낚시터 HUD와 동일)
   int _level = 1, _statP = 0, _statC = 0, _statS = 0, _exp = 0, _gold = 0;
+  // 🎁 이번 존에서 '실제로 지급된' 보상 — 레벨 기준이라 화면 추정치와 어긋나지 않게
+  //    _grantReward() 가 트랜잭션 안에서 채운다. null=아직 지급 전.
+  int? _paidExp, _paidPt;
   late AnimationController _rodCtrl;
   final _rng = math.Random();
   final GlobalKey _shotKey = GlobalKey(); // 📸 세러모니 기념샷 캡처 범위
@@ -611,9 +613,8 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   Future<void> _grantReward() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
-    final r = raidRewards[widget.bossId];
-    if (r == null) return;
     final claimKey = 'raid_${widget.guildId}_${widget.bossId}_${widget.endAt}'; // 이번 판·이 보스 1회
+    int? gExp, gPt;   // 트랜잭션이 실제로 지급한 값(재시도되면 마지막 값이 남는다)
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       await FirebaseFirestore.instance.runTransaction((tx) async {
@@ -622,8 +623,15 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
         if (claims.contains(claimKey)) return; // 이미 받음
         claims.add(claimKey);
         if (claims.length > 40) claims.removeRange(0, claims.length - 40);
-        final exp = (r['exp'] as num?)?.toInt() ?? 0;
-        final pt = (r['point'] as num?)?.toInt() ?? 0;
+        // 🎁 보상은 '지금 이 사람의 레벨'로 계산한다(정액표 폐지, 2026-09-10).
+        //    화면에 뜬 _level 이 아니라 스냅샷의 경험치로 다시 구한다 — 앞 존을 깨고
+        //    레벨이 올랐는데 화면 값이 아직 옛 레벨이면 지급액이 어긋나기 때문.
+        final int lvNow = calcLevelFromExp(
+            (snap.data()?['exp'] is num) ? (snap.data()!['exp'] as num).toInt() : 0);
+        final rw = raidRewardFor(widget.bossId, lvNow);
+        final exp = rw['exp'] ?? 0;
+        final pt = rw['point'] ?? 0;
+        gExp = exp; gPt = pt;
         final Map<String, dynamic> upd = {
           'exp': FieldValue.increment(exp),
           'gold': FieldValue.increment(pt),
@@ -640,6 +648,10 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
         }
         tx.update(ref, upd);
       });
+      // 🖥️ 결과창·세러모니가 '실제 지급액'을 그대로 쓰게 한다.
+      //    세러모니는 300ms 뒤에 뜨므로 대개 여기가 먼저다. 늦으면 화면 레벨로
+      //    계산한 값이 잠깐 쓰이는데, 그 값도 지급 시점 레벨과 같아 어긋나지 않는다.
+      if (mounted && gExp != null) setState(() { _paidExp = gExp; _paidPt = gPt; });
     } catch (e) { debugPrint('🎁 raid reward err: $e'); }
   }
 
@@ -669,9 +681,8 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
 
   void _showResult(bool win, {bool cleared = false, Map<String, dynamic>? next}) {
     final bossName = widget.bossName;
-    final r = raidRewards[widget.bossId];
-    final int rExp = (r?['exp'] as num?)?.toInt() ?? 0;
-    final int rPt = (r?['point'] as num?)?.toInt() ?? 0;
+    final int rExp = _paidExp ?? (raidRewardFor(widget.bossId, _level)['exp'] ?? 0);
+    final int rPt = _paidPt ?? (raidRewardFor(widget.bossId, _level)['point'] ?? 0);
     final String boxTxt = _boxDef != null ? ' · 🗝️${_boxDef!['name']}' : '';
     showDialog(
       context: context, barrierDismissible: false,
@@ -1007,9 +1018,8 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
 
   // 🎉 레이드 성공 세러모니 — 보스 이미지를 크게 띄우고 보상·다음 존 안내. 스샷 찍을 시간을 준다.
   Widget _ceremonyOverlay() {
-    final r = raidRewards[widget.bossId];
-    final int rExp = (r?['exp'] as num?)?.toInt() ?? 0;
-    final int rPt = (r?['point'] as num?)?.toInt() ?? 0;
+    final int rExp = _paidExp ?? (raidRewardFor(widget.bossId, _level)['exp'] ?? 0);
+    final int rPt = _paidPt ?? (raidRewardFor(widget.bossId, _level)['point'] ?? 0);
 
     return Container(
       color: Colors.black.withOpacity(0.72),
@@ -1235,15 +1245,6 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
         },
       );
     }));
-  }
-
-  // 🐲 보스가 오른쪽(승리선)으로 끌려오는 중인가? = 지금 실제로 전진 중인가.
-  //    잔잔이면 당기기만 해도 끌려오고, 저항·발악은 단계를 맞춰 받아쳐야 머리가 돌아간다.
-  bool get _bossFacingRight {
-    if (!_isPressing) return false;
-    if (_fishGear == 0) return true;
-    final int need = _fishGear == 2 ? 3 : 2;
-    return _playerGear >= need;
   }
 
   Widget _fightGauge(double progress, String bossImg) {

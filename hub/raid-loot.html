@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="길드 보스레이드 보상 개편 — 존마다 다른 전리품 상자와 새 재료 룬.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="길드 보스레이드 — 전리품 상자와 룬">
+<meta property="og:description" content="수상한 상자 대신 존마다 다른 전리품 상자. 보스를 잡아야 얻는 새 재료 '룬'이 등장합니다.">
+<meta property="og:image" content="https://kreft.co.kr/assets/raid/cover_raid.webp">
+<meta property="og:url" content="https://kreft.co.kr/raid-loot.html">
+<link rel="icon" href="favicon.ico">
+<title>길드 보스레이드 — 전리품 상자와 룬</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Noto+Sans+KR:wght@400;700;900&family=Noto+Serif+KR:wght@700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+<style>
+  :root{ --ink:#d9d2c4; --gold:#f6e3a8; --bg:#050505; }
+  *{box-sizing:border-box}
+  /* 🤍 글 바깥은 흰 바탕 — 가운데 검은 띠로 시선을 모은다(리니지 예고 페이지 방식). */
+  body{margin:0;background:#fff;color:var(--ink);
+       font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.85;overflow-x:hidden}
+  .page{max-width:760px;margin:0 auto;background:var(--bg);
+        box-shadow:0 0 0 1px rgba(0,0,0,.06)}
+
+  /* ══════════════════════════════════════════════════════
+     ✨ 새김 금박 글씨 — 글자를 세 겹으로 쌓는다.
+        ① 뒤: 두꺼운 어두운 테두리(파낸 자국)
+        ② 앞: 금색 그라데이션(금속 반사)
+        ③ 전체에 바깥 광 + 그림자
+        data-t 에 같은 글자를 넣어야 한다(줄바꿈 없이 한 줄).
+     ══════════════════════════════════════════════════════ */
+  .au{position:relative;display:inline-block;color:transparent;
+      font-family:'Noto Serif KR','Noto Sans KR',serif;font-weight:900;
+      letter-spacing:.03em;line-height:1.34;
+      /* 자간은 마지막 글자 뒤에도 붙는다. 그만큼 오른쪽에 여백을 두어
+         세 겹이 모두 같은 자리에서 가운데로 놓이게 한다. */
+      text-align:left;padding-right:.03em;
+      filter:drop-shadow(0 .05em .10em rgba(0,0,0,.95))
+             drop-shadow(0 0 .55em rgba(214,164,72,.34))}
+  .au.lat{font-family:'Cinzel',serif;font-weight:900;letter-spacing:.10em}
+  .au::before,.au::after{content:attr(data-t);position:absolute;left:0;top:0;
+      width:100%;white-space:pre;text-align:left;padding-right:.03em}
+  .au::before{z-index:1;color:#20120a;
+      -webkit-text-stroke:.155em #20120a;paint-order:stroke fill}
+  .au::after{z-index:2;color:transparent;
+      background:linear-gradient(180deg,
+          #fffdf2 0%, #f9ecc0 20%, #e6c069 40%,
+          #a97a1e 56%, #d9ae52 70%, #fbf0c8 86%, #b8861f 100%);
+      -webkit-background-clip:text;background-clip:text}
+
+  .t-hero{font-size:clamp(34px,7.4vw,58px)}
+  .t-sec {font-size:clamp(27px,5.6vw,42px)}
+  .t-name{font-size:clamp(24px,5vw,35px)}
+  .t-min {font-size:clamp(19px,4.4vw,33px)}
+
+  /* 🏷️ 명패 — 양끝에 금 마름모가 달린 띠 */
+  .plaque{display:inline-block;position:relative;margin-top:18px;
+     padding:7px 40px;font-size:clamp(13px,2.7vw,16px);font-weight:700;
+     color:#f4e3b4;letter-spacing:.20em;text-indent:.20em;line-height:1.7;
+     background:linear-gradient(180deg,rgba(74,40,20,.92),rgba(26,13,8,.94));
+     border-top:1px solid rgba(226,186,108,.55);
+     border-bottom:1px solid rgba(226,186,108,.55);
+     text-shadow:0 1px 3px rgba(0,0,0,.9);
+     clip-path:polygon(15px 0,calc(100% - 15px) 0,100% 50%,
+                       calc(100% - 15px) 100%,15px 100%,0 50%)}
+  .plaque::before,.plaque::after{content:'';position:absolute;top:50%;
+     width:7px;height:7px;transform:translateY(-50%) rotate(45deg);
+     background:linear-gradient(135deg,#fbf0c8,#a97a1e)}
+  .plaque::before{left:8px} .plaque::after{right:8px}
+
+  /* ➖ 구분 — 금색 선 가운데 마름모 */
+  .flour{position:relative;width:180px;height:1px;margin:26px auto;
+     background:linear-gradient(90deg,transparent,rgba(201,154,46,.75),transparent)}
+  .flour::after{content:'';position:absolute;left:50%;top:50%;width:7px;height:7px;
+     transform:translate(-50%,-50%) rotate(45deg);
+     background:linear-gradient(135deg,#fbf0c8,#a97a1e)}
+  /* 파트와 파트 사이를 넉넉히 띄운다 */
+  .gap{height:34px;background:var(--bg)}
+  .gap.wide{height:64px}
+
+  /* ── 표지 ─────────────────────────────────────────────
+     제목을 위에 따로 두니 검은 여백만 커져서 균형이 깨졌다.
+     그림 아래쪽(계단 어두운 자리)에 얹는다. */
+  .cover{position:relative;line-height:0;background:var(--bg);
+         padding-top:26px}
+  .cover img{width:100%;display:block}
+  .cover .shade{position:absolute;inset:0;pointer-events:none;
+     background:linear-gradient(180deg,var(--bg) 0%,rgba(5,5,5,.26) 9%,
+                                rgba(5,5,5,0) 26%,rgba(5,5,5,.14) 56%,
+                                rgba(5,5,5,.62) 80%,rgba(5,5,5,.92) 94%,var(--bg) 100%)}
+  .cover .title{position:absolute;left:0;right:0;bottom:2.5%;
+     text-align:center;padding:0 20px;line-height:1.5}
+
+  /* ── 배경 그림 + 그 위 글씨 ───────────────────────────── */
+  .scene{position:relative;line-height:0}
+  .scene>img{width:100%;display:block}
+  .scene .veil{position:absolute;inset:0;
+       background:linear-gradient(180deg,rgba(0,0,0,.74) 0%,rgba(0,0,0,.16) 42%,
+                                          rgba(0,0,0,.36) 72%,var(--bg) 100%)}
+  .scene .on{position:absolute;left:0;right:0;top:7%;text-align:center;
+             padding:0 24px;line-height:1.5}
+  .scene .on.bottom{top:auto;bottom:6%}
+
+  /* ── 파노라마(초광각 한 장) — 글자를 얹지 않고 아래로 뺀다 ── */
+  .pano{position:relative;line-height:0}
+  .pano>img{width:100%;display:block}
+  .pano .fade{position:absolute;left:0;right:0;bottom:-1px;height:18%;
+       background:linear-gradient(180deg,rgba(0,0,0,0) 0%,var(--bg) 100%);
+       pointer-events:none}
+
+  .en{font-family:'Cinzel',serif;font-weight:600;
+      font-size:clamp(11px,2.2vw,14px);letter-spacing:.46em;color:#d3c5a0;
+      margin:12px 0 0;text-indent:.46em;text-shadow:0 2px 8px #000}
+  .kick{font-family:'Cinzel',serif;font-size:clamp(11px,2.3vw,13.5px);
+        letter-spacing:.34em;color:#bcac86;font-weight:700;
+        margin:0 0 16px;text-indent:.34em;text-shadow:0 2px 8px #000}
+  .lead{font-size:clamp(14px,2.8vw,16.5px);color:#e8e2d5;margin:14px 0 0;
+        text-shadow:0 2px 10px #000;font-weight:400}
+  .role{font-size:clamp(13px,2.6vw,15.5px);color:#a89f8d;margin:8px 0 0;line-height:1.7}
+  .role.dim{color:#7d7466;font-size:13px}
+
+  /* ── 어두운 글 구간 ───────────────────────────────────── */
+  .blk{padding:70px 26px;text-align:center;
+       background:radial-gradient(120% 80% at 50% 0%,#141118 0%,var(--bg) 70%)}
+  .blk p{margin:0 0 14px;font-size:15.5px;color:#cfc8ba}
+  .blk p.big{font-size:18px;color:#f0e9da;font-weight:700;line-height:1.9}
+  .sechead{padding:80px 26px 34px;text-align:center;background:var(--bg)}
+
+  /* ── 인물 — 상자 없이, 빛은 그림에 구워져 있다 ─────────── */
+  .fig{text-align:center;padding:0 0 56px;background:var(--bg);line-height:0}
+  /* 폰에서는 화면 폭을 채우고, 넓은 화면에서만 원본을 넘지 않게 잡는다. */
+  .fig img{width:100%;max-width:520px;display:block;margin:0 auto}
+  .fig .cap{line-height:1.5;margin-top:4px}
+
+  /* 세 사람을 한 줄에 — 크기를 서로 맞춘다 */
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+        padding:0 14px 20px;background:var(--bg);align-items:end}
+  .trio .fig{padding:0}
+  .trio .fig img{max-width:100%}
+  .trio .cap{margin-top:6px}
+  /* 세이라 그림은 지팡이가 왼쪽으로 뻗어, 그림 가운데보다 사람이 오른쪽에 있다.
+     이름을 그만큼 오른쪽으로 민다. */
+  .trio .nudge{position:relative;left:16%}
+  /* 👥 둘씩 나란히 — 바르탄·제나스 / 카엘·이실드 / 스킨 두 색 (2026-09-09) */
+  .duo{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+       padding:0 18px 54px;background:var(--bg)}
+  .duo .fig{padding:0}
+  .duo .fig img{max-width:100%}
+  .duo .cap{margin-top:8px}
+  /* 🌍 텔레포터 넷 — 2×2. 넷을 한 줄에 세우면 너무 작아진다(사장님 확인) */
+  .quad{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;
+        padding:0 18px 54px;background:var(--bg)}
+  .quad .fig{padding:0}
+  .quad .fig img{max-width:100%}
+  .quad .cap{margin-top:8px}
+
+  /* ── 아이템 — 상자 없이 나열, 판이 정사각이라 크기가 같다 ── */
+  .items{display:grid;gap:40px 16px;padding:0 18px 30px;background:var(--bg);
+         grid-template-columns:repeat(auto-fit,minmax(120px,1fr));align-items:start}
+  .items .it{text-align:center;position:relative}
+  .items .it::before{content:'';position:absolute;left:50%;top:38%;
+       transform:translate(-50%,-50%);width:104%;padding-bottom:104%;border-radius:50%;
+       pointer-events:none;
+       background:radial-gradient(50% 50% at 50% 50%,rgba(140,116,64,.24) 0%,rgba(0,0,0,0) 70%)}
+  .items .it img{position:relative;width:100%;max-width:140px;display:block;margin:0 auto 10px}
+  .items .it b{position:relative;display:block;font-size:14.5px;font-weight:900;
+       color:#f0dda4;letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.9)}
+
+  .rods{padding:0 10px;background:var(--bg);text-align:center}
+  .rods .r{margin-bottom:56px}
+  /* 두 낚싯대는 그림 파일 자체가 같은 크기(737x1299)라 그냥 같은 폭으로 두면 된다.
+     세로로 길어서 폭을 좁게 잡아야 화면에 알맞다. */
+  .rods .r img{display:block;margin:0 auto;width:100%;max-width:400px}
+
+  /* ── 금색 상자(글 전용) ──────────────────────────────── */
+  .goldbox{margin:0 20px 60px;padding:34px 22px;border-radius:12px;text-align:center;
+     border:1px solid #3b2f16;background:linear-gradient(180deg,#171205,#0a0805)}
+  .goldbox p{margin:0 0 8px;font-size:16px;color:#d8d0bf}
+  .goldbox p.last{margin:0;color:var(--gold);font-weight:700;font-size:17px}
+
+  .foot{padding:38px 20px 52px;text-align:center;font-size:12.5px;color:#6b6355;
+        background:var(--bg);border-top:1px solid #191612}
+  .sign{font-family:'Cinzel',serif;font-size:15px;color:#b3aa99;
+        margin-bottom:12px;letter-spacing:.14em}
+  .memo{margin:0 20px 40px;padding:14px 16px;border-radius:10px;
+        border:1px solid #4a2222;background:#170d0d;color:#c98b8b;font-size:13px;line-height:1.9}
+</style><style>
+  /* 🗝️ 전리품 상자 — 그림이 정사각이라 두 개씩. 5존은 혼자라 크게. */
+  .loot{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;
+        padding:0 18px 40px;background:var(--bg)}
+  .loot .fig{padding:0}
+  .loot .fig img{max-width:100%}
+  .loot .cap{margin-top:8px}
+  .solo{padding:0 18px 40px;background:var(--bg);text-align:center}
+  .solo img{width:100%;max-width:300px;display:block;margin:0 auto}
+  .lt-reward{color:#7FFFB0;font-size:12.5px;font-weight:700;margin:6px 0 0;line-height:1.7}
+  .lt-body{color:#a89f8d;font-size:13.5px;line-height:1.85;margin:4px 0 0}
+  .lt-body b{color:#e8d9a8;font-weight:700}
+  .trio{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+        padding:0 18px 26px;background:var(--bg)}
+  .trio .fig{padding:0}
+  .trio .fig img{max-width:100%}
+  .trio .cap{margin-top:6px}
+  .t-lead{font-size:clamp(17px,3.9vw,30px)}
+  .loot .role{font-size:11.5px;line-height:1.55}
+  .loot .lt-reward{font-size:11.5px}
+  .loot .lt-body{font-size:12.5px;line-height:1.75}
+  .rstat{color:#7FFFB0;font-size:13px;font-weight:800;margin:4px 0 0;line-height:1.6}
+  .note{margin:0 20px 54px;padding:16px 18px;border-radius:12px;
+        border:1px solid rgba(201,154,46,.34);background:#100d07;
+        color:#c9bfa6;font-size:14px;line-height:1.9}
+  .note b{color:var(--gold)}
+</style>
+<div class="page">
+
+  <!-- ① 표지 -->
+  <div class="cover">
+    <img src="assets/raid/cover_raid.webp" alt="길드 보스레이드">
+    <div class="shade"></div>
+    <div class="title">
+      <p class="kick">BOSS RAID · TROPHY</p>
+      <div class="au t-hero" data-t="길드 보스레이드">길드 보스레이드</div>
+      <div><span class="plaque">보스레이드 전리품</span></div>
+    </div>
+  </div>
+
+  <!-- ② 왜 바꿨나 -->
+  <div class="blk" style="padding:60px 26px 10px">
+    <p class="big">보스레이드 보상이 바뀝니다.</p>
+    <p>수상한 상자 여러 개 → <b style="color:#e8d9a8">전리품 상자 하나</b></p>
+  </div>
+
+  <div class="sechead" style="padding:34px 26px 30px">
+    <div class="au t-sec" data-t="보스레이드 보상 업데이트">보스레이드 보상 업데이트</div>
+    <p class="en">REWARD UPDATE</p>
+  </div>
+
+  <div class="blk" style="padding:0 26px 40px">
+    <p>개수는 줄었지만, 안에 담긴 것이 달라졌습니다.</p>
+  </div>
+
+  <!-- ③ 다섯 상자 -->
+  <div class="sechead" style="padding:34px 26px 30px">
+    <div class="au t-sec" data-t="보스마다 다른 상자">보스마다 다른 상자</div>
+    <p class="en">FIVE TROPHIES</p>
+  </div>
+
+  <div class="loot">
+    <div class="fig">
+      <img src="assets/raid/box_raid_1_murgadon.webp" alt="무르가돈의 전리품">
+      <div class="cap">
+        <div class="au t-min" data-t="무르가돈의 전리품">무르가돈의 전리품</div>
+        <p class="role dim">1. 신성한 늪</p>
+        <p class="lt-body"><b>크리스탈</b> · 룬 1<br>미끼 1통<br>물약 또는 카드 1</p>
+      </div>
+    </div>
+
+    <div class="fig">
+      <img src="assets/raid/box_raid_2_abykura.webp" alt="아비쿠라의 전리품">
+      <div class="cap">
+        <div class="au t-min" data-t="아비쿠라의 전리품">아비쿠라의 전리품</div>
+        <p class="role dim">2. 신비한 바다</p>
+        <p class="lt-body"><b>자수정</b> · 룬 1<br>미끼 1통<br>물약 또는 카드 1<br><b>능력치 엠블럼 1</b></p>
+      </div>
+    </div>
+
+    <div class="fig">
+      <img src="assets/raid/box_raid_3_basragon.webp" alt="바스라곤의 전리품">
+      <div class="cap">
+        <div class="au t-min" data-t="바스라곤의 전리품">바스라곤의 전리품</div>
+        <p class="role dim">3. 고대의 수로</p>
+        <p class="lt-body"><b>사파이어</b> · 룬 1<br>미끼 1통<br>물약 또는 카드 2<br><b>능력치 엠블럼 1</b></p>
+      </div>
+    </div>
+
+    <div class="fig">
+      <img src="assets/raid/box_raid_4_kargon.webp" alt="카르곤의 전리품">
+      <div class="cap">
+        <div class="au t-min" data-t="카르곤의 전리품">카르곤의 전리품</div>
+        <p class="role dim">4. 폭풍호수</p>
+        <p class="lt-body"><b>루비</b> · 룬 1<br>미끼 1통<br>물약 또는 카드 2<br>이용권 · 입장권 · 엠블럼 중 1</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="solo">
+    <img src="assets/raid/box_raid_5_volkar.webp" alt="볼카르의 전리품">
+    <div class="cap" style="margin-top:10px">
+      <div class="au t-name" data-t="볼카르의 전리품">볼카르의 전리품</div>
+      <p class="role dim">5. 용암의 심연 · 화염 볼카르</p>
+      <p class="lt-body"><b>다이아몬드</b> · 룬 1 · 미끼 1통 · 물약 또는 카드 3<br>
+         <b>낚시 1시간 이용권 · 아레나 입장권 · 능력치 엠블럼 모두</b></p>
+    </div>
+  </div>
+
+  <div class="note">
+    룬은 <b>3종 중 1개</b>, 미끼는 <b>10종 중 1통</b>이 무작위로 담깁니다.
+  </div>
+
+  <!-- ③-2 경험치·KREFT — 정액에서 레벨 기준으로 -->
+  <div class="sechead" style="padding:34px 26px 30px">
+    <div class="au t-sec" data-t="경험치와 KREFT">경험치와 KREFT</div>
+    <p class="en">EXP &amp; KREFT</p>
+  </div>
+
+  <div class="blk" style="padding:0 26px 30px">
+    <p class="big">보상 계산 방식이 바뀌었습니다.</p>
+  </div>
+
+  <div class="note" style="margin-bottom:40px">
+    조사님의 <b>레벨에 맞는</b> 경험치와 KREFT가 지급됩니다.<br>
+    존이 깊을수록 더 많아집니다. <b>볼카르가 가장 큽니다.</b>
+  </div>
+
+  <!-- ④ 룬 -->
+  <div class="sechead" style="padding:34px 26px 30px">
+    <div class="au t-sec" data-t="룬">룬</div>
+    <p class="en">RUNES</p>
+  </div>
+
+  <div class="trio">
+    <div class="fig"><img src="assets/raid/rune_power.webp" alt="힘의 룬">
+      <div class="cap"><div class="au t-min" data-t="힘의 룬">힘의 룬</div>
+      <p class="rstat">힘 +30</p></div></div>
+    <div class="fig"><img src="assets/raid/rune_control.webp" alt="컨트롤의 룬">
+      <div class="cap"><div class="au t-min" data-t="컨트롤의 룬">컨트롤의 룬</div>
+      <p class="rstat">컨트롤 +30</p></div></div>
+    <div class="fig"><img src="assets/raid/rune_sense.webp" alt="감도의 룬">
+      <div class="cap"><div class="au t-min" data-t="감도의 룬">감도의 룬</div>
+      <p class="rstat">감도 +30</p></div></div>
+  </div>
+
+  <div class="note" style="margin-bottom:30px">
+    룬은 장착하는 물건이 아닙니다. <b>아이템을 제작할 때 능력치가 추가로 붙습니다.</b>
+  </div>
+
+  <div class="blk" style="padding:10px 26px 24px">
+    <p>보석은 <b style="color:#e8d9a8">물고기</b>로, 룬은 <b style="color:#e8d9a8">보스</b>로 얻는 재료입니다.</p>
+  </div>
+
+  <div class="sechead" style="padding:20px 26px 30px">
+    <div class="au t-lead" data-t="보스레이드에서 룬을 획득하십시오">보스레이드에서 룬을 획득하십시오</div>
+  </div>
+
+  <div class="blk" style="padding:0 26px 30px">
+    <p>가방 <b style="color:#e8d9a8">「재료」 탭</b>에서 보석과 함께 확인하실 수 있습니다.</p>
+    <div class="flour"></div>
+  </div>
+
+  <div class="blk" style="padding:0 26px 80px">
+    <div><span class="plaque">바르탄 영감에게서 각종 아이템을 제작할 수 있습니다</span></div>
+  </div>
+
+</div>
+</body>
+</html>

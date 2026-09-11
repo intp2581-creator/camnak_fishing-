@@ -1949,16 +1949,19 @@ Widget _whisperUnreadBadge() {
     if (user == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      if (!snap.exists) return;
-      final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      for (int i = 0; i < inv.length; i++) {
-        if (inv[i]['name'] != baitName) continue;
-        final int q = ((inv[i]['quantity'] ?? 0) as num).toInt();
-        if (q <= 1) { inv.removeAt(i); } else { inv[i]['quantity'] = q - 1; }
-        await ref.update({'inventory': inv});
-        return;
-      }
+      // 🔒 트랜잭션 — 가방 경합([_useBaitOne] 참고)
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        final snap = await tx.get(ref);
+        if (!snap.exists) return;
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        for (int i = 0; i < inv.length; i++) {
+          if (inv[i]['name'] != baitName) continue;
+          final int q = ((inv[i]['quantity'] ?? 0) as num).toInt();
+          if (q <= 1) { inv.removeAt(i); } else { inv[i]['quantity'] = q - 1; }
+          tx.update(ref, {'inventory': inv});
+          return;
+        }
+      });
     } catch (e) { print('미끼 버리기 실패: $e'); }
   }
 
@@ -2014,50 +2017,59 @@ Widget _whisperUnreadBadge() {
   Future<void> _useBaitOne() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || equippedBait == null) return;
+    final String targetBaitName = equippedBait!['name'];
 
     try {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snapshot = await userDoc.get();
-      if (!snapshot.exists) return;
-
-      List<dynamic> inventory = List.from(snapshot.data()?['inventory'] ?? []);
-      String targetBaitName = equippedBait!['name'];
-
-      bool found = false;
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로 한다.
+      //    가방은 배열 하나라 '읽고 → 고치고 → 통째로 다시 쓰기'밖에 못 한다. 그 사이
+      //    서버가 결제 상자를 넣으면(아임웹 폴링은 1분마다 돈다) 옛 가방으로 덮어써
+      //    상자가 조용히 사라졌다. 트랜잭션은 누가 그새 바꿨으면 처음부터 다시 돈다.
+      //    ⚠️ 그래서 안에서는 계산과 쓰기만 한다 — 화면·토스트는 끝난 뒤에
+      //       (다시 돌 때 두 번 뜨지 않게). 가방을 고치는 다른 함수들도 같은 방식이다.
+      List<dynamic> inventory = const [];
       bool ranOut = false;   // 이번 소모로 미끼가 바닥났나
-      for (int i = 0; i < inventory.length; i++) {
-        if (inventory[i]['name'] == targetBaitName) {
-          int q = inventory[i]['quantity'] ?? 0;
-          if (q > 0) {
-            found = true;
-            inventory[i]['quantity'] = q - 1;
-            if (inventory[i]['quantity'] == 0) {
-              inventory.removeAt(i);
-              // 🪱 [2026-09-05] 자동 교체를 없앴다. 가방에 있는 아무 미끼나 집어오다 보니
-              //    에기(두족류 전용)처럼 대부분 어종에 안 통하는 미끼로 바뀌어
-              //    입질이 뚝 끊기는 일이 있었다(유저 제보). 이제 유저가 직접 고른다.
-              //    ⚠️ 여기는 입질이 온 순간이다 — 지금 줄을 감고 팝업을 띄우면
-              //       '당기기'를 눌러야 할 화면을 가려버린다. 표시만 해두고
-              //       사투가 끝난 뒤(_onFightOverBaitCheck) 처리한다.
-              if (widget.roomId == null) _baitOutName = targetBaitName;
-              ranOut = true;
+      final bool ok = await FirebaseFirestore.instance.runTransaction<bool>((tx) async {
+        final snapshot = await tx.get(userDoc);
+        if (!snapshot.exists) return false;
+        inventory = List.from(snapshot.data()?['inventory'] ?? []);
+        ranOut = false;
+        bool found = false;
+        for (int i = 0; i < inventory.length; i++) {
+          if (inventory[i]['name'] == targetBaitName) {
+            int q = inventory[i]['quantity'] ?? 0;
+            if (q > 0) {
+              found = true;
+              inventory[i]['quantity'] = q - 1;
+              if (inventory[i]['quantity'] == 0) {
+                inventory.removeAt(i);
+                ranOut = true;
+              }
+              break;
             }
-            break;
           }
         }
-      }
-      // 가방에 그 미끼가 아예 없다(다른 창에서 팔았거나 이미 소진) → 똑같이 '다 썼다'로.
-      if (!found) {
-        ranOut = true;
-        if (widget.roomId == null) _baitOutName = targetBaitName;
-      }
+        // 가방에 그 미끼가 아예 없다(다른 창에서 팔았거나 이미 소진) → 똑같이 '다 썼다'로.
+        if (!found) { ranOut = true; return true; }
+        tx.update(userDoc, {'inventory': inventory});
+        return true;
+      });
+      if (!ok || !ranOut) return;
+
+      // 🪱 [2026-09-05] 자동 교체를 없앴다. 가방에 있는 아무 미끼나 집어오다 보니
+      //    에기(두족류 전용)처럼 대부분 어종에 안 통하는 미끼로 바뀌어
+      //    입질이 뚝 끊기는 일이 있었다(유저 제보). 이제 유저가 직접 고른다.
+      //    ⚠️ 여기는 입질이 온 순간이다 — 지금 줄을 감고 팝업을 띄우면
+      //       '당기기'를 눌러야 할 화면을 가려버린다. 표시만 해두고
+      //       사투가 끝난 뒤(_onFightOverBaitCheck) 처리한다.
+      if (widget.roomId == null) _baitOutName = targetBaitName;
 
       // ⚔️ [아레나] 미끼가 바닥나면 '가장 많이 가진 미끼'로 자동 이어 준다.
       //    일반 낚시터는 자동 교체를 없앴지만(엉뚱한 미끼로 바뀌어 입질이 끊겼다는 제보),
       //    아레나는 10분 단판이라 줄을 감고 고르게 하면 시간 손해가 너무 크다.
       //    노리는 어종에 맞는 미끼는 대회 중에 상점에서 사서 바꾸면 된다(사서 끼면 자동 장착).
       //    ⚠️ 이걸 안 하면 없는 미끼가 장착된 채로 남아, 미끼 없이 그 상성으로 계속 낚인다.
-      if (ranOut && widget.roomId != null && mounted) {
+      if (widget.roomId != null && mounted) {
         final Map<String, dynamic>? next = _pickMostBait(inventory);
         setState(() { equippedBait = next; });
         _baitToast(
@@ -2067,7 +2079,6 @@ Widget _whisperUnreadBadge() {
           next == null ? Colors.orangeAccent : const Color(0xFFD4AF37),
         );
       }
-      await userDoc.update({'inventory': inventory});
     } catch (e) { print("미끼 소모 중 에러: $e"); }
   }
 
@@ -2078,80 +2089,94 @@ Widget _whisperUnreadBadge() {
     if (user == null) return;
     final lineName = equippedLine!['name'].toString();
     final String lid = (equippedLine!['lid'] ?? '').toString();
+    final int want = (equippedLine!['dur'] is num)
+        ? (equippedLine!['dur'] as num).toInt() : -1;
+    final String wantCat = widget.isSea ? 'SEA' : 'FW';
     try {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await userDoc.get();
-      if (!snap.exists) return;
-      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      // 🧵 같은 이름의 줄을 여러 개 가질 수 있다 → 반드시 고유 id 로 찾는다.
-      //    id 가 없는 예전 줄은 이름으로 찾되, 그중 남은 길이가 같은 것을 고른다.
-      int idx = lid.isNotEmpty
-          ? inv.indexWhere((it) => it is Map && (it['lid'] ?? '') == lid)
-          : -1;
-      if (idx < 0) {
-        final int want = (equippedLine!['dur'] is num)
-            ? (equippedLine!['dur'] as num).toInt() : -1;
-        idx = inv.indexWhere((it) => it is Map &&
-            (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE' &&
-            (want < 0 || ((it['dur'] ?? kLineDurDefault) as num).toInt() == want));
-      }
-      if (idx < 0) {
-        idx = inv.indexWhere((it) => it is Map &&
-            (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE');
-      }
-      if (idx < 0) return;
-      int dur = (inv[idx]['dur'] is num) ? (inv[idx]['dur'] as num).toInt() : 200;
-      dur -= 10;
-      if (dur <= 0) {
-        // 🧵 끊어진 그 줄 하나만 없앤다(줄마다 개별 칸이라 묶음 삭제가 아니다).
-        //    예전 줄은 수량으로 묶여 있을 수 있으니 그때만 수량을 하나 줄인다.
-        final int q = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 1;
-        if (q > 1) {
-          inv[idx]['quantity'] = q - 1;
-          inv[idx]['dur'] = kLineDurDefault;
-        } else {
-          inv.removeAt(idx);
+      // 🔒 트랜잭션 — 가방 경합([_useBaitOne] 참고). 화면은 끝난 뒤에 바꾼다.
+      String outcome = 'none';   // none · worn(닳음) · swapped(갈아 끼움) · broke(끊어짐)
+      int newDur = 0;
+      Map<String, dynamic>? next;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        outcome = 'none'; next = null;
+        final snap = await tx.get(userDoc);
+        if (!snap.exists) return;
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        // 🧵 같은 이름의 줄을 여러 개 가질 수 있다 → 반드시 고유 id 로 찾는다.
+        //    id 가 없는 예전 줄은 이름으로 찾되, 그중 남은 길이가 같은 것을 고른다.
+        int idx = lid.isNotEmpty
+            ? inv.indexWhere((it) => it is Map && (it['lid'] ?? '') == lid)
+            : -1;
+        if (idx < 0) {
+          idx = inv.indexWhere((it) => it is Map &&
+              (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE' &&
+              (want < 0 || ((it['dur'] ?? kLineDurDefault) as num).toInt() == want));
         }
-        // 🧵 가방에 남은 줄이 있으면 그 자리에서 이어서 끼운다 — 대기실로
-        //    나갔다 올 필요가 없다(2026-09-09 달빛둠벙님 요청).
-        //    소모품이라 '싼 것부터' — 일반 낚싯줄을 먼저 쓰고 고급줄은 아껴 둔다.
-        final String wantCat = widget.isSea ? 'SEA' : 'FW';
-        int nextIdx = -1;
-        for (int i = 0; i < inv.length; i++) {
-          final x = inv[i];
-          if (x is! Map || (x['type'] ?? '') != 'LINE') continue;
-          final c = (x['category'] ?? '').toString().toUpperCase();
-          if (c != wantCat && c != 'COMMON') continue;   // 민물/바다 안 맞는 줄 제외
-          if (nextIdx < 0) { nextIdx = i; continue; }
-          final bool curBasic = (inv[nextIdx] as Map)['name'].toString().contains('일반');
-          final bool newBasic = x['name'].toString().contains('일반');
-          if (newBasic && !curBasic) nextIdx = i;        // 일반 낚싯줄 우선
+        if (idx < 0) {
+          idx = inv.indexWhere((it) => it is Map &&
+              (it['name'] ?? '') == lineName && (it['type'] ?? '') == 'LINE');
         }
-        if (nextIdx >= 0) {
-          final Map<String, dynamic> next =
-              Map<String, dynamic>.from(inv[nextIdx] as Map);
-          if (mounted) setState(() => equippedLine = next);
-          globalEquippedLine = next;
-          await userDoc.update({'inventory': inv});
-          if (mounted) {
-            _baitToast('🧵 줄이 끊어져 [${next['name']}] (으)로 갈아 끼웠어요',
-                Colors.orangeAccent);
+        if (idx < 0) return;
+        int dur = (inv[idx]['dur'] is num) ? (inv[idx]['dur'] as num).toInt() : 200;
+        dur -= 10;
+        if (dur <= 0) {
+          // 🧵 끊어진 그 줄 하나만 없앤다(줄마다 개별 칸이라 묶음 삭제가 아니다).
+          //    예전 줄은 수량으로 묶여 있을 수 있으니 그때만 수량을 하나 줄인다.
+          final int q = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 1;
+          if (q > 1) {
+            inv[idx]['quantity'] = q - 1;
+            inv[idx]['dur'] = kLineDurDefault;
+          } else {
+            inv.removeAt(idx);
           }
-          return;
+          // 🧵 가방에 남은 줄이 있으면 그 자리에서 이어서 끼운다 — 대기실로
+          //    나갔다 올 필요가 없다(2026-09-09 달빛둠벙님 요청).
+          //    소모품이라 '싼 것부터' — 일반 낚싯줄을 먼저 쓰고 고급줄은 아껴 둔다.
+          int nextIdx = -1;
+          for (int i = 0; i < inv.length; i++) {
+            final x = inv[i];
+            if (x is! Map || (x['type'] ?? '') != 'LINE') continue;
+            final c = (x['category'] ?? '').toString().toUpperCase();
+            if (c != wantCat && c != 'COMMON') continue;   // 민물/바다 안 맞는 줄 제외
+            if (nextIdx < 0) { nextIdx = i; continue; }
+            final bool curBasic = (inv[nextIdx] as Map)['name'].toString().contains('일반');
+            final bool newBasic = x['name'].toString().contains('일반');
+            if (newBasic && !curBasic) nextIdx = i;        // 일반 낚싯줄 우선
+          }
+          if (nextIdx >= 0) {
+            next = Map<String, dynamic>.from(inv[nextIdx] as Map);
+            outcome = 'swapped';
+          } else {
+            outcome = 'broke';
+          }
+        } else {
+          inv[idx]['dur'] = dur;
+          newDur = dur;
+          outcome = 'worn';
         }
+        tx.update(userDoc, {'inventory': inv});
+      });
+
+      if (outcome == 'swapped') {
+        final Map<String, dynamic> n = next!;
+        if (mounted) setState(() => equippedLine = n);
+        globalEquippedLine = n;
+        if (mounted) {
+          _baitToast('🧵 줄이 끊어져 [${n['name']}] (으)로 갈아 끼웠어요',
+              Colors.orangeAccent);
+        }
+      } else if (outcome == 'broke') {
         if (mounted) setState(() => equippedLine = null);
         globalEquippedLine = null;
-        await userDoc.update({'inventory': inv});
         if (mounted) _baitToast('🧵 낚시줄이 끊어졌어요! 상점에서 새 줄을 구매하세요', Colors.redAccent);
-      } else {
-        inv[idx]['dur'] = dur;
-        if (mounted) setState(() => equippedLine!['dur'] = dur);
+      } else if (outcome == 'worn') {
+        if (mounted) setState(() { if (equippedLine != null) equippedLine!['dur'] = newDur; });
         globalEquippedLine = equippedLine;
-        await userDoc.update({'inventory': inv});
         // 🧵 경고 시작 30m → 50m. 실패 한 번에 10m 이므로 남은 횟수로 알려준다.
-        if (mounted && dur <= 50) {
-          _baitToast('🧵 낚싯줄 ${dur}m 남았어요 — ${(dur / 10).ceil()}번 더 놓치면 끊어져요!',
-              dur <= 30 ? Colors.redAccent : Colors.orangeAccent);
+        if (mounted && newDur <= 50) {
+          _baitToast('🧵 낚싯줄 ${newDur}m 남았어요 — ${(newDur / 10).ceil()}번 더 놓치면 끊어져요!',
+              newDur <= 30 ? Colors.redAccent : Colors.orangeAccent);
         }
       }
     } catch (e) { debugPrint('낚시줄 내구도 처리 에러: $e'); }
@@ -2165,25 +2190,39 @@ Widget _whisperUnreadBadge() {
     final gbName = equippedGroundbait!['name'].toString();
     try {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await userDoc.get();
-      if (!snap.exists) return;
-      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      final idx = inv.indexWhere((it) => (it['name'] ?? '') == gbName && (it['type'] ?? '') == 'GROUNDBAIT');
-      int q = idx >= 0 ? ((inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0) : 0;
-      if (idx < 0 || q <= 0) {
+      // 🔒 트랜잭션 — 가방 경합([_useBaitOne] 참고). 화면은 끝난 뒤에 바꾼다.
+      String outcome = 'none';   // none · empty(재고 없음) · used(1개 씀)
+      int left = 0;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        outcome = 'none';
+        final snap = await tx.get(userDoc);
+        if (!snap.exists) return;
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        final idx = inv.indexWhere((it) => (it['name'] ?? '') == gbName && (it['type'] ?? '') == 'GROUNDBAIT');
+        int q = idx >= 0 ? ((inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0) : 0;
+        if (idx < 0 || q <= 0) {
+          outcome = 'empty';
+          if (idx >= 0) { inv.removeAt(idx); tx.update(userDoc, {'inventory': inv}); }
+          return;
+        }
+        q -= 1; // 1개 소모
+        if (q <= 0) { inv.removeAt(idx); } else { inv[idx]['quantity'] = q; }
+        left = q;
+        outcome = 'used';
+        tx.update(userDoc, {'inventory': inv});
+      });
+
+      if (outcome == 'empty') {
         // 재고 없음 → 해제 + 안내 팝업
         if (mounted) setState(() { equippedGroundbait = null; _groundbaitActive = false; });
         globalEquippedGroundbait = null;
-        if (idx >= 0) { inv.removeAt(idx); await userDoc.update({'inventory': inv}); }
         if (mounted) _showNotificationPopup('🍚 밑밥이 다 떨어졌어요', '밑밥이 모두 소진됐어요.\n상점에서 구매해 다시 장착하세요.', Colors.orangeAccent);
         return;
       }
-      q -= 1; // 1개 소모
-      if (q <= 0) { inv.removeAt(idx); globalEquippedGroundbait = null; } // 마지막 1개 사용 → 다음 세션엔 없음
-      else { inv[idx]['quantity'] = q; }
-      await userDoc.update({'inventory': inv});
+      if (outcome != 'used') return;
+      if (left <= 0) globalEquippedGroundbait = null; // 마지막 1개 사용 → 다음 세션엔 없음
       if (mounted) setState(() => _groundbaitActive = true); // 이번 세션 감도 +10 ON
-      if (mounted) _showNotificationPopup('🍚 밑밥을 뿌렸어요!', '이번 낚시터에 머무는 동안 감도 +10 효과가 적용돼요.\n(잔여 $q개)', const Color(0xFF7FFFB0));
+      if (mounted) _showNotificationPopup('🍚 밑밥을 뿌렸어요!', '이번 낚시터에 머무는 동안 감도 +10 효과가 적용돼요.\n(잔여 $left개)', const Color(0xFF7FFFB0));
     } catch (e) { debugPrint('밑밥 소모 에러: $e'); }
   }
 
@@ -2893,15 +2932,18 @@ Widget _whisperUnreadBadge() {
     if (user != null) {
       try {
         final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-        final snap = await ref.get();
-        List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-        final idx = inv.indexWhere((i) => (i['name'] ?? '') == box['name']);
-        if (idx >= 0) {
-          inv[idx]['quantity'] = ((inv[idx]['quantity'] ?? 0) as num).toInt() + 1;
-        } else {
-          inv.add({'name': box['name'], 'category': 'BOX', 'type': 'BOX', 'icon': box['icon'], 'quantity': 1});
-        }
-        await ref.update({'inventory': inv});
+        // 🔒 트랜잭션 — 가방 경합([_useBaitOne] 참고)
+        await FirebaseFirestore.instance.runTransaction((tx) async {
+          final snap = await tx.get(ref);
+          List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+          final idx = inv.indexWhere((i) => (i['name'] ?? '') == box['name']);
+          if (idx >= 0) {
+            inv[idx]['quantity'] = ((inv[idx]['quantity'] ?? 0) as num).toInt() + 1;
+          } else {
+            inv.add({'name': box['name'], 'category': 'BOX', 'type': 'BOX', 'icon': box['icon'], 'quantity': 1});
+          }
+          tx.update(ref, {'inventory': inv});
+        });
       } catch (_) {}
     }
     if (!mounted) return;
@@ -3108,19 +3150,25 @@ Widget _whisperUnreadBadge() {
     if (user == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
-      final idx = inv.indexWhere((i) => (i['name'] ?? '') == '민물새우');
-      if (idx >= 0) {
-        final int cur = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0;
-        if (cur >= 50) return; // 🦐 최대 50개 — 가득 차면 더 안 모음(조용히 스킵, 스팸 방지)
-        final int next = (cur + 2) > 50 ? 50 : (cur + 2);
-        inv[idx]['quantity'] = next;
-        if (next >= 50 && mounted) _baitToast('🦐 민물새우가 가득 찼어요! (50/50)\n채집망을 건지거나 미끼로 써주세요', const Color(0xFFD4AF37));
-      } else {
-        inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼예요.\n동자개 · 붕어 · 메기 · 민물장어가 잘 반응해요.'});
-      }
-      await ref.update({'inventory': inv});
+      // 🔒 트랜잭션 — 1분마다 저절로 도는 쓰기라 결제 상자와 겹치기 쉽다([_useBaitOne] 참고).
+      bool full = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        full = false;
+        final snap = await tx.get(ref);
+        List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+        final idx = inv.indexWhere((i) => (i['name'] ?? '') == '민물새우');
+        if (idx >= 0) {
+          final int cur = (inv[idx]['quantity'] is num) ? (inv[idx]['quantity'] as num).toInt() : 0;
+          if (cur >= 50) return; // 🦐 최대 50개 — 가득 차면 더 안 모음(조용히 스킵, 스팸 방지)
+          final int next = (cur + 2) > 50 ? 50 : (cur + 2);
+          inv[idx]['quantity'] = next;
+          full = next >= 50;
+        } else {
+          inv.add({'name': '민물새우', 'category': 'FW', 'type': 'BAIT', 'quantity': 2, 'icon': 'bait_fw_shrimp.png', 'desc': '채집망으로 잡은 신선한 생새우 미끼예요.\n동자개 · 붕어 · 메기 · 민물장어가 잘 반응해요.'});
+        }
+        tx.update(ref, {'inventory': inv});
+      });
+      if (full && mounted) _baitToast('🦐 민물새우가 가득 찼어요! (50/50)\n채집망을 건지거나 미끼로 써주세요', const Color(0xFFD4AF37));
     } catch (e) { debugPrint('🦐 새우 적립 실패: $e'); }
   }
 
@@ -4349,26 +4397,30 @@ Positioned(
     final int cur = isExp ? gBoostExpSec : gBoostPtsSec;   // 이미 걸려 있으면 이어서
     final int sec = (cur > 0 ? cur : 0) + minutes * 60;
     if (isExp) { gBoostExpSec = sec; } else { gBoostPtsSec = sec; }
+    // 개수가 안 줄었으면 방금 올린 시간을 되돌린다(없던 일로)
+    void undo() {
+      if (isExp) { gBoostExpSec = (gBoostExpSec - minutes * 60).clamp(0, 1 << 31); }
+      else { gBoostPtsSec = (gBoostPtsSec - minutes * 60).clamp(0, 1 << 31); }
+    }
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final doc = await ref.get();
-      final List<dynamic> inv = List.from(doc.data()?['inventory'] ?? []);
-      final int idx = inv.indexWhere((i) => (i['name'] ?? '') == item['name']);
-      if (idx < 0) {
-        // 가방에 없다 → 방금 올린 시간을 되돌린다(개수도 안 줄었으니 없던 일로)
-        if (isExp) { gBoostExpSec = (gBoostExpSec - minutes * 60).clamp(0, 1 << 31); }
-        else { gBoostPtsSec = (gBoostPtsSec - minutes * 60).clamp(0, 1 << 31); }
-        return;
-      }
-
-      final int qty = ((inv[idx]['quantity'] ?? 1) as num).toInt();
-      if (qty > 1) { inv[idx]['quantity'] = qty - 1; } else { inv.removeAt(idx); }
-
-      await ref.update({
-        'inventory': inv,
-        // 전역은 그 사이 1초씩 줄었을 수 있다 — 지금 값을 그대로 쓴다
-        if (isExp) 'boostExpSec': gBoostExpSec else 'boostPtsSec': gBoostPtsSec,
+      // 🔒 트랜잭션 — 가방 경합([_useBaitOne] 참고). 시간은 위에서 이미 올렸고 여기선 개수만 줄인다.
+      bool missing = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        missing = false;
+        final doc = await tx.get(ref);
+        final List<dynamic> inv = List.from(doc.data()?['inventory'] ?? []);
+        final int idx = inv.indexWhere((i) => (i['name'] ?? '') == item['name']);
+        if (idx < 0) { missing = true; return; }
+        final int qty = ((inv[idx]['quantity'] ?? 1) as num).toInt();
+        if (qty > 1) { inv[idx]['quantity'] = qty - 1; } else { inv.removeAt(idx); }
+        tx.update(ref, {
+          'inventory': inv,
+          // 전역은 그 사이 1초씩 줄었을 수 있다 — 지금 값을 그대로 쓴다
+          if (isExp) 'boostExpSec': gBoostExpSec else 'boostPtsSec': gBoostPtsSec,
+        });
       });
+      if (missing) { undo(); return; }   // 가방에 없다
       if (!mounted) return;
       setState(() {});
       // 💬 스낵바는 채팅창에 가려 잘 안 보인다 → 팝업으로(2026-09-02 사용자 요청)
@@ -4377,9 +4429,7 @@ Positioned(
           '${isExp ? '경험치' : 'KREFT'}가 2배로 들어와요.\n\n남은 시간  ${boostLeftStr(isExp ? boostExpLeftSec() : boostPtsLeftSec())}\n\n낚시터에 있는 동안에만 줄어들어요.\n광장이나 상점에 나가면 멈춰요.',
           isExp ? const Color(0xFFB388FF) : const Color(0xFFD4AF37));
     } catch (e) {
-      // 서버 쓰기 실패 → 개수도 안 줄었으니 방금 올린 시간을 되돌린다
-      if (isExp) { gBoostExpSec = (gBoostExpSec - minutes * 60).clamp(0, 1 << 31); }
-      else { gBoostPtsSec = (gBoostPtsSec - minutes * 60).clamp(0, 1 << 31); }
+      undo();   // 서버 쓰기 실패
       debugPrint('버프 사용 실패: $e');
     }
   }
@@ -4424,64 +4474,79 @@ Positioned(
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
+    bool raised = false;   // 화면 시간을 먼저 올렸나(실패하면 되돌린다)
     try {
-      var doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      // 🎟️ [1일 1회 제한] 오늘 이미 시간 이용권을 썼으면 차단 (현질 렙업 폭주 방지 / 인벤엔 그대로 보관)
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final String today = DateTime.now().toString().substring(0, 10);
-      if (doc.data()?['lastTimeTicketDate'] == today) {
-        if (mounted) {
-          _showNotificationPopup('🎟️ 오늘은 이미 사용했어요',
-              '시간 이용권은 하루 1회(자정 기준) 사용할 수 있어요.\n밤 12시(자정)가 지나면 다시 사용 가능해요!\n(이용권은 인벤토리에 그대로 남아있어요 😊)',
-              const Color(0xFFD4AF37));
+      void usedToday() {
+        if (!mounted) return;
+        _showNotificationPopup('🎟️ 오늘은 이미 사용했어요',
+            '시간 이용권은 하루 1회(자정 기준) 사용할 수 있어요.\n밤 12시(자정)가 지나면 다시 사용 가능해요!\n(이용권은 인벤토리에 그대로 남아있어요 😊)',
+            const Color(0xFFD4AF37));
+      }
+      // 🎟️ [1일 1회 제한] 오늘 이미 시간 이용권을 썼으면 차단 (현질 렙업 폭주 방지 / 인벤엔 그대로 보관)
+      //    시간을 올리기 전에 한 번 보고 거른다. 확정은 아래 트랜잭션에서 다시 본다.
+      final pre = await ref.get();
+      if (pre.data()?['lastTimeTicketDate'] == today) { usedToday(); return; }
+
+      // ⏱️ 화면 시간을 '먼저' 60분 올린다 — 3초 저장 타이머가 옛 시간을 뒤늦게 써서
+      //    이용권만 사라지고 시간은 안 느는 일이 없게([_consumeBoost]와 같은 이유).
+      remainingTimeNotifier.value += 3600;
+      raised = true;
+      // 🔒 트랜잭션 — 이용권 차감·시간·사용일을 한 번에 쓴다. 가방 경합은 [_useBaitOne] 참고.
+      String outcome = 'none';   // ok · used(그새 오늘 이미 씀) · none(가방에 없음)
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        outcome = 'none';
+        final doc = await tx.get(ref);
+        if (doc.data()?['lastTimeTicketDate'] == today) { outcome = 'used'; return; }
+        final List<dynamic> inv = List.from(doc.data()?['inventory'] ?? []);
+        final int index = inv.indexWhere((item) => item['name'] == ticketItem['name']);
+        if (index == -1) return;
+        final int currentQty = inv[index]['quantity'] ?? 1;
+        if (currentQty > 1) {
+          inv[index]['quantity'] = currentQty - 1;
+        } else {
+          inv.removeAt(index);
         }
+        tx.update(ref, {
+          'inventory': inv,
+          'remainingTime': remainingTimeNotifier.value,
+          'lastTimeTicketDate': today, // 🎟️ 오늘 사용 기록 → 1일 1회 제한(날짜 바뀌면 자동 해제)
+        });
+        outcome = 'ok';
+      });
+      if (outcome != 'ok') {
+        remainingTimeNotifier.value = (remainingTimeNotifier.value - 3600).clamp(0, 1 << 31);
+        raised = false;
+        if (outcome == 'used') usedToday();
         return;
       }
-      List<dynamic> inv = doc.data()?['inventory'] ?? [];
+      raised = false;
+      if (!mounted) return;
 
-      int index = inv.indexWhere((item) => item['name'] == ticketItem['name']);
-      
-      if (index != -1) {
-         int currentQty = inv[index]['quantity'] ?? 1;
-         
-         if (currentQty > 1) {
-           inv[index]['quantity'] = currentQty - 1;
-         } else {
-           inv.removeAt(index);
-         }
-
-         // ✨ 1. 내 폰 화면 타이머에 60분(3600초) 추가!
-         remainingTimeNotifier.value += 3600;
-
-         // ✨ 2. 파이어베이스(서버)에 인벤토리 차감 + 늘어난 시간 같이 저장!! (핵심)
-         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-           'inventory': inv,
-           'remainingTime': remainingTimeNotifier.value, // 🚨 중요: 만약 파이어베이스에 저장되는 시간 필드명이 다르면 맞춰주세요! (예: dailyTime, timeLeft 등)
-           'lastTimeTicketDate': today, // 🎟️ 오늘 사용 기록 → 1일 1회 제한(날짜 바뀌면 자동 해제)
-         });
-         
-         // 5. 럭셔리 블랙&골드 성공 알림창 띄우기
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(
-             content: const Row(
-               children: [
-                 Icon(Icons.timer, color: Color(0xFFD4AF37)), // 골드색 타이머 아이콘
-                 SizedBox(width: 10), 
-                 Text('🎉 대회 시간이 60분 추가되었습니다!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))
-               ]
-             ),
-             backgroundColor: Colors.grey.shade900, // 고급스러운 다크 그레이 배경
-             behavior: SnackBarBehavior.floating,
-             margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20), // 화면 끝에 안 붙고 살짝 뜨게 마진 주기
-             elevation: 10,
-             shape: RoundedRectangleBorder(
-               borderRadius: BorderRadius.circular(15),
-               side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5) // 영롱한 골드 테두리!
-             ),
-             duration: const Duration(seconds: 3), // 3초 뒤에 자연스럽게 사라짐
-           )
-         );
-      }
+      // 럭셔리 블랙&골드 성공 알림창
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.timer, color: Color(0xFFD4AF37)), // 골드색 타이머 아이콘
+              SizedBox(width: 10),
+              Text('🎉 대회 시간이 60분 추가되었습니다!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16))
+            ]
+          ),
+          backgroundColor: Colors.grey.shade900, // 고급스러운 다크 그레이 배경
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20), // 화면 끝에 안 붙고 살짝 뜨게 마진 주기
+          elevation: 10,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+            side: const BorderSide(color: Color(0xFFD4AF37), width: 1.5) // 영롱한 골드 테두리!
+          ),
+          duration: const Duration(seconds: 3), // 3초 뒤에 자연스럽게 사라짐
+        )
+      );
     } catch (e) {
+      if (raised) remainingTimeNotifier.value = (remainingTimeNotifier.value - 3600).clamp(0, 1 << 31);
       print("티켓 사용 에러: $e");
     }
   }

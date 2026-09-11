@@ -332,12 +332,13 @@ async function processOrder(order, source) {
   const prodNames = extractProductNames(order);
   const purchasedLabel = prodNames.join(", ") || "(상품없음)";
 
+  const processedRecord = (granted, refunded, note) => ({
+    email: buyerEmail, itemName: purchasedLabel,
+    granted, refunded, note: note || null, source: source || null,
+    processedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
   const recordProcessed = (granted, refunded, note) =>
-    db.collection("processed_orders").doc(orderNo).set({
-      email: buyerEmail, itemName: purchasedLabel,
-      granted, refunded, note: note || null, source: source || null,
-      processedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
+    db.collection("processed_orders").doc(orderNo).set(processedRecord(granted, refunded, note));
 
   // 환불/취소(대기 포함) 주문은 지급 안 함
   const refunded = (Number(order.totalRefundedPrice) || 0) > 0 ||
@@ -361,98 +362,120 @@ async function processOrder(order, source) {
     return "user-not-found";
   }
 
-  const userDoc = snapshot.docs[0];
-  const userRef = userDoc.ref;
-  const userData = userDoc.data();
-  let inventory = userData.inventory || [];
+  const userRef = snapshot.docs[0].ref;
+  const dedupRef = db.collection("processed_orders").doc(orderNo);
   const today = getTodayKST();
-  let purchaseDates = userData.purchaseDates || {}; // 아이템별 마지막 구매일(1일 1회 구매 제한용)
-  let isInventoryUpdated = false, needsRefund = false, refundReason = "", matchedKnownItem = false, newTicketDate = null, purchaseDatesChanged = false;
-
   const norm = (s) => String(s).replace(/\s+/g, ""); // 공백 무시 매칭('아레나입장권'='아레나 입장권')
-  // 📦 한 주문에 상자가 여러 개 들어갈 수 있다(3장 사면 상자 3개).
-  //    환불 회수는 gid 로 찾으므로 두 번째부터 -2, -3 을 붙여 겹치지 않게 한다.
-  let boxCount = 0;
-  const boxGid = () => (++boxCount === 1 ? orderNo : orderNo + "-" + boxCount);
 
-  for (const prodName of prodNames) {
-    const np = norm(prodName);
+  // 🔒 [2026-09-11] 가방 쓰기를 트랜잭션으로 한다.
+  //    가방(inventory)은 배열 하나라 '읽고 → 고치고 → 통째로 다시 쓰기'밖에 못 한다.
+  //    예전엔 가방을 읽어 두고 상자를 넣은 뒤 그대로 다시 썼는데, 그 사이 게임이 가방을
+  //    고치면(미끼 한 번 쓸 때마다 다시 쓴다) 둘 중 하나가 조용히 사라졌다.
+  //    트랜잭션은 겹치면 처음부터 다시 돈다. 그래서
+  //      ① 안에서는 계산과 쓰기만 한다 — 다시 돌아도 결과가 같게.
+  //      ② 로그·실패 기록은 끝난 뒤에 한 번만 남긴다.
+  //    '이 주문 처리했나' 기록(processed_orders)도 같은 트랜잭션에 넣었다 —
+  //    웹훅과 폴링이 같은 주문을 동시에 잡아도 한 번만 지급된다.
+  const r = await db.runTransaction(async (tx) => {
+    const [dSnap, uSnap] = await Promise.all([tx.get(dedupRef), tx.get(userRef)]);
+    if (dSnap.exists) return { already: true };
+    const userData = uSnap.data() || {};
+    const inventory = (userData.inventory || []).slice();
+    const purchaseDates = Object.assign({}, userData.purchaseDates || {}); // 아이템별 마지막 구매일(1일 1회 구매 제한용)
+    let isInventoryUpdated = false, needsRefund = false, refundReason = "", matchedKnownItem = false, newTicketDate = null, purchaseDatesChanged = false;
+    const logs = [];
 
-    // 🎁 패키지 먼저 확인 — 하나 팔면 아이템 여러 개가 들어간다.
-    //    이름이 더 긴 쪽(패키지)이 먼저 걸려야 개별 아이템으로 오인식되지 않는다.
-    let pkgHit = false;
-    for (const [pkgName, list] of Object.entries(packageDatabase)) {
-      if (!np.includes(norm(pkgName))) continue;
-      pkgHit = true; matchedKnownItem = true;
-      // 📦 낱개가 아니라 '상자' 하나로 넣는다 — 열어야 내용물이 풀린다.
-      //    낱개로 주면 '상자를 열지 않으셨다면 전액 환불' 고지를 지킬 수가 없다.
-      inventory.push(makePackageBox(pkgName, list, boxGid()));
-      isInventoryUpdated = true;
-      console.log(`[패키지 지급] ${buyerEmail}: ${pkgName} 상자 (${list.length}종)`);
-      break;
-    }
-    if (pkgHit) continue;
+    // 📦 한 주문에 상자가 여러 개 들어갈 수 있다(3장 사면 상자 3개).
+    //    환불 회수는 gid 로 찾으므로 두 번째부터 -2, -3 을 붙여 겹치지 않게 한다.
+    let boxCount = 0;
+    const boxGid = () => (++boxCount === 1 ? orderNo : orderNo + "-" + boxCount);
 
-    for (const [key, itemTemplate] of Object.entries(itemDatabase)) {
-      if (!np.includes(norm(key))) continue;
-      matchedKnownItem = true;
+    for (const prodName of prodNames) {
+      const np = norm(prodName);
 
-      if (itemTemplate.limitType === "ONCE") {
-        // 🎖️ [2026-08-24] 착용 레벨/승급 제한은 '지급'이 아니라 '게임 내 착용·능력치'에서 검사.
-        //    → 홈페이지서 조건 미달로 사도 인벤엔 무조건 지급(계정당 1개라 exploit 없음, "안 들어왔다" 문의 방지).
-        //    조건 충족 전엔 게임에서 착용·능력치 적용이 안 되고, 충족하면 자동 적용됨.
-        // 📦 상자로 지급한다 — 안 열면 '미사용'이라 7일 내 전액 환불이 된다.
-        //    보유 판정도 상자·상자 속 내용물까지 본다(안 열었어도 이미 산 것).
-        const alreadyOwns = ownsAlready(inventory, itemTemplate.name);
-        if (alreadyOwns) { needsRefund = true; refundReason = "이미 보유 중(계정당 1개) 중복 구매"; }
-        else { inventory.push(makeCashBox(itemTemplate, orderNo)); isInventoryUpdated = true; }
-      }
-      else if (itemTemplate.limitType === "DAILY") {
-        if ((userData.lastTicketDate || "") === today) { needsRefund = true; refundReason = "1시간 이용권 1일 1회 구매 제한 초과"; }
-        // 📦 상자로 지급 — 안 열면 '미개봉'이라 7일 내 전액 환불이 된다.
-        else { inventory.push(makeCashBox(itemTemplate, boxGid())); newTicketDate = today; isInventoryUpdated = true; }
-      }
-      else if (itemTemplate.limitType === "STACK") {
-        // 📦 상자는 수량이 쌓이지 않는다 — 여러 장 사면 gid 가 다른 상자가 그 수만큼 들어간다.
-        inventory.push(makeCashBox(itemTemplate, boxGid()));
+      // 🎁 패키지 먼저 확인 — 하나 팔면 아이템 여러 개가 들어간다.
+      //    이름이 더 긴 쪽(패키지)이 먼저 걸려야 개별 아이템으로 오인식되지 않는다.
+      let pkgHit = false;
+      for (const [pkgName, list] of Object.entries(packageDatabase)) {
+        if (!np.includes(norm(pkgName))) continue;
+        pkgHit = true; matchedKnownItem = true;
+        // 📦 낱개가 아니라 '상자' 하나로 넣는다 — 열어야 내용물이 풀린다.
+        //    낱개로 주면 '상자를 열지 않으셨다면 전액 환불' 고지를 지킬 수가 없다.
+        inventory.push(makePackageBox(pkgName, list, boxGid()));
         isInventoryUpdated = true;
+        logs.push(`[패키지 지급] ${buyerEmail}: ${pkgName} 상자 (${list.length}종)`);
+        break;
       }
-      // 🎟️ 1일 1회 구매 + 수량 누적 (이용권·입장권). 아이템별로 하루 1번만 구매 가능.
-      else if (itemTemplate.limitType === "DAILY_STACK") {
-        if (purchaseDates[itemTemplate.name] === today) {
-          needsRefund = true;
-          refundReason = `${itemTemplate.name} 1일 1회 구매 제한 초과`;
-        } else {
-          inventory.push(makeCashBox(itemTemplate, boxGid()));   // 📦 상자로 지급
-          purchaseDates[itemTemplate.name] = today;
-          purchaseDatesChanged = true;
+      if (pkgHit) continue;
+
+      for (const [key, itemTemplate] of Object.entries(itemDatabase)) {
+        if (!np.includes(norm(key))) continue;
+        matchedKnownItem = true;
+
+        if (itemTemplate.limitType === "ONCE") {
+          // 🎖️ [2026-08-24] 착용 레벨/승급 제한은 '지급'이 아니라 '게임 내 착용·능력치'에서 검사.
+          //    → 홈페이지서 조건 미달로 사도 인벤엔 무조건 지급(계정당 1개라 exploit 없음, "안 들어왔다" 문의 방지).
+          //    조건 충족 전엔 게임에서 착용·능력치 적용이 안 되고, 충족하면 자동 적용됨.
+          // 📦 상자로 지급한다 — 안 열면 '미사용'이라 7일 내 전액 환불이 된다.
+          //    보유 판정도 상자·상자 속 내용물까지 본다(안 열었어도 이미 산 것).
+          const alreadyOwns = ownsAlready(inventory, itemTemplate.name);
+          if (alreadyOwns) { needsRefund = true; refundReason = "이미 보유 중(계정당 1개) 중복 구매"; }
+          else { inventory.push(makeCashBox(itemTemplate, orderNo)); isInventoryUpdated = true; }
+        }
+        else if (itemTemplate.limitType === "DAILY") {
+          if ((userData.lastTicketDate || "") === today) { needsRefund = true; refundReason = "1시간 이용권 1일 1회 구매 제한 초과"; }
+          // 📦 상자로 지급 — 안 열면 '미개봉'이라 7일 내 전액 환불이 된다.
+          else { inventory.push(makeCashBox(itemTemplate, boxGid())); newTicketDate = today; isInventoryUpdated = true; }
+        }
+        else if (itemTemplate.limitType === "STACK") {
+          // 📦 상자는 수량이 쌓이지 않는다 — 여러 장 사면 gid 가 다른 상자가 그 수만큼 들어간다.
+          inventory.push(makeCashBox(itemTemplate, boxGid()));
           isInventoryUpdated = true;
+        }
+        // 🎟️ 1일 1회 구매 + 수량 누적 (이용권·입장권). 아이템별로 하루 1번만 구매 가능.
+        else if (itemTemplate.limitType === "DAILY_STACK") {
+          if (purchaseDates[itemTemplate.name] === today) {
+            needsRefund = true;
+            refundReason = `${itemTemplate.name} 1일 1회 구매 제한 초과`;
+          } else {
+            inventory.push(makeCashBox(itemTemplate, boxGid()));   // 📦 상자로 지급
+            purchaseDates[itemTemplate.name] = today;
+            purchaseDatesChanged = true;
+            isInventoryUpdated = true;
+          }
         }
       }
     }
-  }
 
-  if (!matchedKnownItem) {
+    if (!matchedKnownItem) {
+      tx.set(dedupRef, processedRecord(false, false, "키워드불일치"));
+      return { matchedKnownItem: false, logs };
+    }
+    if (needsRefund) {
+      tx.set(db.collection("refund_requests").doc(), {
+        email: buyerEmail, itemName: purchasedLabel, orderNo, reason: refundReason,
+        status: "환불 처리 대기중", requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    if (isInventoryUpdated) {
+      const updates = { inventory };
+      if (newTicketDate) updates.lastTicketDate = newTicketDate;
+      if (purchaseDatesChanged) updates.purchaseDates = purchaseDates;
+      tx.update(userRef, updates);
+    }
+    tx.set(dedupRef, processedRecord(isInventoryUpdated, needsRefund, null));
+    return { matchedKnownItem: true, isInventoryUpdated, needsRefund, refundReason, logs };
+  });
+
+  if (r.already) return "already-processed";
+  r.logs.forEach((l) => console.log(l));
+  if (!r.matchedKnownItem) {
     await logPaymentIssue(buyerEmail, purchasedLabel, orderNo, "상품명이 등록된 키워드와 일치하지 않음: " + purchasedLabel);
-    await recordProcessed(false, false, "키워드불일치");
     return "unknown-product";
   }
-  if (needsRefund) {
-    await db.collection("refund_requests").add({
-      email: buyerEmail, itemName: purchasedLabel, orderNo, reason: refundReason,
-      status: "환불 처리 대기중", requestedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    console.log(`[환불 요망] ${buyerEmail}: ${refundReason}`);
-  }
-  if (isInventoryUpdated) {
-    const updates = { inventory };
-    if (newTicketDate) updates.lastTicketDate = newTicketDate;
-    if (purchaseDatesChanged) updates.purchaseDates = purchaseDates;
-    await userRef.update(updates);
-    console.log(`[지급 완료] ${buyerEmail} 주문 ${orderNo}: ${purchasedLabel} (${source})`);
-  }
-  await recordProcessed(isInventoryUpdated, needsRefund, null);
-  return isInventoryUpdated ? "granted" : (needsRefund ? "rejected-refund" : "no-op");
+  if (r.needsRefund) console.log(`[환불 요망] ${buyerEmail}: ${r.refundReason}`);
+  if (r.isInventoryUpdated) console.log(`[지급 완료] ${buyerEmail} 주문 ${orderNo}: ${purchasedLabel} (${source})`);
+  return r.isInventoryUpdated ? "granted" : (r.needsRefund ? "rejected-refund" : "no-op");
 }
 
 // 🔐 [최초 1회] OAuth 인증 콜백 — authorize에서 redirect된 code로 토큰 발급·저장

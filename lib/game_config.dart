@@ -801,8 +801,8 @@ const Map<String, double> kLegendAppearRate = {
 //      ×3 을 해도 315 KREFT, ★5 낚시 2분치다. ×10 을 해도 5분치라 체감이 안 온다.
 //      한 달을 기다린 고기가 그러면 안 된다.
 //
-//   기준: 1존 보스(무르가돈) 클리어 보상 EXP 2,000 · 10,000 KREFT 의 절반.
-//   ★5 낚시 시간당 약 12,000 KREFT 이므로 5,000 = 약 25분치.
+//   기준: ★5 낚시 시간당 약 12,000 KREFT(무료 낚시는 하루 1시간)이므로
+//   5,000 = 약 25분치. 한 달에 한두 마리 나오는 고기의 몫이다.
 // ⚓ 바닥걸림(밑걸림) 확률 — 챔질했을 때 물고기가 아니라 바닥을 걸을 확률.
 //   어느 낚시나 밑걸림은 있으므로 미끼 종류를 가리지 않는다.
 //   걸리면 게이지가 가운데 멈추고, 줄을 끊어야 벗어난다(낚싯줄 -10m + 미끼 소모).
@@ -1077,16 +1077,57 @@ const List<Map<String, dynamic>> raidBosses = [
   {'id': 'volkar', 'sea': false,   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 51000, 'hp': 23000000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
 ];
 
-// 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 전원 지급 (사용자 확정 2026-08-15 상향)
-//   key=boss id · exp/point=지급량 · mystery=수상한상자 개수 · treasure=보물상자 개수
-//   ※ 5존 합계(exp 30,000/p 150,000/수상 30/보물 6)=각 존 누적 결과(별도 완전클리어 보너스 없음)
-const Map<String, Map<String, dynamic>> raidRewards = {
-  'murgadon': {'exp': 2000,  'point': 10000, 'mystery': 2,  'treasure': 0},
-  'abykura':  {'exp': 4000,  'point': 20000, 'mystery': 4,  'treasure': 0},
-  'basragon': {'exp': 6000,  'point': 30000, 'mystery': 6,  'treasure': 1},
-  'kargon':   {'exp': 8000,  'point': 40000, 'mystery': 8,  'treasure': 2},
-  'volkar':   {'exp': 10000, 'point': 50000, 'mystery': 10, 'treasure': 3},
-};
+// 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 각자 지급.
+//    ⚠️ 정액표를 버리고 '그 사람 레벨'로 계산한다(2026-09-10). 정액이던 시절엔
+//       Lv.5 가 길드 따라 5존을 돌면 Lv.14 로 나왔고(경험치 30,000),
+//       KREFT 150,000 은 무료 낚시(하루 1시간 · ★5 기준 시간당 12,000) 12.5일치라
+//       주간 낚시 수입(84,000)보다 레이드 한 판이 더 컸다.
+//
+//    📈 경험치 = 「그 사람의 다음 레벨까지 필요한 경험치」 × 비율 × 존가중
+//       · 비율: 길드 가입 레벨인 Lv.5 에서 50% → Lv.100 에서 10% 로 직선 감소,
+//         100 이상은 10% 고정. 레벨이 낮을수록 크게 받아 저렙이 따라갈 이유가 된다.
+//       · 존을 깰 때마다 '오른 레벨'로 다시 계산되므로 저절로 완만해진다.
+//         한 바퀴(5존) 결과 — Lv.5 +2렙 · Lv.30 +1렙 · Lv.50 +1렙 · Lv.100 반 렙.
+//       · 존가중 합은 5.0 이라 균등과 총량이 같다. 볼카르가 무르가돈의 2.3배.
+//
+//    💰 KREFT = 존별 '하한 → 상한'을 레벨로 잇는다.
+//       경험치 곡선을 따라가면 안 된다 — 물가는 고정이라(최고급 낚싯대 60만)
+//       고렙 지급액만 터진다. 레벨이 곧 살 수 있는 장비 가격대라서 선형이 맞다.
+//       · 하한 Lv.5   : 다섯 존 모두 2,000 (5존 합 10,000 · 낚시 0.8일치)
+//       · 상한 Lv.100 : 5,000/5,500/6,000/6,500/7,000 (5존 합 30,000 · 낚시 2.5일치)
+//       · 저렙 구간은 존 차등이 거의 없다가 레벨이 오를수록 벌어진다.
+//       · 길드당 주 1회(activeWeek) 게이트라 이 값이 곧 주간 수입 — 상한 30,000 은
+//         주간 낚시 수입의 36%. 낚시가 본줄기로 남게 두는 천장이다.
+//       ※ 지금 길드들은 1~2존까지가 현실이다. Lv.50 기준 무르가돈+아비쿠라 = 7,050.
+//
+//    상자는 별도(kRaidBoxDef · makeRaidBox) — 여기서는 exp/point 만 낸다.
+const List<double> _kRaidExpZoneWeight = [0.6, 0.8, 1.0, 1.2, 1.4];
+const List<int> _kRaidKreftFloor = [2000, 2000, 2000, 2000, 2000]; // Lv.5 이하
+const List<int> _kRaidKreftCap   = [5000, 5500, 6000, 6500, 7000]; // Lv.100 이상
+
+/// 🎁 이 보스를 잡았을 때 'level 레벨인 사람'이 받을 경험치·KREFT.
+///   ⚠️ 지급 시점의 레벨로 부를 것 — 존을 깨며 레벨이 오르면 다음 존은 줄어든다.
+Map<String, int> raidRewardFor(String bossId, int level) {
+  final int tier = raidBosses
+      .firstWhere((b) => b['id'] == bossId, orElse: () => const {})['tier'] as int? ?? 0;
+  if (tier < 1 || tier > 5) return const {'exp': 0, 'point': 0};
+  final int i = tier - 1;
+  final int L = level.clamp(1, globalMaxLevel);
+
+  // 다음 레벨까지 필요한 경험치(만렙이면 마지막 구간 폭을 그대로 쓴다)
+  final int need = (L < globalMaxLevel)
+      ? globalExpTable[L + 1] - globalExpTable[L]
+      : globalExpTable[globalMaxLevel] - globalExpTable[globalMaxLevel - 1];
+
+  final double rate = L <= 5 ? 0.50 : (L >= 100 ? 0.10 : 0.50 - 0.40 * (L - 5) / 95);
+  final int exp = (need * rate * _kRaidExpZoneWeight[i] / 10).round() * 10;
+
+  final double f = ((L - 5) / 95).clamp(0.0, 1.0);
+  final int point =
+      ((_kRaidKreftFloor[i] + (_kRaidKreftCap[i] - _kRaidKreftFloor[i]) * f) / 50).round() * 50;
+
+  return {'exp': exp, 'point': point};
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // 🗝️ [레이드 전리품 상자] 존마다 다른 것이 들어간다(2026-09-10).
