@@ -641,6 +641,30 @@ Widget _whisperUnreadBadge() {
   // ⚔️ 아레나 시간 종료 상태? → true면 챔질·입질·재캐스팅 전부 차단(뭘 하든 정지)
   bool get _arenaOver => widget.roomId != null && (_arenaEndedNaturally || arenaTimeLeft <= 0);
 
+  // 🎒 지금 끼고 있는 장비를 전역(global*)에 적는다.
+  //    dispose 에서만 하고 있었는데, '낚시터 이동'은 pop 결과를 받은 광장이 새 낚시 화면을
+  //    **곧바로** 열어서, 새 화면의 initState 가 옛 화면의 dispose 보다 먼저 돈다 → 새 낚시터가
+  //    한 칸 전 장비를 읽었다(장비가 통째로 빠지거나 임시 찌가 남거나 — 이동할 때마다 제압력이
+  //    들쭉날쭉, 2026-09-11 달빛둠벙 제보). 낚시터를 옮기기 전에 반드시 먼저 부른다.
+  //    아레나(임시 장비)는 전역을 덮어쓰지 않는다.
+  void _saveEquipToGlobals() {
+    if (widget.title != widget.locationName) return;
+    globalEquippedRod = equippedRod;
+    globalEquippedFloat = equippedFloat;
+    globalEquippedBait = equippedBait;
+    globalEquippedSkin = equippedSkin;
+    globalEquippedSunglasses = equippedSunglasses;
+    globalEquippedBadge = equippedBadge;
+    globalEquippedReel = equippedReel;
+    globalEquippedCooler = equippedCooler; // 🧊
+    globalEquippedNet = equippedNet;       // 🥅
+    globalEquippedBelt = equippedBelt;     // 🎽
+    globalEquippedGloves = equippedGloves; // 🧤
+    globalEquippedLine = equippedLine;             // 🧵
+    globalEquippedGroundbait = equippedGroundbait; // 🍚
+    globalIsSeaMode = widget.isSea;
+  }
+
   Future<void> _loadGuildBuff() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -1012,26 +1036,8 @@ Widget _whisperUnreadBadge() {
         }).catchError((Object _) {});
       }
     }
-    // 🚨 [버그 해결] 아레나 모드가 아닐 때(일반 낚시터)만 내 진짜 장비를 저장합니다!
-    // 아레나에서 나갈 때는 엑스칼리버(임시 장비)를 전역 변수에 덮어씌우지 않고 쿨하게 버립니다.
-    if (widget.title == widget.locationName) {
-      globalEquippedRod = equippedRod;
-      globalEquippedFloat = equippedFloat;
-      globalEquippedBait = equippedBait;
-      globalEquippedSkin = equippedSkin;
-      globalEquippedSunglasses = equippedSunglasses;
-      globalEquippedBadge = equippedBadge;
-      globalEquippedReel = equippedReel;
-      globalEquippedCooler = equippedCooler; // 🧊
-      globalEquippedNet = equippedNet;       // 🥅
-      globalEquippedBelt = equippedBelt;     // 🎽
-      globalEquippedGloves = equippedGloves; // 🧤
-      globalEquippedLine = equippedLine;             // 🧵
-      globalEquippedGroundbait = equippedGroundbait; // 🍚
-      globalIsSeaMode = widget.isSea;
-    }
+    _saveEquipToGlobals();
 
-    
     fightTimer?.cancel();
     _clearAllBiteTimers();
     HardwareKeyboard.instance.removeHandler(_onEnterFocusChat); // ⏎ 엔터 채팅 핸들러 해제
@@ -2593,6 +2599,7 @@ Widget _whisperUnreadBadge() {
                           audioManager.playSfx('sfx_click.mp3');
                           if (isHere) { Navigator.pop(dctx); return; } // 현재 낚시터면 닫기만
                           Navigator.pop(dctx); // 리스트 닫고
+                          _saveEquipToGlobals(); // 🎒 새 낚시터가 지금 장비를 읽도록 — dispose 는 늦게 돈다
                           Navigator.pop(context, {'hopTo': s, 'sea': isMainSea}); // 낚시 화면 나가며 이동 요청
                         },
                       ),
@@ -2612,6 +2619,7 @@ Widget _whisperUnreadBadge() {
                     onPressed: () {
                       audioManager.playSfx('sfx_click.mp3');
                       Navigator.pop(dctx); // 리스트 닫고
+                      _saveEquipToGlobals(); // 🎒 광장 장비창도 지금 장비를 보게
                       // 🏛️ 낚시 종류에 맞는 광장으로 (바다낚시→바다광장 / 민물낚시→민물광장)
                       Navigator.pop(context, {'toPlaza': widget.isSea ? 'sea' : 'fresh'});
                     },
@@ -4686,7 +4694,13 @@ Positioned(
             ? {'name': '오션 스타터', 'category': 'SEA', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/rod_sea_cf250.png'}
             : {'name': '베이직 민물대', 'category': 'FW', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/rod_fw_cf20.png'};
 
-        equippedFloat ??= {'name': '기본 찌', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/float_fw_normal.png'};
+        // 🎈 찌는 민물 일반낚시에서만. 바다·루어는 찌를 안 쓰는데도 임시 찌가 끼워져
+        //    제압력이 +2 붙었다가, 다음 낚시터에서 category 가 없어 '민물 장비'로 벗겨지며
+        //    다시 −2 — 이동할 때마다 제압력이 들쭉날쭉했다(2026-09-11 달빛둠벙 제보).
+        //    임시 장비에는 category 를 꼭 붙인다(없으면 다음 낚시터에서 무조건 벗겨진다).
+        if (!widget.isSea && !_lureMode) {
+          equippedFloat ??= {'name': '기본 찌', 'category': 'FW', 'stats': {'P': 2, 'C': 2, 'S': 2}, 'icon': 'assets/items/float_fw_normal.png'};
+        }
 
         // ⚠️ 미끼는 가짜(지렁이 기본) 지급 안 함 — 미끼 없으면 아래에서 캐스팅 차단(무한낚시 버그 방지)
 
