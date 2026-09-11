@@ -35,6 +35,15 @@ const double kRaidRodRight = 560;  // 오른쪽에서 띄울 거리(클수록 �
 const double kRaidRodBottom = -34; // 아래에서 띄울 거리(작을수록/음수일수록 아래로 내려감)
 const double kRaidRodHeight = 420; // 낚싯대 그림 높이(px)
 
+// 🧵 레이드대 그림(1024×559)에서 낚싯대 끝 좌표. 그림에 늘어져 있던 줄은 지웠고
+//    (tools/raid_rod_lines.py — 원본은 tools/raid_rod_orig), 줄은 여기서 수면까지 게임이 직접 긋는다.
+//    그래야 낚싯대가 흔들려도 줄 끝은 물에 박혀 있다(예전엔 줄 끝까지 같이 흔들렸다).
+//    hand_rod_raid_2 는 번개가 줄 역할이라 그대로 두고 번개 끝에서 잇는다. 캐스팅 그림은 날아가는 줄이 동작이라 그대로.
+const Map<String, Offset> kRaidRodTip = {
+  'waiting_raid_1': Offset(783, 53), 'waiting_raid_2': Offset(706, 20), 'waiting_raid_3': Offset(839, 34),
+  'hand_rod_raid_1': Offset(605, 116), 'hand_rod_raid_2': Offset(758, 270), 'hand_rod_raid_3': Offset(940, 164),
+};
+
 // 🐲 [보스 등장 3단계 튜닝] 제압률에 따라 멀리→중간→가까이. 숫자만 바꾸면 구간별로 따로 조절됨.
 //   waterY  : 수면선(화면 높이 비율 0~1). 클수록 아래(=앞쪽 물).
 //   scale   : 보스 크기 배율.  opacity : 선명도 배율.  tint : 물빛(멀수록 짙게).
@@ -42,9 +51,21 @@ const double kRaidRodHeight = 420; // 낚싯대 그림 높이(px)
 const double kZoneMidAt  = 0.35; // 이 제압률부터 '중간'
 const double kZoneNearAt = 0.70; // 이 제압률부터 '가까이'
 
-const double kFarWaterY = 0.66, kFarScale = 0.55, kFarOpacity = 0.55, kFarTint = 0.34, kFarSpread = 0.40;
-const double kMidWaterY = 0.74, kMidScale = 0.85, kMidOpacity = 0.80, kMidTint = 0.18, kMidSpread = 0.70;
+const double kFarWaterY = 0.66, kFarScale = 0.55, kFarOpacity = 0.85, kFarTint = 0.20, kFarSpread = 0.40;
+const double kMidWaterY = 0.74, kMidScale = 0.85, kMidOpacity = 0.95, kMidTint = 0.10, kMidSpread = 0.70;
 const double kNearWaterY = 0.82, kNearScale = 1.25, kNearOpacity = 1.00, kNearTint = 0.00, kNearSpread = 1.00;
+// 🐲 [2026-09-11 실제 레이드 화면을 보며 다시 맞춤] 보스는 수면선에서 잘라 **위쪽 1/3만** 물 위로.
+//    예전엔 몸을 기울인 채 잘라서 잘린 단면이 비스듬히 보였고, 가까이 오면 화면 밖으로 튀어나갔다.
+// 🧪 연출 맞추기용: `flutter build web --dart-define=RAID_FX_TEST=true` 로 빌드하면
+//    3초마다 멀리→중간→가까이 번갈아 떠오른다(실서비스 빌드엔 영향 없음).
+const bool kRaidFxTest = bool.fromEnvironment('RAID_FX_TEST');
+int _fxTestN = 0;
+// 물 위로 드러나는 비율(그림 높이 기준). 보스 그림은 위쪽에 지느러미·뿔이 있어 1/3이면 지느러미만 보여
+// 몸통 윗부분까지 보이게 45%. 나머지는 물속에 어둡고 옅게 비친다(잘린 게 아니라 잠긴 것으로 보이게).
+const double kBossShow = 0.45;
+const double kFarWidth = 0.20, kMidWidth = 0.28, kNearWidth = 0.38; // 보스 폭(화면 폭 대비) — 가까울수록 크게
+// 떠오르는 가로 자리(화면 비율): 왼쪽 아래 낚싯대와 오른쪽 챔질·당기기 버튼(화면 87%~) 사이.
+const double kBossXCenter = 0.61, kBossXFar = 0.06, kBossXMid = 0.06, kBossXNear = 0.05;
 
 // 🐟 [발악/저항 튜닝] 전원 동일 타이밍(공유 시계 기반)이라 주기로 제어.
 //   일반 낚시 실측: 지속 2.5~4.5초(평균 3.5) + 쿨 0.75~1.75초 → 약 70%가 발악/저항 상태.
@@ -163,10 +184,10 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   double _surfaceX = 0;       // -0.7 ~ 0.7 (화면 가로 위치)
   bool _surfaceFlip = false;  // 좌우 반전(같은 포즈만 반복되지 않게)
   double _surfaceTilt = 0;    // 몸 기울기
-  double _surfaceScale = 1.0; // 등장 크기
-  double _surfaceCut = 0.5;   // 수면 위로 드러나는 비율(나머지는 물속)
-  int _surfaceZone = 0;       // 0 멀리 · 1 중간 · 2 가까이 (제압률로 결정)
-  double _surfaceWaterY = kFarWaterY, _surfaceDistScale = kFarScale;
+  double _surfaceW = kFarWidth; // 등장 폭(화면 폭 대비)
+  // 🧵 줄 끝(수면 위 가로 자리, 화면 비율). 보스가 떠오르면 그쪽으로 끌려가고, 가라앉은 자리에 남는다.
+  double _lineX = kBossXCenter, _lineFromX = kBossXCenter;
+  double _surfaceWaterY = kFarWaterY;
   double _surfaceDistOp = kFarOpacity, _surfaceTint = kFarTint, _surfaceSpread = kFarSpread;
 
   @override
@@ -882,6 +903,27 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
                       errorBuilder: (a2, b2, c2) => const SizedBox.shrink())),
             ))),
 
+        // 🧵 낚싯줄 — 낚싯대 끝에서 수면까지. 보스가 떠오르면 줄 끝이 그쪽으로 끌려간다.
+        if (_raidTier > 0 && (_phase == _Phase.fighting || _phase == _Phase.waiting || _phase == _Phase.biting))
+          Positioned.fill(child: IgnorePointer(child: AnimatedBuilder(
+            animation: Listenable.merge([_surfaceCtrl, _rodCtrl]),
+            builder: (context, _) {
+              final String key = _rodSceneImage().split('/').last.replaceAll('.png', '');
+              final Offset? tip = kRaidRodTip[key];
+              if (tip == null) return const SizedBox.shrink();
+              final double t = _surfaceCtrl.value;
+              double ax = _lineX, ay = _waterAt(_phase == _Phase.fighting ? _zoneNow() : 0);
+              if (t > 0 && _phase == _Phase.fighting) {
+                final double bx = _surfaceX + _surfaceDrift(t);
+                ax = _lineFromX + (bx - _lineFromX) * (t * 2.5).clamp(0.0, 1.0);
+                ay = _surfaceWaterY;
+              }
+              return CustomPaint(painter: _RaidLinePainter(
+                  tip: tip, shake: _shake, anchorX: ax, anchorY: ay,
+                  ms: DateTime.now().millisecondsSinceEpoch));
+            },
+          ))),
+
         // ── 하단 컨트롤/게이지 (단계별) ── 전체화면 레이어로(버튼 히트테스트 보장)
         Positioned.fill(child: _bottomLayer(progress, bossImg)),
 
@@ -1134,7 +1176,7 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   // 🐲 [보스 등장 연출] 6~14초마다 물 위로 어렴풋이 떠오르거나 머리만 슬쩍 내밈.
   void _scheduleSurface() {
     _surfaceTimer?.cancel();
-    _surfaceTimer = Timer(Duration(milliseconds: 6000 + _rng.nextInt(8000)), () {
+    _surfaceTimer = Timer(Duration(milliseconds: kRaidFxTest ? 3400 : 6000 + _rng.nextInt(8000)), () {
       if (!mounted || _phase != _Phase.fighting) return;
       _triggerSurface(_rng.nextInt(2)); // 0 어렴풋이 / 1 머리만
       _scheduleSurface();
@@ -1144,104 +1186,114 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
   void _triggerSurface(int type) {
     if (!mounted || _surfaceCtrl.isAnimating) return;
     _surfaceType = type;
-    _surfaceX = -0.55 + _rng.nextDouble() * 1.1;
     _surfaceFlip = _rng.nextBool();                        // 좌우 방향 랜덤
-    _surfaceTilt = (_rng.nextDouble() - 0.5) * 0.5;        // 몸 기울기 랜덤
-    _surfaceScale = 0.85 + _rng.nextDouble() * 0.45;       // 크기 랜덤(멀리/가까이)
-    _surfaceCut = 0.38 + _rng.nextDouble() * 0.24;         // 물 밖으로 드러나는 비율(38~62%)
+    _surfaceTilt = (_rng.nextDouble() - 0.5) * 0.10;       // 아주 조금만(잘린 단면이 비스듬해 보이지 않게)
     // 🎯 제압률로 '멀리/중간/가까이' 3단계 확정 (등장 도중엔 안 바뀜)
-    final double prog = (_targetHP > 0 ? _dmgTotal / _targetHP : 0.0).clamp(0.0, 1.0);
-    if (prog >= kZoneNearAt) {
-      _surfaceZone = 2;
-      _surfaceWaterY = _waterAt(2); _surfaceDistScale = kNearScale;
+    final int zone = kRaidFxTest ? (_fxTestN++ % 3) : _zoneNow();
+    _surfaceWaterY = _waterAt(zone);
+    final double half = zone == 2 ? kBossXNear : (zone == 1 ? kBossXMid : kBossXFar);
+    _surfaceX = kBossXCenter + (_rng.nextDouble() * 2 - 1) * half;
+    _surfaceW = (zone == 2 ? kNearWidth : (zone == 1 ? kMidWidth : kFarWidth)) * (0.92 + _rng.nextDouble() * 0.16);
+    if (zone == 2) {
       _surfaceDistOp = kNearOpacity; _surfaceTint = kNearTint; _surfaceSpread = kNearSpread;
-    } else if (prog >= kZoneMidAt) {
-      _surfaceZone = 1;
-      _surfaceWaterY = _waterAt(1); _surfaceDistScale = kMidScale;
+    } else if (zone == 1) {
       _surfaceDistOp = kMidOpacity; _surfaceTint = kMidTint; _surfaceSpread = kMidSpread;
     } else {
-      _surfaceZone = 0;
-      _surfaceWaterY = _waterAt(0); _surfaceDistScale = kFarScale;
       _surfaceDistOp = kFarOpacity; _surfaceTint = kFarTint; _surfaceSpread = kFarSpread;
     }
+    _lineFromX = _lineX;                                   // 줄 끝은 지금 자리에서 보스 쪽으로 끌려간다
     _surfaceCtrl.duration = Duration(milliseconds: type == 2 ? 3200 : 2600);
-    _surfaceCtrl.forward(from: 0).whenComplete(() { if (mounted) _surfaceCtrl.reset(); });
+    _surfaceCtrl.forward(from: 0).whenComplete(() {
+      if (!mounted) return;
+      _lineX = (_surfaceX + _surfaceDrift(1.0)).clamp(kBossXCenter - 0.16, kBossXCenter + 0.16);
+      _surfaceCtrl.reset();
+    });
   }
 
+  // 지금 제압률의 구간(0 멀리 · 1 중간 · 2 가까이)
+  int _zoneNow() {
+    final double prog = (_targetHP > 0 ? _dmgTotal / _targetHP : 0.0).clamp(0.0, 1.0);
+    return prog >= kZoneNearAt ? 2 : (prog >= kZoneMidAt ? 1 : 0);
+  }
+
+  // 떠 있는 동안 머리 쪽으로 헤엄쳐 가는 거리(화면 비율)
+  double _surfaceDrift(double t) =>
+      (_surfaceFlip ? 1 : -1) * t * (_surfaceType == 2 ? 0.012 : 0.028) * _surfaceSpread;
+
   // 물 위로 떠오르는 보스 — 컨트롤러에만 붙어 있어 화면 전체를 다시 그리지 않는다(렉 방지).
-  //   0 어렴풋이: 물속에 잠긴 실루엣이 흐릿하게 / 1 머리만: 고개를 들고 반쯤만 물 밖으로
-  //   2 바늘털이: 몸 전체가 튀어올라 파르르 떨다 잠수 (발악 때)
+  //   수면선 아래는 잘라서 안 보이고, 위쪽 1/3만 천천히 올라왔다가 가라앉는다. 경계는 몇 픽셀 부드럽게.
+  //   0 어렴풋이: 흐리게 물빛이 섞여 / 1 머리만: 또렷하게 / 2 바늘털이(발악): 조금 더 솟고 떨며 물보라
   Widget _bossSurfaceFx() {
     return IgnorePointer(child: LayoutBuilder(builder: (context, box) {
-      final double screenH = box.maxHeight;
+      final double W = box.maxWidth, H = box.maxHeight;
       return AnimatedBuilder(
         animation: _surfaceCtrl,
         builder: (context, _) {
           final double t = _surfaceCtrl.value;
           if (t <= 0) return const SizedBox.shrink();
-          final double rise = math.sin(t * math.pi); // 0 → 1 → 0 (떠올랐다 가라앉음)
-          final bool thrash = _surfaceType == 2;
-          final bool headOnly = _surfaceType == 1;
+          // 떠오름(앞 25%) → 머묾 → 가라앉음(뒤 25%)
+          final double rise = t < 0.25
+              ? Curves.easeOut.transform(t / 0.25)
+              : (t > 0.75 ? Curves.easeIn.transform((1 - t) / 0.25) : 1.0);
+          final bool thrash = _surfaceType == 2, faint = _surfaceType == 0;
+          final double bw = W * _surfaceW, bh = bw * 559 / 1024;
+          final double show = thrash ? kBossShow + 0.08 : (faint ? kBossShow - 0.08 : kBossShow);
+          final double waterY = H * _surfaceWaterY;
+          final double bob = thrash ? math.sin(t * math.pi * 6) * bh * 0.03 : math.sin(t * math.pi * 2) * bh * 0.012;
+          final double cx = W * (_surfaceX + _surfaceDrift(t)) +
+              (thrash ? math.sin(t * math.pi * 10) * bw * 0.02 * rise : 0);
+          final double top = waterY - bh * show * rise + bob;
+          final double op = ((faint ? 0.5 : 1.0) * _surfaceDistOp).clamp(0.0, 1.0);
 
-          // 🐲 3단계(멀리/중간/가까이) 값 — 등장 시점에 확정된 것 사용
-          final double distOp = _surfaceDistOp;
-          final double distScale = _surfaceDistScale;
-          final double baseOp = (_surfaceType == 0 ? 0.24 : (headOnly ? 0.72 : 0.95)) * distOp;
-          final double op = (baseOp * rise).clamp(0.0, 1.0);
-          // 솟는 높이: 가까울수록 조금 더 시원하게 드러남(멀리선 거의 안 솟음)
-          final double zoneUp = _surfaceZone == 2 ? 1.0 : (_surfaceZone == 1 ? 0.75 : 0.5);
-          final double up = rise * (thrash ? 18 : (headOnly ? 13 : 5)) * zoneUp;
-          final double shake = thrash ? math.sin(t * math.pi * 2) * 22 * rise : 0;
-          // 🏊 떠 있는 동안 머리가 향한 쪽으로 스르륵 이동(헤엄치는 느낌). 멀수록 조금만 움직임.
-          final double drift = (_surfaceFlip ? 1 : -1) * t * (thrash ? 26 : 48) * _surfaceSpread;
-          final double tilt = thrash
-              ? _surfaceTilt + math.sin(t * math.pi * 2) * 0.30 * rise
-              : headOnly
-                  ? _surfaceTilt - 0.42 * rise
-                  : _surfaceTilt + math.sin(t * math.pi * 2) * 0.04;
-          final double h = (thrash ? 250.0 : (headOnly ? 210.0 : 200.0)) * _surfaceScale * distScale;
-
-          Widget boss = Image.asset(widget.bossMarker, height: h, fit: BoxFit.contain,
+          Widget boss = Image.asset(widget.bossMarker, width: bw, height: bh, fit: BoxFit.fill,
               errorBuilder: (a, b, c) => const SizedBox.shrink());
-
-          final double tintA = ((_surfaceType == 0 ? 0.72 : (headOnly ? 0.22 : 0.0)) + _surfaceTint)
-              .clamp(0.0, 0.92);
+          final double tintA = ((faint ? 0.55 : 0.0) + _surfaceTint).clamp(0.0, 0.9);
           if (tintA > 0) {
             boss = ColorFiltered(
               colorFilter: ColorFilter.mode(const Color(0xFF0E3B44).withOpacity(tintA), BlendMode.srcATop),
               child: boss,
             );
           }
-          boss = Transform.rotate(angle: tilt, child: boss);
+          boss = Transform.rotate(angle: _surfaceTilt, child: boss);
+          if (_surfaceFlip) boss = Transform.flip(flipX: true, child: boss);
 
-          // 🌊 수면 위로 드러나는 연출(머리만·바늘털이)만 아래를 잘라낸다.
-          //    '어렴풋이'는 물속을 지나가는 그림자라 자르지 않고 몸 전체를 흐리게 보여준다.
-          final bool clipped = headOnly || thrash;
-          final double cut = clipped ? (_surfaceCut * (thrash ? 1.25 : 1.0)).clamp(0.25, 0.78) : 1.0;
-          if (clipped) {
-            boss = ClipRect(child: Align(alignment: Alignment.topCenter, heightFactor: cut, child: boss));
-          }
-          boss = Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()..scale(_surfaceFlip ? -1.0 : 1.0, 1.0),
+          final double clipH = waterY + 2;
+          // 물속에 잠긴 몸통 — 어둡고 옅게, 아래로 갈수록 사라지게
+          final Widget underBody = ColorFiltered(
+            colorFilter: const ColorFilter.mode(Color(0xC0102A2C), BlendMode.srcATop),
             child: boss,
           );
-
-          // 📐 '보이는 아래끝'이 수면선에 정확히 닿도록 배치.
-          //    Align은 자식의 '중심'이 아니라 여백 비율로 놓이므로 역산해서 y를 구한다.
-          //    (안 하면 가까이서 커질 때 물 밖 앞쪽까지 튀어나온다)
-          final double visH = h * cut;
-          final double waterLine = screenH * _surfaceWaterY; // 구간별 수면선(멀리/중간/가까이)
-          final double denom = (screenH - visH).abs() < 1 ? 1 : (screenH - visH);
-          final double alignY = (2 * (waterLine - visH) / denom - 1).clamp(-1.0, 1.0);
-
-          return Align(
-            alignment: Alignment(_surfaceX * _surfaceSpread, alignY),
-            child: Transform.translate(
-              offset: Offset(shake + drift, -up),
-              child: Opacity(opacity: op, child: boss),
-            ),
-          );
+          final double underH = (H - waterY).clamp(1.0, H);
+          return Stack(children: [
+            Positioned(left: 0, top: waterY, width: W, height: underH, child: ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (r) => LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: const [Colors.white, Colors.transparent],
+                stops: [0.0, (bh * (1 - show) / underH).clamp(0.05, 1.0)],
+              ).createShader(r),
+              child: ClipRect(child: SizedBox(width: W, height: underH, child: Stack(children: [
+                Positioned(left: cx - bw / 2, top: top - waterY, width: bw, height: bh,
+                    child: Opacity(opacity: (0.30 * op * rise).clamp(0.0, 1.0), child: underBody)),
+              ]))),
+            )),
+            // 수면선에서 잘라 위쪽만 — 마지막 12px 은 물에 녹듯 흐리게(칼로 자른 단면이 안 보이게)
+            Positioned(left: 0, top: 0, width: W, height: clipH, child: ShaderMask(
+              blendMode: BlendMode.dstIn,
+              shaderCallback: (r) => LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: const [Colors.white, Colors.white, Colors.transparent],
+                stops: [0.0, ((clipH - 12) / clipH).clamp(0.0, 1.0), 1.0],
+              ).createShader(r),
+              child: ClipRect(child: SizedBox(width: W, height: clipH, child: Stack(children: [
+                Positioned(left: cx - bw / 2, top: top, width: bw, height: bh,
+                    child: Opacity(opacity: op, child: boss)),
+              ]))),
+            )),
+            // 몸이 물을 가르는 물결
+            Positioned.fill(child: CustomPaint(painter: _RaidWakePainter(
+                cx: cx, y: waterY, w: bw * (thrash ? 0.95 : 0.72), rise: rise, t: t, splash: thrash))),
+          ]);
         },
       );
     }));
@@ -1325,3 +1377,74 @@ class _BossRaidScreenState extends State<BossRaidScreen> with TickerProviderStat
     ]);
   }
 }
+
+// 🧵 레이드 낚싯줄 — 낚싯대 그림 배치(kRaidRod*)와 흔들림을 똑같이 따라가 끝점을 구하고, 수면까지 살짝 처지게 긋는다.
+class _RaidLinePainter extends CustomPainter {
+  final Offset tip;                     // 그림(1024×559) 좌표
+  final double shake, anchorX, anchorY; // anchor = 화면 비율
+  final int ms;
+  _RaidLinePainter({required this.tip, required this.shake, required this.anchorX, required this.anchorY, required this.ms});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const double rh = kRaidRodHeight, rw = kRaidRodHeight * 1024 / 559, sc = kRaidRodHeight / 559;
+    final double left = size.width - kRaidRodRight - rw, top = size.height - kRaidRodBottom - rh;
+    Offset p = Offset(left + tip.dx * sc, top + tip.dy * sc);
+    // 낚싯대 위젯과 같은 변형: 오른쪽 아래를 축으로 회전 → 이동
+    final Offset pivot = Offset(left + rw, top + rh);
+    final double ang = shake * 0.012, c = math.cos(ang), s = math.sin(ang);
+    final Offset d = p - pivot;
+    p = pivot + Offset(d.dx * c - d.dy * s, d.dx * s + d.dy * c) + Offset(shake * 0.9, shake * 0.5);
+    final Offset q = Offset(size.width * anchorX, size.height * anchorY);
+
+    final double dist = (q - p).distance;
+    final Offset mid = Offset((p.dx + q.dx) / 2, (p.dy + q.dy) / 2 + dist * 0.05); // 살짝 처짐
+    final Path path = Path()..moveTo(p.dx, p.dy)..quadraticBezierTo(mid.dx, mid.dy, q.dx, q.dy);
+    canvas.drawPath(path, Paint()
+      ..style = PaintingStyle.stroke..strokeWidth = 3
+      ..color = Colors.black.withOpacity(0.18));             // 밝은 배경에서도 보이게 옅은 그림자
+    canvas.drawPath(path, Paint()
+      ..style = PaintingStyle.stroke..strokeWidth = 1.5..isAntiAlias = true
+      ..color = Colors.white.withOpacity(0.8));
+    // 줄이 물에 닿는 곳 파문 두 겹(1.6초 주기)
+    for (final double off in const [0.0, 0.5]) {
+      final double ph = ((ms / 1600.0) + off) % 1.0;
+      final double rx = 5 + 22 * ph;
+      canvas.drawOval(Rect.fromCenter(center: q, width: rx * 2, height: rx * 0.62),
+          Paint()..style = PaintingStyle.stroke..strokeWidth = 1.4
+            ..color = Colors.white.withOpacity(0.55 * (1 - ph)));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RaidLinePainter o) =>
+      o.tip != tip || o.shake != shake || o.anchorX != anchorX || o.anchorY != anchorY || o.ms != ms;
+}
+
+// 🌊 보스가 물을 가르는 물결(떠 있는 동안 퍼져 나감). 바늘털이 땐 더 크게.
+class _RaidWakePainter extends CustomPainter {
+  final double cx, y, w, rise, t;
+  final bool splash;
+  _RaidWakePainter({required this.cx, required this.y, required this.w, required this.rise, required this.t, required this.splash});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (rise <= 0.02) return;
+    for (final double off in const [0.0, 0.33, 0.66]) {
+      final double ph = ((t * (splash ? 3.0 : 2.0)) + off) % 1.0;
+      final double rx = w * (0.45 + 0.35 * ph);
+      canvas.drawOval(Rect.fromCenter(center: Offset(cx, y), width: rx * 2, height: rx * 0.16),
+          Paint()..style = PaintingStyle.stroke..strokeWidth = splash ? 2.2 : 1.6
+            ..color = Colors.white.withOpacity((splash ? 0.55 : 0.4) * (1 - ph) * rise));
+    }
+    // 몸이 수면을 뚫고 나온 자리의 흰 거품 띠
+    canvas.drawOval(Rect.fromCenter(center: Offset(cx, y), width: w * 0.9, height: w * 0.05),
+        Paint()..color = Colors.white.withOpacity(0.22 * rise)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+  }
+
+  @override
+  bool shouldRepaint(covariant _RaidWakePainter o) =>
+      o.cx != cx || o.y != y || o.w != w || o.rise != rise || o.t != t || o.splash != splash;
+}
+

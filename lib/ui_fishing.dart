@@ -579,6 +579,7 @@ Widget _whisperUnreadBadge() {
 
   
   bool _emblemSynced = false;  // 🛡️ 엠블럼 전역 동기화 1회만
+  bool _entryEquipDone = false; // 🎒 입장 자동 장착 1회만
   Future<void> _recordQueue = Future.value(); // 🚀 잡은 기록 저장 큐(순서 보장)
   String _guildWeekSynced = '';  // 🛡️ 길드 문서가 이 주차로 맞춰진 걸 확인한 주차(빈값=확인 전)
   Map<String, dynamic>? equippedRod;  
@@ -890,7 +891,7 @@ Widget _whisperUnreadBadge() {
       final String otherLabel = widget.isSea ? '민물' : '바다';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showNotificationPopup('🔄 장비 자동 정리',
-            '$otherLabel 전용 장비는 $modeLabel 낚시터에서 쓸 수 없어\n자동으로 해제했어요.\n$modeLabel 장비로 다시 장착해 주세요.',
+            '$otherLabel 전용 장비는 $modeLabel 낚시터에서 쓸 수 없어\n$modeLabel 장비로 바꿔 끼웠어요.',
             const Color(0xFFD4AF37));
       });
     }
@@ -3662,7 +3663,19 @@ Positioned(
 
     // 🛡️ [수정] 가짜 데이터(0.1초)일 때는 무시하고, 진짜 DB 데이터가 도착했을 때만 레벨업 판독!
     if (snapshot.hasData && snapshot.data!.exists) {
-      if (_currentLevel == 0) { 
+      // 🎒 [2026-09-11] 들어가자마자 이 낚시터에 맞는 최상급 장비로 빈 칸을 채운다(광장 장비창처럼).
+      //    예전엔 첫 캐스팅 때에야 채워져서, 캐스팅 전엔 빈 장비 기준 제압력이 보였다
+      //    (바다→민물 「낚시터 이동」 직후 316 → 캐스팅 후 402. 달빛둠벙 「능력치가 빠졌다」 제보).
+      //    빈 칸만 채우므로 이미 고른 미끼·장비는 그대로다(9/7 미끼 덮어쓰기 사고와 같은 규칙).
+      //    레벨 조건을 봐야 하니 레벨을 알게 된 뒤, 가방이 들어온 뒤에 한 번만.
+      if (!_entryEquipDone && realLevel > 0 && _latestInventory.isNotEmpty &&
+          widget.roomId == null && widget.title == widget.locationName) {
+        _entryEquipDone = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && isSettingUp) _runAutoEquip(silent: true, onlyEmpty: true);
+        });
+      }
+      if (_currentLevel == 0) {
         _currentLevel = realLevel; // 처음 입장 시 팝업 띄우지 말고 조용히 현재 레벨만 기억!
       } else if (realLevel > _currentLevel) {
         _currentLevel = realLevel; // 찐으로 고기 잡아서 렙업했을 때만 팝업 발사!

@@ -1070,11 +1070,11 @@ Map<String, dynamic>? nextPromotion(String currentRank) {
 //      길드원이 렙업·장비·레이드대 티어업(20→60)으로 제압력을 올리면서 한 존씩 뚫는다.
 //      (실유저 평균 제압력 250 기준: 1존 16명 · 2존 32명 — 성장하면 같은 인원으로 도달)
 const List<Map<String, dynamic>> raidBosses = [
-  {'id': 'murgadon', 'sea': false, 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3300,  'hp': 1500000,  'minutes': 10, 'water': [0.66, 0.74, 0.82]},
+  {'id': 'murgadon', 'sea': false, 'tier': 1, 'zone': '신성한 늪',   'name': '태고의 무르가돈', 'marker': 'assets/images/boss_murgadon.png', 'thumb': 'assets/images/thumb_raid_murgadon.png', 'bgm': 'boss_murgadon.mp3', 'bg': 'assets/fields/bg_raid_murgadon.jpg', 'power': 3300,  'hp': 1500000,  'minutes': 10, 'water': [0.64, 0.72, 0.80]},
   {'id': 'abykura', 'sea': true,  'tier': 2, 'zone': '신비한 바다', 'name': '심연의 아비쿠라', 'marker': 'assets/images/boss_abykura.png', 'thumb': 'assets/images/thumb_raid_abykura.png', 'bgm': 'boss_abykura.mp3',  'bg': 'assets/fields/bg_raid_abykura.jpg', 'power': 11000,  'hp': 5000000,  'minutes': 10, 'water': [0.42, 0.54, 0.66]},
   {'id': 'basragon', 'sea': false, 'tier': 3, 'zone': '고대의 수로', 'name': '천년 바스라곤',   'marker': 'assets/images/boss_basragon.png', 'thumb': 'assets/images/thumb_raid_basragon.png', 'bgm': 'boss_basragon.mp3', 'bg': 'assets/fields/bg_raid_basragon.jpg','power': 20000, 'hp': 9000000,  'minutes': 10, 'water': [0.58, 0.68, 0.78]},
   {'id': 'kargon', 'sea': true,   'tier': 4, 'zone': '폭풍호수',   'name': '폭풍 카르곤',     'marker': 'assets/images/boss_kargon.png', 'thumb': 'assets/images/thumb_raid_kargon.png', 'bgm': 'boss_kargon.mp3',   'bg': 'assets/fields/bg_raid_kargon.jpg',  'power': 36700, 'hp': 16500000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
-  {'id': 'volkar', 'sea': false,   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 51000, 'hp': 23000000, 'minutes': 10, 'water': [0.75, 0.85, 0.95]},
+  {'id': 'volkar', 'sea': false,   'tier': 5, 'zone': '용암의 심연', 'name': '화염 볼카르',     'marker': 'assets/images/boss_volkar.png', 'thumb': 'assets/images/thumb_raid_volkar.png', 'bgm': 'boss_volkar.mp3',   'bg': 'assets/fields/bg_raid_volkar.jpg',  'power': 51000, 'hp': 23000000, 'minutes': 10, 'water': [0.60, 0.70, 0.80]},
 ];
 
 // 🎁 [보스레이드 보상] 존 클리어 시 참가 길드원 각자 지급.
