@@ -1307,7 +1307,12 @@ class _StoreScreenState extends State<StoreScreen> {
   late int myDisplayGold;
   late List<dynamic> myInventory; // 판매 탭에서 쓰는 내 인벤토리(상태로 관리)
   String _sellTab = '장비'; // 💰 판매 탭 안의 서브탭: 장비 / 물고기
-  final Set<String> _fishExcluded = <String>{}; // 🐟 선택판매에서 뺀 어종(체크 해제 = 안 팜)
+  // 🐟 선택판매에 넣은 어종(체크 = 팜). 예전엔 '뺀 어종'을 들고 있어 창을 열면 전부 체크돼
+  //    있었고, 고등어·무늬오징어를 매번 풀고 팔아야 했다(2026-09-11 사장님). 이제 기본은 전부 해제.
+  final Set<String> _fishSelected = <String>{};
+  // 🐟 전설 어종(참치·초어)은 팔 수 없다 — 다이아 보석 교환 재료라 실수로 팔면 복구 문의가 온다.
+  bool _isLegendFish(Map<String, dynamic> item) =>
+      (item['type'] ?? '') == 'FISH' && kLegendAppearRate.containsKey((item['name'] ?? '').toString());
   String currentTab = 'ROD';
   bool _isGm = false; // 🛡️ GM 계정 여부 — 최상급 보호 스킵용
   Map<String, dynamic> _purchaseDates = {}; // 🎟️ 아이템별 마지막 구매일(1일 1회 구매 제한 표시용)
@@ -1580,8 +1585,10 @@ class _StoreScreenState extends State<StoreScreen> {
     final fishes = all.where((i) => (i['type'] ?? '') == 'FISH').toList();
     final showFish = _sellTab == '물고기';
     final list = showFish ? fishes : gear;
-    // 🐟 체크된(=제외 안 된) 어종만 선택 판매
-    final selectedFishes = fishes.where((f) => !_fishExcluded.contains(f['name'].toString())).toList();
+    // 🐟 체크한 어종만 선택 판매(전설 어종은 체크 자체가 없다)
+    final sellableFishes = fishes.where((f) => !_isLegendFish(f)).toList();
+    final selectedFishes = sellableFishes.where((f) => _fishSelected.contains(f['name'].toString())).toList();
+    final bool allChecked = sellableFishes.isNotEmpty && selectedFishes.length == sellableFishes.length;
     final selTotal = selectedFishes.fold<int>(0, (s, i) => s + _sellPrice(i));
 
     Widget subTab(String label, int count) {
@@ -1615,19 +1622,19 @@ class _StoreScreenState extends State<StoreScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         child: showFish
             ? Row(children: [
-                const Expanded(child: Text('🐟 팔 고기만 체크! (오른쪽 ✓ 해제=보관)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold))),
-                if (fishes.isNotEmpty) ...[
-                  // 전체 선택/해제 토글
+                const Expanded(child: Text('🐟 팔 고기만 체크하세요 (오른쪽 ✓ = 판매)', style: TextStyle(color: Colors.white60, fontSize: 13, fontWeight: FontWeight.bold))),
+                if (sellableFishes.isNotEmpty) ...[
+                  // 전체 선택/해제 토글 — 기본은 아무것도 체크 안 됨
                   TextButton(
                     style: TextButton.styleFrom(foregroundColor: Colors.white70, padding: const EdgeInsets.symmetric(horizontal: 8)),
                     onPressed: () => setState(() {
-                      if (_fishExcluded.isEmpty) {
-                        _fishExcluded.addAll(fishes.map((f) => f['name'].toString())); // 전체 해제
+                      if (allChecked) {
+                        _fishSelected.clear(); // 전체 해제
                       } else {
-                        _fishExcluded.clear(); // 전체 선택
+                        _fishSelected.addAll(sellableFishes.map((f) => f['name'].toString())); // 전체 선택
                       }
                     }),
-                    child: Text(_fishExcluded.isEmpty ? '전체 해제' : '전체 선택', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                    child: Text(allChecked ? '전체 해제' : '전체 선택', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(width: 6),
                   ElevatedButton(
@@ -1682,6 +1689,8 @@ class _StoreScreenState extends State<StoreScreen> {
       // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로. 금액도 화면 값이 아니라
       //    트랜잭션 안에서 실제로 빠진 물고기로 다시 센다(창 열어둔 사이 팔렸을 수 있다).
       int paid = 0;
+      // 🐟 전설 어종은 화면에서 체크가 안 되지만, 여기서도 한 번 더 뺀다(마지막 안전장치).
+      names = names.where((n) => !kLegendAppearRate.containsKey(n)).toSet();
       await FirebaseFirestore.instance.runTransaction((tx) async {
         paid = 0;
         final userDoc = await tx.get(ref);
@@ -1719,10 +1728,11 @@ class _StoreScreenState extends State<StoreScreen> {
     else { imgPath = itemImagePath(imgPath); }
     final qty = (item['quantity'] is num) ? (item['quantity'] as num).toInt() : 1;
     final bool isFish = (item['type'] ?? '') == 'FISH';
+    final bool legend = _isLegendFish(item); // 🐟 참치·초어 — 판매 보호
     final bait = _isBaitItem(item);
     final price = _sellPrice(item);
-    // 🚫 판매 금지 항목(도구·이용권·미공개 스킨)
-    final bool nonSellable = _isNonSellable(item);
+    // 🚫 판매 금지 항목(도구·이용권·미공개 스킨·전설 어종)
+    final bool nonSellable = _isNonSellable(item) || legend;
     // 🆕 초보 조사 스킨(무료 기본템)도 1000P 판매 허용. 단 최상급 보호는 유지
     //    → 하수 이상 있으면 초보는 '여분'이라 판매 가능 / 초보만 있으면(저랩) 최상급이라 보호(잠금).
     final isTop = _isTopGrade(item); // 부위별 최상급
@@ -1755,6 +1765,8 @@ class _StoreScreenState extends State<StoreScreen> {
                   child: const Text('⭐ 보유 최상급 — 판매 잠금',
                       style: TextStyle(color: Color(0xFFD4AF37), fontSize: 12, fontWeight: FontWeight.bold)),
                 )
+              else if (legend)
+                Text('보유 수량: $qty마리  ⭐ 전설 어종 — 팔 수 없어요 (보석 교환 재료)', style: const TextStyle(color: Color(0xFFD4AF37), fontSize: 13, fontWeight: FontWeight.bold))
               else if ((item['type'] ?? '') == 'FISH')
                 Text('보유 수량: $qty마리  (마리당 ${fishSellPrice(itemName)} KREFT)', style: const TextStyle(color: Colors.yellowAccent, fontSize: 13, fontWeight: FontWeight.bold))
               else if (isGear && qty > 1)
@@ -1771,7 +1783,7 @@ class _StoreScreenState extends State<StoreScreen> {
             padding: const EdgeInsets.all(14),
             child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               Center(child: Text(
-                sellable ? '+$price KREFT' : (isTop ? '🔒 잠금' : (cashLocked ? '🔒 조건 미달' : '판매 불가')),
+                sellable ? '+$price KREFT' : (isTop ? '🔒 잠금' : (cashLocked ? '🔒 조건 미달' : (legend ? '🔒 보관 전용' : '판매 불가'))),
                 style: TextStyle(color: sellable ? const Color(0xFF7FFFB0) : ((isTop || cashLocked) ? const Color(0xFFD4AF37) : Colors.white38),
                     fontSize: 16, fontWeight: FontWeight.w900))),
               const SizedBox(height: 8),
@@ -1786,27 +1798,33 @@ class _StoreScreenState extends State<StoreScreen> {
                   sellable ? '팔기'
                     : (isTop ? '최상급 보호'
                       : (cashLocked ? '착용조건 후'
-                        : (nonSellable ? '판매 금지' : '기본 지급'))),
+                        : (legend ? '전설 어종'
+                          : (nonSellable ? '판매 금지' : '기본 지급')))),
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
               ),
             ]),
           ),
         ),
-        // 🐟 물고기 선택판매 체크박스(오른쪽 끝) — 체크=판매, 해제=보관
-        if (isFish)
+        // 🐟 물고기 선택판매 체크박스(오른쪽 끝) — 체크=판매, 해제=보관. 전설 어종은 체크 자체가 없다.
+        if (isFish && !legend)
           GestureDetector(
             onTap: () => setState(() {
-              if (_fishExcluded.contains(itemName)) { _fishExcluded.remove(itemName); }
-              else { _fishExcluded.add(itemName); }
+              if (_fishSelected.contains(itemName)) { _fishSelected.remove(itemName); }
+              else { _fishSelected.add(itemName); }
             }),
             child: Padding(
               padding: const EdgeInsets.only(left: 6, right: 14),
               child: Icon(
-                _fishExcluded.contains(itemName) ? Icons.check_box_outline_blank : Icons.check_box,
-                color: _fishExcluded.contains(itemName) ? Colors.white38 : const Color(0xFF7FFFB0),
+                _fishSelected.contains(itemName) ? Icons.check_box : Icons.check_box_outline_blank,
+                color: _fishSelected.contains(itemName) ? const Color(0xFF7FFFB0) : Colors.white38,
                 size: 32,
               ),
             ),
+          ),
+        if (isFish && legend)
+          const Padding(
+            padding: EdgeInsets.only(left: 6, right: 14),
+            child: Icon(Icons.lock, color: Color(0xFFD4AF37), size: 28),
           ),
       ]),
     );
