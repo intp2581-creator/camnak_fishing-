@@ -3,9 +3,15 @@
 import cv2, numpy as np, os, sys
 from PIL import Image, ImageDraw, ImageFont
 BASE = os.path.expanduser('~') + r'/Desktop/게임 자료실/2차 업데이트/'
-CUT = BASE + '사용장면_발테리아 크래프트/'
-FOLDER = {**{i: '대기' for i in range(0, 51)}, **{i: '캐스팅' for i in range(51, 72)},
-          **{i: '웨이팅' for i in range(72, 119)}, **{i: '릴링' for i in range(120, 239)}}
+# 사용:  python render_promo.py 발테리아 크래프트 대기=0-50 캐스팅=51-71 웨이팅=72-118 릴링=120-238 [galaxy] [mureung]
+#   → '사용장면_발테리아 크래프트' 폴더를 읽어 '영상_은하수바다_발테리아 크래프트.mp4' 등을 만든다
+ARGS = sys.argv[1:]
+TAG = ARGS[0] + ' ' + ARGS[1]
+R = {k: tuple(map(int, v.split('-'))) for k, v in (a.split('=') for a in ARGS[2:] if '=' in a)}
+WORLDS = [a for a in ARGS[2:] if '=' not in a] or ['galaxy', 'mureung']
+CUT = BASE + f'사용장면_{TAG}/'
+FOLDER = {i: k for k, (a, b) in R.items() for i in range(a, b + 1)}
+(I0, I1), (C0, C1), (W0, W1), (L0, L1) = R['대기'], R['캐스팅'], R['웨이팅'], R['릴링']
 W, H, FPS = 1920, 1080, 24
 K = 0.675                                   # 캐릭터 크기(1480×1080 → 999×729)
 CW, CH = int(1480 * K), int(1080 * K)
@@ -31,11 +37,17 @@ def trace(c):
     return pts
 
 TIP = {}
-for i in list(range(72, 119)) + list(range(120, 239)):
-    p = trace(raw(i))
+for i in list(range(W0, W1 + 1)) + list(range(L0, L1 + 1)):
+    c = raw(i); p = trace(c)
     if p and len(p) > 10: TIP[i] = p
+    else:
+        # 줄이 화면 밖으로 안 나가는 장면(낚싯대를 치켜든 입질대기 등): 낚싯대의 가장 먼 끝(왼쪽 위 끝점)
+        ys, xs = np.where((c[..., 3] > 200) & (c[..., :3].max(2) > 50))
+        sel = xs < 900
+        if sel.any():
+            k = np.argmin(xs[sel] + ys[sel]); TIP[i] = [(float(xs[sel][k]), float(ys[sel][k]))]
 def tip_smooth(i):
-    near = [TIP[j][-1] for j in range(i - 2, i + 3) if j in TIP and (j < 119) == (i < 119)]
+    near = [TIP[j][-1] for j in range(i - 2, i + 3) if j in TIP and (j <= W1) == (i <= W1)]
     return np.mean(near, axis=0) if near else None
 
 _cache = {}
@@ -54,8 +66,7 @@ def src(i):
 
 # 줄이 잘린 자리(원본 1480 기준 왼쪽 끝)의 높이·기울기 — 시간축으로 부드럽게
 line = {}
-for i in range(70, 239):
-    if i == 119: continue
+for i in list(range(C1 - 1, W1 + 1)) + list(range(L0, L1 + 1)):
     c = cv2.imdecode(np.fromfile(f'{CUT}{FOLDER[i]}/f{i:03d}.png', np.uint8), cv2.IMREAD_UNCHANGED)
     a = c[..., 3]; lum = c[..., :3].max(2); pts = []
     for x in range(0, 80):
@@ -66,7 +77,7 @@ for i in range(70, 239):
 keys = sorted(line)
 sm = {}
 for i in keys:
-    near = [line[j] for j in keys if abs(j - i) <= 2 and (j < 119) == (i < 119)]
+    near = [line[j] for j in keys if abs(j - i) <= 2 and (j <= W1) == (i <= W1)]
     sm[i] = tuple(np.mean(near, axis=0))
 
 def loop(s, e, C):
@@ -84,7 +95,8 @@ def seq(*spans):
         step = 1 if e >= s else -1
         out += [(i, None, 0) for i in range(s, e + step, step)]
     return out
-TL = [(f, '대기실') for f in seq((0, 50), (49, 30), (31, 50))] +      [(f, '입질대기') for f in seq((51, 118), (117, 95), (96, 118))] +      [(f, '당기기') for f in seq((120, 238))]
+mi = I0 + (I1 - I0) * 3 // 5; mw = W0 + (W1 - W0) * 3 // 5
+TL = [(f, '대기실') for f in seq((I0, I1), (I1 - 1, mi), (mi + 1, I1))] +      [(f, '입질대기') for f in seq((C0, W1), (W1 - 1, mw), (mw + 1, W1))] +      [(f, '당기기') for f in seq((L0, L1))]
 
 def render(name, bgfile, flip, cx, cy, anchor, lc=(225, 225, 232), rc=(235, 240, 255)):
     bg = cv2.imdecode(np.fromfile(BASE + bgfile, np.uint8), cv2.IMREAD_COLOR)
@@ -138,8 +150,7 @@ def render(name, bgfile, flip, cx, cy, anchor, lc=(225, 225, 232), rc=(235, 240,
     vw.release()
     print(name, N, 'frames', round(N / FPS, 1), 's →', out, round(os.path.getsize(out) / 1e6, 1), 'MB')
 
-which = sys.argv[1:] or ['galaxy', 'mureung']
-if 'galaxy' in which:
-    render('은하수바다_발테리아', '성운의 은하수 바다.jpg', True, 0.05 * W, H - CH - 174 * 1.5, (1480, 720))
-if 'mureung' in which:
-    render('무릉도원_발테리아', '무릉도원.png', False, 0.93 * W - CW, H - CH - 195 * 1.5, (600, 880), lc=(62, 60, 58), rc=(90, 110, 115))  # 먹색 줄(흰 안개 위)
+if 'galaxy' in WORLDS:
+    render(f'은하수바다_{TAG}', '성운의 은하수 바다.jpg', True, 0.05 * W, H - CH - 174 * 1.5, (1480, 720))
+if 'mureung' in WORLDS:
+    render(f'무릉도원_{TAG}', '무릉도원.png', False, 0.93 * W - CW, H - CH - 195 * 1.5, (600, 880), lc=(62, 60, 58), rc=(90, 110, 115))  # 먹색 줄(흰 안개 위)
