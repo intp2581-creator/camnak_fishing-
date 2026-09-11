@@ -5742,6 +5742,7 @@ Positioned(
                     const Color(0xFFD4AF37));
                 return;
               }
+              bool notBait = false;   // 🪱 어느 칸에도 안 맞고 미끼도 아닌 물건
               setState(() {
                 String cleanName = iName.replaceAll(' ', '').toUpperCase();
 
@@ -5774,10 +5775,16 @@ Positioned(
                   else if (cleanName.contains('장갑')) { equippedGloves = item; }
                   else if (cleanName.contains('낚시줄')) { equippedLine = item; }
                   else if (cleanName.contains('밑밥')) { equippedGroundbait = item; }
-                  else { equippedBait = item; }
+                  // 🪱 미끼 칸은 미끼만(isBaitLikeItem). 새 종류가 여기로 떨어져 소모되던 사고 차단.
+                  else if (isBaitLikeItem(item)) { equippedBait = item; }
+                  else { notBait = true; }
                 }
               });
               Navigator.pop(context);
+              if (notBait) {
+                _showNotificationPopup('장착 불가', '$iName은(는) 장착하는 물건이 아니에요.', Colors.orangeAccent);
+                return;
+              }
               if (baitSwap && wasCast && oldBaitName != iName) {
                 _recastAfterBaitChange(oldBaitName, iName);
               }
@@ -5884,6 +5891,15 @@ Positioned(
     }
     // 📦 상자는 장착 대상 아님 → 열기로(미끼 슬롯에 잘못 들어가던 버그 방지)
     if ((item['type'] ?? '') == 'BOX') { _openBoxDialog(item); return; }
+    // ⚡ 물약·카드(BOOST) — 한 번 탭은 확인창, 두 번 탭은 바로 사용(장비 더블탭과 같은 규칙).
+    //    이 문이 없어서 맨 아래 미끼 칸에 장착됐고, 챔질마다 카드가 한 장씩 사라졌다
+    //    (2026-09-11 카피바라 제보, 9/9부터 세 번).
+    if ((item['type'] ?? '') == 'BOOST') {
+      audioManager.playSfx('sfx_click.mp3');
+      final bool isExp = (item['boost'] ?? 'exp').toString() == 'exp';
+      _consumeBoost(item, isExp, isExp ? kBoostExpMinutes : kBoostPtsMinutes);
+      return;
+    }
     // 💎 보석 등 재료 — 장착 아이템이 아님
     if (isMaterialItem(item)) {
       _showNotificationPopup('💎 재료 아이템', '보석은 장착하는 물건이 아니에요.\n가방에 두면 낚싯대를 만들 때 재료로 쓰입니다.\n\n민물 광장의 바르탄 영감님을 찾아가세요! 🔨', const Color(0xFFD4AF37));
@@ -5920,6 +5936,8 @@ Positioned(
     final bool baitSwap = _isBaitItem(item);
     final String? oldBaitName = equippedBait?['name']?.toString();
     final bool wasCast = isFloatInWater || isCasting;
+    bool notBait = false;   // 어느 칸에도 안 맞는 물건(미끼도 아님)
+    final bool baitLike = isBaitLikeItem(item);
 
     setState(() {
       String cleanName = item['name'].toString().replaceAll(' ', '').toUpperCase();
@@ -5935,8 +5953,15 @@ Positioned(
       else if (cleanName.contains('장갑')) equippedGloves = item;
       else if (cleanName.contains('낚시줄')) equippedLine = item;
       else if (cleanName.contains('밑밥')) equippedGroundbait = item;
-      else equippedBait = item;
+      // 🪱 미끼 칸은 미끼만. 위에서 못 걸러낸 새 종류의 아이템이 여기로 떨어져
+      //    미끼로 소모되는 사고가 반복됐다(채집망·상자·카드…). 마지막 안전장치.
+      else if (baitLike) equippedBait = item;
+      else notBait = true;
     });
+    if (notBait) {
+      _showNotificationPopup('장착 불가', '${item['name']}은(는) 장착하는 물건이 아니에요.', Colors.orangeAccent);
+      return;
+    }
     if (baitSwap && wasCast && oldBaitName != item['name'].toString()) {
       _recastAfterBaitChange(oldBaitName, item['name'].toString());
       return;

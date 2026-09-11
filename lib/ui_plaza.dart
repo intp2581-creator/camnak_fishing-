@@ -5747,8 +5747,12 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
       globalEquippedLine = same(globalEquippedLine) ? null : item;
     } else if (n.contains('밑밥')) {
       globalEquippedGroundbait = same(globalEquippedGroundbait) ? null : item;
-    } else {
+    } else if (isBaitLikeItem(item)) {
       globalEquippedBait = same(globalEquippedBait) ? null : item;
+    } else {
+      // 🪱 미끼 칸은 미끼만 — 위 분기가 못 알아본 새 종류의 아이템이 미끼로 끼워지던 구멍(2026-09-11)
+      _infoPopup('장착 불가', '${item['name']}은(는) 장착하는 물건이 아니에요.');
+      return;
     }
     setD(() {}); // 다이얼로그 슬롯·스텟 갱신
     setState(() {}); // 플라자 HUD(아바타/스킨) 갱신

@@ -1409,6 +1409,19 @@ String newLineId() => 'ln${DateTime.now().microsecondsSinceEpoch}';
 ///   랜딩에 실패하면 10m씩 줄고, 0이 되면 끊어진다.
 const int kLineDurDefault = 200;
 
+/// 🪱 미끼 칸에 들어갈 수 있는 물건인가 — 장착 분기의 '나머지는 전부 미끼' 자리를 막는 문.
+///   type/category 가 BAIT 이거나(요즘 아이템), 이름이 미끼 이름이면(옛 아이템) 미끼.
+///   이 문이 없어서 채집망·상자·보석·물약·카드가 차례로 미끼 칸에 끼워져 챔질마다
+///   사라졌다(마지막이 2026-09-11 카피바라 KREFT 카드). 새 종류의 아이템이 또 들어와도
+///   여기서 걸린다.
+bool isBaitLikeItem(Map item) {
+  final t = (item['type'] ?? '').toString().toUpperCase();
+  final c = (item['category'] ?? '').toString().toUpperCase();
+  if (t == 'BAIT' || c == 'BAIT') return true;
+  final n = (item['name'] ?? '').toString();
+  return RegExp('미끼|지렁이|글루텐|옥수수|크릴|에기|민물새우|스푼|웜|플라이|루어').hasMatch(n);
+}
+
 const int kSliceCount = 10;   // 한 마리 → 조각 몇 개
 
 /// 잘라서 미끼로 쓸 수 있는 물고기 → 나오는 조각 이름
