@@ -4228,10 +4228,16 @@ Positioned(
     final bool turnOn = item['active'] != true;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final inv = List<dynamic>.from(((await ref.get()).data() ?? {})['inventory'] ?? []);
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로. 전역(gEmblem*)·팝업은 커밋 뒤에만 만진다
+      //    — 안에서 바꾸면 재시도 때 두 번 적용된다.
+      final String eid = (item['eid'] ?? '').toString();
+      String useId = ''; int useSec = 0; String curName = '';
+      bool done = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+      done = false;
+      final inv = List<dynamic>.from(((await tx.get(ref)).data() ?? {})['inventory'] ?? []);
       // 🛡️ 이름은 엠블럼끼리 전부 같다 → 반드시 고유 id 로 찾는다.
       //    예전 엠블럼은 eid 가 없으니, 이 자리에서 하나 붙여준다.
-      final String eid = (item['eid'] ?? '').toString();
       int i = eid.isNotEmpty
           ? inv.indexWhere((x) => x is Map && (x['eid'] ?? '') == eid)
           : inv.indexWhere((x) => x is Map &&
@@ -4239,7 +4245,7 @@ Positioned(
               (x['eid'] ?? '') == '' &&
               (x['secLeft'] ?? -1) == (item['secLeft'] ?? -2));
       if (i < 0) return;
-      final String useId = eid.isNotEmpty ? eid : newEmblemId();
+      useId = eid.isNotEmpty ? eid : newEmblemId();
       // ⚠️ 예전엔 전역 gEmblemSec 을 그대로 써 넣었다. 그러면 다 쓴 엠블럼
       //    다음에 새 엠블럼을 켤 때 0초가 저장돼, 손도 안 댄 것이 켜자마자
       //    사라졌다(2026-09-09 제보). 그 아이템이 갖고 있는 시간을 쓴다.
@@ -4249,7 +4255,8 @@ Positioned(
       final bool same = gEmblemId.isNotEmpty
           ? (useId == gEmblemId)
           : (cur['active'] == true);
-      final int useSec = same ? gEmblemSec : ownSec;
+      useSec = same ? gEmblemSec : ownSec;
+      curName = (cur['name'] ?? '').toString();
       inv[i] = {...cur, 'eid': useId, 'active': turnOn, 'secLeft': useSec};
       // 🛡️ 켜는 건 한 번에 하나 — 다른 엠블럼이 켜져 있었다면 끈다.
       //    (안 끄면 active:true 로 남아 시간도 안 흐르면서 켜진 척만 한다)
@@ -4263,11 +4270,14 @@ Positioned(
           }
         }
       }
-      await ref.update({'inventory': inv});
+      tx.update(ref, {'inventory': inv});
+      done = true;
+      });
+      if (!done) return;
       gEmblemId = useId;
       gEmblemOn = turnOn;
       gEmblemSec = useSec;
-      gEmblemName = (cur['name'] ?? '').toString();
+      gEmblemName = curName;
       if (!mounted) return;
       setState(() {});
       final int left = gEmblemSec;
@@ -5550,25 +5560,32 @@ Positioned(
     if (user == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      if (!snap.exists) return;
-      final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로(상자 열기와 같은 방식).
+      //    안에서는 확인·계산·쓰기만, 팝업·소리는 끝난 뒤에(재시도돼도 한 번만).
+      bool done = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        done = false;
+        final snap = await tx.get(ref);
+        if (!snap.exists) return;
+        final List<dynamic> inv = List.from(snap.data()?['inventory'] ?? []);
 
-      final int fi = inv.indexWhere((e) =>
-          e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
-      if (fi < 0) return;
-      final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
-      if (fq <= 0) return;
-      if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
+        final int fi = inv.indexWhere((e) =>
+            e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
+        if (fi < 0) return;
+        final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
+        if (fq <= 0) return;
+        if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
 
-      final int bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
-      if (bi >= 0) {
-        inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
-      } else {
-        inv.add(makeBaitSlice(sliceName));
-      }
-      await ref.update({'inventory': inv});
-      if (!mounted) return;
+        final int bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
+        if (bi >= 0) {
+          inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
+        } else {
+          inv.add(makeBaitSlice(sliceName));
+        }
+        tx.update(ref, {'inventory': inv});
+        done = true;
+      });
+      if (!done || !mounted) return;
       audioManager.playSfx('sfx_click.mp3');
       _showNotificationPopup(
         '🔪 손질 완료',

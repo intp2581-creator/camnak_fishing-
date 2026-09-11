@@ -5579,23 +5579,30 @@ class _PlazaScreenState extends State<PlazaScreen> with SingleTickerProviderStat
     if (user == null) return;
     try {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
-      final snap = await ref.get();
-      if (!snap.exists) return;
-      final inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
-      final fi = inv.indexWhere((e) =>
-          e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
-      if (fi < 0) return;
-      final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
-      if (fq <= 0) return;
-      if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
-      final bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
-      if (bi >= 0) {
-        inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
-      } else {
-        inv.add(makeBaitSlice(sliceName));
-      }
-      await ref.update({'inventory': inv});
-      if (!mounted) return;
+      // 🔒 [2026-09-11] 가방 쓰기는 트랜잭션으로(낚시터 _sliceFishToBait 와 같은 방식).
+      List<dynamic> inv = const [];
+      bool done = false;
+      await FirebaseFirestore.instance.runTransaction((tx) async {
+        done = false;
+        final snap = await tx.get(ref);
+        if (!snap.exists) return;
+        inv = List<dynamic>.from(snap.data()?['inventory'] ?? []);
+        final fi = inv.indexWhere((e) =>
+            e is Map && (e['name'] ?? '') == fishName && (e['type'] ?? '') == 'FISH');
+        if (fi < 0) return;
+        final int fq = ((inv[fi]['quantity'] ?? 0) as num).toInt();
+        if (fq <= 0) return;
+        if (fq <= 1) { inv.removeAt(fi); } else { inv[fi]['quantity'] = fq - 1; }
+        final bi = inv.indexWhere((e) => e is Map && (e['name'] ?? '') == sliceName);
+        if (bi >= 0) {
+          inv[bi]['quantity'] = ((inv[bi]['quantity'] ?? 0) as num).toInt() + kSliceCount;
+        } else {
+          inv.add(makeBaitSlice(sliceName));
+        }
+        tx.update(ref, {'inventory': inv});
+        done = true;
+      });
+      if (!done || !mounted) return;
       setState(() => _inventory = inv);   // 스트림보다 먼저 화면에 반영
       setD(() {});
       audioManager.playSfx('sfx_click.mp3');
