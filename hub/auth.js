@@ -528,3 +528,31 @@ autoLoginFromUrl();
     document.addEventListener('DOMContentLoaded', mount);
   } else { mount(); }
 })();
+
+
+/* ══════════════════════════════════════════════════════════════
+   📊 방문 기록 — 페이지가 열릴 때 서버에 한 줄 알린다(개인정보 없음).
+     · 어디서 왔는가: 주소의 ?from= 값 → 없으면 눌러 들어온 사이트(referrer)
+     · from 값은 기억해 둔다(게임 가입 때 같이 넘겨 유입 경로를 센다)
+     · 같은 브라우저의 그날 첫 방문만 uniq 로 센다
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  var HIT='https://us-central1-camnak-fishing.cloudfunctions.net/siteHit';
+  function q(n){ try{ return new URLSearchParams(location.search).get(n)||''; }catch(e){ return ''; } }
+  var src=q('from')||q('utm_source');
+  try{
+    if(src) localStorage.setItem('cf_src',src);
+    else src=localStorage.getItem('cf_src')||'';
+  }catch(e){}
+  var first=false;
+  try{
+    var today=new Date(Date.now()+9*3600*1000).toISOString().slice(0,10);
+    first = localStorage.getItem('cf_hit_day')!==today;
+    if(first) localStorage.setItem('cf_hit_day',today);
+  }catch(e){ }
+  try{
+    fetch(HIT,{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,
+      body:JSON.stringify({src:src,ref:document.referrer||'',first:first,
+                           page:(location.pathname.split('/').pop()||'index.html')})}).catch(function(){});
+  }catch(e){}
+})();

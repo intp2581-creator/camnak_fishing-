@@ -16,6 +16,7 @@
 
 const functions = require("firebase-functions/v2");
 const admin = require("firebase-admin");
+const {onRequest} = require("firebase-functions/v2/https");
 
 const RTDB_URL =
   "https://camnak-fishing-default-rtdb.asia-southeast1.firebasedatabase.app";
@@ -80,9 +81,79 @@ exports.collectOnlineStats = functions.scheduler.onSchedule(
     },
 );
 
+
+// ══════════════════════════════════════════════════════════════
+// 🏠 [홈페이지 방문] 페이지가 열릴 때 한 번 알려온다(로그인 불필요).
+//   저장 모양 — stats_site/{YYYY-MM-DD}
+//     visits : 그날 열린 페이지 수
+//     uniq   : 그날 처음 온 브라우저 수(브라우저가 first=1 로 알려줄 때만)
+//     bySrc  : { insta: 12, youtube: 3, direct: 40, ... } 어디서 왔는가
+//   ⚠️ 어디서 왔는지는 주소의 ?from= 값을 먼저 보고, 없으면 어느 사이트에서
+//      눌러 들어왔는지(referrer)로 가른다. 둘 다 없으면 direct.
+// ══════════════════════════════════════════════════════════════
+function srcKey(raw, ref) {
+  const v = String(raw || "").toLowerCase().slice(0, 20).replace(/[^a-z0-9_-]/g, "");
+  if (v) return v;
+  const r = String(ref || "").toLowerCase();
+  if (!r) return "direct";
+  if (r.includes("instagram")) return "insta";
+  if (r.includes("youtube") || r.includes("youtu.be")) return "youtube";
+  if (r.includes("naver")) return "naver";
+  if (r.includes("google")) return "google";
+  if (r.includes("kakao")) return "kakao";
+  if (r.includes("camnak.com")) return "camnak";
+  if (r.includes("kreft.co.kr") || r.includes("camfishing")) return "self";
+  return "etc";
+}
+
+async function bumpSite(day, fields) {
+  const ref = admin.firestore().collection("stats_site").doc(day);
+  const inc = admin.firestore.FieldValue.increment(1);
+  // ⚠️ set() 은 키의 점을 경로로 읽지 않는다("bySrc.insta" 라는 이름의 칸이 생긴다).
+  //    묶음으로 넣으려면 실제 중첩 객체로 만들어야 한다.
+  const upd = {lastAt: admin.firestore.FieldValue.serverTimestamp()};
+  fields.forEach((f) => {
+    const i = f.indexOf(".");
+    if (i < 0) {
+      upd[f] = inc;
+    } else {
+      const g = f.slice(0, i);
+      upd[g] = Object.assign({}, upd[g], {[f.slice(i + 1)]: inc});
+    }
+  });
+  await ref.set(upd, {merge: true});
+}
+
+exports.siteHit = onRequest({region: "us-central1", cors: true}, async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(204).send("");
+  try {
+    const b = req.body || {};
+    const key = srcKey(b.src, b.ref);
+    const {day} = kstNow();
+    const f = ["visits", "bySrc." + key];
+    if (b.first) f.push("uniq", "uniqBySrc." + key);
+    await bumpSite(day, f);
+    return res.json({ok: true});
+  } catch (e) {
+    return res.status(200).json({ok: false});           // 방문 기록 실패가 화면을 막지 않는다
+  }
+});
+
+// 🆕 [가입 집계] 게임 계정이 만들어지면 그날 칸에 +1. 어디서 온 사람인지(src)도 같이 센다.
+exports.onUserCreated = require("firebase-functions/v2/firestore").onDocumentCreated(
+    {document: "users/{uid}", region: "us-central1"},
+    async (event) => {
+      const d = event.data && event.data.data ? event.data.data() : {};
+      const key = srcKey(d.src, "");
+      const {day} = kstNow();
+      await bumpSite(day, ["signups", "signupBySrc." + key]);
+    },
+);
+
 // ── 📊 통계 읽기(운영자) ─────────────────────────────
 //   GET ?days=14  최근 며칠치. 닉네임 목록은 무겁고 볼 일도 없어서 빼고 숫자만 준다.
-const {onRequest} = require("firebase-functions/v2/https");
 
 async function requireGm(req) {
   const m = String(req.get("Authorization") || "").match(/^Bearer\s+(.+)$/i);
@@ -111,6 +182,33 @@ exports.statsApi = onRequest({region: "us-central1", cors: true}, async (req, re
     const col = admin.firestore().collection("stats_online");
     const docs = await admin.firestore().getAll(...ids.map((id) => col.doc(id)));
 
+    // 🏠 같은 날짜의 홈페이지 방문·가입 문서도 같이 읽는다
+    const scol = admin.firestore().collection("stats_site");
+    const sdocs = await admin.firestore().getAll(...ids.map((id) => scol.doc(id)));
+    const site = {};
+    sdocs.forEach((d, i) => {
+      site[ids[i]] = d.exists ? d.data() : {};
+    });
+
+    // 🧮 전체 계정 수 — 문서를 다 읽지 않고 세기만 한다(요금 적음)
+    let total = 0;
+    try {
+      const agg = await admin.firestore().collection("users").count().get();
+      total = agg.data().count || 0;
+    } catch (e) { /* 세기 실패해도 나머지는 보여준다 */ }
+
+    // 📅 지난 날짜의 가입자 수 — 집계가 없던 날은 createdAt 으로 직접 센다
+    const users = admin.firestore().collection("users");
+    for (const id of ids) {
+      if (site[id] && typeof site[id].signups === "number") continue;
+      const s0 = new Date(id + "T00:00:00+09:00");
+      const s1 = new Date(s0.getTime() + 86400 * 1000);
+      try {
+        const agg = await users.where("createdAt", ">=", s0).where("createdAt", "<", s1).count().get();
+        site[id] = Object.assign({}, site[id], {signups: agg.data().count || 0, signupsCalc: true});
+      } catch (e) { /* 옛 계정은 createdAt 이 없을 수 있다 */ }
+    }
+
     const out = docs.map((d, i) => {
       const v = d.exists ? d.data() : {};
       const hours = v.hours || {};
@@ -120,9 +218,14 @@ exports.statsApi = onRequest({region: "us-central1", cors: true}, async (req, re
         const k = String(h).padStart(2, "0");
         byHour.push(hours[k] ? (hours[k].max || 0) : 0);
       }
-      return {day: ids[i], dau: v.dau || 0, peak: v.peak || 0, hours: byHour};
+      const w = site[ids[i]] || {};
+      return {
+        day: ids[i], dau: v.dau || 0, peak: v.peak || 0, hours: byHour,
+        visits: w.visits || 0, uniq: w.uniq || 0, signups: w.signups || 0,
+        bySrc: w.bySrc || {}, uniqBySrc: w.uniqBySrc || {}, signupBySrc: w.signupBySrc || {},
+      };
     });
-    return res.json({ok: true, days: out});
+    return res.json({ok: true, days: out, totalAccounts: total});
   } catch (e) {
     return res.status(400).json({ok: false, err: e.message});
   }

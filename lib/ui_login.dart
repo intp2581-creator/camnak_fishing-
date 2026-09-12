@@ -364,9 +364,14 @@ class _NicknameSetupScreenState extends State<NicknameSetupScreen> {
       return;
     }
 
+    // 📊 유입 경로 — 홈페이지가 넘겨준 ?from= (인스타·유튜브 등). 없으면 빈 값.
+    //    가입 집계(functions/stats.js onUserCreated)가 이 값으로 어디서 온 사람인지 센다.
+    final String src = (Uri.base.queryParameters['from'] ?? '')
+        .toLowerCase().replaceAll(RegExp(r'[^a-z0-9_-]'), '');
     await FirebaseFirestore.instance.collection('users').doc(widget.uid).set({
       'nickname': nick,
       'email': widget.email,
+      if (src.isNotEmpty) 'src': src.substring(0, src.length > 20 ? 20 : src.length),
       'level': 1,
       'gold': 0, 
       'createdAt': FieldValue.serverTimestamp(),

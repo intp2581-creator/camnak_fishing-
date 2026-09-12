@@ -1001,3 +1001,5 @@ exports.giftApi = require("./gift").giftApi;
 // 📊 접속 통계 — 10분마다 현재 접속자를 세어 쌓고, 관리 화면이 읽어 간다.
 exports.collectOnlineStats = require("./stats").collectOnlineStats;
 exports.statsApi = require("./stats").statsApi;
+exports.siteHit = require("./stats").siteHit;
+exports.onUserCreated = require("./stats").onUserCreated;

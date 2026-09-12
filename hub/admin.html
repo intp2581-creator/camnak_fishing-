@@ -44,6 +44,13 @@
   .msg{padding:12px 16px;border-radius:10px;margin:12px 0;font-size:14.5px;font-weight:700;display:none}
   .msg.ok{background:#e6f8f0;color:#1c8b5f;display:block}
   .msg.err{background:#fdeaea;color:#c0392b;display:block}
+  /* 📊 통계 */
+  .stcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+  .stcard{background:#f7fafc;border:1px solid #e3ecf2;border-radius:12px;padding:14px 16px}
+  .stcard b{display:block;font-size:13px;color:#5b7183;font-weight:700}
+  .stcard i{display:block;font-style:normal;font-size:30px;font-weight:800;color:#12303f;margin-top:6px}
+  .stcard u{display:block;text-decoration:none;font-size:12.5px;color:#7b8fa0;margin-top:4px}
+  .bar{height:9px;border-radius:5px;background:#2f80b5;min-width:2px}
   table{width:100%;border-collapse:collapse;font-size:14.5px}
   th,td{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line)}
   th{color:var(--ink-soft);font-size:13px}
@@ -177,9 +184,39 @@
       <button class="btn ghost" id="tabStore">🛒 상품</button>
       <button class="btn ghost" id="tabOrder">🧾 주문·환불</button>
       <button class="btn ghost" id="tabLive">🟢 접속 현황</button>
+      <button class="btn ghost" id="tabStats">📊 통계</button>
       <a class="btn ghost" id="viewLink" href="notice.html" target="_blank" style="text-decoration:none">페이지 보기 ↗</a>
       <span class="who" id="who"></span>
       <button class="btn ghost" id="logoutBtn">로그아웃</button>
+    </div>
+
+    <!-- 📊 통계 -->
+    <div id="statsBox" class="hide">
+      <div class="card" style="margin-bottom:16px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <h2 style="margin:0;font-size:17px">오늘</h2>
+          <span class="muted" id="stToday"></span>
+          <select id="stDays" style="margin-left:auto">
+            <option value="14">최근 14일</option>
+            <option value="30" selected>최근 30일</option>
+            <option value="60">최근 60일</option>
+          </select>
+          <button class="btn ghost" id="stReload">새로고침</button>
+        </div>
+        <div id="stCards" class="stcards">불러오는 중…</div>
+      </div>
+      <div class="card" style="margin-bottom:16px">
+        <h2 style="margin:0 0 10px;font-size:17px">어디서 들어왔나</h2>
+        <p class="muted" style="margin:0 0 12px">
+          주소 뒤에 <b>?from=insta</b> 처럼 붙여 홍보하시면 그 경로로 셉니다.
+          없으면 눌러 들어온 사이트로 가릅니다.
+        </p>
+        <div id="stSrc">불러오는 중…</div>
+      </div>
+      <div class="card">
+        <h2 style="margin:0 0 10px;font-size:17px">날짜별</h2>
+        <div id="stDaily">불러오는 중…</div>
+      </div>
     </div>
 
     <!-- 🧾 주문 · 환불 -->
@@ -620,9 +657,12 @@ function showTab(which){
   $('storeBox').classList.toggle('hide', !isStore);
   $('orderBox').classList.toggle('hide', !isOrder);
   $('liveBox').classList.toggle('hide', !isLive);
+  const isStats = which==='stats';
+  $('statsBox').classList.toggle('hide', !isStats);
   if(!isStore) $('stEdit').classList.add('hide');
   if(!isOrder) $('odRefund').classList.add('hide');
-  $('pageTitle').textContent = isLive ? '🟢 접속 현황'
+  $('pageTitle').textContent = isStats ? '📊 통계'
+                             : isLive ? '🟢 접속 현황'
                              : isOrder ? '🧾 주문 · 환불'
                              : isStore ? '🛒 상품 관리' : '📢 공지 관리';
   $('viewLink').href = isOrder ? 'orders.html' : isStore ? 'store.html' : 'notice.html';
@@ -630,10 +670,75 @@ function showTab(which){
   $('tabStore').className  = 'btn '+(isStore?'primary':'ghost');
   $('tabOrder').className  = 'btn '+(isOrder?'primary':'ghost');
   $('tabLive').className   = 'btn '+(isLive?'primary':'ghost');
+  $('tabStats').className  = 'btn '+(isStats?'primary':'ghost');
+  if(isStats) stLoad();
   if(isStore) loadStore();
   if(isOrder) odLoad();
   // 🟢 실시간 구독은 그 탭을 볼 때만 — 켜 두면 다른 화면에서도 계속 받아 온다.
   if(isLive) liveStart(); else liveStop();
+}
+
+
+/* ═══ 📊 통계 ═══════════════════════════════════════════
+   서버(statsApi)가 날짜별로 준다 — 홈페이지 방문·게임 접속(DAU)·신규 가입·유입 경로.
+   ⚠️ 홈페이지 방문과 유입 경로는 2026-09-12부터 쌓인다(그 전은 기록이 없다).
+   가입자 수는 계정의 가입 시각으로 지난 날짜까지 거슬러 센다. */
+const STAPI='https://us-central1-camnak-fishing.cloudfunctions.net/statsApi';
+const SRC_NAME={insta:'인스타그램',instagram:'인스타그램',youtube:'유튜브',naver:'네이버',
+                google:'구글',kakao:'카카오',camnak:'캠피싱 쇼핑몰',self:'홈페이지 안',
+                direct:'주소 직접',etc:'기타'};
+function srcName(k){ return SRC_NAME[k]||k; }
+function stNum(n){ return (n||0).toLocaleString('ko-KR'); }
+function stCard(t,v,u){
+  return '<div class="stcard"><b>'+t+'</b><i>'+stNum(v)+'</i><u>'+(u||'')+'</u></div>';
+}
+
+async function stLoad(){
+  const days=($('stDays')&&$('stDays').value)||30;
+  $('stCards').textContent='불러오는 중…';
+  let j;
+  try{
+    const t=await auth.currentUser.getIdToken();
+    const r=await fetch(STAPI+'?days='+days,{headers:{Authorization:'Bearer '+t}});
+    j=await r.json();
+  }catch(e){ j={ok:false,err:'불러오지 못했습니다'}; }
+  if(!j.ok){ $('stCards').textContent=j.err||'불러오지 못했습니다'; return; }
+  const d=j.days||[], today=d[0]||{}, y=d[1]||{};
+  $('stToday').textContent=today.day||'';
+  function delta(a,b){
+    if(b===undefined) return '';
+    const v=(a||0)-(b||0);
+    return v===0?'어제와 같음':(v>0?'어제보다 +'+v:'어제보다 '+v);
+  }
+  $('stCards').innerHTML=
+    stCard('홈페이지 방문',today.visits,'다녀간 브라우저 '+stNum(today.uniq))+
+    stCard('게임 접속',today.dau,delta(today.dau,y.dau)+' · 최대 동시 '+stNum(today.peak))+
+    stCard('신규 가입',today.signups,delta(today.signups,y.signups))+
+    stCard('전체 계정',j.totalAccounts,'지금까지 만들어진 게임 계정');
+
+  const vs={}, ss={};
+  d.forEach(function(x){
+    Object.keys(x.uniqBySrc||{}).forEach(function(k){ vs[k]=(vs[k]||0)+x.uniqBySrc[k]; });
+    Object.keys(x.signupBySrc||{}).forEach(function(k){ ss[k]=(ss[k]||0)+x.signupBySrc[k]; });
+  });
+  const keys=Object.keys(vs).concat(Object.keys(ss).filter(function(k){return !(k in vs);}));
+  const maxv=Math.max(1,...keys.map(function(k){return vs[k]||0;}));
+  $('stSrc').innerHTML = keys.length
+    ? '<table><tr><th>경로</th><th style="width:90px">방문</th><th style="width:90px">가입</th><th></th></tr>'
+      + keys.sort(function(a,b){return (vs[b]||0)-(vs[a]||0);}).map(function(k){
+          return '<tr><td>'+srcName(k)+'</td><td>'+stNum(vs[k])+'</td><td>'+stNum(ss[k])+'</td>'
+            +'<td><div class="bar" style="width:'+Math.round((vs[k]||0)/maxv*100)+'%"></div></td></tr>';
+        }).join('')+'</table>'
+    : '<p class="muted" style="margin:0">아직 쌓인 기록이 없습니다. 오늘부터 쌓입니다.</p>';
+
+  const mx=Math.max(1,...d.map(function(x){return Math.max(x.visits||0,x.dau||0);}));
+  $('stDaily').innerHTML='<table><tr><th>날짜</th><th style="width:90px">홈페이지</th>'
+    +'<th style="width:90px">게임 접속</th><th style="width:80px">가입</th><th></th></tr>'
+    + d.map(function(x){
+        return '<tr><td>'+x.day+'</td><td>'+stNum(x.visits)+'</td><td>'+stNum(x.dau)+'</td>'
+          +'<td>'+stNum(x.signups)+'</td>'
+          +'<td><div class="bar" style="width:'+Math.round((x.dau||0)/mx*100)+'%"></div></td></tr>';
+      }).join('')+'</table>';
 }
 
 /* ═══ 🟢 접속 현황 ═══════════════════════════════════════
@@ -1262,6 +1367,9 @@ document.addEventListener('DOMContentLoaded',function(){
   if($('tabStore'))  $('tabStore').onclick =function(){ showTab('store'); };
   if($('tabOrder'))  $('tabOrder').onclick =function(){ showTab('order'); };
   if($('tabLive'))   $('tabLive').onclick  =function(){ showTab('live'); };
+  if($('tabStats'))  $('tabStats').onclick =function(){ showTab('stats'); };
+  if($('stReload'))  $('stReload').onclick =function(){ stLoad(); };
+  if($('stDays'))    $('stDays').onchange  =function(){ stLoad(); };
   if($('odFind'))    $('odFind').onclick   = odLoad;
   if($('odDo'))      $('odDo').onclick     = odRefundGo;
   if($('odCancel'))  $('odCancel').onclick = function(){ $('odRefund').classList.add('hide'); };

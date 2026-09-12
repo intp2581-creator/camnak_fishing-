@@ -118,6 +118,14 @@
     return btoa(unescape(encodeURIComponent(v)))
       .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   }
+  // 📊 유입 경로(인스타·유튜브 등)를 게임까지 넘긴다 — 가입 때 어디서 왔는지 세려고
+  function srcParam(){
+    try{
+      var s=new URLSearchParams(location.search).get('from')||localStorage.getItem('cf_src')||'';
+      s=s.toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,20);
+      return s ? '&from='+s : '';
+    }catch(e){ return ''; }
+  }
   function launch(email){
     if (launched) return;
     launched = true;
@@ -127,7 +135,7 @@
     //    (아임웹 /30 페이지가 쓰던 allow와 동일하게 유지할 것, 2026-08-30)
     st.innerHTML = '<div class="frame"><iframe id="gameFrame"'
       + ' allow="autoplay; fullscreen; geolocation"'
-      + ' allowfullscreen src="' + GAME_ORIGIN + '/?k=' + b64url(email) + '"></iframe></div>';
+      + ' allowfullscreen src="' + GAME_ORIGIN + '/?k=' + b64url(email) + srcParam() + '"></iframe></div>';
   }
 
   function askLogin(){
