@@ -89,6 +89,22 @@
   .pdet .pimgs{padding:0 28px 22px;display:flex;flex-direction:column;gap:12px}
   .pdet .pimgs img{width:100%;border-radius:12px;cursor:zoom-in}
 
+  /* ❤️ 좋아요 — 댓글을 안 달아도 마음은 남길 수 있게 (2026-09-12) */
+  .lk{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#e0393e;font-weight:700}
+  .lkbtn{display:inline-flex;align-items:center;gap:8px;margin:14px 0 0;
+         padding:9px 18px;border:1.5px solid #f0b8ba;border-radius:999px;
+         background:#fff;color:#e0393e;font-weight:800;font-size:15px;
+         font-family:inherit;cursor:pointer;transition:.15s}
+  .lkbtn:hover{background:#fff2f3}
+  .lkbtn .h{font-size:17px;line-height:1}
+  .lkbtn.on{background:#ffe9ea;border-color:#e0393e}
+  .lkbtn:disabled{opacity:.6;cursor:default}
+  .lkmini{margin-left:auto;display:inline-flex;align-items:center;gap:5px;
+          border:none;background:none;padding:2px 4px;color:#e0393e;
+          font-weight:700;font-size:13.5px;font-family:inherit;cursor:pointer}
+  .lkmini:hover{opacity:.75}
+  .lkmini.on{font-weight:800}
+  .cm-hd .del{margin-left:10px}
   /* 댓글 */
   .cbox{background:var(--card);border:1px solid var(--line);border-radius:16px;
     box-shadow:var(--shadow-sm);padding:22px 26px;margin-bottom:18px}
@@ -327,6 +343,7 @@
           + '<div class="meta">'+nameTag(n)
           + '<span>'+ago(n.createdAt)+'</span><span>조회 '+n.views+'</span></div></div>'
           + (n.comments?'<span class="cm">💬 '+n.comments+'</span>':'')
+          + (n.likes?'<span class="lk">♥ '+n.likes+'</span>':'')
           + '</div>';
       }).join('');
     }).catch(function(){ box.innerHTML='<div class="empty">불러오지 못했습니다.</div>'; });
@@ -436,6 +453,8 @@
     if(n.images && n.images.length){
       html+='<div class="pimgs">'+n.images.map(function(u){return '<img src="'+u+'" alt="">';}).join('')+'</div>';
     }
+    html+='<div style="text-align:center"><button class="lkbtn'+(n.liked?' on':'')+'" id="lkBtn">'
+      +'<span class="h">'+(n.liked?'♥':'♡')+'</span><span id="lkNum">'+(n.likes||0)+'</span></button></div>';
     html+='</div>';
 
     html+='<div class="cbox"><h3>💬 댓글 '+cs.length+'</h3>';
@@ -443,6 +462,8 @@
       var cd=(myUid&&c.authorUid===myUid)||myIsGm;
       return '<div class="cm-item"><div class="cm-hd">'+nameTag(c)
         +'<span class="dt">'+ago(c.createdAt)+'</span>'
+        +'<button class="lkmini'+(c.liked?' on':'')+'" data-lc="'+c.id+'">'
+        +'<span class="h">'+(c.liked?'♥':'♡')+'</span><span class="n">'+(c.likes||0)+'</span></button>'
         +(cd?'<button class="del" data-c="'+c.id+'">삭제</button>':'')
         +'</div><div class="cm-bd">'+esc(c.body)+'</div></div>';
     }).join('') : '<p style="color:#9fb6bf;font-size:14.5px;margin:0">첫 댓글을 남겨보세요.</p>';
@@ -458,6 +479,31 @@
 
     document.querySelectorAll('.pimgs img').forEach(function(im){
       im.onclick=function(){var lb=document.getElementById('lb2');lb.querySelector('img').src=im.src;lb.classList.add('on');};
+    });
+    // ❤️ 좋아요 — 로그인해야 누를 수 있고, 다시 누르면 취소된다
+    var lb=document.getElementById('lkBtn');
+    if(lb) lb.onclick=async function(){
+      if(!(window.__auth && window.__auth.currentUser)){ alert('좋아요를 누르시려면 로그인이 필요합니다.'); return; }
+      lb.disabled=true;
+      var r=await post({action:'like',postId:n.id});
+      lb.disabled=false;
+      if(!r.ok){ alert(r.err||'잠시 후 다시 시도해 주세요'); return; }
+      lb.classList.toggle('on', r.liked);
+      lb.querySelector('.h').textContent = r.liked?'♥':'♡';
+      document.getElementById('lkNum').textContent = r.likes;
+    };
+    // ❤️ 댓글 좋아요
+    document.querySelectorAll('[data-lc]').forEach(function(bt){
+      bt.onclick=async function(){
+        if(!(window.__auth && window.__auth.currentUser)){ alert('좋아요를 누르시려면 로그인이 필요합니다.'); return; }
+        bt.disabled=true;
+        var r=await post({action:'like',commentId:bt.getAttribute('data-lc')});
+        bt.disabled=false;
+        if(!r.ok){ alert(r.err||'잠시 후 다시 시도해 주세요'); return; }
+        bt.classList.toggle('on', r.liked);
+        bt.querySelector('.h').textContent = r.liked?'♥':'♡';
+        bt.querySelector('.n').textContent = r.likes;
+      };
     });
     var dp=document.getElementById('delPost');
     if(dp) dp.onclick=async function(){

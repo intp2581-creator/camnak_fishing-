@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
 // 💬 [커뮤니티 API] camfishing.web.app 유저 게시판
-//   컬렉션: community_posts / community_comments
+//   컬렉션: community_posts / community_comments / community_likes
+//   ❤️ 좋아요: 글·댓글 하나에 한 사람 한 번, 다시 누르면 취소
+//             문서 id = <글id>_<uid> · 댓글은 c_<댓글id>_<uid>
 //   GET  ?list=1&board=free[&limit=20][&after=<ms>]  → 목록
 //   GET  ?id=<문서id>                                → 상세(+조회수, 댓글 포함)
 //   POST (Authorization: Bearer <IdToken>)           → write/comment/delete/deleteComment
@@ -79,6 +81,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
   const db = admin.firestore();
   const posts = db.collection("community_posts");
   const comments = db.collection("community_comments");
+  const likes = db.collection("community_likes");
 
   try {
     // ── 조회 ───────────────────────────────
@@ -101,6 +104,12 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
         if (d.board === "myguild" && !canSeeGuildPost(d, viewer)) {
           return res.status(403).json({ ok: false, err: "우리 길드 게시판만 보실 수 있습니다" });
         }
+        // ❤️ 내가 이 글에 좋아요를 눌렀는지 — 비로그인은 항상 false
+        let liked = false;
+        if (viewer) {
+          const lk = await likes.doc(id + "_" + viewer.uid).get();
+          liked = lk.exists && lk.data().on === true;
+        }
         const cs = await comments.where("postId", "==", id).limit(200).get();
         const cList = [];
         cs.forEach((c) => {
@@ -110,8 +119,15 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
             id: c.id, body: v.body || "", author: v.author || "", rank: v.rank || "",
             gm: v.gm === true,
             authorUid: v.authorUid || "", createdAt: v.createdAt ? v.createdAt.toMillis() : 0,
+            likes: v.likeCount || 0, liked: false,
           });
         });
+        // ❤️ 댓글 좋아요 — 내가 누른 것만 한 번에 읽는다(댓글 수만큼 조회하지 않는다)
+        if (viewer && cList.length) {
+          const refs = cList.map((c) => likes.doc("c_" + c.id + "_" + viewer.uid));
+          const got = await db.getAll(...refs);
+          got.forEach((g, i) => { cList[i].liked = g.exists && g.data().on === true; });
+        }
         cList.sort((a, b) => a.createdAt - b.createdAt);
         return res.json({
           ok: true,
@@ -120,6 +136,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
             author: d.author, rank: d.rank || "", authorUid: d.authorUid || "", gm: d.gm === true,
             views: d.views || 0, createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
             guildName: d.guildName || "",
+            likes: d.likeCount || 0, liked: liked,
           },
           comments: cList,
         });
@@ -143,6 +160,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
           id: doc.id, board: d.board, title: d.title || "",
           author: d.author || "", rank: d.rank || "", gm: d.gm === true,
           views: d.views || 0, comments: d.commentCount || 0,
+          likes: d.likeCount || 0,
           thumb: d.thumb || "",   // ⚠️ 원본 대신 썸네일만 (다운로드 요금 절감)
           hasImage: Array.isArray(d.images) && d.images.length > 0,
           createdAt: d.createdAt ? d.createdAt.toMillis() : 0,
@@ -196,7 +214,7 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
       const ref = await posts.add({
         board: board, title: title, body: body, images: [],
         author: me.nick, rank: me.rank, authorUid: me.uid, gm: me.isGm === true,
-        views: 0, commentCount: 0, deleted: false,
+        views: 0, commentCount: 0, likeCount: 0, deleted: false,
         ...(board === "myguild" ? { guildId: me.guildId, guildName: me.guildName } : {}),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -226,10 +244,35 @@ exports.communityApi = functions.https.onRequest(async (req, res) => {
       await comments.add({
         postId: postId, body: body, author: me.nick, rank: me.rank, authorUid: me.uid,
         gm: me.isGm === true,
-        deleted: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        likeCount: 0, deleted: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       await posts.doc(postId).update({ commentCount: admin.firestore.FieldValue.increment(1) });
       return res.json({ ok: true });
+    }
+
+    // ❤️ 좋아요 — 댓글을 안 달아도 마음을 남길 수 있게(2026-09-12).
+    //    문서 하나에 한 사람 한 번. 다시 누르면 끈다. 세는 값은 트랜잭션으로만 올린다.
+    if (action === "like") {
+      const postId = String(b.postId || "");
+      const commentId = String(b.commentId || "");
+      if (!postId && !commentId) return res.status(400).json({ ok: false, err: "글을 찾을 수 없습니다" });
+      const isC = !!commentId;
+      const pRef = isC ? comments.doc(commentId) : posts.doc(postId);
+      const lRef = likes.doc((isC ? "c_" + commentId : postId) + "_" + me.uid);
+      const out = await db.runTransaction(async (tx) => {
+        const pd = await tx.get(pRef);
+        if (!pd.exists || pd.data().deleted === true) throw new Error(isC ? "댓글을 찾을 수 없습니다" : "글을 찾을 수 없습니다");
+        const ld = await tx.get(lRef);
+        const on = !(ld.exists && ld.data().on === true);
+        const cur = (pd.data().likeCount || 0) + (on ? 1 : -1);
+        tx.set(lRef, {
+          postId: postId, commentId: commentId, uid: me.uid, nick: me.nick, on: on,
+          at: admin.firestore.FieldValue.serverTimestamp(),
+        }, { merge: true });
+        tx.update(pRef, { likeCount: cur < 0 ? 0 : cur });
+        return { on: on, likes: cur < 0 ? 0 : cur };
+      });
+      return res.json({ ok: true, liked: out.on, likes: out.likes });
     }
 
     if (action === "delete") {
